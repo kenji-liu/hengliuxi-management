@@ -13,6 +13,8 @@ import json
 import io
 import csv
 import os
+import base64
+from urllib.parse import quote
 from database_manager import HengliuxiDatabase
 
 # Import RAG blueprint
@@ -33,6 +35,41 @@ except ImportError as e:
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 WEBAPP_DIR = os.path.join(PROJECT_ROOT, 'webapp')
 DB_PATH = os.path.join(PROJECT_ROOT, 'hengliuxi.db')
+
+# OneDrive 雲端媒體設定（設定環境變數後自動啟用）
+# ONEDRIVE_SHARE_URL：OneDrive 資料夾分享連結，例如 https://1drv.ms/f/s!XXXXXX
+ONEDRIVE_SHARE_URL = os.environ.get('ONEDRIVE_SHARE_URL', '')
+# ONEDRIVE_BASE_FOLDER：分享的資料夾名稱（對應到 media path 的前綴）
+ONEDRIVE_BASE_FOLDER = os.environ.get('ONEDRIVE_BASE_FOLDER', '01_工程設施維護與資料')
+
+
+def make_onedrive_redirect_url(media_path):
+    """
+    將本地 media_path 轉換為 OneDrive API 直接下載 URL。
+    media_path 例：01_工程設施維護與資料/巡查紀錄/file.pdf
+    OneDrive Shares API：https://api.onedrive.com/v1.0/shares/{id}/root:/{path}:/content
+    """
+    if not ONEDRIVE_SHARE_URL:
+        return None
+
+    # 標準化路徑分隔符
+    norm = media_path.replace('\\', '/')
+
+    # 如果路徑包含 base folder 前綴，移除它（因為分享的就是這個資料夾）
+    base = ONEDRIVE_BASE_FOLDER.rstrip('/')
+    if norm.startswith(base + '/'):
+        relative = norm[len(base) + 1:]
+    else:
+        relative = norm
+
+    # 將分享連結編碼為 OneDrive shares API 所需的 base64url 格式
+    b64 = base64.b64encode(ONEDRIVE_SHARE_URL.encode('utf-8')).decode('utf-8')
+    b64 = b64.rstrip('=').replace('+', '-').replace('/', '_')
+    share_id = 'u!' + b64
+
+    # 建立 API URL（OneDrive 會 redirect 到實際下載連結）
+    encoded_path = quote(relative, safe='/')
+    return f"https://api.onedrive.com/v1.0/shares/{share_id}/root:/{encoded_path}:/content"
 ALLOWED_MEDIA_EXTENSIONS = {
     '.pdf', '.mp4', '.mov', '.avi', '.mkv', '.wmv',
     '.jpg', '.jpeg', '.png', '.gif', '.webp',
@@ -89,6 +126,10 @@ def serve_project_media(media_path):
         return jsonify({'error': 'unsupported media type'}), 403
 
     if not os.path.isfile(full_path):
+        # 本地找不到 → 嘗試導向 OneDrive
+        onedrive_url = make_onedrive_redirect_url(media_path.replace('\\', '/'))
+        if onedrive_url:
+            return redirect(onedrive_url, code=302)
         return jsonify({'error': 'media not found', 'path': media_path}), 404
 
     return send_file(full_path, conditional=True)
