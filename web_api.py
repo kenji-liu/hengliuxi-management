@@ -32,6 +32,7 @@ except ImportError as e:
 
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 WEBAPP_DIR = os.path.join(PROJECT_ROOT, 'webapp')
+DB_PATH = os.path.join(PROJECT_ROOT, 'hengliuxi.db')
 ALLOWED_MEDIA_EXTENSIONS = {
     '.pdf', '.mp4', '.mov', '.avi', '.mkv', '.wmv',
     '.jpg', '.jpeg', '.png', '.gif', '.webp',
@@ -50,8 +51,8 @@ if NLP_RAG_AVAILABLE:
     register_nlp_rag_blueprint(app)
     print("[INFO] NLP/RAG extension blueprint registered successfully")
 
-# 初始化資料庫
-db = HengliuxiDatabase('hengliuxi.db')
+# 初始化資料庫（使用絕對路徑確保雲端部署正確）
+db = HengliuxiDatabase(DB_PATH)
 
 
 @app.route('/', methods=['GET'])
