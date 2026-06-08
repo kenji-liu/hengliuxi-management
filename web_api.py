@@ -36,11 +36,52 @@ PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 WEBAPP_DIR = os.path.join(PROJECT_ROOT, 'webapp')
 DB_PATH = os.path.join(PROJECT_ROOT, 'hengliuxi.db')
 
-# OneDrive 雲端媒體設定（設定環境變數後自動啟用）
-# ONEDRIVE_SHARE_URL：OneDrive 資料夾分享連結，例如 https://1drv.ms/f/s!XXXXXX
+# OneDrive / SharePoint 雲端媒體設定（保留備用）
 ONEDRIVE_SHARE_URL = os.environ.get('ONEDRIVE_SHARE_URL', '')
-# ONEDRIVE_BASE_FOLDER：分享的資料夾名稱（對應到 media path 的前綴）
 ONEDRIVE_BASE_FOLDER = os.environ.get('ONEDRIVE_BASE_FOLDER', '01_工程設施維護與資料')
+
+# Google Drive 媒體設定
+# webapp/data/gdrive_index.json 由 scripts/generate_gdrive_index.py 產生
+GDRIVE_INDEX_PATH = os.path.join(PROJECT_ROOT, 'webapp', 'data', 'gdrive_index.json')
+GDRIVE_BASE_FOLDER = os.environ.get('GDRIVE_BASE_FOLDER', '01_工程設施維護與資料')
+_gdrive_index = None
+
+
+def get_gdrive_index():
+    """載入 Google Drive 路徑索引（首次呼叫時讀取一次）"""
+    global _gdrive_index
+    if _gdrive_index is None:
+        if os.path.exists(GDRIVE_INDEX_PATH):
+            with open(GDRIVE_INDEX_PATH, 'r', encoding='utf-8') as f:
+                _gdrive_index = json.load(f)
+            print(f"[INFO] Google Drive 索引載入完成，共 {len(_gdrive_index)} 筆")
+        else:
+            _gdrive_index = {}
+    return _gdrive_index
+
+
+def make_gdrive_url(media_path):
+    """
+    依 media_path 查詢 Google Drive 索引，回傳適合直接嵌入的 URL。
+    PDF  → Google Drive 線上預覽頁
+    圖片 → 直接圖片連結
+    """
+    norm = media_path.replace('\\', '/')
+    base = GDRIVE_BASE_FOLDER.rstrip('/')
+    relative = norm[len(base) + 1:] if norm.startswith(base + '/') else norm
+
+    index = get_gdrive_index()
+    file_id = index.get(relative)
+    if not file_id:
+        return None
+
+    ext = os.path.splitext(relative)[1].lower()
+    if ext == '.pdf':
+        # Google Drive 內嵌 PDF 預覽
+        return f"https://drive.google.com/file/d/{file_id}/preview"
+    else:
+        # 圖片、影片等直接連結
+        return f"https://drive.google.com/uc?id={file_id}"
 
 
 def make_onedrive_redirect_url(media_path):
@@ -127,7 +168,11 @@ def serve_project_media(media_path):
         return jsonify({'error': 'unsupported media type'}), 403
 
     if not os.path.isfile(full_path):
-        # 本地找不到 → 嘗試導向 OneDrive
+        # 1. 優先查 Google Drive 索引
+        gdrive_url = make_gdrive_url(media_path.replace('\\', '/'))
+        if gdrive_url:
+            return redirect(gdrive_url, code=302)
+        # 2. 備用：OneDrive / SharePoint
         onedrive_url = make_onedrive_redirect_url(media_path.replace('\\', '/'))
         if onedrive_url:
             return redirect(onedrive_url, code=302)
