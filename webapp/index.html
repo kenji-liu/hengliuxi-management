@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>橫流溪管理平台</title>
+  <script src="js/lib/auto-reset-cache.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">
+        <i class="fas fa-water"></i>
+        <span class="logo-text">橫流溪管理平台</span>
+      </div>
+      <button class="sidebar-toggle" id="sidebarToggle">
+        <i class="fas fa-bars"></i>
+      </button>
+    </div>
+
+    <ul class="nav-menu">
+      <li class="nav-item active" data-page="dashboard">
+        <a href="#"><i class="fas fa-tachometer-alt"></i><span>儀表板</span></a>
+      </li>
+      <li class="nav-item" data-page="facilities">
+        <a href="#"><i class="fas fa-hard-hat"></i><span>工程設施管理</span></a>
+      </li>
+      <li class="nav-item" data-page="design-library">
+        <a href="#"><i class="fas fa-book-open"></i><span>工程設計書架</span></a>
+      </li>
+      <li class="nav-item" data-page="fish">
+        <a href="#"><i class="fas fa-fish"></i><span>魚類資料庫</span></a>
+      </li>
+      <li class="nav-item" data-page="habitat">
+        <a href="#"><i class="fas fa-tree"></i><span>二維水理模擬棲地環境</span></a>
+      </li>
+      <li class="nav-item" data-page="inspection-data">
+        <a href="#"><i class="fas fa-clipboard-list"></i><span>巡查資料管理</span></a>
+      </li>
+      <li class="nav-item" data-page="inspection">
+        <a href="#"><i class="fas fa-book-medical"></i><span>維護管理資料</span></a>
+      </li>
+      <li class="nav-item" data-page="deru-assessment">
+        <a href="#"><i class="fas fa-clipboard-check"></i><span>DER&amp;U 設施評估</span></a>
+      </li>
+      <li class="nav-item" data-page="gis-enhanced">
+        <a href="#"><i class="fas fa-map"></i><span>GIS整合地圖</span></a>
+      </li>
+      <li class="nav-item" data-page="chapter4">
+        <a href="#"><i class="fas fa-water"></i><span>溪流生態調查</span></a>
+      </li>
+      <li class="nav-item" data-page="reports">
+        <a href="#"><i class="fas fa-chart-bar"></i><span>報表分析</span></a>
+      </li>
+      <li class="nav-item" data-page="ai-tech">
+        <a href="#"><i class="fas fa-brain"></i><span>AI技術分析</span></a>
+      </li>
+      <li class="nav-item" data-page="quality-dashboard">
+        <a href="#"><i class="fas fa-chart-line"></i><span>RAG質量儀表板</span></a>
+      </li>
+    </ul>
+
+    <div class="sidebar-footer">
+      <span>林業及自然保育署</span>
+    </div>
+  </nav>
+
+  <main class="main-content" id="mainContent">
+    <header class="top-bar">
+      <div class="top-bar-left">
+        <h1 class="page-title" id="pageTitle">儀表板</h1>
+      </div>
+      <div class="top-bar-right">
+        <span class="date-display" id="dateDisplay"></span>
+        <button class="btn btn-sm btn-outline" onclick="exportData()">
+          <i class="fas fa-download"></i> 匯出資料
+        </button>
+        <button class="btn btn-sm btn-outline" onclick="importData()">
+          <i class="fas fa-upload"></i> 匯入資料
+        </button>
+        <input type="file" id="importFile" accept=".json" style="display:none" onchange="handleImport(event)">
+      </div>
+    </header>
+
+    <div class="content-area" id="contentArea"></div>
+  </main>
+
+  <div class="modal-overlay" id="modalOverlay" style="display:none">
+    <div class="modal" id="modal">
+      <div class="modal-header">
+        <h3 id="modalTitle"></h3>
+        <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+      <div class="modal-footer" id="modalFooter"></div>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Google Maps API key loaded via /api/config endpoint -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="js/lib/twd97-transform.js"></script>
+  <script src="js/lib/coordinate-audit.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/modules/dashboard.js"></script>
+  <script src="js/modules/facilities.js"></script>
+  <script src="js/modules/engineering_bookshelf.js"></script>
+  <script src="js/modules/fish.js"></script>
+  <script src="js/modules/habitat.js"></script>
+  <script src="js/modules/inspection.js"></script>
+  <script src="js/modules/gis-enhanced.js"></script>
+  <script src="js/modules/chapter4_ecology.js"></script>
+  <script src="js/modules/reports.js"></script>
+  <script src="js/modules/ai_technology.js"></script>
+  <script src="js/modules/ai_chat.js"></script>
+  <script src="js/modules/quality_dashboard.js"></script>
+  <script src="js/modules/deru_assessment.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,166 @@
+{
+  "version": "1.0",
+  "description": "橫流溪 RAG 系統標準題庫（Phase 2.3 質量儀表板用）",
+  "questions": [
+    {
+      "id": "Q01",
+      "category": "engineering",
+      "query": "溪構5-2現在狀況如何？",
+      "expected_keywords": ["溪構5-2", "混凝土", "維護"],
+      "min_confidence": 0.55,
+      "expected_sources_count": 1
+    },
+    {
+      "id": "Q02",
+      "category": "engineering",
+      "query": "溪構11固床工維護建議",
+      "expected_keywords": ["固床工", "維護", "溪構11"],
+      "min_confidence": 0.50,
+      "expected_sources_count": 1
+    },
+    {
+      "id": "Q03",
+      "category": "engineering",
+      "query": "橫流溪魚道損壞如何修繕",
+      "expected_keywords": ["魚道", "修繕", "維護"],
+      "min_confidence": 0.50,
+      "expected_sources_count": 1
+    },
+    {
+      "id": "Q04",
+      "category": "ecology",
+      "query": "橫流溪有哪些保育魚類",
+      "expected_keywords": ["纓口臺鰍", "石鮒", "吻蝦虎"],
+      "min_confidence": 0.60,
+      "expected_sources_count": 2
+    },
+    {
+      "id": "Q05",
+      "category": "ecology",
+      "query": "棲地二維模式WUA分析結果",
+      "expected_keywords": ["WUA", "棲地", "纓口臺鰍"],
+      "min_confidence": 0.60,
+      "expected_sources_count": 1
+    },
+    {
+      "id": "Q06",
+      "category": "ecology",
+      "query": "橫流溪生態調查魚種數量",
+      "expected_keywords": ["魚類", "物種", "調查"],
+      "min_confidence": 0.55,
+      "expected_sources_count": 1
+    },
+    {
+      "id": "Q07",
+      "category": "gis",
+      "query": "溪構8-2魚道位置座標",
+      "expected_keywords": ["座標", "TWD97", "0K"],
+      "min_confidence": 0.45,
+      "expected_sources_count": 1
+    },
+    {
+      "id": "Q08",
+      "category": "gis",
+      "query": "橫流溪1K+000附近有什麼設施",
+      "expected_keywords": ["1K", "魚道", "設施"],
+      "min_confidence": 0.45,
+      "expected_sources_count": 1
+    },
+    {
+      "id": "Q09",
+      "category": "engineering",
+      "query": "橫流溪護岸巡查頻率規定",
+      "expected_keywords": ["巡查", "頻率", "護岸"],
+      "min_confidence": 0.45,
+      "expected_sources_count": 1
+    },
+    {
+      "id": "Q10",
+      "category": "ecology",
+      "query": "纓口臺鰍棲地需求",
+      "expected_keywords": ["纓口臺鰍", "棲地", "流速"],
+      "min_confidence": 0.55,
+      "expected_sources_count": 1
+    },
+    {
+      "id": "Q11",
+      "category": "engineering",
+      "query": "防砂壩淤積處理方式",
+      "expected_keywords": ["防砂壩", "淤積", "清淤"],
+      "min_confidence": 0.45,
+      "expected_sources_count": 1
+    },
+    {
+      "id": "Q12",
+      "category": "ecology",
+      "query": "橫流溪棲地品質評估方法",
+      "expected_keywords": ["棲地", "評估", "品質"],
+      "min_confidence": 0.50,
+      "expected_sources_count": 1
+    },
+    {
+      "id": "Q13",
+      "category": "engineering",
+      "query": "橫流溪颱風後設施巡查重點",
+      "expected_keywords": ["颱風", "巡查", "損壞"],
+      "min_confidence": 0.45,
+      "expected_sources_count": 1
+    },
+    {
+      "id": "Q14",
+      "category": "ecology",
+      "query": "明潭吻蝦虎分布區域",
+      "expected_keywords": ["明潭吻蝦虎", "分布", "棲地"],
+      "min_confidence": 0.50,
+      "expected_sources_count": 1
+    },
+    {
+      "id": "Q15",
+      "category": "engineering",
+      "query": "魚道通行功能評估指標",
+      "expected_keywords": ["魚道", "流速", "通行"],
+      "min_confidence": 0.50,
+      "expected_sources_count": 1
+    },
+    {
+      "id": "Q16",
+      "category": "engineering",
+      "query": "工程設施DER&U評估方式",
+      "expected_keywords": ["劣化", "評估", "損壞"],
+      "min_confidence": 0.40,
+      "expected_sources_count": 1
+    },
+    {
+      "id": "Q17",
+      "category": "ecology",
+      "query": "橫流溪外來入侵魚種",
+      "expected_keywords": ["入侵", "外來", "魚類"],
+      "min_confidence": 0.45,
+      "expected_sources_count": 1
+    },
+    {
+      "id": "Q18",
+      "category": "gis",
+      "query": "橫流溪流域範圍與長度",
+      "expected_keywords": ["橫流溪", "流域", "長度"],
+      "min_confidence": 0.45,
+      "expected_sources_count": 1
+    },
+    {
+      "id": "Q19",
+      "category": "engineering",
+      "query": "固床工裂縫如何處理",
+      "expected_keywords": ["固床工", "裂縫", "修繕"],
+      "min_confidence": 0.45,
+      "expected_sources_count": 1
+    },
+    {
+      "id": "Q20",
+      "category": "ecology",
+      "query": "橫流溪魚道連通性評估",
+      "expected_keywords": ["連通性", "魚道", "洄游"],
+      "min_confidence": 0.50,
+      "expected_sources_count": 1
+    }
+  ]
+}

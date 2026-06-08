@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>橫流溪手機巡查填報</title>
+  <link rel="stylesheet" href="css/mobile-inspection.css">
+</head>
+<body>
+  <header class="mobile-header">
+    <div>
+      <p class="eyebrow">橫流溪重要設施</p>
+      <h1>手機巡查填報</h1>
+    </div>
+    <button class="ghost-button" id="exportBtn" type="button">匯出</button>
+  </header>
+
+  <main class="mobile-shell">
+    <section class="notice">
+      <strong>依維護管理手冊填報</strong>
+      <span>一般性巡查每月 1 次；專業巡查每 2 年 1 次且於汛期前辦理；大豪雨、五弱以上地震或設施損毀事件後啟動不定期巡查。</span>
+    </section>
+
+    <section class="panel compact">
+      <div class="toolbar">
+        <button class="primary-button" id="locateBtn" type="button">取得定位</button>
+        <label class="secondary-button" for="photoInput">拍照上傳</label>
+        <input id="photoInput" type="file" accept="image/*" capture="environment" multiple>
+      </div>
+      <div class="status-line" id="geoStatus">尚未取得 GPS 定位</div>
+      <div class="photo-strip" id="photoPreview"></div>
+    </section>
+
+    <form class="panel" id="inspectionForm">
+      <h2>基本資料</h2>
+      <label>
+        巡查種類
+        <select id="inspectionType">
+          <option value="general">一般性定期巡查</option>
+          <option value="professional">專業性定期巡查</option>
+          <option value="event">不定期事件巡查</option>
+        </select>
+      </label>
+      <label>
+        事件原因
+        <select id="eventReason">
+          <option value="">非事件巡查</option>
+          <option value="大豪雨">大豪雨，24 小時 350 mm 以上或 3 小時 200 mm 以上</option>
+          <option value="地震">地震震度五弱以上</option>
+          <option value="人為破壞">重要設施遭人為破壞</option>
+          <option value="其他損毀">其他已發生重要設施損毀事件</option>
+        </select>
+      </label>
+      <label>
+        巡查設施
+        <select id="facilitySelect" required></select>
+      </label>
+      <div class="two-col">
+        <label>
+          巡查日期
+          <input id="inspectionDate" type="date" required>
+        </label>
+        <label>
+          天候
+          <select id="weather">
+            <option>晴</option>
+            <option>陰</option>
+            <option>雨</option>
+            <option>豪雨後</option>
+            <option>地震後</option>
+          </select>
+        </label>
+      </div>
+      <label>
+        巡查人員
+        <input id="inspector" type="text" placeholder="請輸入姓名或單位">
+      </label>
+      <label>
+        設施位置或補充說明
+        <textarea id="locationNote" rows="2" placeholder="可填樁號、路線段、現場補充位置"></textarea>
+      </label>
+
+      <h2>一般性巡查表單</h2>
+      <div id="checklist" class="checklist"></div>
+
+      <h2>專業檢測 DER&U</h2>
+      <div class="der-grid">
+        <label>D 劣化程度<select id="derD"></select></label>
+        <label>E 劣化範圍<select id="derE"></select></label>
+        <label>R 影響性<select id="derR"></select></label>
+        <label>U 急迫性<select id="derU"></select></label>
+      </div>
+
+      <label>
+        現況情形
+        <textarea id="findings" rows="4" placeholder="可補充裂縫、淘空、淤積、斷裂、道路中斷等現況"></textarea>
+      </label>
+      <label>
+        處理情形
+        <textarea id="action" rows="3" placeholder="例如：自行清除、列管追蹤、異常通報、建議專業檢測"></textarea>
+      </label>
+
+      <section class="analysis-box" id="analysisBox">
+        <strong>異常分析</strong>
+        <p>填寫巡查項目後會自動判讀。</p>
+      </section>
+
+      <div class="bottom-actions">
+        <button class="secondary-button" id="analyzeBtn" type="button">重新分析</button>
+        <button class="primary-button" type="submit">儲存巡查紀錄</button>
+      </div>
+    </form>
+
+    <section class="panel">
+      <h2>最近手機填報</h2>
+      <div id="recentList" class="recent-list"></div>
+    </section>
+  </main>
+
+  <script src="js/db.js"></script>
+  <script src="js/modules/mobile_inspection.js"></script>
+</body>
+</html>

@@ -1,0 +1,64 @@
+# 大型資料資料夾（無法上傳或不需部署）
+01_工程設施維護與資料/
+02_魚類與棲地資料庫/
+03_其他資料/
+04_管理平台開發/
+05_重新組織的工程維護資料/
+非橫流溪資料/
+橫流溪/
+kmz_extracted/
+rag_quality/
+installer_build/
+integration_postgis/
+files/
+dist/
+build/
+docs/
+
+# RAG 向量索引（大型檔案，不部署 RAG 功能）
+webapp/data/vector_store.jsonl
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+.eggs/
+*.egg
+
+# 日誌
+*.log
+flask*.log
+backend*.log
+vision*.log
+nlp*.log
+
+# 資料庫備份（原始 db 保留）
+*.db-journal
+*.db-wal
+*.db-shm
+
+# 環境
+.env
+.env.*
+venv/
+env/
+.venv/
+
+# 系統
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 設定
+*.bat
+*.spec
+setup_installer.py
+sticky_notes.py
+
+# 測試
+test_*.py
+run_*.py
+debug_*.py

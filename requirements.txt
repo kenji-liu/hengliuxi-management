@@ -1,0 +1,19 @@
+# 橫流溪流域棲地環保及設施智慧化管理系統
+# 生產環境依賴（Render 部署用）
+
+# Web Framework
+Flask==2.3.0
+flask-cors==4.0.0
+gunicorn==21.2.0
+
+# Data
+numpy==1.26.4
+requests==2.31.0
+
+# Document parsing (for RAG, optional)
+PyPDF2==3.0.1
+pdfplumber==0.10.3
+
+# Utilities
+python-dateutil==2.8.2
+pytz==2023.3
