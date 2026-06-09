@@ -79,9 +79,12 @@ def make_gdrive_url(media_path):
     if ext == '.pdf':
         # Google Drive 內嵌 PDF 預覽
         return f"https://drive.google.com/file/d/{file_id}/preview"
+    elif ext in ('.mp4', '.mov', '.avi', '.mkv', '.wmv'):
+        # 影片：Google Drive 播放頁
+        return f"https://drive.google.com/file/d/{file_id}/preview"
     else:
-        # 圖片、影片等直接連結
-        return f"https://drive.google.com/uc?id={file_id}"
+        # 圖片：使用 Google lh3 CDN 直連（可直接嵌入 <img> 標籤，不會跳轉到下載警告頁）
+        return f"https://lh3.googleusercontent.com/d/{file_id}"
 
 
 def make_onedrive_redirect_url(media_path):
