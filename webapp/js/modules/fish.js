@@ -2842,47 +2842,63 @@ function initBioGISMap(fishSpecies, facilities) {
       .addTo(bioLayerGroups.landanimals);
   });
 
-  // ── 3. 魚種標記（SVG 魚形，與GIS整合地圖一致）──
+  // ── 3. 魚種標記（與GIS整合地圖完全相同的資料來源與座標邏輯）──
+  // 使用 gis-enhanced.js 的 fishGisMarkers() 函式，確保兩圖一致
   const cMapFish = { '瀕危':'#dc2626','易危':'#d97706','近危':'#2563eb','一般':'#16a34a' };
-  const staticFishMarkers = [
-    { lat:24.1758, lng:120.9082, species:'明潭吻蝦虎', sci:'Rhinogobius candidianus', conservation:'一般',  zone:'lower',  shape:'goby'   },
-    { lat:24.1772, lng:120.9096, species:'臺灣鬚鱲',   sci:'Candidia barbatus',       conservation:'一般',  zone:'lower',  shape:'minnow' },
-    { lat:24.1792, lng:120.9080, species:'臺灣石魚賓', sci:'Acrossocheilus paradoxus', conservation:'近危',  zone:'lower',  shape:'carp'   },
-    { lat:24.1822, lng:120.9088, species:'臺灣間爬岩鰍',sci:'Hemimyzon formosanum',   conservation:'近危',  zone:'middle', shape:'loach'  },
-    { lat:24.1838, lng:120.9102, species:'纓口臺鰍',   sci:'Crossostoma lacustre',    conservation:'瀕危',  zone:'middle', shape:'loach'  },
-    { lat:24.1850, lng:120.9092, species:'臺灣白甲魚', sci:'Onychostoma barbatulum',   conservation:'瀕危',  zone:'upper',  shape:'carp'   },
-    { lat:24.1862, lng:120.9104, species:'高身鏟頷魚', sci:'Onychostoma alticorpus',  conservation:'易危',  zone:'upper',  shape:'carp'   }
-  ];
+  const fishMarkers = (typeof fishGisMarkers === 'function')
+    ? fishGisMarkers(fishSpecies)
+    : fishSpecies.map((item, i) => {
+        // fallback：與 fishGisMarkers 相同的 zone 基點 + offset 邏輯
+        const baseLL = { lower:[24.18030,120.90855], middle:[24.18355,120.90958], upper:[24.18595,120.90965] };
+        const offsets = [[0,0],[0.00022,0.00018],[-0.00020,0.00025],[0.00034,-0.00015],
+                         [-0.00032,-0.00022],[0.00014,-0.00036],[-0.00016,0.00044],[0.00048,0.00008],[-0.00045,0.00004]];
+        const zone  = fish_speciesZone(item);
+        const off   = offsets[i % offsets.length];
+        return { ...item, zone, shape: fish_speciesShape(item),
+                 latlng: [baseLL[zone][0]+off[0], baseLL[zone][1]+off[1]],
+                 size: Math.max(44, Math.min(74, 42 + Math.sqrt(Number(item.totalCount)||1)*4)) };
+      });
 
-  staticFishMarkers.forEach(def => {
-    const col = cMapFish[def.conservation] || '#0e7490';
+  fishMarkers.forEach(def => {
+    const cons    = def.conservation || '一般';
+    const col     = cMapFish[cons] || '#0e7490';
+    const bgCol   = { '瀕危':'#fee2e2','易危':'#fef3c7','近危':'#dbeafe','一般':'#dcfce7' }[cons] || '#f1f5f9';
+    const zoneLabel = { lower:'下游', middle:'中游', upper:'上游' }[def.zone] || '全域';
+    const sz      = def.size || 68;
+    const latlng  = def.latlng || [def.lat, def.lng];
+    const photo   = (typeof fish_photoFor === 'function') ? fish_photoFor(def) : null;
     const icon = L.divIcon({
       className: '',
       html: `<div style="display:flex;flex-direction:column;align-items:center;cursor:pointer;
                filter:drop-shadow(0 3px 8px rgba(0,0,0,.50))">
-               <div style="width:68px;height:42px">${fish_speciesSvg(def.shape)}</div>
+               <div style="width:${sz}px;height:${Math.round(sz*0.62)}px">${fish_speciesSvg(def.shape)}</div>
                <div style="font-size:14px;font-weight:900;color:#0f172a;white-space:nowrap;
                  background:rgba(255,255,255,.96);border-radius:6px;padding:3px 9px;margin-top:2px;
                  border:2px solid ${col};line-height:1.5;box-shadow:0 2px 6px rgba(0,0,0,.20)">
-                 ${def.species}
+                 ${fish_escape(def.species)}
                </div>
              </div>`,
-      iconSize: [68, 66], iconAnchor: [34, 21]
+      iconSize: [sz, sz+18], iconAnchor: [Math.round(sz/2), Math.round(sz*0.31)]
     });
-    const zoneLabel = { lower:'下游', middle:'中游', upper:'上游' }[def.zone] || '全域';
-    const bgCol = { '瀕危':'#fee2e2','易危':'#fef3c7','近危':'#dbeafe','一般':'#dcfce7' }[def.conservation] || '#f1f5f9';
-    L.marker([def.lat, def.lng], { icon })
-      .bindPopup(`<div style="min-width:200px;font-size:13px">
-        <div style="font-weight:900;font-size:15px;color:#0f172a;margin-bottom:4px">${def.species}</div>
-        <div style="font-size:12px;color:#64748b;font-style:italic;margin-bottom:8px">${def.sci}</div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap">
-          <span style="background:${bgCol};color:${col};border:1.5px solid ${col};border-radius:6px;
-            padding:3px 10px;font-size:13px;font-weight:800">${def.conservation}</span>
-          <span style="background:#f1f5f9;color:#334155;border-radius:6px;padding:3px 10px;font-size:13px">
-            ${zoneLabel}水域</span>
-        </div>
-        <div style="margin-top:7px;font-size:12px;color:#64748b">📋 109–114年橫流溪樣點記錄</div>
-      </div>`, { maxWidth:260 })
+    // popup：與 GIS整合地圖 createFishGisPopup() 相同內容
+    const popupHtml = (typeof createFishGisPopup === 'function')
+      ? createFishGisPopup(def)
+      : `<div style="min-width:200px;font-size:13px">
+           ${photo ? `<img src="${photo.image}" onerror="this.onerror=null;this.src='/webapp/assets/fish-photos/field-measurement.jpg'" style="width:100%;height:110px;object-fit:cover;border-radius:6px;margin-bottom:8px">` : ''}
+           <div style="font-weight:900;font-size:15px;color:#0f172a;margin-bottom:2px">${fish_escape(def.species)}</div>
+           <div style="font-size:12px;color:#64748b;font-style:italic;margin-bottom:8px">${fish_escape(def.scientificName||'')}</div>
+           <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:8px;font-size:12px">
+             <div><b>保育：</b><span style="color:${col};font-weight:700">${cons}</span></div>
+             <div><b>區域：</b>${zoneLabel}水域</div>
+             <div><b>累計：</b>${Number(def.totalCount)||0} 尾次</div>
+             <div><b>記錄：</b>${def.surveys||0} 筆</div>
+           </div>
+           <div style="background:#f0fdfa;border-left:3px solid #0e7490;padding:7px 8px;border-radius:0 5px 5px 0;font-size:12px">
+             <b>位置：</b>${fish_escape(def.location||'-')}
+           </div>
+         </div>`;
+    L.marker(latlng, { icon })
+      .bindPopup(popupHtml, { maxWidth:280 })
       .addTo(bioLayerGroups.fishspecies);
   });
 
@@ -2925,6 +2941,54 @@ function initBioGISMap(fishSpecies, facilities) {
       .addTo(bioLayerGroups.facilities);
   });
 
+
+  // ── 點擊座標顯示（方便校正魚類標記位置）──
+  const coordCtrl = L.control({ position: 'bottomleft' });
+  coordCtrl.onAdd = function() {
+    const div = L.DomUtil.create('div');
+    div.id = 'biogisCoordBox';
+    div.style.cssText = [
+      'background:rgba(255,255,255,.96)',
+      'padding:8px 12px',
+      'border-radius:8px',
+      'font-size:13px',
+      'border:2px solid #0e7490',
+      'display:none',
+      'min-width:220px',
+      'box-shadow:0 3px 12px rgba(0,0,0,.25)',
+      'pointer-events:auto'
+    ].join(';');
+    return div;
+  };
+  coordCtrl.addTo(biogisMap);
+
+  biogisMap.on('click', function(e) {
+    const lat = e.latlng.lat.toFixed(6);
+    const lng = e.latlng.lng.toFixed(6);
+    const box = document.getElementById('biogisCoordBox');
+    if (!box) return;
+    box.style.display = 'block';
+    box.innerHTML = `
+      <div style="font-weight:900;color:#0e7490;margin-bottom:4px;font-size:13px">
+        <i class="fas fa-map-pin"></i> 點擊座標
+      </div>
+      <div style="font-size:14px;color:#0f172a;line-height:1.8">
+        lat: <b>${lat}</b><br>
+        lng: <b>${lng}</b>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:8px">
+        <button onclick="navigator.clipboard.writeText('${lat},${lng}').then(()=>{this.textContent='✓ 已複製';setTimeout(()=>{this.textContent='複製'},1500)})"
+          style="flex:1;border:none;background:#0e7490;color:#fff;border-radius:5px;padding:4px 0;cursor:pointer;font-size:12px;font-weight:700">
+          複製
+        </button>
+        <button onclick="document.getElementById('biogisCoordBox').style.display='none'"
+          style="border:none;background:#e2e8f0;color:#475569;border-radius:5px;padding:4px 10px;cursor:pointer;font-size:12px">
+          ✕
+        </button>
+      </div>
+      <div style="font-size:11px;color:#94a3b8;margin-top:6px">點擊地圖任意位置可取得座標</div>
+    `;
+  });
 
   biogisMap.invalidateSize();
 }
