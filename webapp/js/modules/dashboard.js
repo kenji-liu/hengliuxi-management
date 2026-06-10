@@ -48,7 +48,7 @@ function renderDashboard() {
   const quickLinks = [
     { page: 'facilities',     icon: 'fa-hard-hat',      label: '工程設施管理',  color: '#1565c0' },
     { page: 'inspection',     icon: 'fa-book-medical',  label: '維護管理資料',  color: '#c62828' },
-    { page: 'fish',           icon: 'fa-fish',          label: '魚類資料庫',    color: '#0097a7' },
+    { page: 'fish',           icon: 'fa-fish',          label: '生態資料庫',    color: '#0097a7' },
     { page: 'habitat',        icon: 'fa-tree',          label: '二維水理模擬棲地環境', color: '#2e7d32' },
     { page: 'gis-enhanced',   icon: 'fa-map',           label: 'GIS整合地圖',   color: '#6a1b9a' },
     { page: 'chapter4',       icon: 'fa-water',         label: '溪流生態調查',  color: '#0277bd' },

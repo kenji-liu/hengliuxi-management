@@ -3,7 +3,7 @@ const pages = {
   dashboard: { title: '儀表板', render: renderDashboard },
   facilities: { title: '工程設施管理', render: renderFacilities },
   'design-library': { title: '工程設計書架', render: renderEngineeringBookshelf },
-  fish: { title: '魚類資料庫', render: renderFish },
+  fish: { title: '生態資料庫', render: renderFish },
   habitat: { title: '二維水理模擬棲地環境', render: renderHabitat },
   'inspection-data': { title: '巡查資料管理', render: renderInspectionMgmtPage },
   inspection: { title: '維護管理資料', render: renderInspection },
@@ -15,7 +15,7 @@ const pages = {
   'quality-dashboard': { title: 'RAG 質量儀表板', render: renderQualityDashboard }
 };
 
-let currentPage = 'dashboard';
+let currentPage = 'facilities';
 
 function navigateTo(page) {
   if (!pages[page]) return;
@@ -120,5 +120,5 @@ function handleImport(event) {
 
 updateDate();
 setInterval(updateDate, 60000);
-navigateTo('dashboard');
+navigateTo('facilities');
 initAIChat();

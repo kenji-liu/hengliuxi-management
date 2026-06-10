@@ -41,12 +41,12 @@ except ImportError as e:
     cosine_similarity = None
 
 # Configuration
-MODEL_NAME = 'all-MiniLM-L6-v2'
-SIMILARITY_THRESHOLD = 0.18  # Tuned for the current Chinese PDF vector index
-TOP_K_RESULTS = 4          # keep prompts compact for local 12B inference
-MAX_CONTEXT_CHARS = 1800   # reduce prompt latency while preserving key evidence
+MODEL_NAME = 'paraphrase-multilingual-MiniLM-L12-v2'   # 多語言含繁中；比 all-MiniLM-L6-v2 更準
+SIMILARITY_THRESHOLD = 0.22  # multilingual 模型的向量空間較 MiniLM 略密，適度提高閾值
+TOP_K_RESULTS = 6          # 32GB RAM 可取更多片段，提升召回率
+MAX_CONTEXT_CHARS = 2800   # 14B 模型 context window 充裕，可給更多參考片段
 OLLAMA_BASE_URL = os.environ.get('OLLAMA_BASE_URL', 'http://localhost:11434').rstrip('/')
-OLLAMA_MODEL = os.environ.get('OLLAMA_MODEL', 'gemma4:12b')
+OLLAMA_MODEL = os.environ.get('OLLAMA_MODEL', 'qwen2.5:14b')   # 繁中理解最佳開源模型
 OLLAMA_VISION_MODEL = os.environ.get('OLLAMA_VISION_MODEL', OLLAMA_MODEL)
 OLLAMA_TIMEOUT = int(os.environ.get('OLLAMA_TIMEOUT', '240'))
 

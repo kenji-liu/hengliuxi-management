@@ -133,6 +133,15 @@ if NLP_RAG_AVAILABLE:
     register_nlp_rag_blueprint(app)
     print("[INFO] NLP/RAG extension blueprint registered successfully")
 
+# 直接在主 app 掛載 /api/smart-ask，確保路由一定存在
+if NLP_RAG_AVAILABLE:
+    try:
+        from webapp.nlp_rag_api import smart_ask as _smart_ask_fn
+        app.add_url_rule('/api/smart-ask', 'smart_ask_direct', _smart_ask_fn, methods=['POST'])
+        print("[INFO] /api/smart-ask route registered directly")
+    except Exception as _e:
+        print(f"[WARNING] Could not register /api/smart-ask directly: {_e}")
+
 # 初始化資料庫（使用絕對路徑確保雲端部署正確）
 db = HengliuxiDatabase(DB_PATH)
 

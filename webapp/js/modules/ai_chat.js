@@ -154,7 +154,60 @@ FD4為標竿魚道，水棲昆蟲最豐富（25科352隻）。` },
 3. 大洪水後48小時內完成魚道通水確認巡查` },
 
   // ── 生態資料 ──
-  { id:'fish_species', kw:['魚類','魚種','物種','電捕','臺灣白甲魚','纓口臺鰍','明潭吻','石魚賓','鬚鱲','鰕虎','保育'],
+
+  { id:'eco_overview', kw:['生態資料庫','生態','說明','資料庫','籠集','資料','生態系','概況','整體'],
+    title:'橫流溪生態資料庫概況',
+    body:`橫流溪生態資料庫（112-113年監測）涵蓋範圍：
+
+【魚類】6種（臺灣白甲魚為優勢種）、電捕＋陷阱鐵籠雙法調查
+【水棲昆蟲】8樣區、FBI水質全達「好」以上、5區達「極好」
+【植物】38科91種，原生種佔67%，4種台灣特有種
+【魚道監測】8座魚道、YOLOv4 AI辨識、每月1次夜間監測
+【棲地模擬】HECRAS-2D二維水理模型、WUA棲地加權面積評估
+【工程設施】0K+460至1K+400、DER&U健康評估系統
+
+生態完整度：橫流溪屬低擾動山澗型溪流，FBI水質優良可支持纓口臺鰍（易危VU種）棲息，臺灣白甲魚族群穩定，是南投縣低海拔魚類多樣性保育重點溪段。` },
+
+  { id:'taiwan_barbel', kw:['白甲魚','臺灣白甲魚','白甲','barbatulum','onychostoma','體長','身長','尺寸','大小','水域','流速','底質','棲地需求','魚道需求','適合','通道','洄游'],
+    title:'臺灣白甲魚生態習性與魚道適合度',
+    body:`臺灣白甲魚（Onychostoma barbatulum）生態資料：
+
+【基本資料】
+學名：Onychostoma barbatulum（鯉科 Cyprinidae）
+保育等級：LC（無危，臺灣特有種）
+體型：成魚體長 10～25 cm，一般個體 12～18 cm；電捕最大記錄約 22 cm
+體色：側線銀白，背部灰綠，口下位（刮食型）
+
+【棲地偏好】
+• 水域類型：清澈、流動的山澗型溪流（含礫石、卵石底質）
+• 水溫偏好：14～22 °C（耐低溫，夏季高溫>25°C時上移至上游庇護）
+• 流速適宜：0.2～0.8 m/s（偏好中流速段，避開靜水與急流）
+• 水深：0.1～0.6 m 淺流至中深度
+• 底質：卵石、礫石混合，需有附生藻類（食物來源）
+• 溶氧：需求高（>7 mg/L），水質敏感，FBI指標評估為「好」以上溪段
+
+【食性與行為】
+• 口下位，以角質化上顎刮食石面附生藻類（刮食者 Scrapers）
+• 群聚性弱，單獨或小群活動
+• 無長距離洄游習性，但季節性在溪段上下移動（繁殖期4-6月上移）
+
+【橫流溪現況】
+• 電捕最多12尾（改良舟通式），上下游（FD4~FD8段）皆有記錄
+• AI辨識各站皆可見，FD4階段式魚道附近記錄較多
+
+【魚道適合度評估】
+需求：可通過中低坡降魚道（<5%），需有水深>10 cm 且流速<0.8 m/s 的池室
+橫流溪8座魚道對應：
+• FD1-FD3（粗石斜曲面式）：底質近天然，適合度★★★★★（最佳）
+• FD4（階段式）：池室水深充足，流速可接受，適合度★★★★
+• FD5（潛越式）：底部流速偏高，白甲魚通過率略低，適合度★★★
+• FD6-FD8（半斷面/梯狀）：需確認低流量期>10 cm 水深，適合度★★★
+
+【潛在問題】
+低流量期（乾季）部分魚道水深不足10 cm → 白甲魚無法通過
+建議：加裝水位感測器，當流量<0.5 cms 時發出預警，避免阻斷白甲魚季節性移動。` },
+
+  { id:'fish_species', kw:['魚類','魚種','物種','電捕','纓口臺鰍','明潭吻','石魚賓','鬚鱲','鰕虎','保育','調查','多樣性'],
     title:'橫流溪魚類調查成果（112-113年）',
     body:`橫流溪112~113年魚類調查（電捕+陷阱鐵籠）：
 
@@ -304,21 +357,37 @@ YOLOv4: 85.42% > YOLOv5: 82.1% > YOLOv9t: 78.6% > YOLOv11n: 76.3%
 ];
 
 // ── 關鍵字評分引擎 ──────────────────────────────────────
+function normalizeQuery(q) {
+  return q.toLowerCase()
+    // 將常見縮寫符號移除，讓 "DER&U" → "deru"、"FD-4" → "fd4"
+    .replace(/[&\-+\/#_]/g, '')
+    .replace(/[，。！？、\s]+/g, ' ')
+    .trim();
+}
+
 function scoreKBEntry(entry, queryTokens) {
   let score = 0;
+  // qText：移除特殊符號後的查詢全文（用於關鍵字比對）
   const qText = queryTokens.join('');
+  // qNorm：對 entry title 也做相同正規化，讓大小寫不影響
+  const qOrig = queryTokens.join(' ');
+
   entry.kw.forEach(k => {
-    if (qText.includes(k)) score += (k.length > 2 ? 3 : 1);
-  });
-  // title 加權
-  entry.kw.forEach(k => {
-    if (entry.title.includes(k)) score += 1;
+    const kNorm = normalizeQuery(k);
+    if (qText.includes(kNorm)) {
+      score += (k.length > 2 ? 3 : 1);
+      // title 加權：只有當 keyword 已在 query 中命中，才額外加分
+      if (entry.title.toLowerCase().replace(/[&\-+\/#_]/g,'').includes(kNorm)) {
+        score += 1;
+      }
+    }
   });
   return score;
 }
 
 function tokenize(query) {
-  return query.toLowerCase().replace(/[，。！？、\s]+/g, ' ').split(' ').filter(Boolean);
+  const norm = normalizeQuery(query);
+  return norm.replace(/[，。！？、\s]+/g, ' ').split(' ').filter(Boolean);
 }
 
 // ── 動態資料檢索（從已載入的 JS 全域資料）──────────────
@@ -374,11 +443,11 @@ function queryLocalKB(query) {
   const tokens = tokenize(query);
   const qText = query.toLowerCase();
 
-  // 1. 靜態 KB 評分排序
+  // 1. 靜態 KB 評分排序（至少要有 2 分才列入，避免零分噪音）
   const scored = HLX_KB.map(entry => ({
     entry,
     score: scoreKBEntry(entry, tokens)
-  })).filter(x => x.score > 0).sort((a, b) => b.score - a.score);
+  })).filter(x => x.score >= 2).sort((a, b) => b.score - a.score);
 
   // 2. 動態資料補充
   const dynamicCtx = buildDynamicContext(query);
@@ -444,7 +513,16 @@ function queryLocalKB(query) {
     llm_provider: 'local_kb',
     llm_model: '橫流溪知識庫 v1.0',
     recommendations: confidence_level === 'none'
-      ? ['試試：「溪構5-2維護重點」、「FD4魚道」、「纓口臺鰍保育」、「WUA棲地適合度」、「YOLOv4辨識系統」', '或進入各功能頁面查看詳細資料']
+      ? [
+          '📋 可詢問的主題（直接複製貼上）：',
+          '「臺灣白甲魚體長與棲地需求」、「魚道是否符合白甲魚需求」',
+          '「DER&U評估方法」、「溪構5-2維護重點」',
+          '「FD4魚道監測成果」、「FD5潛越式魚道」',
+          '「魚道水理風險評估」、「纓口臺鰍保育現況」',
+          '「WUA棲地適合度」、「整合管理建議」',
+          '「YOLOv4辨識系統準確率」、「水棲昆蟲FBI水質」',
+          '「橫流溪生態資料庫概況」、「季節性魚類洄游」'
+        ]
       : []
   };
 }
@@ -519,25 +597,29 @@ function initAIChat() {
       <div class="ai-header">
         <div>
           <div class="ai-title">橫流溪 AI 問答</div>
-          <div class="ai-sub">本機知識庫 + RAG 即時檢索</div>
+          <div class="ai-sub" id="aiSubLabel">本機知識庫 + RAG 即時檢索</div>
         </div>
-        <button class="ai-header-close" onclick="toggleAIChat()">×</button>
+        <div style="display:flex;align-items:center;gap:8px">
+          <button onclick="aiSetKey()" title="設定 Gemini API Key"
+            style="background:rgba(255,255,255,0.2);border:none;color:#fff;border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer">🔑 Key</button>
+          <button class="ai-header-close" onclick="toggleAIChat()">×</button>
+        </div>
       </div>
       <div class="ai-messages" id="aiMessages">
         <div class="ai-msg bot" style="white-space:pre-wrap">您好！我是橫流溪智慧管理平台 AI 助理。
 我使用<b>本機知識庫</b>即時回答（不需要網路或後端伺服器）。
 
 可詢問：
+• 「臺灣白甲魚體長與棲地需求」
+• 「橫流溪魚道是否符合白甲魚需求」
+• 「纓口臺鰍保育現況」
 • 「溪構5-2維護重點」
 • 「FD4魚道監測成果」
-• 「纓口臺鰍保育現況」
 • 「WUA棲地適合度分析」
-• 「YOLOv4辨識系統準確率」
-• 「DER&U評估方法」
-• 「魚道水理風險評估」</div>
+• 「DER&U評估方法」</div>
       </div>
       <div class="ai-input-row">
-        <input class="ai-input" id="aiInput" placeholder="例如：溪構5-2目前維護風險與建議" onkeydown="if(event.key==='Enter')aiSend()">
+        <input class="ai-input" id="aiInput" placeholder="例如：臺灣白甲魚的體長與魚道棲地需求" onkeydown="if(event.key==='Enter')aiSend()">
         <button class="ai-send" onclick="aiSend()">送出</button>
       </div>
     </div>
@@ -548,6 +630,32 @@ function initAIChat() {
 
 function toggleAIChat() {
   document.getElementById("aiChatPanel").classList.toggle("open");
+  _updateAiSubLabel();
+}
+
+function _updateAiSubLabel() {
+  const sub = document.getElementById("aiSubLabel");
+  if (!sub) return;
+  const key = getAIKey();
+  sub.textContent = key ? "Groq AI + 本機知識庫" : "本機知識庫（未設定 Groq Key）";
+}
+
+function aiSetKey() {
+  const current = getAIKey();
+  const input = prompt(
+    "請輸入 Groq API Key（從 console.groq.com → API Keys 取得，gsk_ 開頭）：\n儲存後即可使用 AI 回答，不需啟動後端伺服器。",
+    current
+  );
+  if (input === null) return; // 使用者按取消
+  if (input.trim()) {
+    localStorage.setItem("GROQ_API_KEY", input.trim());
+    _updateAiSubLabel();
+    alert("✅ Gemini API Key 已儲存！下次問問題即可使用 AI 回答。");
+  } else {
+    localStorage.removeItem("GROQ_API_KEY");
+    _updateAiSubLabel();
+    alert("已清除 API Key，切換回本機知識庫模式。");
+  }
 }
 
 function escapeHtml(text) {
@@ -665,25 +773,22 @@ function composeAnswer(query, data) {
   const score = Number(data?.confidence_score ?? fallback.score);
   const recommendations = Array.isArray(data?.recommendations) ? data.recommendations : fallback.recommendations;
   const answer = cleanText(data?.answer || "");
-  const llmLabel = data?.llm_provider === "local_kb"
-    ? (data?.llm_model || "本機知識庫")
-    : data?.llm_provider === "ollama"
-      ? `Ollama ${data?.llm_model || ""}`.trim()
-      : "RAG";
+  // llm_model 已由後端直接給出友善名稱（如 "llama-3.3-70b (Groq)"）
+  const llmLabel = data?.llm_model || (
+    data?.llm_provider === "local_kb" ? "本機知識庫" : "AI 推論"
+  );
 
   const recsHtml = recommendations.length
     ? `<ul class="ai-recommendations">${recommendations.map(r => `<li>${escapeHtml(r)}</li>`).join("")}</ul>`
     : "";
 
-  if (!citations.length || answerPolicy === "refuse" || answerPolicy === "REJECT_AND_GUIDE") {
+  // 有 Ollama 實際答案 → 不因為缺乏本機引用就走「找不到資料」分支
+  const hasRealAnswer = answer.length > 20;
+
+  // 找不到資料且無 Ollama 答案時，顯示簡單提示
+  if ((!citations.length && !hasRealAnswer) || answerPolicy === "refuse" || answerPolicy === "REJECT_AND_GUIDE") {
     return `
-      <div class="ai-confidence-badge none">
-        <span>${getConfidenceIcon(level)}</span>
-        <span class="ai-confidence-text">${escapeHtml(label)}</span>
-        <span class="ai-confidence-score">${score}%</span>
-      </div>
-      <div class="ai-answer">${escapeHtml(answer || message || "目前檢索不到足以支持回答的文件片段。")}</div>
-      <div class="ai-section-title">建議補充</div>
+      <div class="ai-answer">${escapeHtml(answer || "目前找不到相關資料，請換個關鍵字再試。")}</div>
       ${recsHtml}
       ${renderFeedbackBlock()}
     `;
@@ -694,81 +799,142 @@ function composeAnswer(query, data) {
     return `${idx + 1}. ${escapeHtml(text)}`;
   }).join("<br>");
 
-  const citationHtml = citations.map(c => {
-    const similarityPct = (Number(c.score || 0) * 100).toFixed(1);
-    return `
-      <div class="ai-citation">
-        <div class="ai-citation-head">
-          <span>${escapeHtml(c.source_file)}（第 ${escapeHtml(c.page)} 頁，相似度 ${similarityPct}%）</span>
-          <a class="ai-citation-link" href="${escapeHtml(c.source_href)}#page=${escapeHtml(c.page)}" target="_blank" rel="noopener noreferrer">回查</a>
-        </div>
-        <div class="ai-citation-preview">${escapeHtml(c.preview)}</div>
-      </div>
-    `;
-  }).join("");
+  // 網路來源區塊（smart-ask 模式才有）
+  const webSources = Array.isArray(data?.web_sources) ? data.web_sources : [];
+  const webSourcesHtml = webSources.length
+    ? `<div style="margin-top:14px;padding-top:10px;border-top:1px solid #e2e8f0">
+         <div style="font-size:12px;color:#94a3b8;margin-bottom:6px">
+           <i class="fas fa-globe" style="margin-right:4px"></i>網路參考來源
+         </div>
+         <div style="display:flex;flex-direction:column;gap:5px">
+           ${webSources.map(s => `
+             <div style="font-size:12px;padding:5px 8px;background:#f8fafc;border-left:2px solid #bae6fd;border-radius:3px">
+               <a href="${escapeHtml(s.href || '#')}" target="_blank" rel="noopener noreferrer"
+                  style="color:#0369a1;font-weight:600;text-decoration:none">${escapeHtml(s.title || s.href || '')}</a>
+             </div>`).join('')}
+         </div>
+       </div>`
+    : "";
 
-  const guidance = {
-    high: "檢索信心較高，可作為第一線判讀與初步建議；涉及施工、預算或安全決策時仍需由承辦人複核。",
-    medium: "檢索信心中等，適合做初步分析；重要數值、日期與工程判定請再對照原始文件。",
-    low: "檢索信心偏低，請把這次回答視為線索整理，不宜直接作為正式判定。"
-  }[level] || "請以原始資料與現地巡查結果作為最後判定依據。";
+  const providerNote = llmLabel && llmLabel !== "本機知識庫"
+    ? `<div style="font-size:11px;color:#94a3b8;margin-top:10px;text-align:right">
+         <i class="fas fa-robot" style="margin-right:3px"></i>${escapeHtml(llmLabel)}
+       </div>`
+    : "";
 
   return `
-    <div class="ai-confidence-badge ${policyClass(level)}">
-      <span>${getConfidenceIcon(level)}</span>
-      <span class="ai-confidence-text">${escapeHtml(label)}</span>
-      <span class="ai-confidence-score">${score}%</span>
-    </div>
-    <div style="font-size:12px;color:#475569;margin-bottom:10px;">${escapeHtml(message)}</div>
-
-    <div class="ai-section-title">問題</div>
-    <div>${escapeHtml(query)}</div>
-
-    <div class="ai-section-title">AI 分析成果</div>
-    <div class="ai-model-note">RAG 即時檢索 + ${escapeHtml(llmLabel)} 本機推論</div>
     <div class="ai-answer">${answer ? escapeHtml(answer) : fallbackText}</div>
-
-    <div class="ai-section-title">使用建議</div>
-    <div>${escapeHtml(guidance)}</div>
-    ${recsHtml}
-
-    <div class="ai-citations">
-      <div class="ai-section-title">檢索依據</div>
-      ${citationHtml}
-    </div>
-
+    ${webSourcesHtml}
+    ${providerNote}
     ${renderFeedbackBlock()}
   `;
 }
 
+// ── 直接從瀏覽器呼叫 Groq API（免費、快速、不需後端）──────────────
+const AI_SYSTEM = "你是一位流利使用繁體中文的專業助理，擅長工程維護、生態保育與一般知識問答。回答清晰自然、適當分段，不使用 Markdown 標題符號（#、##）。";
+
+function getAIKey() {
+  return localStorage.getItem("GROQ_API_KEY") || "";
+}
+
+async function callGroqDirect(query, localCtx = "") {
+  const key = getAIKey();
+  if (!key) return null;
+
+  const ctxBlock = localCtx ? `\n【橫流溪本機資料】\n${localCtx}\n` : "";
+  const userMsg = `${ctxBlock}\n【使用者問題】\n${query}\n\n請以繁體中文回答（200～500字）：`;
+
+  const models = ["llama-3.3-70b-versatile", "llama-3.1-70b-versatile", "llama3-70b-8192"];
+
+  for (const model of models) {
+    try {
+      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${key}`
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: "system", content: AI_SYSTEM },
+            { role: "user",   content: userMsg }
+          ],
+          temperature: 0.4,
+          max_tokens: 1024
+        })
+      });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        console.error(`[Groq] ${model} HTTP ${res.status}:`, errBody?.error?.message || errBody);
+        continue;
+      }
+      const data = await res.json();
+      const text = data?.choices?.[0]?.message?.content?.trim();
+      if (text) return { text, model };
+    } catch (err) {
+      console.error(`[Groq] ${model} 例外:`, err.message || err);
+    }
+  }
+  console.error("[Groq] 所有模型均無回應，請按 F12 查看 Console 錯誤訊息");
+  return null;
+}
+
 async function queryRAG(query) {
-  // 1. 優先嘗試後端 RAG API（如果有在執行）
+  // ── 1. 先從本機 KB 取得相關背景知識（不管後端在不在都有資料）
+  const kbResult = queryLocalKB(query);
+  const localCtx = kbResult?.answer || "";
+
+  // ── 2. 直接呼叫 Groq（不需後端，最穩定路徑）
+  const groq = await callGroqDirect(query, localCtx);
+  if (groq) {
+    return {
+      answer: groq.text,
+      llm_provider: "groq",
+      llm_model: `${groq.model} (Groq)`,
+      confidence_level: "high",
+      confidence_score: 90,
+      policy_label: "AI 綜合回答",
+      message: `本機資料 ＋ ${groq.model}`,
+      web_sources: [],
+      structured_citations: kbResult?.structured_citations || []
+    };
+  }
+
+  // ── 3. 嘗試後端 smart-ask（有跑 Flask 時才有效）
+  const pageOrigin = (window.location.protocol.startsWith("http"))
+    ? window.location.origin : "";
   const bases = window.HLX_API_BASE
     ? [window.HLX_API_BASE]
-    : ["http://localhost:5000", "http://localhost:5051", "http://localhost:5050"];
+    : [pageOrigin, "http://127.0.0.1:5000", "http://localhost:5000"].filter(Boolean);
 
   for (const base of bases) {
     try {
       const ctrl = new AbortController();
-      const tid = setTimeout(() => ctrl.abort(), 60000); // 本機 Ollama/RAG 需要較長推論時間
-      const res = await fetch(`${base}/api/rag/chat`, {
+      const tid = setTimeout(() => ctrl.abort(), 60000);
+      const res = await fetch(`${base}/api/smart-ask`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query }),
+        body: JSON.stringify({ query, use_web: true }),
         signal: ctrl.signal
       });
       clearTimeout(tid);
       if (!res.ok) continue;
       const data = await res.json();
-      data._apiBase = base;
+      if (data.status !== "success") continue;
+      data.structured_citations = (data.local_evidence || []).map((e, i) => ({
+        index: i + 1, source_file: e.source || "橫流溪資料庫",
+        page: e.page || 1, score: e.confidence || 0.6,
+        preview: e.quote || "", source_href: e.source_href || ""
+      }));
       return data;
-    } catch (_) {
-      // 後端不可用，繼續嘗試下一個或 fallback
+    } catch (err) {
+      console.warn(`[queryRAG] ${base} 失敗:`, err.message || err);
     }
   }
 
-  // 2. Fallback：本機知識庫即時回答（不需伺服器）
-  return queryLocalKB(query);
+  // ── 4. 完全 fallback：本機知識庫
+  return kbResult;
 }
 
 async function aiSend() {

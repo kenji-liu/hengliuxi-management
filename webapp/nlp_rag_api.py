@@ -702,5 +702,307 @@ def localai_status() -> Any:
     return jsonify(payload)
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+#  網路搜尋 + 本機資料 + Ollama 綜合推論  /api/smart-ask
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _web_search_ddg(query: str, max_results: int = 6) -> List[Dict[str, Any]]:
+    """DuckDuckGo 免費搜尋（不需 API Key）。"""
+    try:
+        from duckduckgo_search import DDGS
+        with DDGS() as ddgs:
+            return list(ddgs.text(
+                query,
+                max_results=max_results,
+                region="tw-zh",
+                safesearch="moderate",
+            ))
+    except ImportError:
+        return []          # duckduckgo-search 未安裝時靜默降級
+    except Exception as exc:
+        return []
+
+
+def _format_web_results(results: List[Dict[str, Any]]) -> str:
+    if not results:
+        return ""
+    parts = []
+    for r in results:
+        title = _as_text(r.get("title"))
+        body  = _as_text(r.get("body"))[:350]
+        if title or body:
+            parts.append(f"• {title}\n  {body}")
+    return "\n\n".join(parts[:5])
+
+
+_SYSTEM_PROMPT = (
+    "你是一位流利使用繁體中文的專業助理，擅長工程維護、生態保育與一般知識問答。"
+    "回答清晰自然、適當分段，不使用 Markdown 標題符號（#、##）。"
+)
+
+def _build_user_msg(query: str, combined_ctx: str) -> str:
+    ctx_block = f"\n【參考資料】\n{combined_ctx}\n" if combined_ctx.strip() else ""
+    return (
+        f"{ctx_block}"
+        f"【使用者問題】\n{query}\n\n"
+        "請以繁體中文回答（200～500字，資料充分時可適當延伸）："
+    )
+
+
+# ── 各免費 AI 服務呼叫函式 ────────────────────────────────────────
+
+def _call_groq(query: str, ctx: str) -> "tuple[str, str]":
+    """Groq 免費 API — llama-3.3-70b-versatile（14,400 req/day，無需信用卡）。
+    取得 Key：https://console.groq.com  →  API Keys
+    設定：set GROQ_API_KEY=gsk_xxxxxxxx
+    """
+    import os, urllib.request, json as _json
+    key = os.environ.get("GROQ_API_KEY", "")
+    if not key:
+        return "", ""
+    payload = _json.dumps({
+        "model": "llama-3.3-70b-versatile",
+        "messages": [
+            {"role": "system", "content": _SYSTEM_PROMPT},
+            {"role": "user",   "content": _build_user_msg(query, ctx)},
+        ],
+        "temperature": 0.4,
+        "max_tokens": 1024,
+    }).encode("utf-8")
+    req = urllib.request.Request(
+        "https://api.groq.com/openai/v1/chat/completions",
+        data=payload,
+        headers={"Content-Type": "application/json", "Authorization": f"Bearer {key}"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            res = _json.loads(r.read().decode())
+        return res["choices"][0]["message"]["content"].strip(), "llama-3.3-70b (Groq)"
+    except Exception:
+        return "", ""
+
+
+def _call_gemini(query: str, ctx: str) -> "tuple[str, str]":
+    """Google Gemini 免費 API（優先 gemini-2.0-flash，備用 gemini-1.5-flash）。
+    取得 Key：https://aistudio.google.com  →  Get API key
+    設定：set GOOGLE_API_KEY=AQ.xxxxxxxx
+    """
+    import os, urllib.request, urllib.error, json as _json, logging
+    _log = logging.getLogger(__name__)
+    key = os.environ.get("GOOGLE_API_KEY", "")
+    if not key:
+        return "", ""
+
+    payload = _json.dumps({
+        "contents": [{"parts": [{"text": f"{_SYSTEM_PROMPT}\n\n{_build_user_msg(query, ctx)}"}]}],
+        "generationConfig": {"temperature": 0.4, "maxOutputTokens": 1024},
+    }).encode("utf-8")
+
+    # 依序嘗試：2.0-flash → 2.5-flash-preview → 1.5-flash
+    for model in ["gemini-2.0-flash", "gemini-2.5-flash-preview-05-20", "gemini-1.5-flash"]:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
+        req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
+        try:
+            with urllib.request.urlopen(req, timeout=30) as r:
+                res = _json.loads(r.read().decode())
+            text = res["candidates"][0]["content"]["parts"][0]["text"].strip()
+            _log.info(f"[GEMINI] ✓ 使用 {model}")
+            return text, f"{model} (Google)"
+        except urllib.error.HTTPError as e:
+            body = e.read().decode("utf-8", errors="ignore")
+            _log.warning(f"[GEMINI] {model} HTTP {e.code}: {body[:200]}")
+        except Exception as e:
+            _log.warning(f"[GEMINI] {model} 錯誤: {e}")
+
+    return "", ""
+
+
+def _call_openrouter(query: str, ctx: str) -> "tuple[str, str]":
+    """OpenRouter 免費模型 — llama-3.1-8b-instruct:free（需先建立帳號）。
+    取得 Key：https://openrouter.ai  →  Keys
+    設定：set OPENROUTER_API_KEY=sk-or-xxxxxxxx
+    """
+    import os, urllib.request, json as _json
+    key = os.environ.get("OPENROUTER_API_KEY", "")
+    if not key:
+        return "", ""
+    payload = _json.dumps({
+        "model": "meta-llama/llama-3.1-8b-instruct:free",
+        "messages": [
+            {"role": "system", "content": _SYSTEM_PROMPT},
+            {"role": "user",   "content": _build_user_msg(query, ctx)},
+        ],
+        "temperature": 0.4,
+        "max_tokens": 900,
+    }).encode("utf-8")
+    req = urllib.request.Request(
+        "https://openrouter.ai/api/v1/chat/completions",
+        data=payload,
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {key}",
+            "HTTP-Referer": "http://localhost:5000",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            res = _json.loads(r.read().decode())
+        return res["choices"][0]["message"]["content"].strip(), "llama-3.1-8b (OpenRouter)"
+    except Exception:
+        return "", ""
+
+
+def _call_ollama_synthesis(query: str, combined_ctx: str) -> str:
+    """Ollama 本機推論（qwen2.5:14b）— 最後一道防線。"""
+    import urllib.request, json as _json
+    if rag_backend is None:
+        return ""
+    ollama_url = f"{getattr(rag_backend, 'OLLAMA_BASE_URL', 'http://localhost:11434').rstrip('/')}/api/chat"
+    model   = getattr(rag_backend, "OLLAMA_MODEL", "qwen2.5:14b")
+    timeout = getattr(rag_backend, "OLLAMA_TIMEOUT", 240)
+    payload = _json.dumps({
+        "model": model,
+        "messages": [
+            {"role": "system", "content": _SYSTEM_PROMPT},
+            {"role": "user",   "content": _build_user_msg(query, combined_ctx)},
+        ],
+        "stream": False,
+        "options": {"temperature": 0.4, "num_ctx": 4096},
+    }).encode("utf-8")
+    req = urllib.request.Request(
+        ollama_url, data=payload,
+        headers={"Content-Type": "application/json"}, method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            res = _json.loads(resp.read().decode())
+        return (res.get("message", {}).get("content", "") or res.get("response", "")).strip()
+    except Exception:
+        return ""
+
+
+def _ai_synthesis(query: str, combined_ctx: str) -> "tuple[str, str, str]":
+    """自動選用可用的免費 AI 服務，依序嘗試：
+    Groq → Gemini → OpenRouter → Ollama（本機）
+    回傳 (answer, provider_key, display_name)
+    """
+    import os, logging
+    _log = logging.getLogger(__name__)
+
+    # 列出目前環境變數狀態（啟動時一次）
+    key_status = {
+        "GROQ":        bool(os.environ.get("GROQ_API_KEY")),
+        "GOOGLE":      bool(os.environ.get("GOOGLE_API_KEY")),
+        "OPENROUTER":  bool(os.environ.get("OPENROUTER_API_KEY")),
+    }
+    _log.info(f"[AI_SYNTHESIS] Key status: {key_status}")
+
+    for fn, provider_key in [
+        (_call_groq,       "groq"),
+        (_call_gemini,     "gemini"),
+        (_call_openrouter, "openrouter"),
+    ]:
+        text, display = fn(query, combined_ctx)
+        if text:
+            _log.info(f"[AI_SYNTHESIS] ✓ 使用 {display}")
+            return text, provider_key, display
+        else:
+            _log.info(f"[AI_SYNTHESIS] ✗ {provider_key} 未回應（Key 未設或呼叫失敗）")
+
+    # 本機 Ollama fallback
+    _log.info("[AI_SYNTHESIS] 嘗試 Ollama 本機...")
+    text = _call_ollama_synthesis(query, combined_ctx)
+    if text:
+        model = getattr(rag_backend, "OLLAMA_MODEL", "qwen2.5:14b") if rag_backend else "qwen2.5:14b"
+        _log.info(f"[AI_SYNTHESIS] ✓ 使用 Ollama ({model})")
+        return text, "ollama", f"{model} (Ollama 本機)"
+
+    _log.warning("[AI_SYNTHESIS] ✗ 所有 AI 服務皆無回應，使用本機知識庫 fallback")
+    return "", "none", ""
+
+
+@nlp_rag.route("/smart-ask", methods=["POST"])
+def smart_ask() -> Any:
+    """
+    智慧問答端點：
+      1. DuckDuckGo 網路搜尋（免費，繁中優先）
+      2. 本機 RAG 補充橫流溪專屬資料
+      3. qwen2.5:14b 綜合推論 → 流暢繁中回答
+    """
+    data    = request.get_json() or {}
+    query   = _as_text(data.get("query") or data.get("question"))
+    use_web = bool(data.get("use_web", True))
+
+    if not query:
+        return jsonify({"status": "error", "message": "缺少 query"}), 400
+
+    # ── 1. 網路搜尋 ──────────────────────────────────────────
+    web_results: List[Dict[str, Any]] = []
+    web_ctx     = ""
+    if use_web:
+        web_results = _web_search_ddg(query, max_results=6)
+        web_ctx     = _format_web_results(web_results)
+
+    # ── 2. 本機 RAG 補充 ──────────────────────────────────────
+    local_ctx = ""
+    local_evidence: List[Dict[str, Any]] = []
+    if rag_backend is not None:
+        try:
+            local_docs = _local_keyword_retrieve(query, top_k=5)
+            local_evidence = [_doc_to_evidence(d) for d in local_docs[:4]]
+            if local_docs:
+                local_ctx = "\n".join(
+                    _as_text(d.get("preview") or d.get("text"))[:200]
+                    for d in local_docs[:4]
+                )
+        except Exception:
+            pass
+
+    # ── 3. 組合 context ───────────────────────────────────────
+    combined_ctx_parts = []
+    if web_ctx.strip():
+        combined_ctx_parts.append(f"【網路搜尋結果（DuckDuckGo）】\n{web_ctx}")
+    if local_ctx.strip():
+        combined_ctx_parts.append(f"【橫流溪本機資料】\n{local_ctx}")
+    combined_ctx = "\n\n".join(combined_ctx_parts)
+
+    # ── 4. AI 綜合推論（自動選用可用的免費服務）─────────────────
+    answer, provider_key, provider_display = _ai_synthesis(query, combined_ctx)
+
+    if not answer:
+        answer = _fallback_answer(parse_query(query), []) or (
+            "目前所有 AI 服務皆無回應。\n"
+            "請設定至少一組免費 API Key（GROQ_API_KEY / GOOGLE_API_KEY）"
+            "或確認 Ollama 是否執行中（ollama serve）。"
+        )
+        provider_key, provider_display = "none", "無可用 AI"
+
+    web_sources_out = [
+        {"title": r.get("title", ""), "href": r.get("href", ""), "body": _as_text(r.get("body"))[:120]}
+        for r in web_results[:4]
+    ]
+
+    web_part  = f"網路搜尋（{len(web_results)} 筆）＋ " if web_results else ""
+    ai_part   = provider_display or "本機知識庫"
+    msg       = f"{web_part}本機資料 ＋ {ai_part}"
+
+    return jsonify({
+        "status":           "success",
+        "answer":           answer,
+        "llm_provider":     provider_key,
+        "llm_model":        provider_display,
+        "web_search_used":  bool(web_results),
+        "web_sources":      web_sources_out,
+        "local_evidence":   local_evidence,
+        "confidence_level": "high" if answer else "none",
+        "confidence_score": 90 if answer else 0,
+        "policy_label":     "AI 綜合回答",
+        "message":          msg,
+        "timestamp":        _now(),
+    })
+
+
 def register_nlp_rag_blueprint(app: Any) -> None:
     app.register_blueprint(nlp_rag)

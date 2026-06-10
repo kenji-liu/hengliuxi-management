@@ -75,6 +75,19 @@ function fac_twd97ToWgs84(tx, ty) {
    維度三：魚類通行效果     20 分
    維度四：周邊環境         10 分
    ══════════════════════════════════════════════════════════════ */
+/* DER 等級顏色對照 */
+function fac_derColor(level) {
+  if (!level || level === '-') return { text: '#94a3b8', bg: '#f1f5f9', border: '#e2e8f0', label: '未評估' };
+  const l = level.toUpperCase();
+  if (l.startsWith('A')) return { text: '#166534', bg: '#dcfce7', border: '#86efac', label: '良好' };
+  if (l.startsWith('B')) return { text: '#92400e', bg: '#fef3c7', border: '#fcd34d', label: '輕微缺失' };
+  if (l.startsWith('C')) return { text: '#c2410c', bg: '#ffedd5', border: '#fdba74', label: '顯著缺失' };
+  if (l.startsWith('D')) return { text: '#b91c1c', bg: '#fee2e2', border: '#fca5a5', label: '嚴重缺失' };
+  if (l.startsWith('E')) return { text: '#7f1d1d', bg: '#fee2e2', border: '#f87171', label: '危險' };
+  if (l.startsWith('R')) return { text: '#7c3aed', bg: '#f5f3ff', border: '#c4b5fd', label: '緊急修復' };
+  return { text: '#475569', bg: '#f8fafc', border: '#e2e8f0', label: level };
+}
+
 function fac_health(f) {
   const c = f.condition || 3;
   const dmg = f.status === '損壞' ? 2 : f.status === '需維護' ? 1 : 0;
@@ -460,9 +473,6 @@ function renderFacilityPrimaryCategories() {
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px">
         <div>
           <h3 style="margin:0;font-size:22px;font-weight:900;color:#0f172a">工程設施盤點基本資料</h3>
-          <div style="font-size:15px;color:#475569;line-height:1.65;margin-top:6px">
-            彙整橫流溪流域既有工程設施之基本屬性、空間位置、構造型式、現況、巡查紀錄與後續維護管理資訊。
-          </div>
         </div>
         <div style="font-size:14px;color:${current.color};background:${current.bg};border:1px solid ${current.border};border-radius:999px;padding:8px 14px;font-weight:800">
           目前分類：${current.label}
@@ -485,17 +495,13 @@ function renderFacilityPrimaryCategories() {
                 </div>
                 <div style="font-size:32px;font-weight:900;color:${category.color};line-height:1">${category.count}</div>
               </div>
-              <div style="font-size:19px;font-weight:900;color:#0f172a;margin-bottom:5px">${category.label}</div>
-              <div style="font-size:13px;color:#475569;line-height:1.55;min-height:38px">${category.description}</div>
+              <div style="font-size:24px;font-weight:900;color:#0f172a;margin-bottom:4px">${category.label}</div>
               <div style="font-size:14px;font-weight:800;color:${category.color};margin-top:12px">
                 ${active ? '▶ 目前檢視中' : '展開設施清單'}
               </div>
             </button>
           `;
         }).join('')}
-      </div>
-      <div style="margin-top:14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px 14px;font-size:13px;color:#334155;line-height:1.65">
-        階層：工程設施盤點基本資料 ＞ ${current.label} ＞ 設施清單 ＞ 設施詳細資訊。點選單一設施後，可檢視基本資料、工程屬性、GIS 定位、照片、巡查紀錄、異常判斷與維護建議。
       </div>
     </div>
   `;
@@ -749,12 +755,17 @@ function ensurePlatformRevetmentFacilities() {
     maintenance_priority: '低'
   };
   [
-    { code: 'P1', name: '平臺1', stationKm: '步道1K+290', lat: 24.186900, lng: 120.909335, twd97x: 240789, twd97y: 2675725, km_num: 1290, photos: ['/webapp/assets/report-photos/manual-p39-07-665x498.jpg'] },
-    { code: 'P2', name: '平臺2', stationKm: '步道1K+280', lat: 24.186819, lng: 120.909404, twd97x: 240796, twd97y: 2675716, km_num: 1280, photos: ['/webapp/assets/report-photos/manual-p39-07-665x498.jpg'] },
-    { code: 'P3', name: '平臺3', stationKm: '步道1K+225', lat: 24.186295, lng: 120.909513, twd97x: 240807, twd97y: 2675658, km_num: 1225, photos: ['/webapp/assets/report-photos/manual-p39-08-665x498.jpg'] },
-    { code: 'P4', name: '平臺4', stationKm: '步道1K+170', lat: 24.185835, lng: 120.909631, twd97x: 240819, twd97y: 2675607, km_num: 1170, photos: ['/webapp/assets/report-photos/manual-p39-08-665x498.jpg'] }
+    { code: 'P1', name: '平臺1', stationKm: '步道1K+290', lat: 24.186900, lng: 120.909335, twd97x: 240789, twd97y: 2675725, km_num: 1290, photos: ['/webapp/assets/report-photos/platform1-field.webp'] },
+    { code: 'P2', name: '平臺2', stationKm: '步道1K+280', lat: 24.186819, lng: 120.909404, twd97x: 240796, twd97y: 2675716, km_num: 1280, photos: ['/webapp/assets/report-photos/platform2-field.webp'] },
+    { code: 'P3', name: '平臺3', stationKm: '步道1K+225', lat: 24.186295, lng: 120.909513, twd97x: 240807, twd97y: 2675658, km_num: 1225, photos: ['/webapp/assets/report-photos/platform3-field.webp'] },
+    { code: 'P4', name: '平臺4', stationKm: '步道1K+170', lat: 24.185835, lng: 120.909631, twd97x: 240819, twd97y: 2675607, km_num: 1170, photos: ['/webapp/assets/report-photos/platform4-field.webp'] }
   ].forEach(item => {
-    if (hasPlatform(item.code)) return;
+    const existing = facilities.find(f => /平台|平臺/.test(textOf(f)) && String(f.code || '').toUpperCase() === item.code.toUpperCase());
+    if (existing) {
+      // 已存在：僅更新照片路徑
+      DB.update('facilities', existing.id, { photos: item.photos });
+      return;
+    }
     DB.insert('facilities', {
       ...base,
       ...item,
@@ -843,18 +854,24 @@ function renderFacilities() {
         <h2 style="margin:0;font-size:18px;font-weight:800;color:var(--text)">工程設施盤點基本資料</h2>
         <div style="font-size:12px;color:#64748b;margin-top:4px">工程設施管理模組主要入口，依工程類別展開設施清單與詳細資料。</div>
       </div>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <div style="display:flex;gap:4px;background:#f1f5f9;padding:4px;border-radius:6px">
-          <button class="btn btn-sm ${facilityViewMode==='cards'?'btn-primary':'btn-outline'}"
-                  onclick="switchFacilityViewMode('cards')" style="font-size:12px">
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <div style="display:flex;gap:6px;background:#f1f5f9;padding:6px;border-radius:8px">
+          <button id="fvm_cards_btn"
+                  onclick="switchFacilityViewMode('cards')"
+                  style="font-size:16px;padding:8px 18px;border:none;border-radius:6px;cursor:pointer;font-weight:700;transition:all .15s;
+                         background:${facilityViewMode==='cards'?'#1565c0':'transparent'};
+                         color:${facilityViewMode==='cards'?'#fff':'#475569'}">
             <i class="fas fa-th"></i> 卡片檢視
           </button>
-          <button class="btn btn-sm ${facilityViewMode==='map'?'btn-primary':'btn-outline'}"
-                  onclick="switchFacilityViewMode('map')" style="font-size:12px">
+          <button id="fvm_map_btn"
+                  onclick="switchFacilityViewMode('map')"
+                  style="font-size:16px;padding:8px 18px;border:none;border-radius:6px;cursor:pointer;font-weight:700;transition:all .15s;
+                         background:${facilityViewMode==='map'?'#1565c0':'transparent'};
+                         color:${facilityViewMode==='map'?'#fff':'#475569'}">
             <i class="fas fa-map"></i> 地圖檢視
           </button>
         </div>
-        <button class="btn btn-primary" onclick="openFacilityForm()" style="font-size:12px">
+        <button class="btn btn-primary" onclick="openFacilityForm()" style="font-size:16px;padding:8px 20px">
           <i class="fas fa-plus"></i> 新增設施
         </button>
       </div>
@@ -864,31 +881,6 @@ function renderFacilities() {
 
     <!-- 篩選列 -->
 
-    <div class="card" style="margin-bottom:16px">
-      <div class="card-body" style="padding:12px 16px">
-        <div class="search-bar">
-          <div class="search-input">
-            <i class="fas fa-search"></i>
-            <input type="text" id="facilitySearch" placeholder="搜尋設施名稱、里程或座標..." oninput="filterFacilities()" value="${facilityFilter.keyword}">
-          </div>
-          <select id="facilityTypeFilter" onchange="filterFacilities()">
-            <option value="">全部類型</option>
-            <option value="護岸">護岸</option>
-            <option value="防砂構造物">防砂構造物</option>
-            <option value="固床工">固床工</option>
-            <option value="魚道">魚道</option>
-            <option value="步道">步道</option>
-            <option value="平台">平台</option>
-          </select>
-          <select id="facilityStatusFilter" onchange="filterFacilities()">
-            <option value="">全部狀況</option>
-            <option value="正常">正常</option>
-            <option value="需維護">需維護</option>
-            <option value="損壞">損壞</option>
-          </select>
-        </div>
-      </div>
-    </div>
 
     <!-- 設施卡片格或地圖容器 -->
     <div id="facilitiesContainer"></div>
@@ -917,6 +909,17 @@ function filterFacilities() {
 function switchFacilityViewMode(mode) {
   facilityViewMode = mode;
   facilityPage = 1;
+  // 更新按鈕高亮
+  const bCards = document.getElementById('fvm_cards_btn');
+  const bMap   = document.getElementById('fvm_map_btn');
+  if (bCards) {
+    bCards.style.background = mode === 'cards' ? '#1565c0' : 'transparent';
+    bCards.style.color      = mode === 'cards' ? '#fff'    : '#475569';
+  }
+  if (bMap) {
+    bMap.style.background = mode === 'map' ? '#1565c0' : 'transparent';
+    bMap.style.color      = mode === 'map' ? '#fff'    : '#475569';
+  }
   if (mode === 'cards') {
     loadFacilitiesTable();
   } else {
@@ -1055,14 +1058,19 @@ function loadFacilitiesTable() {
               </div>
             </div>
 
-            <!-- 健康指數 -->
-            <div style="padding:16px 24px;display:flex;flex-direction:column;align-items:center;justify-content:center;border-left:1px solid #f1f5f9;min-width:100px">
-              <div style="font-size:32px;font-weight:900;color:${bc};line-height:1">${hp}</div>
-              <div style="font-size:12px;color:#94a3b8;margin-top:4px;font-weight:600">健康指數</div>
-              <div style="width:64px;height:6px;background:#e9ecef;border-radius:3px;overflow:hidden;margin-top:7px">
-                <div style="height:100%;width:${hp}%;background:${bc};border-radius:3px"></div>
-              </div>
-            </div>
+            <!-- DER 評等 -->
+            ${(() => {
+              const der = fac_derColor(f.derLevel);
+              const displayLevel = f.derLevel || '—';
+              return `
+              <div style="padding:14px 20px;display:flex;flex-direction:column;align-items:center;justify-content:center;border-left:1px solid #f1f5f9;min-width:110px;gap:6px">
+                <div style="background:${der.bg};border:2px solid ${der.border};border-radius:12px;padding:6px 14px;text-align:center">
+                  <div style="font-size:28px;font-weight:900;color:${der.text};line-height:1.1;letter-spacing:1px">${displayLevel}</div>
+                </div>
+                <div style="font-size:12px;color:${der.text};font-weight:700">${der.label}</div>
+                <div style="font-size:11px;color:#94a3b8;font-weight:600">DER 評等</div>
+              </div>`;
+            })()}
 
             <!-- 展開箭頭 -->
             <div style="padding:0 18px;display:flex;align-items:center;border-left:1px solid #f1f5f9">
@@ -1130,10 +1138,6 @@ function loadFacilitiesTable() {
                 style="font-size:15px;padding:10px 22px;background:${f.derLevel==='A1'?'#e8f5e9':f.derLevel==='B1-I'?'#fff3e0':'#ffebee'};
                        border-color:${f.derLevel==='A1'?'#4caf50':f.derLevel==='B1-I'?'#ff9800':'#f44336'}">
                 📊 DER&U 評估
-              </button>
-              <button class="btn btn-outline" onclick="openHealthEvalModal(${f.id})"
-                style="font-size:15px;padding:10px 22px;background:#fff7ed;border-color:#ea580c;color:#ea580c;font-weight:700">
-                <i class="fas fa-heartbeat"></i> 健康指數評定
               </button>
               <button class="btn btn-outline" onclick="openFacilityForm(${f.id})" style="font-size:15px;padding:10px 18px">
                 <i class="fas fa-edit"></i> 編輯
@@ -1366,6 +1370,26 @@ function openFacilityForm(id = null) {
   openModal();
 }
 
+/* ── 跨模組連動同步：設施資料更新後同步至所有巡查紀錄 ── */
+function syncFacilityUpdatesToInspections(facilityId, newName) {
+  if (!facilityId) return;
+  const inspections = DB.getAll('inspections');
+  let updated = 0;
+  inspections.forEach(row => {
+    const rid = Number(row.facilityId || row.facility_id);
+    if (rid !== Number(facilityId)) return;
+    const needsNameSync = newName && (row.facilityName !== newName || row.facility_name !== newName);
+    if (needsNameSync) {
+      DB.update('inspections', row.id, {
+        facilityName:  newName,
+        facility_name: newName
+      });
+      updated++;
+    }
+  });
+  if (updated > 0) console.log(`[Sync] Updated facilityName in ${updated} inspection records for facility #${facilityId}`);
+}
+
 function saveFacility(id) {
   const name = document.getElementById('f_name').value.trim();
   const location = document.getElementById('f_location').value.trim();
@@ -1385,8 +1409,14 @@ function saveFacility(id) {
     photos: id ? (DB.getById('facilities', id)?.photos || []) : []
   };
 
-  if (id) { DB.update('facilities', id, item); showToast('設施資料已更新', 'success'); }
-  else { DB.insert('facilities', item); showToast('設施已新增', 'success'); }
+  if (id) {
+    DB.update('facilities', id, item);
+    syncFacilityUpdatesToInspections(id, name); // ← 連動同步巡查名稱
+    showToast('設施資料已更新，關聯巡查紀錄已同步', 'success');
+  } else {
+    DB.insert('facilities', item);
+    showToast('設施已新增', 'success');
+  }
   closeModal(); loadFacilitiesTable();
 }
 
@@ -1635,7 +1665,8 @@ function saveHealthEval(facilityId) {
     assessmentDate:  today
   });
 
-  showToast(`${f.name} 健康指數已更新為 ${newHp} 分`, 'success');
+  syncFacilityUpdatesToInspections(facilityId, f.name); // ← 連動同步
+  showToast(`${f.name} 健康指數已更新為 ${newHp} 分，關聯資料已同步`, 'success');
   closeModal();
   loadFacilitiesTable();
 }
@@ -1772,10 +1803,6 @@ function viewFacility(id) {
   document.getElementById('modalFooter').innerHTML = `
     <button class="btn btn-outline" onclick="closeModal()">關閉</button>
     ${gmUrl ? `<a href="${gmUrl}" target="_blank" class="btn btn-outline" style="display:inline-flex;align-items:center;gap:6px;background:#4285f4;color:#fff;border-color:#4285f4"><i class="fas fa-map-marker-alt"></i> Google Maps</a>` : ''}
-    <button class="btn btn-outline" onclick="closeModal();openHealthEvalModal(${id})"
-      style="background:#fff7ed;border-color:#ea580c;color:#ea580c;font-weight:700">
-      <i class="fas fa-heartbeat"></i> 健康指數評定
-    </button>
     <button class="btn btn-primary" onclick="closeModal();openFacilityForm(${id})"><i class="fas fa-edit"></i> 編輯</button>
   `;
   openModal();
@@ -1954,7 +1981,10 @@ function saveDERUAssessment(id) {
 
   if (id) {
     DB.update('facilities', id, updates);
-    showToast('DER&U 評估已更新', 'success');
+    // 同步巡查紀錄中的 DER&U 相關欄位
+    const fac = DB.getById('facilities', id);
+    if (fac) syncFacilityUpdatesToInspections(id, fac.name);
+    showToast('DER&U 評估已更新，關聯資料已同步', 'success');
   } else {
     showToast('請先選擇設施', 'error');
     return;

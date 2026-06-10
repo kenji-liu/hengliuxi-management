@@ -151,11 +151,501 @@ function inspectionRecordTypeLabel(type) {
 function renderInspectionMgmtPage() {
   syncDeruHistoryIntoInspectionRecords();
   document.getElementById('contentArea').innerHTML =
+    renderManualInspectionGuide() +
     renderInspectionDataManagement(true);
   // 初始化篩選監聽（已在 renderInspectionDataManagement 內 setTimeout 處理）
 }
 
-let inspDataTab = 'all'; // 'all' | 'general' | 'professional' | 'ranger'
+/* ══════════════════════════════════════════════════════════════
+   維護管理手冊 — 巡查機制與規範（源自 維護管理手冊 Ver1.0, 114年8月）
+   ══════════════════════════════════════════════════════════════ */
+
+/* 切換各區塊展開 / 收合 */
+function mgToggle(id) {
+  const body = document.getElementById(id);
+  const chevron = document.getElementById(id + '_chev');
+  if (!body) return;
+  const open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : '';
+  if (chevron) chevron.style.transform = open ? 'rotate(-90deg)' : 'rotate(0deg)';
+}
+
+function renderManualInspectionGuide() {
+  /* ── 構造物基本資料 ── */
+  const FACILITIES_DATA = [
+    { id:'溪構1-1',  type:'粗石斜曲面式魚道', mat:'混凝土/塊石', loc:'1K+400', x:'240786', y:'2675695' },
+    { id:'溪構1-2',  type:'改良型舟通式魚道', mat:'混凝土',       loc:'1K+400', x:'240773', y:'2675689' },
+    { id:'溪構2',    type:'階段式魚道',         mat:'混凝土',       loc:'1K+315', x:'240819', y:'2675607' },
+    { id:'溪構3',    type:'斜坡式魚道',         mat:'混凝土/塊石', loc:'1K+225', x:'240873', y:'2675532' },
+    { id:'溪構4',    type:'階段式魚道',         mat:'混凝土/塊石', loc:'1K+170', x:'240832', y:'2675493' },
+    { id:'溪構5-1',  type:'防砂壩',             mat:'混凝土',       loc:'1K+000', x:'240812', y:'2675353' },
+    { id:'溪構5-2',  type:'潛越式魚道',         mat:'混凝土',       loc:'1K+000', x:'240812', y:'2675353' },
+    { id:'溪構6',    type:'階段式魚道',         mat:'混凝土/塊石', loc:'0K+740', x:'240785', y:'2675146' },
+    { id:'溪構7',    type:'降壩魚道',           mat:'混凝土',       loc:'0K+560', x:'240704', y:'2675063' },
+    { id:'溪構8-1',  type:'防砂壩',             mat:'混凝土',       loc:'0K+460', x:'240716', y:'2674967' },
+    { id:'溪構8-2',  type:'之字形魚道',         mat:'混凝土',       loc:'0K+460', x:'240716', y:'2674967' },
+    { id:'溪構9',    type:'固床工',             mat:'混凝土',       loc:'1K+265', x:'240858', y:'2675575' },
+    { id:'溪構10',   type:'固床工',             mat:'混凝土/塊石', loc:'1K+040', x:'240802', y:'2675390' },
+    { id:'溪構11',   type:'階梯式固床工',       mat:'混凝土/塊石', loc:'0K+510', x:'240716', y:'2675013' },
+  ];
+  const fishPassCount = FACILITIES_DATA.filter(f => f.type.includes('魚道')).length;
+  const sandDamCount  = FACILITIES_DATA.filter(f => f.type.includes('防砂壩')).length;
+  const groundCount   = FACILITIES_DATA.filter(f => f.type.includes('固床工')).length;
+
+  /* ── 巡查種類 ── */
+  const INSP_TYPES = [
+    {
+      key: 'general', icon: 'fa-clipboard-check', color: '#1565c0', bg: '#eff6ff', border: '#2563eb',
+      title: '一般性定期巡查', freq: '每月 1 次', personnel: '麗陽工作站護管員',
+      timing: '由工作站依護管員工作期程安排',
+      form: '表 3-1 一般性定期巡查表單',
+      items: [
+        { icon: 'fa-road',                 label: '步　道',       desc: '外觀完整性、路面暢通狀況，伏倒木或落石阻斷' },
+        { icon: 'fa-mountain',             label: '邊　坡',       desc: '是否有明顯大面積裸露區域或崩塌' },
+        { icon: 'fa-border-all',           label: '平臺／護欄',   desc: '外觀有無異常、斷裂、破損或歪斜' },
+        { icon: 'fa-shield',               label: '護　岸',       desc: '外觀完整性、基礎是否有淘空現象' },
+        { icon: 'fa-fish',                 label: '魚道／防砂設施', desc: '外觀完整、構造物土砂淤積、基礎淘空' },
+        { icon: 'fa-triangle-exclamation', label: '危木、落石',   desc: '步道周邊樹木傾倒或落石危害' },
+        { icon: 'fa-sign',                 label: '告示牌／救生圈', desc: '遺失或損毀情況確認' },
+      ]
+    },
+    {
+      key: 'professional', icon: 'fa-hard-hat', color: '#9a3412', bg: '#fff7ed', border: '#ea580c',
+      title: '專業性定期巡查', freq: '每 2 年 1 次', personnel: '林業保育署臺中分署集水區治理科或委外團隊',
+      timing: '巡查當年汛期前完成（汛期：每年 5 月 1 日 ～ 11 月 30 日）',
+      form: '表 3-2 構造物調查表 ＋ 表 3-3 魚道檢核表',
+      items: [
+        { icon: 'fa-magnifying-glass', label: '定性（初步）檢測', desc: '外觀目測：裂縫、磨蝕、淘空、傾倒、沉陷、錯動、位移、背填流失等 13 項' },
+        { icon: 'fa-ruler-combined',   label: '定量（進階）DER&U', desc: '劣化程度(D)、劣化範圍(E)、影響性(R)三指標計算 ICS 值' },
+        { icon: 'fa-fish',             label: '魚道縱向廊道評估', desc: '魚道破損、土砂淤積、水位差過大、斷流、流速異常之影響判斷' },
+        { icon: 'fa-clipboard-list',   label: '全面功能評估',     desc: '構造物整體狀況分級（A/B1-B3/C1-C5）及處理建議' },
+      ]
+    },
+    {
+      key: 'emergency', icon: 'fa-bell', color: '#7c2d12', bg: '#fff1f2', border: '#dc2626',
+      title: '不定期緊急巡查', freq: '事件後立即啟動', personnel: '林業保育署臺中分署集水區治理科或委外團隊',
+      timing: '事件發生後立即啟動，由分署緊急通報協調',
+      form: '表 3-2 構造物調查表 ＋ 表 3-3 魚道檢核表',
+      items: [
+        { icon: 'fa-cloud-rain',      label: '大豪雨觸發',   desc: '24 小時累積雨量 ≥ 350 mm 或 3 小時累積雨量 ≥ 200 mm' },
+        { icon: 'fa-house-crack',     label: '地震觸發',     desc: '震度達 五弱（≥5）以上之地震事件' },
+        { icon: 'fa-person-digging',  label: '其他事故',     desc: '重要設施遭人為破壞，或已有設施損毀且可能擴大者' },
+        { icon: 'fa-shield-halved',   label: '應急處理程序', desc: '封閉交通 → 警示設施 → 全面檢測 → 研擬修復方案 → 安全驗收' },
+      ]
+    }
+  ];
+
+  /* ── DER&U 評分系統 ── */
+  const DERU_GRADES = [
+    { label:'A 級',  color:'#16a34a', bg:'#f0fdf4', desc:'外觀良好或些微磨損，功能健全',      action:'例行維護（定期檢測）' },
+    { label:'B1 級', color:'#1565c0', bg:'#eff6ff', desc:'重要工程，劣化範圍 ＜ 60%',        action:'進階(定量)DER&U 檢測，建檔管理' },
+    { label:'B2 級', color:'#0891b2', bg:'#ecfeff', desc:'一般工程，30% ≤ 劣化 ＜ 60%',     action:'1～3 年內應處理維護（重建、補強）' },
+    { label:'B3 級', color:'#0369a1', bg:'#f0f9ff', desc:'一般工程，劣化範圍 ＜ 30%',        action:'進入定期檢測系統' },
+    { label:'C1 級', color:'#dc2626', bg:'#fff1f2', desc:'重要工程，劣化範圍 ≥ 80%',         action:'緊急（短時間）處理重建' },
+    { label:'C2 級', color:'#e11d48', bg:'#fff1f2', desc:'重要工程，60% ≤ 劣化 ＜ 80%',     action:'1 年內應處理重建' },
+    { label:'C3 級', color:'#9a3412', bg:'#fff7ed', desc:'一般工程，劣化 ≥ 60%，有保全對象', action:'1 年內應處理重建' },
+    { label:'C4 級', color:'#b45309', bg:'#fffbeb', desc:'一般工程，劣化 ≥ 60%，無保全對象', action:'緩建或適當情形下重建' },
+    { label:'C5 級', color:'#78716c', bg:'#fafaf9', desc:'原工程目的已有替代工程者',          action:'維持現況' },
+  ];
+
+  /* ── ICS 急迫性分級 ── */
+  const ICS_LEVELS = [
+    { range:'ICS ≥ 85',      grade:'I 級',   color:'#16a34a', action:'例行處理維護' },
+    { range:'70 ≤ ICS ＜ 85', grade:'II 級',  color:'#d97706', action:'三年內必須處理維護' },
+    { range:'40 ≤ ICS ＜ 70', grade:'III 級', color:'#ea580c', action:'一年內必須處理維護' },
+    { range:'ICS ＜ 40',      grade:'IV 級',  color:'#dc2626', action:'緊急處理重建' },
+  ];
+
+  /* ── 劣化型態 ── */
+  const DETERIORATION_TYPES = [
+    { icon: 'fa-minus',             name:'裂縫',    desc:'混凝土開裂，影響承載與耐久性' },
+    { icon: 'fa-eraser',            name:'磨蝕',    desc:'高速挾砂水流沖刷，表面剝離流失' },
+    { icon: 'fa-circle-dot',        name:'淘空',    desc:'河水沖刷造成基礎流失、凹陷' },
+    { icon: 'fa-rotate',            name:'傾倒',    desc:'地震/背填流失/承載不足致傾斜' },
+    { icon: 'fa-down-long',         name:'沉陷',    desc:'底部土壤沖刷或承載不足下沉' },
+    { icon: 'fa-wave-square',       name:'錯動變形', desc:'構造物凹陷、隆起、彎曲變形' },
+    { icon: 'fa-arrows-left-right', name:'位移',    desc:'構造物水平移動偏離設計位置' },
+    { icon: 'fa-droplet-slash',     name:'背填流失', desc:'護岸背填土方沖刷流失' },
+    { icon: 'fa-tree',              name:'腐朽',    desc:'木材細胞壁被腐菌分解（白腐/褐腐）' },
+    { icon: 'fa-fire',              name:'火害',    desc:'燃燒造成構造物損傷' },
+    { icon: 'fa-link-slash',        name:'外框斷裂', desc:'蛇籠/箱籠線狀外框斷裂' },
+    { icon: 'fa-seedling',          name:'植生不良', desc:'坡面植生覆蓋不足，易造成侵蝕' },
+  ];
+
+  /* ── 共用樣式：可折疊區塊標題列 ── */
+  function sectionHeader(id, gradient, icon, iconColor, title, subtitle, defaultOpen = true) {
+    const chevRot = defaultOpen ? 'rotate(0deg)' : 'rotate(-90deg)';
+    return `
+    <div onclick="mgToggle('${id}')" style="background:${gradient};padding:20px 28px;
+         display:flex;align-items:center;justify-content:space-between;
+         cursor:pointer;user-select:none;border-radius:${defaultOpen?'16px 16px 0 0':'16px'}">
+      <div>
+        <div style="font-size:26px;font-weight:900;color:#fff;display:flex;align-items:center;gap:12px">
+          <i class="fas ${icon}" style="color:${iconColor}"></i>${title}
+        </div>
+        ${subtitle ? `<div style="font-size:17px;color:rgba(255,255,255,.75);margin-top:5px">${subtitle}</div>` : ''}
+      </div>
+      <i id="${id}_chev" class="fas fa-chevron-down"
+         style="color:rgba(255,255,255,.85);font-size:22px;transition:transform .25s;transform:${chevRot}"></i>
+    </div>`;
+  }
+
+  return `
+  <!-- ══════════ 維護管理手冊 巡查機制規範 ══════════ -->
+  <div style="margin-bottom:28px">
+
+    <!-- ── 頂部橫幅（不可折） ── -->
+    <div style="background:linear-gradient(135deg,#1e3a5f 0%,#0f4c81 50%,#1565c0 100%);
+                border-radius:16px;padding:30px 36px;margin-bottom:20px;
+                box-shadow:0 8px 32px rgba(15,23,42,.25);position:relative;overflow:hidden">
+      <div style="position:absolute;right:-20px;top:-20px;width:200px;height:200px;
+                  border-radius:50%;background:rgba(255,255,255,.06)"></div>
+      <div style="position:absolute;right:80px;bottom:-50px;width:240px;height:240px;
+                  border-radius:50%;background:rgba(255,255,255,.04)"></div>
+      <div style="position:relative;z-index:1;display:flex;align-items:flex-start;
+                  justify-content:space-between;gap:24px;flex-wrap:wrap">
+        <div>
+          <div style="font-size:17px;color:rgba(255,255,255,.75);margin-bottom:8px;letter-spacing:.5px">
+            <i class="fas fa-book-open" style="margin-right:8px"></i>
+            農業部林業及自然保育署臺中分署 ／ Ver1.0 ／ 114年8月
+          </div>
+          <h2 style="margin:0 0 10px;font-size:34px;font-weight:900;color:#fff;letter-spacing:-.3px">
+            <i class="fas fa-hard-hat" style="color:#fbbf24;margin-right:12px"></i>橫流溪重要設施維護管理
+          </h2>
+          <div style="font-size:20px;color:rgba(255,255,255,.88);line-height:1.7">
+            維護範圍：橫流溪 <strong style="color:#fbbf24">0K+460 ～ 1K+400</strong>
+            ｜步道 0K+000 ～ 1K+290
+          </div>
+        </div>
+        <div style="display:flex;gap:14px;flex-wrap:wrap">
+          ${[
+            [fishPassCount,'座魚道'],
+            [sandDamCount, '座防砂壩'],
+            [groundCount,  '座固床工'],
+            [4,            '座觀景平臺'],
+          ].map(([n,lbl])=>`
+          <div style="background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.22);
+                      border-radius:14px;padding:16px 22px;text-align:center;min-width:88px">
+            <div style="font-size:44px;font-weight:900;color:#fbbf24;line-height:1">${n}</div>
+            <div style="font-size:16px;color:rgba(255,255,255,.85);margin-top:6px">${lbl}</div>
+          </div>`).join('')}
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ ① 巡查種類與機制 ══ -->
+    <div style="border:2px solid #bfdbfe;border-radius:16px;margin-bottom:20px;
+                box-shadow:0 4px 16px rgba(15,23,42,.07);overflow:hidden">
+      ${sectionHeader('mg_insp','linear-gradient(90deg,#1e3a5f,#1565c0)',
+        'fa-clipboard-list','#fbbf24','巡查種類與機制',
+        '一般性 ／ 專業性 ／ 不定期（緊急）三類制度', false)}
+      <div id="mg_insp" style="padding:24px;background:#fff;display:none">
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:18px">
+          ${INSP_TYPES.map(t => `
+          <div style="background:${t.bg};border:2px solid ${t.border};border-radius:14px;padding:24px">
+            <!-- 卡片標頭 -->
+            <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px">
+              <div style="width:60px;height:60px;border-radius:16px;background:${t.color};color:#fff;
+                          display:flex;align-items:center;justify-content:center;font-size:26px;
+                          box-shadow:0 4px 14px ${t.color}44;flex-shrink:0">
+                <i class="fas ${t.icon}"></i>
+              </div>
+              <div>
+                <div style="font-size:22px;font-weight:900;color:${t.color}">${t.title}</div>
+                <div style="font-size:18px;font-weight:700;color:#0f172a;margin-top:3px">
+                  <i class="fas fa-clock" style="margin-right:5px;opacity:.6"></i>${t.freq}
+                </div>
+              </div>
+            </div>
+            <!-- 巡查基本資訊 -->
+            <div style="background:rgba(255,255,255,.75);border:1px solid rgba(0,0,0,.08);
+                        border-radius:12px;padding:14px 16px;margin-bottom:18px">
+              ${[
+                ['fa-user-tie', '巡查人員', t.personnel],
+                ['fa-calendar', '巡查時機', t.timing],
+                ['fa-file-alt', '使用表格', t.form],
+              ].map(([ic,lb,val])=>`
+              <div style="display:flex;gap:8px;margin-bottom:8px;align-items:flex-start">
+                <i class="fas ${ic}" style="color:${t.color};margin-top:4px;font-size:15px;flex-shrink:0"></i>
+                <div style="font-size:17px;color:#1e293b;line-height:1.65">
+                  <strong>${lb}：</strong>${val}
+                </div>
+              </div>`).join('')}
+            </div>
+            <!-- 巡查項目 -->
+            <div style="font-size:17px;font-weight:800;color:${t.color};margin-bottom:10px;
+                        padding-left:6px;border-left:4px solid ${t.color}">
+              巡查項目 &amp; 重點
+            </div>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              ${t.items.map(item=>`
+              <div style="display:flex;gap:12px;align-items:flex-start;
+                          background:rgba(255,255,255,.65);border-radius:10px;padding:12px 14px">
+                <div style="width:38px;height:38px;border-radius:10px;background:${t.color}1a;
+                            color:${t.color};display:flex;align-items:center;justify-content:center;
+                            flex-shrink:0;font-size:17px">
+                  <i class="fas ${item.icon}"></i>
+                </div>
+                <div>
+                  <div style="font-size:18px;font-weight:800;color:#0f172a">${item.label}</div>
+                  <div style="font-size:16px;color:#475569;line-height:1.6;margin-top:3px">${item.desc}</div>
+                </div>
+              </div>`).join('')}
+            </div>
+          </div>`).join('')}
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ ② 構造物基本資料 ══ -->
+    <div style="border:2px solid #c7d2fe;border-radius:16px;margin-bottom:20px;
+                box-shadow:0 4px 16px rgba(15,23,42,.07);overflow:hidden">
+      ${sectionHeader('mg_fac','linear-gradient(90deg,#0f172a,#1e3a5f)',
+        'fa-list-check','#fbbf24','構造物基本資料（表 1-1）',
+        `TWD97 坐標定位 ／ 共 ${FACILITIES_DATA.length} 座構造物`, false)}
+      <div id="mg_fac" style="background:#fff;display:none">
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse">
+            <thead>
+              <tr style="background:#f1f5f9;border-bottom:3px solid #cbd5e1">
+                ${['設施編號','設施種類','使用材質','位置樁號','TWD97 X','TWD97 Y'].map(h=>`
+                <th style="padding:18px 22px;text-align:left;font-size:19px;font-weight:900;
+                           color:#1e3a5f;white-space:nowrap">${h}</th>`).join('')}
+              </tr>
+            </thead>
+            <tbody>
+              ${FACILITIES_DATA.map((f, idx) => {
+                const isFish = f.type.includes('魚道');
+                const isSand = f.type.includes('防砂壩');
+                const rowBg = idx % 2 === 0 ? '#fff' : '#f8fafc';
+                const tagColor = isFish ? '#1565c0' : isSand ? '#9a3412' : '#166534';
+                const tagBg = isFish ? '#eff6ff' : isSand ? '#fff7ed' : '#f0fdf4';
+                return `
+              <tr style="background:${rowBg};border-bottom:1px solid #e2e8f0"
+                  onmouseover="this.style.background='#e0f2fe'" onmouseout="this.style.background='${rowBg}'">
+                <td style="padding:16px 22px;font-size:20px;font-weight:900;color:#0f172a">${f.id}</td>
+                <td style="padding:16px 22px">
+                  <span style="background:${tagBg};color:${tagColor};border:1px solid ${tagColor}44;
+                               border-radius:999px;padding:6px 16px;font-size:18px;font-weight:700">
+                    ${f.type}
+                  </span>
+                </td>
+                <td style="padding:16px 22px;font-size:17px;color:#475569">${f.mat}</td>
+                <td style="padding:16px 22px;text-align:center;font-size:19px;font-weight:800;color:#0369a1">${f.loc}</td>
+                <td style="padding:16px 22px;text-align:center;font-size:17px;color:#64748b;font-family:monospace">${f.x}</td>
+                <td style="padding:16px 22px;text-align:center;font-size:17px;color:#64748b;font-family:monospace">${f.y}</td>
+              </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+        <div style="padding:14px 22px;background:#f8fafc;border-top:1px solid #e2e8f0;
+                    display:flex;gap:16px;flex-wrap:wrap;align-items:center">
+          ${[['魚道','#1565c0','#eff6ff'],['防砂壩','#9a3412','#fff7ed'],['固床工','#166534','#f0fdf4']].map(([label,color,bg])=>`
+          <span style="background:${bg};color:${color};border:1px solid ${color}44;
+                       border-radius:999px;padding:5px 16px;font-size:17px;font-weight:700">
+            <i class="fas fa-circle" style="font-size:10px;margin-right:5px"></i>${label}
+          </span>`).join('')}
+          <span style="margin-left:auto;font-size:16px;color:#64748b">
+            另有護岸（0K+400～1K+400）、步道（0K+000～1K+290）、平臺 1-4、告示牌、救生圈
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ ③ DER&U 功能評估等級 ══ -->
+    <div style="border:2px solid #a5b4fc;border-radius:16px;margin-bottom:20px;
+                box-shadow:0 4px 16px rgba(15,23,42,.07);overflow:hidden">
+      ${sectionHeader('mg_deru','linear-gradient(90deg,#1e3a5f,#1565c0)',
+        'fa-chart-bar','#fbbf24','構造物功能評估等級（DER&amp;U）',
+        '劣化程度 D ／ 劣化範圍 E ／ 影響性 R ／ 急迫性 U', false)}
+      <div id="mg_deru" style="padding:24px;background:#fff;display:none">
+        <div style="display:flex;flex-direction:column;gap:12px">
+          ${DERU_GRADES.map(g => `
+          <div style="display:flex;align-items:center;gap:16px;background:${g.bg};
+                      border:1px solid ${g.color}44;border-left:8px solid ${g.color};
+                      border-radius:12px;padding:16px 20px">
+            <div style="font-size:24px;font-weight:900;color:${g.color};min-width:72px">${g.label}</div>
+            <div style="flex:1;display:flex;flex-wrap:wrap;gap:8px 32px;align-items:center">
+              <div style="font-size:19px;font-weight:700;color:#0f172a">${g.desc}</div>
+              <div style="font-size:18px;color:#475569">
+                <i class="fas fa-arrow-right" style="color:${g.color};margin-right:6px"></i>${g.action}
+              </div>
+            </div>
+          </div>`).join('')}
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ ④ ICS 急迫性狀況指標 ══ -->
+    <div style="border:2px solid #fcd34d;border-radius:16px;margin-bottom:20px;
+                box-shadow:0 4px 16px rgba(15,23,42,.07);overflow:hidden">
+      ${sectionHeader('mg_ics','linear-gradient(90deg,#1e3a5f,#0369a1)',
+        'fa-tachometer-alt','#fbbf24','ICS 急迫性狀況指標',
+        'ICS = Σ(Di · Ei · Ri) / n(Dmax · Emax · Rmax) × 100', false)}
+      <div id="mg_ics" style="padding:24px;background:#fff;display:none">
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px">
+          ${ICS_LEVELS.map(lvl => `
+          <div style="border:2px solid ${lvl.color}55;border-top:8px solid ${lvl.color};
+                      border-radius:14px;padding:22px 20px;text-align:center;background:${lvl.color}08">
+            <div style="font-size:28px;font-weight:900;color:${lvl.color};margin-bottom:8px">${lvl.grade}</div>
+            <div style="font-size:19px;font-weight:700;color:#64748b;margin-bottom:12px">${lvl.range}</div>
+            <div style="background:${lvl.color};color:#fff;border-radius:8px;
+                        padding:10px 14px;font-size:18px;font-weight:800">${lvl.action}</div>
+          </div>`).join('')}
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ ⑤ 魚道進階評估標準 ══ -->
+    <div style="border:2px solid #7dd3fc;border-radius:16px;margin-bottom:20px;
+                box-shadow:0 4px 16px rgba(15,23,42,.07);overflow:hidden">
+      ${sectionHeader('mg_fish','linear-gradient(90deg,#0c4a6e,#0284c7)',
+        'fa-fish','#fbbf24','魚道進階評估標準（表 3-14）',
+        '四項定量指標 ／ 綠＝正常  橙＝注意  紅＝異常', false)}
+      <div id="mg_fish" style="padding:24px;background:#fff;display:none">
+        <!-- 欄位說明列 -->
+        <div style="display:grid;grid-template-columns:180px 1fr 1fr 1fr;gap:12px;
+                    margin-bottom:14px;padding:0 4px">
+          <div style="font-size:18px;font-weight:800;color:#0369a1">評估項目</div>
+          <div style="text-align:center;font-size:18px;font-weight:800;color:#166534">✓ 正常</div>
+          <div style="text-align:center;font-size:18px;font-weight:800;color:#9a3412">⚠ 注意</div>
+          <div style="text-align:center;font-size:18px;font-weight:800;color:#dc2626">✗ 異常</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          ${[
+            { item:'本體結構破損', ok:'破損 ＜ 10%',    warn:'10 ～ 60%',  crit:'≥ 60%' },
+            { item:'土砂淤積',     ok:'淤積 ＜ 25%',    warn:'25 ～ 75%',  crit:'≥ 75%' },
+            { item:'水位差過大',   ok:'＜ 30 cm',        warn:'30 ～ 50 cm',crit:'≥ 50 cm' },
+            { item:'流速適宜',     ok:'0.4 ～ 1.5 m/s', warn:'斷流',       crit:'＜0.4 或 ＞1.5 m/s' },
+          ].map(row=>`
+          <div style="display:grid;grid-template-columns:180px 1fr 1fr 1fr;gap:12px;align-items:stretch">
+            <div style="font-size:19px;font-weight:800;color:#0f172a;display:flex;align-items:center;
+                        padding:0 4px">${row.item}</div>
+            <div style="text-align:center;background:#f0fdf4;border:2px solid #86efac;
+                        border-radius:10px;padding:14px 10px;font-size:18px;font-weight:700;color:#166534">
+              ✓ ${row.ok}</div>
+            <div style="text-align:center;background:#fff7ed;border:2px solid #fdba74;
+                        border-radius:10px;padding:14px 10px;font-size:18px;font-weight:700;color:#9a3412">
+              ⚠ ${row.warn}</div>
+            <div style="text-align:center;background:#fff1f2;border:2px solid #fca5a5;
+                        border-radius:10px;padding:14px 10px;font-size:18px;font-weight:700;color:#dc2626">
+              ✗ ${row.crit}</div>
+          </div>`).join('')}
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ ⑥ 劣化型態 13 種 ══ -->
+    <div style="border:2px solid #93c5fd;border-radius:16px;margin-bottom:20px;
+                box-shadow:0 4px 16px rgba(15,23,42,.07);overflow:hidden">
+      ${sectionHeader('mg_det','linear-gradient(90deg,#1e3a5f,#3b82f6)',
+        'fa-exclamation-triangle','#fbbf24','構造物外觀劣化型態一覽（13 種）',
+        '外觀檢視勾選依據 ／ 圖 3-1 構造物外觀劣化型態示意圖', false)}
+      <div id="mg_det" style="padding:24px;background:#fff;display:none">
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">
+          ${DETERIORATION_TYPES.map((d, i) => `
+          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;
+                      padding:18px;display:flex;gap:14px;align-items:flex-start">
+            <div style="width:48px;height:48px;border-radius:12px;background:#1565c01a;
+                        color:#1565c0;display:flex;align-items:center;justify-content:center;
+                        flex-shrink:0;font-size:20px">
+              <i class="fas ${d.icon}"></i>
+            </div>
+            <div>
+              <div style="font-size:20px;font-weight:900;color:#0f172a">${i+1}. ${d.name}</div>
+              <div style="font-size:17px;color:#475569;line-height:1.6;margin-top:4px">${d.desc}</div>
+            </div>
+          </div>`).join('')}
+          <!-- 第13項 -->
+          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;
+                      padding:18px;display:flex;gap:14px;align-items:flex-start">
+            <div style="width:48px;height:48px;border-radius:12px;background:#1565c01a;
+                        color:#1565c0;display:flex;align-items:center;justify-content:center;
+                        flex-shrink:0;font-size:20px">
+              <i class="fas fa-question"></i>
+            </div>
+            <div>
+              <div style="font-size:20px;font-weight:900;color:#0f172a">13. 其他</div>
+              <div style="font-size:17px;color:#475569;line-height:1.6;margin-top:4px">
+                除前述 12 項外之其他損壞型態
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ ⑦ 緊急應變（合併版）══ -->
+    <div style="border:2px solid #fca5a5;border-radius:16px;overflow:hidden;
+                box-shadow:0 6px 20px rgba(185,28,28,.15);margin-bottom:8px">
+      ${sectionHeader('mg_emg','linear-gradient(135deg,#450a0a,#7f1d1d)',
+        'fa-bell','#fbbf24','緊急應變處理流程　・　緊急聯絡',
+        '封閉 → 警示 → 檢測 → 修復 → 驗收　｜　集水區治理科 (04) 2515-0855', false)}
+      <div id="mg_emg" style="padding:24px;background:#fff;display:none">
+        <div style="display:grid;grid-template-columns:1fr auto;gap:24px;align-items:start">
+
+          <!-- 左：五步驟流程 -->
+          <div style="display:flex;gap:0;flex-wrap:wrap;justify-content:flex-start;align-items:center">
+            ${[
+              { icon:'fa-ban',                   label:'封閉交通',  desc:'立即封閉本區，阻止人員進入' },
+              { icon:'fa-triangle-exclamation',  label:'放置警示',  desc:'設置安全警示設施與圍籬' },
+              { icon:'fa-magnifying-glass',       label:'組專業團隊', desc:'全面現場檢測，評估損壞' },
+              { icon:'fa-file-pen',              label:'研擬修復',  desc:'依損壞分級制定修復方案' },
+              { icon:'fa-check-circle',          label:'安全驗收',  desc:'確認結構安全後恢復通行' },
+            ].map((s, i, arr) => `
+            <div style="display:flex;align-items:center;flex-shrink:0">
+              <div style="text-align:center;width:118px;padding:8px 0">
+                <div style="width:64px;height:64px;border-radius:16px;background:#7f1d1d;
+                            color:#fbbf24;display:flex;align-items:center;justify-content:center;
+                            font-size:26px;margin:0 auto 10px;border:2px solid #fca5a5">
+                  <i class="fas ${s.icon}"></i>
+                </div>
+                <div style="font-size:18px;font-weight:800;color:#0f172a">${s.label}</div>
+                <div style="font-size:15px;color:#64748b;margin-top:4px;line-height:1.5">${s.desc}</div>
+              </div>
+              ${i < arr.length - 1 ? `
+              <div style="width:34px;display:flex;flex-direction:column;align-items:center;flex-shrink:0">
+                <div style="width:100%;height:3px;background:#fca5a5"></div>
+                <i class="fas fa-chevron-right" style="color:#dc2626;font-size:16px;margin-top:-10px"></i>
+              </div>` : ''}
+            </div>`).join('')}
+          </div>
+
+          <!-- 右：緊急聯絡卡片 -->
+          <div style="min-width:240px;display:flex;flex-direction:column;gap:12px">
+            <div style="background:linear-gradient(135deg,#7f1d1d,#dc2626);border-radius:12px;
+                        padding:14px 18px;display:flex;align-items:center;gap:10px">
+              <i class="fas fa-phone" style="color:#fbbf24;font-size:20px"></i>
+              <span style="font-size:22px;font-weight:900;color:#fff">緊急聯絡</span>
+            </div>
+            <div style="background:#fff1f2;border:1px solid #fca5a5;border-radius:12px;padding:14px 16px">
+              <div style="font-size:15px;color:#64748b;margin-bottom:4px">聯絡單位</div>
+              <div style="font-size:19px;font-weight:800;color:#0f172a">集水區治理科</div>
+              <div style="font-size:17px;color:#475569;margin-top:3px">科長 ／ 技正（二員）</div>
+            </div>
+            <div style="background:#dc2626;border-radius:12px;padding:16px;text-align:center">
+              <div style="font-size:15px;color:rgba(255,255,255,.8);margin-bottom:6px">緊急電話</div>
+              <div style="font-size:26px;font-weight:900;color:#fff;letter-spacing:.5px">
+                <i class="fas fa-phone" style="margin-right:8px"></i>(04) 2515-0855
+              </div>
+            </div>
+            <div style="font-size:15px;color:#64748b;line-height:1.7;background:#f8fafc;
+                        border-radius:10px;padding:12px 14px">
+              緊急狀況時應立即以<strong>電話或即時通訊</strong>通知，並依應急預案啟動全面檢查。
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <!-- ══════════ 維護管理手冊結束 ══════════ -->
+  `;
+}
+
+let inspDataTab = 'general'; // 'all' | 'general' | 'professional' | 'ranger'
 
 const INSP_TYPE_META = {
   general:      { label:'一般巡查',   color:'#1565c0', bg:'#eff6ff', border:'#bfdbfe', icon:'fa-clipboard-check' },
@@ -474,61 +964,61 @@ function renderInspectionDataManagement(standalone = false) {
   return `
   <div id="inspDataMgmtCard" ${standalone?'':'class="card" style="margin-bottom:16px"'}>
     ${standalone ? `
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:20px">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:24px">
         <div>
-          <div style="font-size:14px;color:#64748b;margin-bottom:5px">維護管理資料 ＞ 巡查資料管理</div>
-          <h2 style="margin:0;font-size:24px;font-weight:900;color:#0f172a">
-            <i class="fas fa-clipboard-list" style="color:#1565c0;margin-right:8px"></i>巡查資料管理
+          <div style="font-size:18px;color:#64748b;margin-bottom:8px">維護管理資料 ＞ 巡查資料管理</div>
+          <h2 style="margin:0;font-size:36px;font-weight:900;color:#0f172a">
+            <i class="fas fa-clipboard-list" style="color:#1565c0;margin-right:10px"></i>巡查資料管理
           </h2>
-          <div style="font-size:15px;color:#475569;margin-top:6px">整合一般巡查、專業巡查與護管員巡查紀錄，依類型統整分析與清單管理。</div>
+          <div style="font-size:20px;color:#475569;margin-top:8px">整合一般巡查、專業巡查與護管員巡查紀錄，依類型統整分析與清單管理。</div>
         </div>
-        <button class="btn btn-primary" onclick="openInspectionForm()" style="font-size:15px;padding:10px 24px">
+        <button class="btn btn-primary" onclick="openInspectionForm()" style="font-size:20px;padding:14px 32px">
           <i class="fas fa-plus"></i> 新增巡查紀錄
         </button>
       </div>` : `
       <div class="card-header" style="flex-wrap:wrap;gap:8px">
         <div>
-          <div style="font-size:13px;color:#64748b;margin-bottom:3px">維護管理資料 ＞ 巡查資料管理</div>
-          <span class="card-title" style="font-size:18px"><i class="fas fa-clipboard-list"></i> 巡查資料管理</span>
+          <div style="font-size:16px;color:#64748b;margin-bottom:4px">維護管理資料 ＞ 巡查資料管理</div>
+          <span class="card-title" style="font-size:24px"><i class="fas fa-clipboard-list"></i> 巡查資料管理</span>
         </div>
-        <button class="btn btn-primary" onclick="openInspectionForm()" style="font-size:14px">
+        <button class="btn btn-primary" onclick="openInspectionForm()" style="font-size:18px;padding:10px 22px">
           <i class="fas fa-plus"></i> 新增巡查紀錄
         </button>
       </div>`}
     <div ${standalone?'':'class="card-body" style="padding:16px"'}>
 
       <!-- ── 三類巡查統計橫排 ── -->
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-bottom:22px">
         ${['general','professional','ranger'].map(type => {
           const m   = INSP_TYPE_META[type];
           const s   = type==='general'?gs:type==='professional'?ps:rs;
           const arr = byType[type];
           const active = inspDataTab === type;
           return `
-          <div style="border:${active?'2px':'1px'} solid ${active?m.color:m.border};background:${active?m.bg:'#fff'};
-                      border-radius:12px;padding:16px;cursor:pointer;transition:box-shadow .15s;
-                      box-shadow:${active?'0 6px 20px rgba(15,23,42,.12)':'none'}"
+          <div style="border:${active?'3px':'2px'} solid ${active?m.color:m.border};background:${active?m.bg:'#fff'};
+                      border-radius:16px;padding:22px;cursor:pointer;transition:box-shadow .15s;
+                      box-shadow:${active?'0 8px 28px rgba(15,23,42,.15)':'none'}"
                onclick="inspSwitchTab('${type}')">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-              <div style="width:44px;height:44px;border-radius:11px;background:${m.color};color:#fff;
-                          display:flex;align-items:center;justify-content:center;font-size:20px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+              <div style="width:60px;height:60px;border-radius:15px;background:${m.color};color:#fff;
+                          display:flex;align-items:center;justify-content:center;font-size:28px">
                 <i class="fas ${m.icon}"></i>
               </div>
-              <div style="font-size:32px;font-weight:900;color:${m.color};line-height:1">${s.total}</div>
+              <div style="font-size:52px;font-weight:900;color:${m.color};line-height:1">${s.total}</div>
             </div>
-            <div style="font-size:17px;font-weight:900;color:#0f172a;margin-bottom:8px">${m.label}</div>
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px">
+            <div style="font-size:26px;font-weight:900;color:#0f172a;margin-bottom:12px">${m.label}</div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px">
               ${[['待處理',s.pending,'#b91c1c'],['處理中',s.progress,'#d97706'],['完成',s.done,'#16a34a']].map(([lb,cnt,cl])=>`
-                <div style="text-align:center;background:#fff;border:1px solid ${cl}22;border-radius:8px;padding:6px 4px">
-                  <div style="font-size:18px;font-weight:900;color:${cl}">${cnt}</div>
-                  <div style="font-size:11px;color:#64748b">${lb}</div>
+                <div style="text-align:center;background:#fff;border:1px solid ${cl}33;border-radius:10px;padding:10px 6px">
+                  <div style="font-size:28px;font-weight:900;color:${cl}">${cnt}</div>
+                  <div style="font-size:17px;color:#64748b;margin-top:2px">${lb}</div>
                 </div>`).join('')}
             </div>
-            <div style="font-size:13px;color:#64748b">
+            <div style="font-size:18px;color:#64748b;line-height:1.7">
               <div>最新：${s.latestDate}</div>
-              ${s.topFac ? `<div style="margin-top:3px">最多問題：${s.topFac[0].slice(0,10)}（${s.topFac[1]}筆）</div>` : ''}
+              ${s.topFac ? `<div style="margin-top:4px">最多問題：${s.topFac[0].slice(0,10)}（${s.topFac[1]}筆）</div>` : ''}
             </div>
-            <div style="font-size:13px;font-weight:800;color:${m.color};margin-top:10px">
+            <div style="font-size:19px;font-weight:800;color:${m.color};margin-top:12px">
               ${active ? '▶ 目前篩選中' : '展開此類清單'}
             </div>
           </div>`;
@@ -537,42 +1027,42 @@ function renderInspectionDataManagement(standalone = false) {
 
       <!-- ── 近期趨勢 ── -->
       ${trend.length ? `
-      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:18px">
-        <div style="font-size:15px;font-weight:800;color:#0f172a;margin-bottom:10px">
-          <i class="fas fa-chart-bar" style="color:#1565c0"></i> 近期巡查趨勢（近 ${trend.length} 個月）
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:20px;margin-bottom:22px">
+        <div style="font-size:22px;font-weight:800;color:#0f172a;margin-bottom:14px">
+          <i class="fas fa-chart-bar" style="color:#1565c0;margin-right:8px"></i>近期巡查趨勢（近 ${trend.length} 個月）
         </div>
-        <div style="display:flex;align-items:flex-end;gap:8px;height:56px">
+        <div style="display:flex;align-items:flex-end;gap:10px;height:80px">
           ${trend.map(([m,cnt]) => `
-            <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
-              <div style="font-size:11px;font-weight:700;color:#1565c0">${cnt}</div>
-              <div style="width:100%;background:#1565c0;border-radius:4px 4px 0 0;
-                          height:${Math.round(cnt/maxTrend*40)+4}px;min-height:6px"></div>
-              <div style="font-size:10px;color:#94a3b8;white-space:nowrap">${m.slice(5)}</div>
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:5px">
+              <div style="font-size:18px;font-weight:700;color:#1565c0">${cnt}</div>
+              <div style="width:100%;background:#1565c0;border-radius:5px 5px 0 0;
+                          height:${Math.round(cnt/maxTrend*56)+6}px;min-height:8px"></div>
+              <div style="font-size:16px;color:#94a3b8;white-space:nowrap">${m.slice(5)}</div>
             </div>`).join('')}
         </div>
       </div>` : ''}
 
       <!-- ── 分頁籤 ── -->
-      <div style="display:flex;gap:8px;margin-bottom:14px;border-bottom:2px solid #e5e7eb;padding-bottom:0">
+      <div style="display:flex;gap:6px;margin-bottom:18px;border-bottom:3px solid #e5e7eb;padding-bottom:0;flex-wrap:wrap">
         ${[['all','全部','#0f172a'],['general','一般巡查','#1565c0'],['professional','專業巡查','#9a3412'],['ranger','護管員巡查','#166534']].map(([key,lbl,cl])=>`
           <button onclick="inspSwitchTab('${key}')"
-            style="padding:9px 16px;border:none;background:none;cursor:pointer;font-size:14px;font-weight:${inspDataTab===key?'800':'500'};
-                   color:${inspDataTab===key?cl:'#64748b'};border-bottom:${inspDataTab===key?`3px solid ${cl}`:'3px solid transparent'};
-                   margin-bottom:-2px;display:flex;align-items:center;gap:6px">
+            style="padding:13px 22px;border:none;background:none;cursor:pointer;font-size:20px;font-weight:${inspDataTab===key?'800':'500'};
+                   color:${inspDataTab===key?cl:'#64748b'};border-bottom:${inspDataTab===key?`4px solid ${cl}`:'4px solid transparent'};
+                   margin-bottom:-3px;display:flex;align-items:center;gap:8px">
             ${lbl}
             <span style="background:${inspDataTab===key?cl+'22':'#f1f5f9'};color:${inspDataTab===key?cl:'#64748b'};
-                         border-radius:999px;padding:1px 7px;font-size:12px;font-weight:700">
+                         border-radius:999px;padding:2px 10px;font-size:17px;font-weight:700">
               ${key==='all'?enriched.length:byType[key]?.length||0}
             </span>
           </button>`).join('')}
-        <div style="margin-left:auto;display:flex;gap:6px;align-items:center;padding-bottom:2px">
-          <select id="inspDataStatusFilter" onchange="inspDataMgmtRender()" style="padding:5px 10px;border:1px solid #d5dde7;border-radius:6px;font-size:13px">
+        <div style="margin-left:auto;display:flex;gap:8px;align-items:center;padding-bottom:4px">
+          <select id="inspDataStatusFilter" onchange="inspDataMgmtRender()" style="padding:9px 14px;border:1px solid #d5dde7;border-radius:8px;font-size:18px">
             <option value="">全部狀態</option>
             <option value="待處理">待處理</option>
             <option value="處理中">處理中</option>
             <option value="完成">完成</option>
           </select>
-          <select id="inspDataPriorityFilter" onchange="inspDataMgmtRender()" style="padding:5px 10px;border:1px solid #d5dde7;border-radius:6px;font-size:13px">
+          <select id="inspDataPriorityFilter" onchange="inspDataMgmtRender()" style="padding:9px 14px;border:1px solid #d5dde7;border-radius:8px;font-size:18px">
             <option value="">全部優先度</option>
             <option value="緊急">緊急</option>
             <option value="高">高</option>
@@ -587,12 +1077,12 @@ function renderInspectionDataManagement(standalone = false) {
       ${inspDataTab === 'general' ? renderGeneralInspRecords() : ''}
 
       <!-- 資料庫巡查清單 -->
-      <div ${inspDataTab === 'general' ? `style="margin-top:20px"` : ''}>
+      <div ${inspDataTab === 'general' ? `style="margin-top:24px"` : ''}>
         ${inspDataTab === 'general' ? `
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding-bottom:10px;border-bottom:2px solid #e5e7eb">
-            <div style="width:4px;height:28px;background:#1565c0;border-radius:2px"></div>
-            <span style="font-size:17px;font-weight:800;color:#0f172a">資料庫巡查紀錄</span>
-            <span style="font-size:13px;color:#64748b">（平台新增與 DER&U 評估紀錄）</span>
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;padding-bottom:14px;border-bottom:3px solid #e5e7eb">
+            <div style="width:6px;height:36px;background:#1565c0;border-radius:3px"></div>
+            <span style="font-size:24px;font-weight:800;color:#0f172a">資料庫巡查紀錄</span>
+            <span style="font-size:18px;color:#64748b">（平台新增與 DER&U 評估紀錄）</span>
           </div>` : ''}
         <div id="inspDataMgmtList">
           ${renderInspDataList(tabData)}
@@ -679,9 +1169,9 @@ function inspDataMgmtRender() {
 
 function renderInspDataList(data) {
   if (!data.length) return `
-    <div style="text-align:center;padding:32px;color:#94a3b8">
-      <i class="fas fa-clipboard" style="font-size:36px;margin-bottom:10px;display:block"></i>
-      <div style="font-size:16px">查無巡查紀錄</div>
+    <div style="text-align:center;padding:44px;color:#94a3b8">
+      <i class="fas fa-clipboard" style="font-size:52px;margin-bottom:14px;display:block"></i>
+      <div style="font-size:22px">查無巡查紀錄</div>
     </div>`;
 
   return data.slice(0, 30).map((item, idx) => {
@@ -696,48 +1186,48 @@ function renderInspDataList(data) {
     const findings = String(item.findings || item.notes || '').slice(0, 100);
 
     return `
-    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;margin-bottom:10px;
-                box-shadow:0 1px 4px rgba(15,23,42,.04);transition:box-shadow .15s"
-         onmouseover="this.style.boxShadow='0 4px 14px rgba(15,23,42,.09)'"
-         onmouseout="this.style.boxShadow='0 1px 4px rgba(15,23,42,.04)'">
+    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;margin-bottom:14px;
+                box-shadow:0 2px 6px rgba(15,23,42,.05);transition:box-shadow .15s"
+         onmouseover="this.style.boxShadow='0 6px 20px rgba(15,23,42,.11)'"
+         onmouseout="this.style.boxShadow='0 2px 6px rgba(15,23,42,.05)'">
 
       <!-- 主列（點擊展開） -->
-      <div style="display:grid;grid-template-columns:6px 1fr auto auto;align-items:stretch;cursor:pointer"
+      <div style="display:grid;grid-template-columns:8px 1fr auto auto;align-items:stretch;cursor:pointer"
            onclick="inspDataRowToggle('${rid}')">
         <div style="background:${m.color}"></div>
-        <div style="padding:14px 16px">
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:7px">
-            <span style="font-size:18px;font-weight:900;color:#0f172a">${inspectionEscape(name)}</span>
-            <span style="background:${m.bg};color:${m.color};border:1px solid ${m.border};border-radius:999px;padding:3px 10px;font-size:13px;font-weight:700">
+        <div style="padding:18px 20px">
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+            <span style="font-size:24px;font-weight:900;color:#0f172a">${inspectionEscape(name)}</span>
+            <span style="background:${m.bg};color:${m.color};border:1px solid ${m.border};border-radius:999px;padding:5px 14px;font-size:17px;font-weight:700">
               <i class="fas ${m.icon}"></i> ${m.label}
             </span>
-            <span style="background:${sbg};color:${sc};border-radius:999px;padding:3px 10px;font-size:13px;font-weight:700">${item.uiStatus}</span>
-            <span style="background:${pc}18;color:${pc};border:1px solid ${pc}44;border-radius:999px;padding:3px 10px;font-size:13px;font-weight:700">${item.uiPriority}</span>
-            ${hasDeru ? `<span style="background:#fff7ed;color:#9a3412;border:1px solid #fed7aa;border-radius:999px;padding:3px 10px;font-size:13px;font-weight:700">DER&amp;U ${item.deru_label||'U'+item.deru_u}</span>` : ''}
-            ${hasAi   ? `<span style="background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;border-radius:999px;padding:3px 10px;font-size:12px">🤖 AI分析</span>` : ''}
+            <span style="background:${sbg};color:${sc};border-radius:999px;padding:5px 14px;font-size:17px;font-weight:700">${item.uiStatus}</span>
+            <span style="background:${pc}18;color:${pc};border:1px solid ${pc}44;border-radius:999px;padding:5px 14px;font-size:17px;font-weight:700">${item.uiPriority}</span>
+            ${hasDeru ? `<span style="background:#fff7ed;color:#9a3412;border:1px solid #fed7aa;border-radius:999px;padding:5px 14px;font-size:17px;font-weight:700">DER&amp;U ${item.deru_label||'U'+item.deru_u}</span>` : ''}
+            ${hasAi   ? `<span style="background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;border-radius:999px;padding:5px 14px;font-size:16px">🤖 AI分析</span>` : ''}
           </div>
-          <div style="display:flex;gap:18px;flex-wrap:wrap;font-size:14px;color:#475569;align-items:center">
-            <span><i class="fas fa-calendar" style="margin-right:5px"></i><b>${item.date || '-'}</b></span>
-            ${item.inspector ? `<span><i class="fas fa-user" style="margin-right:5px"></i>${inspectionEscape(item.inspector)}</span>` : ''}
-            ${item.weather   ? `<span><i class="fas fa-cloud-sun" style="margin-right:5px"></i>${inspectionEscape(item.weather)}</span>` : ''}
+          <div style="display:flex;gap:22px;flex-wrap:wrap;font-size:18px;color:#475569;align-items:center">
+            <span><i class="fas fa-calendar" style="margin-right:6px"></i><b>${item.date || '-'}</b></span>
+            ${item.inspector ? `<span><i class="fas fa-user" style="margin-right:6px"></i>${inspectionEscape(item.inspector)}</span>` : ''}
+            ${item.weather   ? `<span><i class="fas fa-cloud-sun" style="margin-right:6px"></i>${inspectionEscape(item.weather)}</span>` : ''}
           </div>
-          ${findings ? `<div style="font-size:13px;color:#64748b;margin-top:6px;line-height:1.5">${inspectionEscape(findings)}${(item.findings||'').length>100?'…':''}</div>` : ''}
+          ${findings ? `<div style="font-size:17px;color:#64748b;margin-top:8px;line-height:1.6">${inspectionEscape(findings)}${(item.findings||'').length>100?'…':''}</div>` : ''}
         </div>
         <!-- DER&U 快速指標 -->
         ${hasDeru ? `
-        <div style="padding:14px 16px;border-left:1px solid #f1f5f9;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-width:90px">
-          <div style="display:flex;gap:4px;font-size:13px;font-weight:700">
-            <span style="background:#dbeafe;color:#1e40af;padding:2px 6px;border-radius:4px">D${item.deru_d??'-'}</span>
-            <span style="background:#dcfce7;color:#166534;padding:2px 6px;border-radius:4px">E${item.deru_e??'-'}</span>
-            <span style="background:#fee2e2;color:#b91c1c;padding:2px 6px;border-radius:4px">R${item.deru_r??'-'}</span>
+        <div style="padding:18px 20px;border-left:1px solid #f1f5f9;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;min-width:110px">
+          <div style="display:flex;gap:5px;font-size:17px;font-weight:700">
+            <span style="background:#dbeafe;color:#1e40af;padding:3px 8px;border-radius:5px">D${item.deru_d??'-'}</span>
+            <span style="background:#dcfce7;color:#166534;padding:3px 8px;border-radius:5px">E${item.deru_e??'-'}</span>
+            <span style="background:#fee2e2;color:#b91c1c;padding:3px 8px;border-radius:5px">R${item.deru_r??'-'}</span>
           </div>
-          <div style="font-size:18px;font-weight:900;color:${item.deru_u>=4?'#dc2626':item.deru_u===3?'#ea580c':item.deru_u===2?'#d97706':'#16a34a'}">
+          <div style="font-size:26px;font-weight:900;color:${item.deru_u>=4?'#dc2626':item.deru_u===3?'#ea580c':item.deru_u===2?'#d97706':'#16a34a'}">
             U${item.deru_u??'-'}
           </div>
         </div>` : ''}
         <!-- 展開箭頭 -->
-        <div style="padding:0 16px;display:flex;align-items:center;border-left:1px solid #f1f5f9">
-          <i id="${rid}_arrow" class="fas fa-chevron-down" style="color:#94a3b8;font-size:16px;transition:transform .2s"></i>
+        <div style="padding:0 20px;display:flex;align-items:center;border-left:1px solid #f1f5f9">
+          <i id="${rid}_arrow" class="fas fa-chevron-down" style="color:#94a3b8;font-size:22px;transition:transform .2s"></i>
         </div>
       </div>
 
@@ -758,9 +1248,9 @@ function renderInspDataList(data) {
 
           return `
           <!-- 資訊 + 發現 二欄 -->
-          <div style="padding:16px 18px 12px;display:grid;grid-template-columns:1fr 1fr;gap:14px;font-size:14px">
-            <div style="background:#f8fafc;border-radius:10px;padding:14px">
-              <div style="font-size:15px;font-weight:800;color:#0f172a;margin-bottom:10px">
+          <div style="padding:20px 22px 16px;display:grid;grid-template-columns:1fr 1fr;gap:18px;font-size:18px">
+            <div style="background:#f8fafc;border-radius:12px;padding:18px">
+              <div style="font-size:21px;font-weight:800;color:#0f172a;margin-bottom:14px">
                 <i class="fas fa-info-circle" style="color:${m.color}"></i> 巡查資訊
               </div>
               ${inspDetailRow('設施名稱', facName)}
@@ -772,42 +1262,42 @@ function renderInspDataList(data) {
               ${inspDetailRow('狀態', item.uiStatus)}
               ${inspDetailRow('優先度', item.uiPriority)}
               <!-- 資料來源 -->
-              <div style="margin-top:10px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px">
-                <div style="font-size:12px;font-weight:800;color:#1e3a8a;margin-bottom:5px">
+              <div style="margin-top:14px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:14px">
+                <div style="font-size:17px;font-weight:800;color:#1e3a8a;margin-bottom:7px">
                   <i class="fas fa-database"></i> 資料來源
                 </div>
-                <div style="font-size:13px;color:#334155;line-height:1.6">${inspectionEscape(source)}</div>
-                ${facility?.derLevel ? `<div style="font-size:12px;color:#64748b;margin-top:4px">DER&amp;U 等級：<b>${inspectionEscape(facility.derLevel)}</b>　健康指數：<b>${typeof fac_health==='function'?fac_health(facility):'-'}</b></div>` : ''}
+                <div style="font-size:17px;color:#334155;line-height:1.7">${inspectionEscape(source)}</div>
+                ${facility?.derLevel ? `<div style="font-size:16px;color:#64748b;margin-top:5px">DER&amp;U 等級：<b>${inspectionEscape(facility.derLevel)}</b>　健康指數：<b>${typeof fac_health==='function'?fac_health(facility):'-'}</b></div>` : ''}
               </div>
             </div>
-            <div style="background:#f8fafc;border-radius:10px;padding:14px">
-              <div style="font-size:15px;font-weight:800;color:#0f172a;margin-bottom:10px">
+            <div style="background:#f8fafc;border-radius:12px;padding:18px">
+              <div style="font-size:21px;font-weight:800;color:#0f172a;margin-bottom:14px">
                 <i class="fas fa-search" style="color:${m.color}"></i> 發現與處理
               </div>
-              ${item.findings ? `<div style="font-size:13px;color:#334155;line-height:1.65;margin-bottom:10px;border-left:3px solid ${m.color};padding-left:9px">${inspectionEscape(item.findings)}</div>` : ''}
-              ${item.action   ? `<div style="font-size:13px;color:#475569;line-height:1.65;margin-bottom:10px"><b>處理建議：</b>${inspectionEscape(item.action)}</div>` : ''}
+              ${item.findings ? `<div style="font-size:17px;color:#334155;line-height:1.7;margin-bottom:14px;border-left:4px solid ${m.color};padding-left:12px">${inspectionEscape(item.findings)}</div>` : ''}
+              ${item.action   ? `<div style="font-size:17px;color:#475569;line-height:1.7;margin-bottom:14px"><b>處理建議：</b>${inspectionEscape(item.action)}</div>` : ''}
               ${hasDeru ? `
-                <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:10px">
-                  <div style="font-size:13px;font-weight:800;color:#9a3412;margin-bottom:6px">DER&amp;U 評分</div>
-                  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;text-align:center">
+                <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:14px">
+                  <div style="font-size:18px;font-weight:800;color:#9a3412;margin-bottom:10px">DER&amp;U 評分</div>
+                  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;text-align:center">
                     ${[['D',item.deru_d,'劣化','#1e40af'],['E',item.deru_e,'範圍','#166534'],['R',item.deru_r,'風險','#b91c1c'],['U',item.deru_u,'急迫','#9a3412']].map(([cd,val,lb,cl])=>`
-                      <div style="background:#fff;border:1px solid ${cl}22;border-radius:6px;padding:7px">
-                        <div style="font-size:20px;font-weight:900;color:${cl}">${cd}${val??'-'}</div>
-                        <div style="font-size:11px;color:#64748b">${lb}</div>
+                      <div style="background:#fff;border:1px solid ${cl}22;border-radius:8px;padding:10px">
+                        <div style="font-size:28px;font-weight:900;color:${cl}">${cd}${val??'-'}</div>
+                        <div style="font-size:16px;color:#64748b">${lb}</div>
                       </div>`).join('')}
                   </div>
-                  ${item.deru_score !== undefined ? `<div style="font-size:12px;color:#64748b;margin-top:6px">加權分數：${item.deru_score}　等級：${item.deru_label||'-'}</div>` : ''}
+                  ${item.deru_score !== undefined ? `<div style="font-size:17px;color:#64748b;margin-top:8px">加權分數：${item.deru_score}　等級：${item.deru_label||'-'}</div>` : ''}
                 </div>` : ''}
             </div>
           </div>
 
           <!-- 現場照片 -->
           ${allPhotos.length ? `
-          <div style="padding:0 18px 14px">
-            <div style="font-size:15px;font-weight:800;color:#0f172a;margin-bottom:10px;display:flex;align-items:center;gap:8px">
+          <div style="padding:0 22px 18px">
+            <div style="font-size:21px;font-weight:800;color:#0f172a;margin-bottom:14px;display:flex;align-items:center;gap:10px">
               <i class="fas fa-camera" style="color:#0369a1"></i> 現場照片
-              <span style="font-size:13px;color:#64748b;font-weight:400">（${allPhotos.length} 張 · 點擊放大）</span>
-              ${recPhotos.length > 0 && facPhotos.length > 0 ? `<span style="font-size:12px;background:#dbeafe;color:#1e40af;border-radius:999px;padding:2px 8px">巡查 ${recPhotos.length} + 設施 ${facPhotos.length}</span>` : ''}
+              <span style="font-size:17px;color:#64748b;font-weight:400">（${allPhotos.length} 張 · 點擊放大）</span>
+              ${recPhotos.length > 0 && facPhotos.length > 0 ? `<span style="font-size:16px;background:#dbeafe;color:#1e40af;border-radius:999px;padding:3px 12px">巡查 ${recPhotos.length} + 設施 ${facPhotos.length}</span>` : ''}
             </div>
             <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px">
               ${allPhotos.map((src, idx) => {
@@ -869,7 +1359,7 @@ function renderInspDataList(data) {
 
 function inspDetailRow(label, value) {
   if (!value && value !== 0) return '';
-  return `<div style="display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid #f1f5f9;font-size:13px">
+  return `<div style="display:flex;justify-content:space-between;gap:8px;padding:10px 0;border-bottom:1px solid #f1f5f9;font-size:18px">
     <span style="color:#64748b;white-space:nowrap">${label}</span>
     <span style="font-weight:700;color:#0f172a;text-align:right">${inspectionEscape(String(value))}</span>
   </div>`;
@@ -894,14 +1384,14 @@ function viewInspectionRecord(id) {
   document.getElementById('modal').style.maxWidth = '680px';
   document.getElementById('modal').style.width = '92vw';
   document.getElementById('modalBody').innerHTML = `
-    <div style="display:grid;gap:14px;font-size:14px">
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <span style="background:${m.bg};color:${m.color};border:1px solid ${m.border};border-radius:999px;padding:4px 12px;font-size:13px;font-weight:700"><i class="fas ${m.icon}"></i> ${m.label}</span>
-        <span style="background:${sc==='完成'?'#dcfce7':sc==='處理中'?'#fef9c3':'#fee2e2'};color:${sc==='完成'?'#166534':sc==='處理中'?'#854d0e':'#b91c1c'};border-radius:999px;padding:4px 12px;font-size:13px;font-weight:700">${sc}</span>
-        <span style="background:#f1f5f9;color:#475569;border-radius:999px;padding:4px 12px;font-size:13px;font-weight:700">${p}</span>
+    <div style="display:grid;gap:14px;font-size:20px">
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <span style="background:${m.bg};color:${m.color};border:1px solid ${m.border};border-radius:999px;padding:6px 16px;font-size:17px;font-weight:700"><i class="fas ${m.icon}"></i> ${m.label}</span>
+        <span style="background:${sc==='完成'?'#dcfce7':sc==='處理中'?'#fef9c3':'#fee2e2'};color:${sc==='完成'?'#166534':sc==='處理中'?'#854d0e':'#b91c1c'};border-radius:999px;padding:6px 16px;font-size:17px;font-weight:700">${sc}</span>
+        <span style="background:#f1f5f9;color:#475569;border-radius:999px;padding:6px 16px;font-size:17px;font-weight:700">${p}</span>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-        <div style="background:#f8fafc;border-radius:10px;padding:14px">
+        <div style="background:#f8fafc;border-radius:10px;padding:18px">
           ${inspDetailRow('設施', item.facilityName||item.facility_name)}
           ${inspDetailRow('日期', item.date)}
           ${inspDetailRow('巡查員', item.inspector)}
@@ -909,7 +1399,7 @@ function viewInspectionRecord(id) {
           ${inspDetailRow('優先度', p)}
           ${inspDetailRow('狀態', sc)}
         </div>
-        <div style="background:#f8fafc;border-radius:10px;padding:14px">
+        <div style="background:#f8fafc;border-radius:10px;padding:18px">
           ${inspDetailRow('類型', m.label)}
           ${inspDetailRow('來源', item.sourceType)}
           ${item.deru_d !== undefined ? inspDetailRow('DER&U', `D${item.deru_d}/E${item.deru_e}/R${item.deru_r} U${item.deru_u}`) : ''}
@@ -917,13 +1407,13 @@ function viewInspectionRecord(id) {
           ${item.deru_label ? inspDetailRow('急迫等級', item.deru_label) : ''}
         </div>
       </div>
-      ${item.findings ? `<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:14px">
-        <div style="font-size:14px;font-weight:800;color:#0f172a;margin-bottom:8px">發現事項</div>
-        <div style="font-size:14px;color:#334155;line-height:1.7;white-space:pre-wrap">${inspectionEscape(item.findings)}</div>
+      ${item.findings ? `<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:18px">
+        <div style="font-size:20px;font-weight:800;color:#0f172a;margin-bottom:10px">發現事項</div>
+        <div style="font-size:20px;color:#334155;line-height:1.7;white-space:pre-wrap">${inspectionEscape(item.findings)}</div>
       </div>` : ''}
-      ${item.action ? `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:14px">
-        <div style="font-size:14px;font-weight:800;color:#166534;margin-bottom:8px">處理建議</div>
-        <div style="font-size:14px;color:#334155;line-height:1.7">${inspectionEscape(item.action)}</div>
+      ${item.action ? `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:18px">
+        <div style="font-size:20px;font-weight:800;color:#166534;margin-bottom:10px">處理建議</div>
+        <div style="font-size:20px;color:#334155;line-height:1.7">${inspectionEscape(item.action)}</div>
       </div>` : ''}
     </div>`;
   document.getElementById('modalFooter').innerHTML = `
@@ -1150,14 +1640,23 @@ function renderMaintenancePhotoArchive() {
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-bottom:18px">
       ${cases.map((item, idx) => {
         const active = idx === _maintCaseIdx;
-        // 萃取期別標籤（第X期 或 第X次）
-        const periodMatch = item.name.match(/^(第\d+[期次])/);
-        const periodLabel = periodMatch ? periodMatch[1] : item.name.slice(0,4);
-        // 萃取年份（民國年）
-        const yearMatch   = item.name.match(/(\d{3})年/);
-        const yearLabel   = yearMatch ? yearMatch[1] + '年（' + (parseInt(yearMatch[1])+1911) + '）' : '';
-        // 工程名稱簡短摘要
-        const summary = item.name.replace(/^第\d+[期次].{0,5}/, '').replace(/轄內搶修工程|林業保育署臺中分署|東勢處/g,'').replace(/橫流溪/,'').trim().slice(0,14);
+        // 萃取年份（民國年 → 西元）
+        const yearMatch = item.name.match(/(\d{3})年/);
+        const rocYear   = yearMatch ? yearMatch[1] : null;
+        const westYear  = rocYear ? parseInt(rocYear) + 1911 : null;
+        // 從 folders 名稱萃取所有 YYY.MM.DD 日期，取最早與最晚
+        const allDates = (item.folders || [])
+          .flatMap(f => (f.name || '').match(/\d{3}\.\d{2}\.\d{2}/g) || [])
+          .sort();
+        const d0 = allDates[0] || null;
+        const d1 = allDates[allDates.length - 1] || null;
+        const fmtDate = d => { const [y,m,dd] = d.split('.'); return `${y}.${m}.${dd}`; };
+        const dateRange = d0 && d1 && d0 !== d1 ? `${fmtDate(d0)} ～ ${fmtDate(d1)}` : d0 ? fmtDate(d0) : '';
+        // 工程名稱摘要（移除期數、機關名）
+        const summary = item.name
+          .replace(/^第\d+[期次][^\d]*/, '')
+          .replace(/轄內搶修工程|林業保育署臺中分署|東勢處|橫流溪/g, '')
+          .trim().slice(0, 14);
         return `
           <button onclick="maintSwitchCase(${idx})"
             style="text-align:left;border:${active?'2px':'1px'} solid ${active?'#0f766e':'#e2e8f0'};
@@ -1166,14 +1665,18 @@ function renderMaintenancePhotoArchive() {
                    transition:box-shadow .15s,border-color .15s"
             onmouseover="if(${!active}) this.style.borderColor='#0f766e',this.style.boxShadow='0 3px 10px rgba(15,118,110,.12)'"
             onmouseout="if(${!active}) this.style.borderColor='#e2e8f0',this.style.boxShadow='0 1px 4px rgba(15,23,42,.05)'">
-            <div style="font-size:24px;font-weight:900;color:${active?'#0f766e':'#0f172a'};margin-bottom:5px;line-height:1">
-              ${inspectionEscape(periodLabel)}
+            ${rocYear ? `
+            <div style="font-size:22px;font-weight:900;color:${active?'#0f766e':'#0f172a'};line-height:1;margin-bottom:2px">
+              ${rocYear}年
             </div>
-            ${yearLabel ? `<div style="font-size:14px;font-weight:700;color:${active?'#0f766e':'#475569'};margin-bottom:5px">${inspectionEscape(yearLabel)}</div>` : ''}
-            <div style="font-size:12px;color:#94a3b8;line-height:1.45;min-height:32px">${inspectionEscape(summary)}</div>
-            <div style="margin-top:10px;display:flex;align-items:baseline;gap:5px">
-              <span style="font-size:22px;font-weight:900;color:${active?'#0f766e':'#334155'}">${item.total}</span>
-              <span style="font-size:13px;color:#94a3b8;font-weight:600">張</span>
+            <div style="font-size:12px;font-weight:700;color:${active?'#0f766e':'#64748b'};margin-bottom:5px">
+              ${westYear}
+            </div>` : ''}
+            ${dateRange ? `<div style="font-size:10px;color:${active?'#0f766e':'#94a3b8'};margin-bottom:4px;white-space:nowrap;overflow:hidden">${inspectionEscape(dateRange)}</div>` : ''}
+            <div style="font-size:11px;color:#94a3b8;line-height:1.45;min-height:24px">${inspectionEscape(summary)}</div>
+            <div style="margin-top:8px;display:flex;align-items:baseline;gap:5px">
+              <span style="font-size:20px;font-weight:900;color:${active?'#0f766e':'#334155'}">${item.total}</span>
+              <span style="font-size:12px;color:#94a3b8;font-weight:600">張</span>
             </div>
           </button>`;
       }).join('')}

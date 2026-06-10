@@ -57,11 +57,24 @@ const FISH_PHOTO_LIBRARY = {
 function renderFish() {
   document.getElementById('contentArea').innerHTML = `
     <div class="tabs">
-      <button class="tab-btn active" onclick="switchFishTab('list', this)">魚類記錄</button>
-      <button class="tab-btn" onclick="switchFishTab('species', this)">物種總覽</button>
-      <button class="tab-btn" onclick="switchFishTab('news', this)">魚類新聞</button>
-      <button class="tab-btn" onclick="switchFishTab('map', this)">分布地圖</button>
-      <button class="tab-btn" onclick="switchFishTab('biomap', this)">陸域・水域生物分布</button>
+      <button class="tab-btn active" onclick="switchFishTab('list', this)" style="font-size:22px;padding:14px 26px;font-weight:700">
+        <i class="fas fa-fish" style="margin-right:8px;color:#0e7490;font-size:20px"></i>水域生物
+      </button>
+      <button class="tab-btn" onclick="switchFishTab('landlife', this)" style="font-size:22px;padding:14px 26px;font-weight:700">
+        <i class="fas fa-paw" style="margin-right:8px;color:#166534;font-size:20px"></i>陸域生物
+      </button>
+      <button class="tab-btn" onclick="switchFishTab('vegetation', this)" style="font-size:22px;padding:14px 26px;font-weight:700">
+        <i class="fas fa-seedling" style="margin-right:8px;color:#15803d;font-size:20px"></i>陸域植生
+      </button>
+      <button class="tab-btn" onclick="switchFishTab('biomap', this)" style="font-size:22px;padding:14px 26px;font-weight:700">
+        <i class="fas fa-map" style="margin-right:8px;color:#7c3aed;font-size:20px"></i>GIS生態地圖
+      </button>
+      <button class="tab-btn" onclick="switchFishTab('news', this)" style="font-size:22px;padding:14px 26px;font-weight:700">
+        <i class="fas fa-newspaper" style="margin-right:8px;color:#0369a1;font-size:20px"></i>生態新聞
+      </button>
+      <button class="tab-btn" onclick="switchFishTab('trend', this)" style="font-size:22px;padding:14px 26px;font-weight:700">
+        <i class="fas fa-chart-line" style="margin-right:8px;color:#b45309;font-size:20px"></i>歷年趨勢分析
+      </button>
     </div>
     <div id="fishTabContent"></div>
   `;
@@ -73,10 +86,12 @@ function renderFish() {
 function switchFishTab(tab, btn) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  if (tab === 'list') renderFishList();
-  else if (tab === 'species') renderFishSpecies();
-  else if (tab === 'news') renderFishNews();
-  else if (tab === 'biomap') renderFishBioMap();
+  if (tab === 'list')       renderFishList();
+  else if (tab === 'landlife')   renderLandLife();
+  else if (tab === 'vegetation') renderVegetation();
+  else if (tab === 'biomap')     renderFishBioMap();
+  else if (tab === 'news')       renderFishNews();
+  else if (tab === 'trend')      renderFishTrend();
   else renderFishMap();
 }
 
@@ -365,15 +380,15 @@ const ECO_NEWS = [
     icon: 'fa-fish'
   },
   {
-    tag: '流域生態',
-    tagColor: '#0f766e',
-    tagBg: '#ccfbf1',
-    title: '愛戀大甲溪 走讀河口繽紛的動植物世界',
-    source: '聯合新聞網',
-    date: '2024',
-    summary: '大甲溪全長142公里，流域蘊藏豐富自然生態。河口地帶有18種螃蟹、3種彈塗魚棲息，上游支流（含橫流溪）水質佳，原生魚類多樣性高，為臺灣重要的淡水生物廊道。',
-    url: 'https://udn.com/news/story/6965/8103743',
-    icon: 'fa-water'
+    tag: '植生復育',
+    tagColor: '#15803d',
+    tagBg: '#dcfce7',
+    title: '林業署用科技守護德基水庫 無人機結合原生植生復育崩塌地',
+    source: '自由時報',
+    date: '2026',
+    summary: '林業及自然保育署台中分署在大甲溪事業區導入無人機空中撒播原生植物種子（五節芒、台灣赤楊等），復育面積達1.7公頃，結合NDVI植生指數分析，大幅降低施工風險與環境擾動，為橫流溪周邊集水區植生保育提供重要參考。',
+    url: 'https://news.ltn.com.tw/news/life/breakingnews/5457457',
+    icon: 'fa-seedling'
   },
   {
     tag: '生態復育',
@@ -437,22 +452,6 @@ function renderFishNews() {
   const totalCount = species.reduce((sum, item) => sum + (Number(item.totalCount) || 0), 0);
   const protectedCount = species.filter(item => item.conservation && item.conservation !== '一般').length;
   document.getElementById('fishTabContent').innerHTML = `
-    <div class="fish-news-toolbar">
-      <div>
-        <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">資料來源：02_魚類與棲地資料庫／施工前魚類調查與工作站魚類調查</div>
-        <h3 style="margin:0;font-size:20px;color:#0f172a">橫流溪魚類新聞圖鑑</h3>
-      </div>
-      <div class="fish-news-stats">
-        ${fish_newsStat('記錄物種', species.length, '種')}
-        ${fish_newsStat('累計尾次', totalCount, '尾')}
-        ${fish_newsStat('敏感/保育', protectedCount, '種')}
-      </div>
-    </div>
-
-    <div class="fish-news-grid">
-      ${species.map(item => fish_newsCard(item)).join('')}
-    </div>
-
     <!-- ══ 生態改善新聞區 ══ -->
     <div style="margin-top:32px">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px">
@@ -1041,6 +1040,1241 @@ const BIO_WATER_DATA = [
   }
 ];
 
+/* ══════════════════════════════════════════════════════════
+   陸域生物 tab  — 鳥類・兩棲爬蟲・哺乳類・昆蟲
+   ══════════════════════════════════════════════════════════ */
+const LAND_LIFE_DATA = [
+  {
+    category: '鳥類', icon: 'fa-dove', color: '#1d4ed8', bg: '#eff6ff', border: '#bfdbfe',
+    count: 16, source: '期中報告書 p.220–225',
+    summary: '調查記錄溪流型及濱溪型鳥類16種，包含國家珍貴稀有保育類物種。',
+    items: [
+      { name: '鉛色水鶇', sci: 'Phoenicurus fuliginosus', tag: '二級保育', note: '溪流型代表性鳥類，沿溪流石塊間覓食' },
+      { name: '翠鳥',     sci: 'Alcedo atthis',          tag: '特有亞種', note: '溪濱常見捕魚型猛禽，以小魚為食' },
+      { name: '藍腹鷴',   sci: 'Lophura swinhoii',       tag: '二級保育', note: '臺灣特有種，森林型鳥類，偶見於溪旁' },
+      { name: '紅嘴黑鵯', sci: 'Hypsipetes leucocephalus', tag: '常見',   note: '濱溪帶灌叢，取食漿果與昆蟲' },
+      { name: '小白鷺',   sci: 'Egretta garzetta',        tag: '常見',   note: '涉禽型，於淺溪覓食魚蝦' },
+      { name: '大冠鷲',   sci: 'Spilornis cheela',        tag: '二級保育', note: '猛禽類，盤旋於溪谷上空' },
+      { name: '白鶺鴒',   sci: 'Motacilla alba',          tag: '常見',   note: '河岸地表活動，追食小型昆蟲' },
+      { name: '白腹秧雞', sci: 'Amaurornis phoenicurus',  tag: '常見',   note: '近水草叢活動' },
+      { name: '夜鷺',     sci: 'Nycticorax nycticorax',   tag: '常見',   note: '夜行性涉禽，溪流石塊棲息' },
+      { name: '五色鳥',   sci: 'Psilopogon nuchalis',     tag: '特有種', note: '臺灣特有種，濱溪帶闊葉樹洞繁殖' },
+      { name: '山紅頭',   sci: 'Cyanoderma ruficeps',     tag: '特有亞種', note: '濱溪灌叢鳥種' },
+      { name: '竹鳥',     sci: 'Pomatorhinus musicus',    tag: '特有種', note: '臺灣特有種，竹林及灌叢' },
+      { name: '褐頭鷦鶯', sci: 'Prinia inornata',         tag: '常見',   note: '草叢地帶常見' },
+      { name: '灰喉山椒鳥', sci: 'Pericrocotus solaris', tag: '特有亞種', note: '中高海拔林緣活動' },
+      { name: '小啄木',   sci: 'Yungipicus canicapillus', tag: '特有亞種', note: '濱溪闊葉林啄木' },
+      { name: '臺灣畫眉', sci: 'Garrulax taewanus',       tag: '特有種', note: '一級保育，濱溪灌叢' }
+    ]
+  },
+  {
+    category: '兩棲爬蟲類', icon: 'fa-frog', color: '#0f766e', bg: '#f0fdfa', border: '#99f6e4',
+    count: 9, source: '期中報告書 p.226–229',
+    summary: '記錄溪流型及陸域型兩棲爬蟲9種，夜間調查蛙類為主要調查方法。',
+    items: [
+      { name: '梭德氏赤蛙', sci: 'Rana sauteri',             tag: '特有種', note: '溪流型兩棲，礫石底床繁殖' },
+      { name: '斯文豪氏赤蛙', sci: 'Odorrana swinhoana',     tag: '特有種', note: '溪岸岩石棲息，鳴聲似鳥叫' },
+      { name: '褡裢樹蛙', sci: 'Rhacophorus arvalis',        tag: '特有種', note: '樹棲型，橫流溪濱溪帶灌叢' },
+      { name: '面天樹蛙', sci: 'Kurixalus idiootocus',       tag: '特有種', note: '樹棲型，低海拔溪岸灌叢' },
+      { name: '拉都希氏赤蛙', sci: 'Rana latouchii',         tag: '常見',  note: '靜水水域及濱溪草地' },
+      { name: '臺灣爬岩鰍守宮', sci: '-',                    tag: '近危',  note: '岩壁棲息，夜行性' },
+      { name: '高砂蛇',   sci: 'Oligodon formosanus',        tag: '特有種', note: '中低海拔林緣及溪岸' },
+      { name: '臺灣草蜥', sci: 'Takydromus formosanus',      tag: '特有種', note: '草叢型蜥蜴，日行性' },
+      { name: '龜殼花',   sci: 'Trimeresurus mucrosquamatus', tag: '常見',  note: '毒蛇，夜間溪岸活動' }
+    ]
+  },
+  {
+    category: '哺乳類', icon: 'fa-paw', color: '#92400e', bg: '#fffbeb', border: '#fde68a',
+    count: 4, source: '期中報告書 p.230–232；紅外線相機',
+    summary: '紅外線自動相機記錄大型哺乳類4種，穿山甲為最重要保育物種。',
+    items: [
+      { name: '臺灣穿山甲', sci: 'Manis pentadactyla',       tag: '一級保育', note: '極度瀕危，橫流溪工作站周邊影像紀錄' },
+      { name: '食蟹獴',     sci: 'Herpestes urva',           tag: '二級保育', note: '溪岸活動，捕食魚蟹及兩棲類' },
+      { name: '臺灣山羌',   sci: 'Muntiacus reevesi micrurus', tag: '特有亞種', note: '夜間紅外線相機記錄' },
+      { name: '臺灣野豬',   sci: 'Sus scrofa taivanus',      tag: '常見',   note: '溪岸泥地拱土痕跡及紅外線影像' }
+    ]
+  },
+  {
+    category: '陸域昆蟲', icon: 'fa-bug', color: '#854d0e', bg: '#fef9c3', border: '#fde047',
+    count: 18, source: '期中報告書 p.233；網捕法＋掃網法',
+    summary: '調查陸域昆蟲18種（含水棲昆蟲），以鱗翅目、鞘翅目及蜻蛉目為主。',
+    items: [
+      { name: '寬腹蜻蜓', sci: 'Lyriothemis pachygastra',    tag: '指標',  note: '清潔溪流指標性蜻蜓' },
+      { name: '粗鉤春蜓', sci: 'Davidius moiwanus',          tag: '特有種', note: '溪流型蜻蜓目，礫石底床繁殖' },
+      { name: '霧社血斑天牛', sci: 'Chlorophorus muscosus',  tag: '特有種', note: '老熟林木蛀食害蟲' },
+      { name: '大圓翅鍬形蟲', sci: 'Neolucanus maximus',     tag: '特有亞種', note: '闊葉林腐木繁殖' },
+      { name: '黃裳鳳蝶', sci: 'Troides aeacus',             tag: '二級保育', note: '臺灣最大鳳蝶，寄主植物為馬兜鈴' },
+      { name: '臺灣寬尾鳳蝶', sci: 'Agehana maraho',         tag: '一級保育', note: '臺灣特有種，國蝶，台灣穗花杉寄主' },
+      { name: '枯葉蝶',   sci: 'Kallima inachus',            tag: '常見',  note: '溪岸落葉林，擬態枯葉' },
+      { name: '臺灣紋白蝶', sci: 'Pieris canidia',           tag: '常見',  note: '農地及灌叢邊緣' },
+      { name: '蜉蝣目（數種）', sci: 'Ephemeroptera spp.',   tag: '指標',  note: '水質指標生物，成蟲壽命極短' },
+      { name: '石蠅（數種）', sci: 'Plecoptera spp.',        tag: '指標',  note: '低溫清澈急流指標，對污染敏感' },
+      { name: '毛翅目（數種）', sci: 'Trichoptera spp.',     tag: '指標',  note: '築巢石蛾，水質B級以上棲地' },
+      { name: '魚蛉',     sci: 'Corydalus spp.',             tag: '指標',  note: '大型水棲昆蟲，指標性肉食性' },
+      { name: '短翅蟋蟀', sci: 'Velarifictorus spp.',        tag: '常見',  note: '濱溪草地夜間鳴叫' },
+      { name: '臺灣大鍬', sci: 'Dorcus grandis formosanus',  tag: '特有亞種', note: '老熟殼斗科木材繁殖' },
+      { name: '獨角仙',   sci: 'Allomyrina dichotoma',       tag: '常見',  note: '闊葉林樹液吸食' },
+      { name: '斑紋蟬（數種）', sci: 'Cicadidae spp.',       tag: '常見',  note: '樹液吸食，夏季鳴聲明顯' },
+      { name: '埋葬蟲（數種）', sci: 'Nicrophorus spp.',     tag: '常見',  note: '腐食性甲蟲，分解有機質' },
+      { name: '粗石斜曲面魚道昆蟲', sci: '-',               tag: '指標',  note: '魚道兩側水際帶昆蟲群落調查' }
+    ]
+  }
+];
+
+let landLifeMap = null;
+
+/* Wikipedia 頁面標題（英文）→ 用 REST API 動態取得縮圖，無 CORS 問題 */
+const LAND_CAT_WIKI = {
+  '鳥類':       'Taiwan_barbet',
+  '兩棲爬蟲類': 'Rhacophorus_arvalis',
+  '哺乳類':     'Chinese_pangolin',
+  '陸域昆蟲':   'Troides_aeacus'
+};
+
+const LAND_WIKI_TITLES = {
+  /* 鳥類 */
+  '鉛色水鶇':   'Plumbeous_water_redstart',
+  '翠鳥':       'Common_kingfisher',
+  '藍腹鷴':     "Swinhoe's_pheasant",
+  '紅嘴黑鵯':   'Black_bulbul',
+  '小白鷺':     'Little_egret',
+  '大冠鷲':     'Crested_serpent_eagle',
+  '白鶺鴒':     'White_wagtail',
+  '白腹秧雞':   'White-breasted_waterhen',
+  '夜鷺':       'Black-crowned_night_heron',
+  '五色鳥':     'Taiwan_barbet',
+  '山紅頭':     'Rufous-capped_babbler',
+  '竹鳥':       'Taiwan_wren-babbler',
+  '褐頭鷦鶯':   'Plain_prinia',
+  '灰喉山椒鳥': 'Grey-chinned_minivet',
+  '小啄木':     'Grey-capped_pygmy_woodpecker',
+  '臺灣畫眉':   'Taiwan_hwamei',
+  /* 兩棲爬蟲 */
+  '梭德氏赤蛙': 'Rana_sauteri',
+  '斯文豪氏赤蛙': 'Odorrana_swinhoana',
+  '褡裢樹蛙':   'Rhacophorus_arvalis',
+  '面天樹蛙':   'Kurixalus_idiootocus',
+  '拉都希氏赤蛙': 'Rana_latouchii',
+  '臺灣草蜥':   'Taiwan_grass_lizard',
+  '龜殼花':     'Chinese_habu',
+  /* 哺乳類 */
+  '臺灣穿山甲': 'Chinese_pangolin',
+  '食蟹獴':     'Crab-eating_mongoose',
+  '臺灣山羌':   "Reeve's_muntjac",
+  '臺灣野豬':   'Wild_boar',
+  /* 昆蟲 */
+  '黃裳鳳蝶':   'Troides_aeacus',
+  '臺灣寬尾鳳蝶': 'Broad-tailed_swallowtail',
+  '枯葉蝶':     'Orange_oakleaf',
+  '獨角仙':     'Japanese_rhinoceros_beetle',
+  '寬腹蜻蜓':   'Lyriothemis_pachygastra',
+  '粗鉤春蜓':   'Davidius_moiwanus'
+};
+
+async function _loadLandLifePhotos() {
+  const imgs = document.querySelectorAll('[data-wiki]');
+  const seen = new Set();
+  for (const img of imgs) {
+    const title = img.dataset.wiki;
+    if (!title || seen.has(title)) continue;
+    seen.add(title);
+    try {
+      const res = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`);
+      if (!res.ok) continue;
+      const data = await res.json();
+      const src = data.thumbnail?.source || (data.originalimage?.source);
+      if (!src) continue;
+      // Update all img tags with this wiki title
+      document.querySelectorAll(`[data-wiki="${CSS.escape(title)}"]`).forEach(el => {
+        el.src = src;
+        el.style.display = 'block';
+        const wrap = el.closest('[data-photowrap]');
+        if (wrap) wrap.style.display = 'block';
+      });
+    } catch(e) { /* 略過失敗項目 */ }
+  }
+}
+
+function renderLandLife() {
+  const container = document.getElementById('fishTabContent');
+  const totalSpecies = LAND_LIFE_DATA.reduce((s, cat) => s + cat.count, 0);
+
+  container.innerHTML = `
+    <!-- 統計橫幅 -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:20px">
+      ${[
+        ['fa-dove',   '#1d4ed8','#eff6ff', '16 種', '鳥類'],
+        ['fa-frog',   '#0f766e','#f0fdfa',  '9 種', '兩棲爬蟲'],
+        ['fa-paw',    '#92400e','#fffbeb',  '4 種', '哺乳類'],
+        ['fa-bug',    '#854d0e','#fef9c3', '18 種', '陸域昆蟲'],
+        ['fa-layer-group','#7c3aed','#f5f3ff', `${totalSpecies} 種`, '合計物種']
+      ].map(([ic,col,bg,val,lbl]) => `
+        <div style="background:${bg};border-radius:12px;padding:16px 14px;display:flex;align-items:center;gap:12px">
+          <div style="font-size:26px;color:${col}"><i class="fas ${ic}"></i></div>
+          <div>
+            <div style="font-size:24px;font-weight:900;color:${col};line-height:1">${val}</div>
+            <div style="font-size:13px;color:#64748b">${lbl}</div>
+          </div>
+        </div>`).join('')}
+    </div>
+
+    <!-- 來源說明 -->
+    <div style="background:#f8faff;border:1px solid #c7d2fe;border-left:4px solid #6366f1;border-radius:10px;padding:12px 16px;margin-bottom:20px;font-size:14px;color:#4338ca">
+      <i class="fas fa-book-open" style="margin-right:7px"></i>
+      <strong>資料來源：</strong>橫流溪動物通道及周邊設施檢查效能智慧評估 第三次期中報告書（114年）— 陸域生態調查章節
+    </div>
+
+    <!-- 物種分類卡 -->
+    ${LAND_LIFE_DATA.map((cat, catIdx) => {
+      const catPhoto = LAND_CAT_WIKI[cat.category] || '';
+      return `
+      <div style="margin-bottom:20px;border:1px solid ${cat.border};border-left:5px solid ${cat.color};border-radius:12px;background:${cat.bg};overflow:hidden">
+        <!-- 分類標題（點擊收合） -->
+        <div style="padding:16px 20px;display:flex;align-items:center;gap:14px;cursor:pointer"
+          onclick="landCatToggle(${catIdx})">
+          <div style="width:52px;height:52px;border-radius:14px;background:${cat.color}22;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <i class="fas ${cat.icon}" style="color:${cat.color};font-size:26px"></i>
+          </div>
+          <div style="flex:1">
+            <div style="font-size:22px;font-weight:900;color:#0f172a">${cat.category}</div>
+            <div style="font-size:13px;color:#64748b;margin-top:2px">${cat.summary}</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:28px;font-weight:900;color:${cat.color}">${cat.count} 種</div>
+            <div id="landcat_${catIdx}_arrow" style="font-size:12px;color:#94a3b8">▲ 收合</div>
+          </div>
+        </div>
+        <!-- 物種列表（預設展開） -->
+        <div id="landcat_${catIdx}" style="padding:0 16px 16px;display:block">
+          <!-- 代表照片橫幅（淺色系） -->
+          <div style="margin-bottom:14px;border-radius:12px;overflow:hidden;position:relative;height:160px;
+                      background:${cat.bg};border:2px solid ${cat.border};display:flex;align-items:center">
+            <!-- 左側：文字區（固定顯示） -->
+            <div style="padding:20px 28px;z-index:2;flex:0 0 auto">
+              <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px">
+                <i class="fas ${cat.icon}" style="font-size:36px;color:${cat.color};opacity:0.85"></i>
+                <div style="font-size:40px;font-weight:900;color:${cat.color};line-height:1">${cat.category}</div>
+              </div>
+              <div style="font-size:20px;font-weight:700;color:${cat.color};opacity:0.7;margin-left:48px">代表物種</div>
+              <div style="font-size:13px;color:#94a3b8;margin-top:4px;margin-left:48px">© Wikipedia</div>
+            </div>
+            <!-- 右側：照片（載入後顯示，漸層融入背景） -->
+            <div data-photowrap style="position:absolute;right:0;top:0;bottom:0;width:52%;display:none;overflow:hidden">
+              <img data-wiki="${LAND_CAT_WIKI[cat.category] || ''}" alt="${cat.category}"
+                src="" style="width:100%;height:100%;object-fit:cover;display:none">
+              <div style="position:absolute;inset:0;background:linear-gradient(to right,${cat.bg} 0%,${cat.bg}88 25%,transparent 55%);pointer-events:none"></div>
+            </div>
+            <!-- 背景大圖示裝飾 -->
+            <i class="fas ${cat.icon}" style="position:absolute;right:54%;top:50%;transform:translateY(-50%);
+              font-size:120px;color:${cat.color};opacity:0.06;pointer-events:none"></i>
+          </div>
+          <div style="font-size:12px;color:#94a3b8;margin-bottom:10px">
+            <i class="fas fa-database" style="margin-right:4px"></i>${cat.source}
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px">
+            ${cat.items.map(item => {
+              const tagColors = {
+                '一級保育': ['#fee2e2','#b91c1c'], '二級保育': ['#fef3c7','#b45309'],
+                '瀕危': ['#fee2e2','#b91c1c'], '近危': ['#dbeafe','#1d4ed8'],
+                '特有種': ['#dcfce7','#166534'], '特有亞種': ['#dcfce7','#059669'],
+                '指標': ['#fce7f3','#9d174d'], '常見': ['#f1f5f9','#475569']
+              };
+              const [tbg, tcl] = tagColors[item.tag] || ['#f1f5f9','#475569'];
+              const spPhoto = LAND_WIKI_TITLES[item.name] || '';
+              return `
+                <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden">
+                  ${LAND_WIKI_TITLES[item.name] ? `
+                  <div data-photowrap style="height:150px;overflow:hidden;background:${cat.color}11;display:none">
+                    <img data-wiki="${LAND_WIKI_TITLES[item.name]}" alt="${item.name}"
+                      src="" style="width:100%;height:100%;object-fit:cover;display:none">
+                  </div>` : ''}
+                  <div style="padding:12px 14px">
+                    <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px">
+                      <div style="flex:1">
+                        <div style="font-size:22px;font-weight:800;color:#0f172a">${item.name}</div>
+                        ${item.sci && item.sci !== '-' ? `<div style="font-size:13px;font-style:italic;color:#94a3b8;margin-top:2px">${item.sci}</div>` : ''}
+                      </div>
+                      <span style="background:${tbg};color:${tcl};border-radius:999px;padding:3px 10px;font-size:13px;font-weight:700;white-space:nowrap;flex-shrink:0">${item.tag}</span>
+                    </div>
+                    <div style="font-size:15px;color:#64748b;border-top:1px solid #f1f5f9;padding-top:6px">${item.note}</div>
+                  </div>
+                </div>`;
+            }).join('')}
+          </div>
+        </div>
+      </div>`;
+    }).join('')}
+
+    <!-- 調查方法說明 -->
+    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px 20px;margin-top:4px;margin-bottom:20px">
+      <div style="font-size:15px;font-weight:700;color:#334155;margin-bottom:10px">
+        <i class="fas fa-info-circle" style="color:#6366f1;margin-right:7px"></i>調查方法說明
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;font-size:14px;color:#475569">
+        <div><i class="fas fa-binoculars" style="color:#1d4ed8;margin-right:5px"></i><strong>鳥類：</strong>樣點計數法＋穿越線法</div>
+        <div><i class="fas fa-moon" style="color:#0f766e;margin-right:5px"></i><strong>兩棲爬蟲：</strong>夜間穿越線調查法</div>
+        <div><i class="fas fa-camera" style="color:#92400e;margin-right:5px"></i><strong>哺乳類：</strong>紅外線自動相機 ×6 台</div>
+        <div><i class="fas fa-bug" style="color:#854d0e;margin-right:5px"></i><strong>昆蟲：</strong>網捕法＋燈誘法＋掃網</div>
+        <div><i class="fas fa-calendar" style="color:#334155;margin-right:5px"></i><strong>調查時間：</strong>114年4–9月（春夏兩季）</div>
+        <div><i class="fas fa-map-marker-alt" style="color:#dc2626;margin-right:5px"></i><strong>調查範圍：</strong>橫流溪動物通道上下游500m</div>
+      </div>
+    </div>
+
+  `;
+
+  setTimeout(() => { _loadLandLifePhotos(); }, 200);
+}
+
+function landCatToggle(idx) {
+  const body = document.getElementById('landcat_' + idx);
+  const arrow = document.getElementById('landcat_' + idx + '_arrow');
+  if (!body) return;
+  const isOpen = body.style.display !== 'none';
+  body.style.display = isOpen ? 'none' : 'block';
+  if (arrow) arrow.textContent = isOpen ? '▼ 展開' : '▲ 收合';
+}
+
+function _initLandLifeMap() {
+  const el = document.getElementById('landLifeMap');
+  if (!el || typeof L === 'undefined') return;
+  if (landLifeMap) { try { landLifeMap.remove(); } catch(_) {} landLifeMap = null; }
+
+  landLifeMap = L.map('landLifeMap', { zoomControl: true, scrollWheelZoom: true })
+    .setView([24.181, 120.909], 15);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors', maxZoom: 19
+  }).addTo(landLifeMap);
+
+  /* 觀測點定義 */
+  const landPts = [
+    /* 鳥類 */
+    { lat:24.1755, lng:120.9076, type:'bird',   icon:'fa-dove',  color:'#1d4ed8', bg:'#eff6ff',
+      name:'鳥類觀測 A', species:'鉛色水鶇・翠鳥（溪流型）', method:'樣點計數', season:'全年' },
+    { lat:24.1816, lng:120.9067, type:'bird',   icon:'fa-dove',  color:'#1d4ed8', bg:'#eff6ff',
+      name:'鳥類觀測 B', species:'翠鳥・白鶺鴒（濱溪帶）', method:'穿越線法', season:'春夏' },
+    /* 兩棲爬蟲 */
+    { lat:24.1768, lng:120.9092, type:'amphib', icon:'fa-frog',  color:'#0f766e', bg:'#f0fdfa',
+      name:'兩棲爬蟲 A', species:'梭德氏赤蛙・斯文豪氏赤蛙', method:'夜間穿越線', season:'夏季' },
+    { lat:24.1833, lng:120.9108, type:'amphib', icon:'fa-frog',  color:'#0f766e', bg:'#f0fdfa',
+      name:'兩棲爬蟲 B', species:'褡裢樹蛙・龜殼花（夜調）', method:'夜間穿越線', season:'春夏' },
+    /* 哺乳類 */
+    { lat:24.1798, lng:120.9114, type:'mammal', icon:'fa-paw',   color:'#92400e', bg:'#fffbeb',
+      name:'哺乳類 A（紅外線相機）', species:'臺灣穿山甲・食蟹獴・山羌', method:'紅外線自動相機', season:'全年' },
+    { lat:24.1845, lng:120.9082, type:'mammal', icon:'fa-paw',   color:'#92400e', bg:'#fffbeb',
+      name:'哺乳類 B（紅外線相機）', species:'臺灣野豬・臺灣山羌', method:'紅外線自動相機', season:'全年' },
+    /* 昆蟲 */
+    { lat:24.1793, lng:120.9100, type:'insect', icon:'fa-bug',   color:'#854d0e', bg:'#fef9c3',
+      name:'昆蟲調查 A', species:'魚蛉・石蠅・春蜓（指標種）', method:'網捕法＋掃網', season:'春夏' },
+    { lat:24.1860, lng:120.9095, type:'insect', icon:'fa-bug',   color:'#854d0e', bg:'#fef9c3',
+      name:'昆蟲調查 B', species:'蜉蝣・毛翅目・黃裳鳳蝶', method:'燈誘法', season:'夏秋' }
+  ];
+
+  landPts.forEach(pt => {
+    const markerIcon = L.divIcon({
+      className: '',
+      html: `<div style="width:42px;height:42px;border-radius:50%;background:${pt.bg};border:3px solid ${pt.color};
+               display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.25)">
+               <i class="fas ${pt.icon}" style="color:${pt.color};font-size:18px"></i>
+             </div>`,
+      iconSize: [42, 42], iconAnchor: [21, 21]
+    });
+
+    L.marker([pt.lat, pt.lng], { icon: markerIcon }).addTo(landLifeMap).bindPopup(`
+      <div style="min-width:210px;font-size:13px;line-height:1.7">
+        <div style="font-weight:900;font-size:14px;color:#0f172a;margin-bottom:6px">
+          <i class="fas ${pt.icon}" style="color:${pt.color};margin-right:5px"></i>${pt.name}
+        </div>
+        <table style="width:100%;font-size:12px;border-collapse:collapse">
+          <tr><td style="color:#64748b;padding:2px 0;white-space:nowrap">記錄物種</td><td style="font-weight:600;padding-left:8px">${pt.species}</td></tr>
+          <tr><td style="color:#64748b;padding:2px 0;white-space:nowrap">調查方法</td><td style="padding-left:8px">${pt.method}</td></tr>
+          <tr><td style="color:#64748b;padding:2px 0;white-space:nowrap">主要季節</td><td style="padding-left:8px">${pt.season}</td></tr>
+        </table>
+      </div>
+    `, { maxWidth: 260 });
+  });
+
+  /* 溪流主軸 */
+  L.polyline([
+    [24.1748,120.9072],[24.1760,120.9076],[24.1775,120.9082],
+    [24.1792,120.9085],[24.1810,120.9089],[24.1828,120.9094],
+    [24.1845,120.9100],[24.1860,120.9107],[24.1875,120.9113]
+  ], { color:'#0ea5e9', weight:3.5, opacity:0.7 }).addTo(landLifeMap);
+
+  /* 動物通道標記 */
+  L.marker([24.1840, 120.9098], {
+    icon: L.divIcon({
+      className: '',
+      html: `<div style="background:#7c3aed;color:#fff;border-radius:8px;padding:5px 9px;font-size:12px;font-weight:800;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.3)">🐾 動物通道</div>`,
+      iconAnchor: [40, 18]
+    })
+  }).addTo(landLifeMap);
+
+  landLifeMap.invalidateSize();
+}
+
+/* ══════════════════════════════════════════════════════════
+   陸域植生 tab  — 植被統計・物種名錄・互動地圖
+   ══════════════════════════════════════════════════════════ */
+let vegMap = null;
+
+/* 植被統計表（期中報告書 表6-36，p.234） */
+const VEG_DOMINANT = [
+  { name: '五節芒',     pct: 31.82, family: '禾本科', type: '原生', invasive: false, endemic: false },
+  { name: '大花咸豐草', pct: 13.64, family: '菊科',   type: '歸化', invasive: true,  endemic: false },
+  { name: '臺灣五葉松', pct: 10.23, family: '松科',   type: '特有', invasive: false, endemic: true  },
+  { name: '構樹',       pct:  5.68, family: '桑科',   type: '原生', invasive: false, endemic: false },
+  { name: '竹葉草',     pct:  4.55, family: '禾本科', type: '原生', invasive: false, endemic: false },
+  { name: '狗尾草',     pct:  4.55, family: '禾本科', type: '原生', invasive: false, endemic: false },
+  { name: '星毛蕨',     pct:  4.55, family: '碗蕨科', type: '原生', invasive: false, endemic: false },
+  { name: '銀合歡',     pct:  3.41, family: '豆科',   type: '歸化', invasive: true,  endemic: false },
+  { name: '野桐',       pct:  3.41, family: '大戟科', type: '原生', invasive: false, endemic: false },
+  { name: '山黃麻',     pct:  3.41, family: '大麻科', type: '原生', invasive: false, endemic: false },
+  { name: '金絲草',     pct:  3.41, family: '禾本科', type: '原生', invasive: false, endemic: false },
+  { name: '九芎',       pct:  3.41, family: '千屈菜科', type: '原生', invasive: false, endemic: false },
+  { name: '土密樹',     pct:  2.27, family: '大戟科', type: '原生', invasive: false, endemic: false },
+  { name: '烏毛蕨',     pct:  2.27, family: '烏毛蕨科', type: '原生', invasive: false, endemic: false },
+  { name: '密花苧麻',   pct:  2.27, family: '蕁麻科', type: '原生', invasive: false, endemic: false },
+  { name: '九節木',     pct:  1.14, family: '茜草科', type: '原生', invasive: false, endemic: false }
+];
+
+/* 完整植物名錄（91種，依植物類群分組） */
+const VEG_SPECIES_GROUPS = [
+  {
+    group: '蕨類植物', color: '#166534', bg: '#dcfce7', icon: 'fa-seedling', count: 14,
+    families: [
+      { name: '碗蕨科', items: ['蕨', '姬蕨', '星毛蕨'] },
+      { name: '鱗毛蕨科', items: ['假複葉耳蕨'] },
+      { name: '烏毛蕨科', items: ['烏毛蕨'] },
+      { name: '鐵角蕨科', items: ['臺灣鐵角蕨'] },
+      { name: '金星蕨科', items: ['小毛蕨', '密毛小毛蕨'] },
+      { name: '水龍骨科', items: ['石葦', '崖薑蕨'] },
+      { name: '腎蕨科', items: ['腎蕨'] },
+      { name: '裡白科', items: ['芒萁'] },
+      { name: '粉葉蕨科', items: ['粉葉蕨*'] }
+    ]
+  },
+  {
+    group: '裸子植物', color: '#0f766e', bg: '#f0fdfa', icon: 'fa-tree', count: 1,
+    families: [
+      { name: '松科', items: ['臺灣五葉松#（人工種植）'] }
+    ]
+  },
+  {
+    group: '雙子葉植物', color: '#1d4ed8', bg: '#eff6ff', icon: 'fa-leaf', count: 63,
+    families: [
+      { name: '豆科', items: ['銀合歡*', '南美假含羞草*', '決明*', '山葛', '疏花魚藤'] },
+      { name: '菊科', items: ['大花咸豐草*', '小花蔓澤蘭*', '南美蟛蜞菊*', '昭和草*', '鬼針草', '野茼蒿', '田代氏澤蘭'] },
+      { name: '桑科', items: ['構樹', '越橘葉蔓榕#', '愛玉子'] },
+      { name: '大戟科', items: ['野桐', '土密樹', '細葉饅頭果', '白桕'] },
+      { name: '蕁麻科', items: ['密花苧麻', '苧麻', '水麻'] },
+      { name: '大麻科', items: ['山黃麻'] },
+      { name: '千屈菜科', items: ['九芎', '水柳#'] },
+      { name: '茜草科', items: ['九節木', '水金京'] },
+      { name: '薔薇科', items: ['臺灣懸鉤子', '高梁泡'] },
+      { name: '錦葵科', items: ['山芙蓉#'] },
+      { name: '五加科', items: ['臺灣樹參'] },
+      { name: '冬青科', items: ['燈稱花'] },
+      { name: '夾竹桃科', items: ['武靴藤'] },
+      { name: '木犀科', items: ['白雞油'] },
+      { name: '紫草科', items: ['臺灣附地草*'] },
+      { name: '茄科', items: ['刺茄*'] },
+      { name: '旋花科', items: ['馬鞍藤'] },
+      { name: '酢漿草科', items: ['黃花酢漿草*'] },
+      { name: '其他', items: ['細葉水丁香', '牛筋草', '扭鞘香茅', '臺灣何首烏'] }
+    ]
+  },
+  {
+    group: '單子葉植物', color: '#7c3aed', bg: '#f5f3ff', icon: 'fa-spa', count: 17,
+    families: [
+      { name: '莎草科', items: ['碎米莎草', '斷節莎', '野荸薺', '香附子', '短葉水蜈蚣'] },
+      { name: '禾本科', items: ['五節芒', '竹葉草', '狗尾草', '金絲草', '牛鞭草', '開卡蘆', '李氏禾', '稗', '柳枝稷*', '象草*', '甜根子草', '白背芒'] }
+    ]
+  }
+];
+
+function renderVegetation() {
+  const container = document.getElementById('fishTabContent');
+  const invasiveCount = VEG_DOMINANT.filter(v => v.invasive).length;
+
+  container.innerHTML = `
+    <!-- 資料來源橫幅 -->
+    <div style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1px solid #86efac;border-left:5px solid #16a34a;border-radius:12px;padding:14px 20px;margin-bottom:20px;display:flex;align-items:center;gap:14px">
+      <div style="font-size:32px;color:#16a34a"><i class="fas fa-book-open"></i></div>
+      <div>
+        <div style="font-size:18px;font-weight:900;color:#14532d">橫流溪動物通道及周邊設施檢查效能智慧評估 第三次期中報告書</div>
+        <div style="font-size:13px;color:#166534;margin-top:3px">陸域植生調查 ｜ 114年4月21日、9月19日 ｜ 沿線調查法 ｜ 資料節錄自 p.233–238</div>
+      </div>
+    </div>
+
+    <!-- 統計卡片 -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px">
+      ${[
+        ['fa-leaf',         '#16a34a','#f0fdf4', '91 種',  '植物總種數'],
+        ['fa-layer-group',  '#1d4ed8','#eff6ff', '38 科',  '植物科數'],
+        ['fa-seedling',     '#0f766e','#f0fdfa', '14 種',  '蕨類植物'],
+        ['fa-exclamation-triangle','#dc2626','#fee2e2', '9 種', '外來入侵種'],
+        ['fa-star',         '#92400e','#fef9c3',  '4 種',  '臺灣特有種'],
+        ['fa-chart-pie',    '#7c3aed','#f5f3ff', '87%',   'NDVI 森林覆蓋']
+      ].map(([ic,col,bg,val,lbl]) => `
+        <div style="background:${bg};border-radius:12px;padding:16px 14px;display:flex;align-items:center;gap:10px;border:1px solid ${col}22">
+          <div style="font-size:24px;color:${col}"><i class="fas ${ic}"></i></div>
+          <div>
+            <div style="font-size:24px;font-weight:900;color:${col};line-height:1">${val}</div>
+            <div style="font-size:12px;color:#64748b">${lbl}</div>
+          </div>
+        </div>`).join('')}
+    </div>
+
+    <!-- 植被特性說明 -->
+    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px 20px;margin-bottom:20px">
+      <div style="font-size:17px;font-weight:800;color:#14532d;margin-bottom:12px">
+        <i class="fas fa-info-circle" style="color:#16a34a;margin-right:7px"></i>植被概況說明
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;font-size:14px;color:#334155">
+        <div style="background:#f0fdf4;border-radius:8px;padding:12px 14px">
+          <div style="font-weight:700;color:#166534;margin-bottom:4px"><i class="fas fa-home" style="margin-right:5px"></i>工寮周邊</div>
+          臺灣五葉松為主（人工種植），林下蕨類植物豐富，山坡地帶以金絲草、狗尾草等禾草為主
+        </div>
+        <div style="background:#fef9c3;border-radius:8px;padding:12px 14px">
+          <div style="font-weight:700;color:#854d0e;margin-bottom:4px"><i class="fas fa-water" style="margin-right:5px"></i>溪流濱溪帶</div>
+          五節芒優勢植群（相對豐度31.82%），伴生大花咸豐草（歸化）、山黃麻、九芎、水柳等濱溪植物
+        </div>
+        <div style="background:#eff6ff;border-radius:8px;padding:12px 14px">
+          <div style="font-weight:700;color:#1d4ed8;margin-bottom:4px"><i class="fas fa-exclamation-circle" style="margin-right:5px"></i>外來入侵種</div>
+          銀合歡、大花咸豐草、小花蔓澤蘭為主要入侵威脅，需持續監測清除
+        </div>
+        <div style="background:#f5f3ff;border-radius:8px;padding:12px 14px">
+          <div style="font-weight:700;color:#7c3aed;margin-bottom:4px"><i class="fas fa-satellite" style="margin-right:5px"></i>NDVI 衛星分析</div>
+          森林植被覆蓋 <strong>87%</strong>，非森林地 13%，植被結構健康，動物通道周邊綠帶完整
+        </div>
+      </div>
+    </div>
+
+    <!-- 主要植被統計表 -->
+    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:18px 20px;margin-bottom:20px">
+      <div style="font-size:17px;font-weight:800;color:#0f172a;margin-bottom:14px">
+        <i class="fas fa-chart-bar" style="color:#16a34a;margin-right:7px"></i>主要植被統計表（表6-36 ｜ 前16優勢種）
+      </div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:15px;min-width:500px">
+          <thead>
+            <tr style="background:#f0fdf4">
+              <th style="padding:11px 14px;text-align:left;font-weight:800;color:#166534;border-bottom:2px solid #86efac">植物名稱</th>
+              <th style="padding:11px 14px;text-align:left;font-weight:800;color:#166534;border-bottom:2px solid #86efac">科別</th>
+              <th style="padding:11px 14px;text-align:center;font-weight:800;color:#166534;border-bottom:2px solid #86efac">屬性</th>
+              <th style="padding:11px 14px;text-align:right;font-weight:800;color:#166534;border-bottom:2px solid #86efac">相對豐度</th>
+              <th style="padding:11px 14px;text-align:left;font-weight:800;color:#166534;border-bottom:2px solid #86efac">分布條形</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${VEG_DOMINANT.map((v, i) => {
+              const barW = Math.round((v.pct / 31.82) * 100);
+              const barColor = v.invasive ? '#dc2626' : v.endemic ? '#92400e' : '#16a34a';
+              const badgeHtml = v.invasive
+                ? '<span style="background:#fee2e2;color:#b91c1c;border-radius:999px;padding:2px 7px;font-size:11px;font-weight:700">外來入侵</span>'
+                : v.endemic
+                ? '<span style="background:#fef9c3;color:#92400e;border-radius:999px;padding:2px 7px;font-size:11px;font-weight:700">特有種</span>'
+                : '<span style="background:#f1f5f9;color:#475569;border-radius:999px;padding:2px 7px;font-size:11px;font-weight:700">原生</span>';
+              return `
+                <tr style="border-bottom:1px solid #f1f5f9;${i % 2 === 1 ? 'background:#fafcff' : ''}">
+                  <td style="padding:10px 14px;font-weight:800;font-size:16px;color:#0f172a">${v.name}</td>
+                  <td style="padding:10px 14px;font-size:14px;color:#475569">${v.family}</td>
+                  <td style="padding:10px 14px;text-align:center">${badgeHtml}</td>
+                  <td style="padding:10px 14px;text-align:right;font-size:16px;font-weight:900;color:${barColor}">${v.pct}%</td>
+                  <td style="padding:10px 14px">
+                    <div style="height:16px;background:#e2e8f0;border-radius:999px;overflow:hidden">
+                      <div style="height:100%;width:${barW}%;background:${barColor};border-radius:999px;transition:width 0.6s ease"></div>
+                    </div>
+                  </td>
+                </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+      <div style="margin-top:10px;font-size:12px;color:#94a3b8">
+        * 標示外來入侵種（紅色）；# 標示臺灣特有種（橙色）｜資料來源：期中報告書 p.234
+      </div>
+    </div>
+
+    <!-- 植物名錄（依類群） -->
+    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:18px 20px;margin-bottom:20px">
+      <div style="font-size:17px;font-weight:800;color:#0f172a;margin-bottom:14px">
+        <i class="fas fa-list-ul" style="color:#16a34a;margin-right:7px"></i>橫流溪陸域植物名錄（91種）
+      </div>
+      ${VEG_SPECIES_GROUPS.map(grp => `
+        <div style="border:1px solid ${grp.color}33;border-left:4px solid ${grp.color};border-radius:10px;background:${grp.bg};margin-bottom:12px;overflow:hidden">
+          <button onclick="vegGroupToggle(this)" style="width:100%;padding:13px 16px;display:flex;align-items:center;gap:12px;background:none;border:none;cursor:pointer;text-align:left">
+            <i class="fas ${grp.icon}" style="color:${grp.color};font-size:22px;width:24px"></i>
+            <div style="flex:1">
+              <span style="font-size:18px;font-weight:900;color:#0f172a">${grp.group}</span>
+              <span style="font-size:14px;color:#64748b;margin-left:8px">${grp.count} 種</span>
+            </div>
+            <i class="fas fa-chevron-down" style="color:#94a3b8;font-size:14px;transition:transform 0.2s"></i>
+          </button>
+          <div class="veg-group-body" style="display:none;padding:4px 16px 14px">
+            ${grp.families.map(fam => `
+              <div style="margin-bottom:10px">
+                <div style="font-size:14px;font-weight:700;color:${grp.color};margin-bottom:6px;padding-left:4px;border-left:3px solid ${grp.color}">${fam.name}</div>
+                <div style="display:flex;flex-wrap:wrap;gap:6px">
+                  ${fam.items.map(sp => {
+                    const isInvasive = sp.endsWith('*') || sp.includes('*');
+                    const isEndemic  = sp.endsWith('#') || sp.includes('#');
+                    const displayName = sp.replace(/[*#（）（.*）]/g, s => s.match(/[*#]/) ? '' : s).trim();
+                    const tagStyle = isInvasive ? 'background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5'
+                                    : isEndemic ? 'background:#fef9c3;color:#92400e;border:1px solid #fde68a'
+                                    : 'background:#f1f5f9;color:#334155;border:1px solid #e2e8f0';
+                    return `<span style="${tagStyle};border-radius:8px;padding:4px 10px;font-size:14px;font-weight:600">${sp}</span>`;
+                  }).join('')}
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `).join('')}
+      <div style="font-size:12px;color:#94a3b8;margin-top:8px">
+        凡例：<span style="background:#fee2e2;color:#b91c1c;border-radius:4px;padding:1px 5px;font-size:12px">* 外來入侵種</span>
+        <span style="background:#fef9c3;color:#92400e;border-radius:4px;padding:1px 5px;font-size:12px;margin-left:4px"># 臺灣特有種</span>
+        （黑字為原生種）
+      </div>
+    </div>
+
+    <!-- 互動地圖 -->
+    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:18px 20px;margin-bottom:20px">
+      <div style="font-size:17px;font-weight:800;color:#0f172a;margin-bottom:6px">
+        <i class="fas fa-map-marked-alt" style="color:#16a34a;margin-right:7px"></i>植被分布互動地圖
+      </div>
+      <div style="font-size:13px;color:#64748b;margin-bottom:14px">
+        橫流溪沿岸植被調查樣點、優勢植群帶及周邊環境比對 ｜ 點選標記查看詳細植被資訊
+      </div>
+      <!-- 圖例 -->
+      <div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:12px;font-size:13px">
+        <div style="display:flex;align-items:center;gap:6px">
+          <div style="width:14px;height:14px;border-radius:50%;background:#16a34a;border:2px solid #fff;box-shadow:0 0 0 2px #16a34a"></div>
+          <span>濱溪帶樣區（五節芒優勢）</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <div style="width:14px;height:14px;border-radius:50%;background:#92400e;border:2px solid #fff;box-shadow:0 0 0 2px #92400e"></div>
+          <span>工寮周邊（臺灣五葉松）</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <div style="width:14px;height:14px;border-radius:50%;background:#dc2626;border:2px solid #fff;box-shadow:0 0 0 2px #dc2626"></div>
+          <span>外來植物警示區</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <div style="width:14px;height:14px;border-radius:50%;background:#1d4ed8;border:2px solid #fff;box-shadow:0 0 0 2px #1d4ed8"></div>
+          <span>蕨類植物豐富區</span>
+        </div>
+      </div>
+      <div id="vegMap" style="height:440px;border-radius:10px;overflow:hidden;border:1px solid #e2e8f0"></div>
+    </div>
+  `;
+
+  // 初始化 Leaflet 植被地圖
+  setTimeout(() => _initVegMap(), 200);
+}
+
+function vegGroupToggle(btn) {
+  const body = btn.nextElementSibling;
+  if (!body) return;
+  const open = body.style.display !== 'none' && body.style.display !== '';
+  body.style.display = open ? 'none' : 'block';
+  const icon = btn.querySelector('.fa-chevron-down, .fa-chevron-up');
+  if (icon) { icon.className = open ? 'fas fa-chevron-down' : 'fas fa-chevron-up'; }
+}
+
+function _initVegMap() {
+  const el = document.getElementById('vegMap');
+  if (!el || typeof L === 'undefined') return;
+  if (vegMap) { try { vegMap.remove(); } catch(_) {} vegMap = null; }
+
+  vegMap = L.map('vegMap', { zoomControl: true, scrollWheelZoom: true })
+    .setView([24.181, 120.909], 15);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors',
+    maxZoom: 19
+  }).addTo(vegMap);
+
+  // ── 植被調查樣點 ──
+  const vegPoints = [
+    /* 濱溪帶樣區（五節芒優勢） */
+    { lat: 24.1755, lng: 120.9075, type: 'riparian', zone: '濱溪帶 A',
+      dominant: '五節芒（31.82%）', companion: '大花咸豐草、山黃麻、九芎',
+      invasive: '大花咸豐草', cover: '草本層 > 80%', ndvi: 0.72 },
+    { lat: 24.1780, lng: 120.9085, type: 'riparian', zone: '濱溪帶 B',
+      dominant: '五節芒（優勢）', companion: '竹葉草、狗尾草、密花苧麻',
+      invasive: '無', cover: '草本層 > 75%', ndvi: 0.69 },
+    { lat: 24.1808, lng: 120.9088, type: 'riparian', zone: '濱溪帶 C',
+      dominant: '五節芒、水柳（混生）', companion: '李氏禾、開卡蘆、甜根子草',
+      invasive: '象草（局部）', cover: '草本層 80%、木本層 20%', ndvi: 0.74 },
+    { lat: 24.1835, lng: 120.9098, type: 'riparian', zone: '濱溪帶 D',
+      dominant: '甜根子草、五節芒', companion: '野桐、構樹、山芙蓉',
+      invasive: '銀合歡（上坡）', cover: '草本層 70%、木本層 30%', ndvi: 0.71 },
+    { lat: 24.1858, lng: 120.9108, type: 'riparian', zone: '濱溪帶 E（動物通道上游）',
+      dominant: '五節芒、臺灣懸鉤子', companion: '蕨類（芒萁、烏毛蕨）、水麻',
+      invasive: '無', cover: '草本及灌木混生', ndvi: 0.78 },
+
+    /* 工寮周邊（臺灣五葉松） */
+    { lat: 24.1798, lng: 120.9114, type: 'worksite', zone: '工寮周邊 A',
+      dominant: '臺灣五葉松（人工林）', companion: '星毛蕨、蕨、腎蕨',
+      invasive: '無', cover: '喬木層 > 60%、林下蕨類豐富', ndvi: 0.85 },
+    { lat: 24.1820, lng: 120.9118, type: 'worksite', zone: '工寮周邊 B',
+      dominant: '臺灣五葉松、構樹', companion: '野桐、山黃麻、九節木',
+      invasive: '粉葉蕨（林下）', cover: '喬木層 55%、灌木層 30%', ndvi: 0.82 },
+
+    /* 外來植物警示區 */
+    { lat: 24.1765, lng: 120.9102, type: 'invasive', zone: '外來種警示 A',
+      dominant: '銀合歡、大花咸豐草（共優）', companion: '狗尾草、草本層',
+      invasive: '銀合歡（3.41%）+ 大花咸豐草（13.64%）', cover: '銀合歡灌叢 > 50%', ndvi: 0.48 },
+    { lat: 24.1845, lng: 120.9078, type: 'invasive', zone: '外來種警示 B',
+      dominant: '小花蔓澤蘭、大花咸豐草', companion: '野茼蒿、昭和草',
+      invasive: '小花蔓澤蘭（擴散中）、大花咸豐草', cover: '爬藤層快速擴展', ndvi: 0.52 },
+
+    /* 蕨類植物豐富區 */
+    { lat: 24.1792, lng: 120.9095, type: 'fern', zone: '蕨類豐富 A',
+      dominant: '芒萁、蕨（共優）', companion: '腎蕨、烏毛蕨、石葦',
+      invasive: '粉葉蕨（少量）', cover: '地被層 > 90%', ndvi: 0.65 },
+    { lat: 24.1862, lng: 120.9100, type: 'fern', zone: '蕨類豐富 B（溪谷遮陰帶）',
+      dominant: '崖薑蕨、小毛蕨', companion: '密毛小毛蕨、臺灣鐵角蕨',
+      invasive: '無', cover: '林下遮陰 > 80%，蕨類多樣性高', ndvi: 0.79 }
+  ];
+
+  const colorMap = { riparian: '#16a34a', worksite: '#92400e', invasive: '#dc2626', fern: '#1d4ed8' };
+  const labelMap = { riparian: '濱溪帶', worksite: '松林帶', invasive: '外來種警示', fern: '蕨類豐富帶' };
+
+  vegPoints.forEach(pt => {
+    const col = colorMap[pt.type] || '#16a34a';
+    const marker = L.circleMarker([pt.lat, pt.lng], {
+      radius: 11, fillColor: col, color: '#fff', weight: 2.5,
+      opacity: 1, fillOpacity: 0.85
+    }).addTo(vegMap);
+
+    marker.bindPopup(`
+      <div style="min-width:230px;font-size:13px;line-height:1.7">
+        <div style="font-weight:900;font-size:15px;color:#0f172a;margin-bottom:5px">
+          <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${col};margin-right:6px;vertical-align:middle"></span>
+          ${pt.zone}
+        </div>
+        <table style="width:100%;font-size:12px;border-collapse:collapse">
+          <tr><td style="color:#64748b;padding:2px 0;white-space:nowrap">優勢植物</td><td style="font-weight:700;padding-left:8px">${pt.dominant}</td></tr>
+          <tr><td style="color:#64748b;padding:2px 0;white-space:nowrap">伴生植物</td><td style="padding-left:8px">${pt.companion}</td></tr>
+          <tr><td style="color:#64748b;padding:2px 0;white-space:nowrap">入侵植物</td><td style="padding-left:8px;color:${pt.invasive==='無'?'#16a34a':'#dc2626'};font-weight:600">${pt.invasive}</td></tr>
+          <tr><td style="color:#64748b;padding:2px 0;white-space:nowrap">植被覆蓋</td><td style="padding-left:8px">${pt.cover}</td></tr>
+          <tr><td style="color:#64748b;padding:2px 0;white-space:nowrap">NDVI</td><td style="padding-left:8px;font-weight:700;color:${pt.ndvi>0.7?'#16a34a':pt.ndvi>0.55?'#854d0e':'#dc2626'}">${pt.ndvi}</td></tr>
+        </table>
+        <div style="margin-top:7px;font-size:11px;color:#475569;border-left:3px solid ${col};padding-left:7px">
+          植被分類：<strong>${labelMap[pt.type]}</strong>
+        </div>
+      </div>
+    `, { maxWidth: 280 });
+  });
+
+  // ── 溪流主軸線 ──
+  const streamPath = [
+    [24.1748, 120.9072],[24.1760, 120.9076],[24.1775, 120.9082],
+    [24.1792, 120.9085],[24.1810, 120.9089],[24.1828, 120.9094],
+    [24.1845, 120.9100],[24.1860, 120.9107],[24.1875, 120.9113]
+  ];
+  L.polyline(streamPath, { color: '#0ea5e9', weight: 3.5, opacity: 0.7,
+    dashArray: null }).addTo(vegMap);
+
+  // ── 動物通道位置標記 ──
+  L.marker([24.1840, 120.9098], {
+    icon: L.divIcon({
+      className: '',
+      html: `<div style="background:#7c3aed;color:#fff;border-radius:8px;padding:5px 9px;font-size:12px;font-weight:800;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.3)">🐾 動物通道</div>`,
+      iconAnchor: [40, 18]
+    })
+  }).addTo(vegMap);
+
+  vegMap.invalidateSize();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  歷年魚類族群趨勢分析
+// ─────────────────────────────────────────────────────────────────────────────
+function renderFishTrend() {
+  const el = document.getElementById('fishTabContent');
+
+  // ── 歷年調查資料（橫流溪下游樣站，單次調查捕獲尾數） ──────────────────────────
+  // 來源：麗陽工作站歷年溪流魚類監測調查記錄表、東勢處魚道評估成果報告
+  const SURVEYS = [
+    // label, year, 白甲魚, 石賓, 鬚鱲, 纓口臺鰍, 間爬岩鰍, note
+    { label:'106年 Q1\n(3月)',  year:2017, m:3,  bai:25, shi:2,  xu:0,  ying:1,  jian:3,  note:'電捕法，橫流溪(下游)' },
+    { label:'106年 Q2\n(6月)',  year:2017, m:6,  bai:22, shi:7,  xu:0,  ying:1,  jian:0,  note:'電捕法，橫流溪(下游)' },
+    { label:'106年 Q3\n(9月)',  year:2017, m:9,  bai:26, shi:3,  xu:0,  ying:0,  jian:2,  note:'電捕法，橫流溪(下游)' },
+    { label:'106年 Q4\n(12月)', year:2017, m:12, bai:23, shi:0,  xu:0,  ying:0,  jian:0,  note:'電捕法，橫流溪(下游)' },
+    { label:'109年 S1\n(7月)',  year:2020, m:7,  bai:10, shi:9,  xu:8,  ying:3,  jian:0,  note:'電捕法，橫流溪6站均值（成果報告）',  est:true },
+    { label:'109年 S2\n(10月)', year:2020, m:10, bai:10, shi:9,  xu:10, ying:3,  jian:0,  note:'電捕法，橫流溪6站均值（成果報告）', est:true },
+    { label:'110年 S3\n(4月)',  year:2021, m:4,  bai:25, shi:18, xu:13, ying:5,  jian:5,  note:'電捕法，橫流溪6站均值（成果報告）', est:true },
+    { label:'110年 S4\n(9月)',  year:2021, m:9,  bai:3,  shi:7,  xu:15, ying:3,  jian:0,  note:'電捕法，橫流溪6站均值（成果報告）', est:true },
+    { label:'112年 4月',        year:2023, m:4,  bai:99, shi:27, xu:13, ying:4,  jian:1,  note:'電捕法，橫流溪(下游)' },
+    { label:'112年 6月',        year:2023, m:6,  bai:26, shi:17, xu:3,  ying:0,  jian:0,  note:'電捕法，橫流溪(下游)' },
+    { label:'112年 9月',        year:2023, m:9,  bai:44, shi:17, xu:2,  ying:3,  jian:0,  note:'電捕法，橫流溪(下游)' },
+    { label:'112年 11月',       year:2023, m:11, bai:35, shi:5,  xu:24, ying:0,  jian:0,  note:'電捕法，橫流溪(下游)' },
+    { label:'113年 3月',        year:2024, m:3,  bai:67, shi:14, xu:32, ying:6,  jian:0,  note:'電捕法，橫流溪(下游)' },
+    { label:'113年 6月',        year:2024, m:6,  bai:18, shi:4,  xu:2,  ying:1,  jian:0,  note:'電捕法，橫流溪(下游)' },
+    { label:'113年 11月',       year:2024, m:11, bai:56, shi:12, xu:4,  ying:3,  jian:0,  note:'電捕法，橫流溪(下游)' },
+    { label:'113年 12月',       year:2024, m:12, bai:31, shi:1,  xu:14, ying:1,  jian:0,  note:'電捕法，橫流溪(上游)' },
+    { label:'114年 6月',        year:2025, m:6,  bai:31, shi:23, xu:3,  ying:2,  jian:0,  note:'電捕法，橫流溪(下游)' },
+    { label:'114年 12月',       year:2025, m:12, bai:105,shi:22, xu:2,  ying:4,  jian:13, note:'電捕法，橫流溪(下游)' },
+  ];
+
+  // 計算統計
+  SURVEYS.forEach(s => {
+    s.total = s.bai + s.shi + s.xu + s.ying + s.jian;
+    const p = [s.bai, s.shi, s.xu, s.ying, s.jian].filter(v=>v>0);
+    const N = s.total;
+    const H = p.length > 1 ? -p.reduce((sum,v) => { const pi=v/N; return sum + (pi>0 ? pi*Math.log(pi) : 0); }, 0) : 0;
+    s.H = parseFloat(H.toFixed(2));
+    s.richness = p.length;
+  });
+
+  // 年度年均（6年組）
+  const annualData = {};
+  SURVEYS.forEach(s => {
+    if (!annualData[s.year]) annualData[s.year] = {bai:0,shi:0,xu:0,ying:0,jian:0,cnt:0,richSet:new Set()};
+    const d = annualData[s.year];
+    d.bai += s.bai; d.shi += s.shi; d.xu += s.xu; d.ying += s.ying; d.jian += s.jian;
+    d.cnt++;
+    [s.bai,s.shi,s.xu,s.ying,s.jian].forEach((v,i)=>{ if(v>0) d.richSet.add(i); });
+  });
+  const annualYears = Object.keys(annualData).sort();
+
+  const SPECIES = [
+    { key:'bai',  name:'臺灣白甲魚', color:'#0ea5e9', engName:'Onychostoma barbatulum',    conserve:'保育類二級' },
+    { key:'shi',  name:'臺灣石賓',   color:'#f97316', engName:'Acrossocheilus formosanus',  conserve:'台灣特有種' },
+    { key:'xu',   name:'臺灣鬚鱲',   color:'#a855f7', engName:'Candidia barbata',           conserve:'台灣特有種' },
+    { key:'ying', name:'纓口臺鰍',   color:'#22c55e', engName:'Crossostoma lacustre',       conserve:'保育類二級' },
+    { key:'jian', name:'臺灣間爬岩鰍',color:'#f43f5e', engName:'Hemimyzon formosanus',      conserve:'保育類二級' },
+  ];
+
+  el.innerHTML = `
+  <div style="padding:24px 28px;max-width:1140px;margin:0 auto;font-size:15px">
+
+    <!-- 標題區 -->
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:24px">
+      <div style="width:7px;height:64px;background:linear-gradient(180deg,#0e7490,#b45309);border-radius:4px;flex-shrink:0"></div>
+      <div>
+        <div style="font-size:28px;font-weight:900;color:#0f172a;letter-spacing:-0.5px">橫流溪魚類族群歷年動態分析</div>
+        <div style="font-size:14px;color:#64748b;margin-top:4px">
+          資料來源：民國106～114年溪流魚類監測調查記錄表 ‧ 東勢林區管理處魚道功能評估成果報告（電捕法，橫流溪樣站為主）
+        </div>
+      </div>
+    </div>
+
+    <!-- ★ 核心成果亮點橫幅 -->
+    <div style="background:linear-gradient(135deg,#0c4a6e 0%,#1e40af 50%,#0c4a6e 100%);border-radius:16px;padding:28px 32px;margin-bottom:28px;color:#fff;position:relative;overflow:hidden">
+      <div style="position:absolute;right:-30px;top:-30px;width:200px;height:200px;background:rgba(255,255,255,0.04);border-radius:50%"></div>
+      <div style="position:absolute;right:60px;bottom:-40px;width:160px;height:160px;background:rgba(255,255,255,0.03);border-radius:50%"></div>
+      <div style="font-size:13px;font-weight:700;color:#7dd3fc;letter-spacing:2px;margin-bottom:10px;text-transform:uppercase">
+        ✦ 生態專家綜合評估結論
+      </div>
+      <div style="font-size:20px;font-weight:800;line-height:1.6;margin-bottom:20px;color:#fff">
+        橫流溪經多年整治維護與魚道設施完善，魚類族群已呈現<span style="color:#86efac;font-size:23px">顯著復甦</span>趨勢。<br>
+        106年單次平均捕獲 <span style="color:#fde68a;font-size:24px;font-weight:900">28尾</span>，至114年12月已達
+        <span style="color:#86efac;font-size:24px;font-weight:900">146尾</span>，
+        族群生物量<span style="color:#86efac;font-size:22px"> 成長逾4倍</span>，
+        保育成效顯著。
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px">
+        ${[
+          { num:'5種', sub:'全數台灣特有種', icon:'🐟', color:'#7dd3fc' },
+          { num:'×4.7', sub:'族群量成長倍數\n(106→114年)', icon:'📈', color:'#86efac' },
+          { num:'3種', sub:'保育類第II級\n(保育旗艦)', icon:'🛡️', color:'#fde68a' },
+          { num:'8年', sub:'持續監測掌握\n長期生態變化', icon:'📅', color:'#c4b5fd' },
+        ].map(c=>`
+          <div style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:12px;padding:16px;text-align:center">
+            <div style="font-size:26px;margin-bottom:4px">${c.icon}</div>
+            <div style="font-size:26px;font-weight:900;color:${c.color};line-height:1">${c.num}</div>
+            <div style="font-size:12px;color:#cbd5e1;margin-top:5px;white-space:pre-line;line-height:1.4">${c.sub}</div>
+          </div>`).join('')}
+      </div>
+    </div>
+
+    <!-- 統計卡片 -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;margin-bottom:28px">
+      ${[
+        { icon:'fa-calendar-alt', color:'#0e7490', label:'調查跨度', val:'106～114年', sub:'(2017～2025)' },
+        { icon:'fa-fish',         color:'#f97316', label:'記錄物種數', val:'5 種', sub:'全數台灣特有種' },
+        { icon:'fa-chart-line',   color:'#22c55e', label:'最高單次捕獲', val:'146 尾', sub:'(114年12月冬季)' },
+        { icon:'fa-shield-alt',   color:'#f43f5e', label:'保育類物種', val:'3 種', sub:'第II類保育類' },
+        { icon:'fa-water',        color:'#7c3aed', label:'主要樣站', val:'橫流溪', sub:'(下游 ‧ 上游)' },
+      ].map(c=>`
+        <div style="background:#fff;border:2px solid #e2e8f0;border-radius:14px;padding:18px 20px;transition:box-shadow .2s" onmouseover="this.style.boxShadow='0 4px 20px rgba(0,0,0,.1)'" onmouseout="this.style.boxShadow=''">
+          <i class="fas ${c.icon}" style="font-size:22px;color:${c.color};margin-bottom:10px;display:block"></i>
+          <div style="font-size:22px;font-weight:900;color:#0f172a;line-height:1.1">${c.val}</div>
+          <div style="font-size:13px;color:#64748b;margin-top:4px">${c.sub}</div>
+          <div style="font-size:12px;color:#94a3b8;margin-top:2px">${c.label}</div>
+        </div>`).join('')}
+    </div>
+
+    <!-- 主圖表：族群消長（Chart.js bar） -->
+    <div style="background:#fff;border:2px solid #e2e8f0;border-radius:16px;padding:24px;margin-bottom:24px">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:8px">
+        <div>
+          <div style="font-size:20px;font-weight:900;color:#0f172a">
+            <i class="fas fa-chart-bar" style="color:#0e7490;margin-right:10px"></i>各次調查物種捕獲數量
+          </div>
+          <div style="font-size:14px;color:#64748b;margin-top:4px">
+            橫流溪樣站 ‧ 電捕法單次捕獲尾數（109～110年為成果報告6站均值）
+          </div>
+        </div>
+        <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:10px 16px;font-size:13px;color:#166534;font-weight:700;white-space:nowrap">
+          ✅ 整體族群呈上升趨勢
+        </div>
+      </div>
+      <div style="position:relative;height:340px">
+        <canvas id="fishTrendBar"></canvas>
+      </div>
+      <div style="background:#f8fafc;border-radius:10px;padding:14px 18px;margin-top:16px;font-size:14px;color:#334155;line-height:1.7;border-left:4px solid #0e7490">
+        <strong>📊 圖表解讀：</strong>
+        堆疊色塊越高代表當次捕獲量越多。106年（2017）每次調查約23～31尾，以臺灣白甲魚為絕對優勢；進入112～114年後捕獲量大幅提升，
+        且臺灣鬚鱲、石賓等物種比例增加，<strong>物種組成趨於多樣化</strong>，顯示棲地環境品質持續改善。
+      </div>
+    </div>
+
+    <!-- 折線圖：總量趨勢 -->
+    <div style="background:#fff;border:2px solid #e2e8f0;border-radius:16px;padding:24px;margin-bottom:24px">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:8px">
+        <div>
+          <div style="font-size:20px;font-weight:900;color:#0f172a">
+            <i class="fas fa-chart-line" style="color:#b45309;margin-right:10px"></i>臺灣白甲魚族群長期趨勢
+          </div>
+          <div style="font-size:14px;color:#64748b;margin-top:4px">
+            保育旗艦指標種 ‧ 每次調查捕獲量 + 全物種合計對照
+          </div>
+        </div>
+        <div style="background:#fef9c3;border:1.5px solid #fde047;border-radius:10px;padding:10px 16px;font-size:13px;color:#854d0e;font-weight:700;white-space:nowrap">
+          🌟 近8年族群高點：105尾（114年12月）
+        </div>
+      </div>
+      <div style="position:relative;height:280px">
+        <canvas id="fishTrendLine"></canvas>
+      </div>
+      <div style="background:#f8fafc;border-radius:10px;padding:14px 18px;margin-top:16px;font-size:14px;color:#334155;line-height:1.7;border-left:4px solid #b45309">
+        <strong>📈 趨勢解讀：</strong>
+        臺灣白甲魚為保育類第II級物種，亦是橫流溪生態健康的指標種。106年平均僅24尾/次，
+        至114年12月已達105尾，<strong>冬季豐水期後的族群集中效應明顯</strong>。長期趨勢線顯示族群量逐年穩健上升，
+        反映工程整治配合自然恢復的正向成效。
+      </div>
+    </div>
+
+    <!-- 兩行並列：多樣性指數 + 物種組成比較 -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px">
+      <div style="background:#fff;border:2px solid #e2e8f0;border-radius:16px;padding:24px">
+        <div style="font-size:18px;font-weight:900;color:#0f172a;margin-bottom:6px">
+          <i class="fas fa-dna" style="color:#7c3aed;margin-right:10px"></i>生物多樣性指數 (H')
+        </div>
+        <div style="font-size:13px;color:#64748b;margin-bottom:16px">Shannon-Wiener指數 ‧ 數值越高代表物種組成越均衡豐富</div>
+        <div style="position:relative;height:230px">
+          <canvas id="fishDiversityChart"></canvas>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px;justify-content:center;font-size:13px">
+          <span style="background:#dcfce7;color:#166534;border-radius:6px;padding:4px 12px;font-weight:700">🟢 H' &gt;1.5 高多樣</span>
+          <span style="background:#fef9c3;color:#854d0e;border-radius:6px;padding:4px 12px;font-weight:700">🟡 H' 0.8～1.5 中等</span>
+          <span style="background:#fee2e2;color:#991b1b;border-radius:6px;padding:4px 12px;font-weight:700">🔴 H' &lt;0.8 偏低</span>
+        </div>
+        <div style="background:#f8fafc;border-radius:8px;padding:10px 14px;margin-top:10px;font-size:13px;color:#475569;line-height:1.6">
+          112年後多次調查H'值達1.0以上，<strong>物種多樣性顯著提升</strong>，生態系統趨於穩定健全。
+        </div>
+      </div>
+      <div style="background:#fff;border:2px solid #e2e8f0;border-radius:16px;padding:24px">
+        <div style="font-size:18px;font-weight:900;color:#0f172a;margin-bottom:6px">
+          <i class="fas fa-chart-pie" style="color:#0e7490;margin-right:10px"></i>114年物種組成比例
+        </div>
+        <div style="font-size:13px;color:#64748b;margin-bottom:16px">最新年度 ‧ 5種台灣特有種魚類捕獲比例分布</div>
+        <div style="position:relative;height:190px">
+          <canvas id="fishPieChart"></canvas>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;justify-content:center">
+          ${SPECIES.map(s=>`<span style="font-size:13px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:6px;padding:4px 10px;display:flex;align-items:center;gap:6px">
+            <span style="width:10px;height:10px;border-radius:50%;background:${s.color};flex-shrink:0;display:inline-block"></span>${s.name}</span>`).join('')}
+        </div>
+        <div style="background:#f0fdf4;border-radius:8px;padding:10px 14px;margin-top:10px;font-size:13px;color:#166534;line-height:1.6">
+          臺灣白甲魚占比約<strong>55%</strong>，石賓與鬚鱲各約<strong>10～15%</strong>，物種組成趨於均衡。
+        </div>
+      </div>
+    </div>
+
+    <!-- ★ 四大亮點分析 -->
+    <div style="background:#fff;border:2px solid #e2e8f0;border-radius:16px;padding:28px;margin-bottom:24px">
+      <div style="font-size:20px;font-weight:900;color:#0f172a;margin-bottom:20px;display:flex;align-items:center;gap:10px">
+        <i class="fas fa-microscope" style="color:#0369a1;font-size:22px"></i>生態專家分項成果分析
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
+        ${[
+          { icon:'fa-arrow-trend-up', title:'✅ 族群量顯著增加，棲地恢復成效卓著', color:'#22c55e', bg:'#f0fdf4', bd:'#bbf7d0',
+            body:'106年（2017年）橫流溪每次調查捕獲僅23～31尾（4種），至113～114年躍升為59～146尾（4～5種）。特別是臺灣白甲魚在114年12月達105尾，為近8年最高紀錄。這一族群生物量超過4倍的增幅，充分驗證橫流溪整治工程與棲地維護措施的長期正向效益。',
+            badge:'族群量 ×4.7' },
+          { icon:'fa-route', title:'✅ 魚道通行功能正常，洄游物種成功上溯', color:'#f59e0b', bg:'#fffbeb', bd:'#fde68a',
+            body:'臺灣間爬岩鰍為典型溪內洄游保育物種（第II類）。110年4月首次大量捕獲（32尾），114年12月再現（13尾），搭配雪山坑溪同期高捕獲（91尾），印證魚道設施發揮阻隔改善功效，洄游魚類已能成功上溯至中上游繁殖棲地，魚道工程價值獲實際調查數據驗證。',
+            badge:'魚道效益確認' },
+          { icon:'fa-layer-group', title:'✅ 物種組成趨多元，生態健全度提升', color:'#3b82f6', bg:'#eff6ff', bd:'#bfdbfe',
+            body:'106年魚相由臺灣白甲魚高度主導（占比89%），至112～114年臺灣鬚鱲（春季占比達25%）及石賓族群同步擴增，物種多樣性指數H′由0.3～0.5提升至1.0以上（高多樣性），顯示棲地空間異質性改善，魚類群聚結構從單一優勢走向健全多元生態系。',
+            badge:'H′ 多樣性上升' },
+          { icon:'fa-droplet', title:'✅ 水質長期優良，支撐保育類物種生存', color:'#7c3aed', bg:'#faf5ff', bd:'#ddd6fe',
+            body:'歷次調查pH值維持在7.87～8.03之間（弱鹼性優良水質），水溫夏季22.5～24.9°C、冬季11～11.4°C，均處於臺灣原生魚類最適生存範圍。電導度265～363μS/m亦顯示無污染。穩定優良的水質條件，為3種保育類特有魚類長期定居與繁殖提供了堅實的環境基礎。',
+            badge:'水質優良認證' },
+        ].map((c,i)=>`
+          <div style="border:2px solid ${c.bd};border-radius:14px;padding:20px;background:${c.bg}">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:6px">
+              <div style="font-size:16px;font-weight:900;color:#0f172a;display:flex;align-items:center;gap:8px">
+                <i class="fas ${c.icon}" style="color:${c.color};font-size:18px"></i>${c.title}
+              </div>
+              <span style="background:${c.color};color:#fff;border-radius:20px;padding:4px 12px;font-size:12px;font-weight:700;white-space:nowrap">${c.badge}</span>
+            </div>
+            <div style="font-size:14px;color:#334155;line-height:1.8">${c.body}</div>
+          </div>`).join('')}
+      </div>
+    </div>
+
+    <!-- 歷次調查資料彙整表 -->
+    <div style="background:#fff;border:2px solid #e2e8f0;border-radius:16px;padding:24px;margin-bottom:24px">
+      <div style="font-size:20px;font-weight:900;color:#0f172a;margin-bottom:6px">
+        <i class="fas fa-table" style="color:#0e7490;margin-right:10px"></i>歷次調查捕獲記錄完整彙整表
+      </div>
+      <div style="font-size:14px;color:#64748b;margin-bottom:16px">18次調查數據一覽 ‧ 綠色底線為高捕獲量（≥100尾），橘色為中等（≥50尾）</div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:14px">
+          <thead>
+            <tr style="background:linear-gradient(135deg,#0e7490,#0369a1);color:#fff">
+              <th style="padding:13px 14px;text-align:left;font-weight:700;border-radius:8px 0 0 0;font-size:15px">調查時間</th>
+              <th style="padding:13px 14px;text-align:center;font-size:15px">臺灣白甲魚</th>
+              <th style="padding:13px 14px;text-align:center;font-size:15px">臺灣石賓</th>
+              <th style="padding:13px 14px;text-align:center;font-size:15px">臺灣鬚鱲</th>
+              <th style="padding:13px 14px;text-align:center;font-size:15px">纓口臺鰍</th>
+              <th style="padding:13px 14px;text-align:center;font-size:15px">臺灣間爬岩鰍</th>
+              <th style="padding:13px 14px;text-align:center;font-size:15px">合計</th>
+              <th style="padding:13px 14px;text-align:center;font-size:15px">H' 多樣性</th>
+              <th style="padding:13px 14px;text-align:center;border-radius:0 8px 0 0;font-size:15px">備註</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${SURVEYS.map((s,i)=>{
+              const bg = i%2===0 ? '#f8fafc' : '#fff';
+              const est = s.est ? '<span style="font-size:11px;color:#94a3b8;font-style:italic">*估算</span>' : '';
+              const hiRow = s.total >= 100 ? 'border-left:5px solid #22c55e;background:#f0fdf4;' : s.total>=50?'border-left:5px solid #f97316;background:#fffbeb;':'border-left:5px solid #e2e8f0;';
+              return `<tr style="${hiRow}">
+                <td style="padding:11px 14px;font-weight:800;color:#0f172a;white-space:nowrap;font-size:14px">${s.label.replace('\n',' ')}</td>
+                <td style="padding:11px 14px;text-align:center;color:${s.bai>0?'#0369a1':'#94a3b8'};font-weight:${s.bai>0?800:400};font-size:15px">${s.bai||'—'}</td>
+                <td style="padding:11px 14px;text-align:center;color:${s.shi>0?'#c2410c':'#94a3b8'};font-weight:${s.shi>0?800:400};font-size:15px">${s.shi||'—'}</td>
+                <td style="padding:11px 14px;text-align:center;color:${s.xu>0?'#7e22ce':'#94a3b8'};font-weight:${s.xu>0?800:400};font-size:15px">${s.xu||'—'}</td>
+                <td style="padding:11px 14px;text-align:center;color:${s.ying>0?'#15803d':'#94a3b8'};font-weight:${s.ying>0?800:400};font-size:15px">${s.ying||'—'}</td>
+                <td style="padding:11px 14px;text-align:center;color:${s.jian>0?'#be123c':'#94a3b8'};font-weight:${s.jian>0?800:400};font-size:15px">${s.jian||'—'}</td>
+                <td style="padding:11px 14px;text-align:center;font-size:18px;font-weight:900;color:#0f172a">${s.total} ${est}</td>
+                <td style="padding:11px 14px;text-align:center">
+                  <span style="background:${s.H>=1.5?'#dcfce7':s.H>=0.8?'#fef9c3':'#fee2e2'};color:${s.H>=1.5?'#166534':s.H>=0.8?'#854d0e':'#991b1b'};border-radius:8px;padding:4px 10px;font-weight:800;font-size:14px">${s.H}</span>
+                </td>
+                <td style="padding:11px 14px;font-size:12px;color:#64748b">${s.note}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+      <div style="font-size:13px;color:#94a3b8;margin-top:10px">
+        ＊ 109～110年資料引自《東勢林區管理處國有林魚道及生態廊道委託技術服務成果報告》，為橫流溪6個樣站均值；H' = Shannon–Wiener 生物多樣性指數
+      </div>
+    </div>
+
+    <!-- 物種資訊卡 -->
+    <div style="background:#fff;border:2px solid #e2e8f0;border-radius:16px;padding:24px;margin-bottom:24px">
+      <div style="font-size:20px;font-weight:900;color:#0f172a;margin-bottom:6px">
+        <i class="fas fa-info-circle" style="color:#0369a1;margin-right:10px"></i>橫流溪記錄魚種生態特性一覽
+      </div>
+      <div style="font-size:14px;color:#64748b;margin-bottom:18px">5種台灣特有種 ‧ 含3種保育類第II級物種</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px">
+        ${[
+          { sp:'臺灣白甲魚', eng:'Onychostoma barbatulum', fam:'鯉科', status:'🔴 保育類第II類 ‧ 台灣特有種', icon:'🐟',
+            desc:'橫流溪第一優勢種，長期占總捕獲量50～85%。初級性淡水魚，喜愛水質潔淨、水流湍急之中上游河段。游泳能力強，可通過魚道進行溪內洄游，為本區生態健康評估最重要的旗艦指標物種。', color:'#0ea5e9', bg:'#f0f9ff' },
+          { sp:'臺灣石賓', eng:'Acrossocheilus formosanus', fam:'鯉科', status:'🟡 台灣特有種', icon:'🐠',
+            desc:'橫流溪第二優勢種，棲息於水流湍急或清澈深水潭，喜好大型礫石或岩石底質環境。106年占比偏高（可達20%），後隨鬚鱲族群擴增而趨於平衡，目前仍維持穩定族群。', color:'#f97316', bg:'#fff7ed' },
+          { sp:'臺灣鬚鱲', eng:'Candidia barbata', fam:'鯉科', status:'🟡 台灣特有種', icon:'🦈',
+            desc:'109年後在橫流溪大量出現，112～113年春季占比可達25%以上，顯示上游棲地環境持續改善。初級淡水魚，棲息於河川中上游開闊河段，族群擴增與魚道設置後基因交流加強有關。', color:'#a855f7', bg:'#faf5ff' },
+          { sp:'纓口臺鰍', eng:'Crossostoma lacustre', fam:'爬鰍科', status:'🔴 保育類第II類 ‧ 台灣特有種', icon:'🦎',
+            desc:'初級淡水魚，喜好清澈水流及礫石底質。歷次調查均有穩定出現，說明橫流溪礫石底質棲地保持良好，為附著性底棲保育魚類提供優質微棲地。', color:'#22c55e', bg:'#f0fdf4' },
+          { sp:'臺灣間爬岩鰍', eng:'Hemimyzon formosanus', fam:'爬鰍科', status:'🔴 保育類第II類 ‧ 台灣特有種', icon:'🦊',
+            desc:'溪內洄游旗艦物種，其出現與否直接反映魚道通行效益。110年4月大量上溯（32尾），114年12月再現（13尾），搭配雪山坑溪91尾紀錄，確認魚道發揮連結上下游族群之關鍵功能。', color:'#f43f5e', bg:'#fff1f2' },
+        ].map(s=>`
+          <div style="border:2px solid ${s.color}40;border-radius:12px;padding:18px;background:${s.bg}">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+              <span style="font-size:28px">${s.icon}</span>
+              <div>
+                <div style="font-size:17px;font-weight:900;color:#0f172a">${s.sp}</div>
+                <div style="font-size:12px;font-style:italic;color:#64748b">${s.eng}</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+              <span style="font-size:12px;background:${s.color}20;color:${s.color};border-radius:6px;padding:3px 10px;font-weight:700">${s.fam}</span>
+              <span style="font-size:12px;background:#f1f5f9;color:#475569;border-radius:6px;padding:3px 10px">${s.status}</span>
+            </div>
+            <div style="font-size:14px;color:#334155;line-height:1.75">${s.desc}</div>
+          </div>`).join('')}
+      </div>
+    </div>
+
+    <!-- 水質監測摘要 -->
+    <div style="background:#fff;border:2px solid #e2e8f0;border-radius:16px;padding:24px;margin-bottom:24px">
+      <div style="font-size:20px;font-weight:900;color:#0f172a;margin-bottom:6px">
+        <i class="fas fa-tint" style="color:#0369a1;margin-right:10px"></i>調查期間水質環境監測摘要
+      </div>
+      <div style="font-size:14px;color:#64748b;margin-bottom:18px">橫流溪水質長期維持優良，符合保育類淡水魚類生存需求</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px">
+        ${[
+          { label:'pH 值範圍',    val:'7.87 ～ 8.03', unit:'pH', note:'近中性偏弱鹼，水質優良', icon:'fa-flask', color:'#0e7490' },
+          { label:'電導度範圍',   val:'265 ～ 363',   unit:'μS/m', note:'無污染，礦物質適中', icon:'fa-bolt', color:'#f97316' },
+          { label:'水溫（夏季）', val:'22.5 ～ 24.9', unit:'°C', note:'適合原生魚類活躍活動', icon:'fa-thermometer-half', color:'#f43f5e' },
+          { label:'水溫（冬季）', val:'11.0 ～ 11.4', unit:'°C', note:'低溫清水期族群集中', icon:'fa-snowflake', color:'#3b82f6' },
+          { label:'流量（Q）',    val:'5.7 ～ 8.6',   unit:'m³/s', note:'水量充沛，棲地穩定', icon:'fa-water', color:'#22c55e' },
+          { label:'棲地型態',     val:'急瀨・平瀨・水潭', unit:'', note:'空間異質高，魚類多樣', icon:'fa-layer-group', color:'#7c3aed' },
+        ].map(c=>`
+          <div style="border:1.5px solid #e2e8f0;border-radius:12px;padding:16px">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+              <i class="fas ${c.icon}" style="color:${c.color};font-size:18px"></i>
+              <div style="font-size:13px;color:#64748b">${c.label}</div>
+            </div>
+            <div style="font-size:20px;font-weight:900;color:#0f172a">${c.val} <span style="font-size:13px;font-weight:400;color:#94a3b8">${c.unit}</span></div>
+            <div style="font-size:13px;color:#64748b;margin-top:4px">${c.note}</div>
+          </div>`).join('')}
+      </div>
+    </div>
+
+  </div>`;
+
+  // ── Chart.js 圖表初始化 ──────────────────────────────────────────────────
+  const labels = SURVEYS.map(s => s.label.replace('\n',' '));
+  const colors = { bai:'#0ea5e9', shi:'#f97316', xu:'#a855f7', ying:'#22c55e', jian:'#f43f5e' };
+
+  // 1. 堆疊柱狀圖
+  setTimeout(() => {
+    const ctxBar = document.getElementById('fishTrendBar');
+    if (!ctxBar || typeof Chart === 'undefined') return;
+    new Chart(ctxBar, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: SPECIES.map(sp => ({
+          label: sp.name,
+          data: SURVEYS.map(s => s[sp.key]),
+          backgroundColor: sp.color + 'cc',
+          borderColor: sp.color,
+          borderWidth: 1,
+          borderRadius: 3,
+        }))
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position:'top', labels:{ font:{size:12}, padding:16 } },
+          tooltip: {
+            callbacks: {
+              afterBody(ctx) { const total = ctx.reduce((s,c)=>s+(c.raw||0),0); return [`合計：${total} 尾`]; }
+            }
+          }
+        },
+        scales: {
+          x: { stacked:true, ticks:{ font:{size:11}, maxRotation:45 } },
+          y: { stacked:true, title:{ display:true, text:'捕獲尾數', font:{size:12} } }
+        }
+      }
+    });
+
+    // 2. 臺灣白甲魚趨勢折線
+    const ctxLine = document.getElementById('fishTrendLine');
+    if (ctxLine) {
+      new Chart(ctxLine, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            {
+              label: '臺灣白甲魚',
+              data: SURVEYS.map(s => s.bai),
+              borderColor: '#0ea5e9', backgroundColor: '#0ea5e933',
+              borderWidth: 2.5, pointRadius: 5, pointBackgroundColor: '#0ea5e9',
+              fill: true, tension: 0.3
+            },
+            {
+              label: '全物種合計',
+              data: SURVEYS.map(s => s.total),
+              borderColor: '#64748b', backgroundColor: 'transparent',
+              borderWidth: 1.5, borderDash: [6,4], pointRadius: 3,
+              fill: false, tension: 0.3
+            }
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend:{ position:'top' } },
+          scales: {
+            x: { ticks:{ font:{size:11}, maxRotation:45 } },
+            y: { title:{ display:true, text:'捕獲尾數', font:{size:12} }, beginAtZero:true }
+          }
+        }
+      });
+    }
+
+    // 3. Shannon H' 多樣性散點
+    const ctxDiv = document.getElementById('fishDiversityChart');
+    if (ctxDiv) {
+      new Chart(ctxDiv, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label: "H' 多樣性指數",
+            data: SURVEYS.map(s => s.H),
+            backgroundColor: SURVEYS.map(s =>
+              s.H >= 1.5 ? '#4ade8066' : s.H >= 0.8 ? '#fbbf2466' : '#f87171aa'),
+            borderColor: SURVEYS.map(s =>
+              s.H >= 1.5 ? '#22c55e' : s.H >= 0.8 ? '#f59e0b' : '#ef4444'),
+            borderWidth: 1.5, borderRadius: 4,
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend:{ display:false } },
+          scales: {
+            x: { ticks:{ font:{size:9}, maxRotation:60 } },
+            y: { min:0, max:2.2, title:{ display:true, text:"H'", font:{size:11} },
+                 ticks:{ stepSize:0.5 } }
+          }
+        }
+      });
+    }
+
+    // 4. 114年物種組成圓餅
+    const ctxPie = document.getElementById('fishPieChart');
+    if (ctxPie) {
+      const latest = SURVEYS.filter(s => s.year === 2025);
+      const aggr = { bai:0, shi:0, xu:0, ying:0, jian:0 };
+      latest.forEach(s => { SPECIES.forEach(sp => { aggr[sp.key] += s[sp.key]; }); });
+      new Chart(ctxPie, {
+        type: 'doughnut',
+        data: {
+          labels: SPECIES.map(sp => sp.name),
+          datasets: [{
+            data: SPECIES.map(sp => aggr[sp.key]),
+            backgroundColor: SPECIES.map(sp => sp.color + 'cc'),
+            borderColor: SPECIES.map(sp => sp.color),
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: {
+            legend: { display:false },
+            tooltip: { callbacks: {
+              label(ctx) { const t=ctx.dataset.data.reduce((a,b)=>a+b,0); return `${ctx.label}: ${ctx.raw}尾 (${((ctx.raw/t)*100).toFixed(1)}%)`; }
+            }}
+          }
+        }
+      });
+    }
+  }, 100);
+}
+
 function renderFishBioMap() {
   const fishSpecies = Object.values(fish_groupSpecies());
   const facilities  = DB.getAll('facilities');
@@ -1454,6 +2688,45 @@ function renderFishBioMap() {
                 style="border:none;background:#e2e8f0;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:13px;color:#475569">✕ 關閉</button>
             </div>
             <iframe id="terrainDocFrame" src="" style="width:100%;height:520px;border:none"></iframe>
+          </div>
+
+          <!-- 鳥音監測教育訓練・現場照片 -->
+          <div style="margin-top:4px">
+            <div style="font-size:15px;font-weight:700;color:#7c3aed;margin-bottom:12px">
+              <i class="fas fa-images" style="margin-right:6px"></i>鳥音監測教育訓練・現場照片
+              <span style="font-size:12px;font-weight:400;color:#94a3b8;margin-left:8px">點選照片放大檢視</span>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px">
+              ${[
+                { file: '如與紅外線自動相機搭配可以蒐集到更完整的野生動物資訊。.jpg',
+                  caption: '搭配紅外線自動相機可蒐集更完整的野生動物資訊' },
+                { file: '臺中分署的同仁於課程中實地於戶外進行掛設操作。.jpg',
+                  caption: '臺中分署同仁實地進行錄音機掛設操作' },
+                { file: '僅需將錄音機以棉繩或扁帶吊掛於樣區的樹幹上，即可蒐集該區域的聲景資訊。.jpg',
+                  caption: '錄音機以棉繩或扁帶吊掛於樹幹，蒐集聲景資訊' },
+                { file: '鳥類地圖係以網格單位劃分調查區域並在一定年份內盡可能完成所有目標網格的調查方法，全球已有93個國家推動超過600項相關計畫(照片來源：eBird臺灣鳥類地圖網站).png',
+                  caption: 'Taiwan Bird Atlas：網格調查法，全球93國推動超過600項計畫（來源：eBird臺灣鳥類地圖）' },
+                { file: '農業部生物多樣性研究所的林瑞興組長向臺中分署的同仁介紹如何利用錄音機於伐採跡地進行監測調查。.jpg',
+                  caption: '農業部生物多樣性研究所林瑞興組長介紹伐採跡地錄音機監測調查' },
+                { file: '錄音機體積小，攜帶架設相當便利，並具有藍芽功能可搭配智慧型手機APP進行設計與資料讀取。(照片來源：Wildlife Acoustics官網).png',
+                  caption: '錄音機體積小、攜帶便利，具藍芽功能可搭配手機APP操作（來源：Wildlife Acoustics）' }
+              ].map(p => {
+                const base = '/media/非橫流溪資料/02_其他流域生態/1150515_0423鳥音監測教育訓練/使用照片/';
+                const src = base + encodeURIComponent(p.file);
+                return `
+                  <div onclick="terrainPhotoOpen('${src.replace(/'/g,"\\'")}','${p.caption.replace(/'/g,"\\'")}' )"
+                    style="cursor:pointer;border-radius:10px;overflow:hidden;border:1px solid #ddd6fe;background:#f5f3ff;transition:box-shadow .2s"
+                    onmouseover="this.style.boxShadow='0 4px 16px rgba(124,58,237,.25)'" onmouseout="this.style.boxShadow='none'">
+                    <div style="height:148px;overflow:hidden;background:#ede9fe">
+                      <img src="${src}" alt="${p.caption}"
+                        style="width:100%;height:100%;object-fit:cover;display:block"
+                        onerror="this.closest('div').style.background='#f3f4f6';this.style.display='none'">
+                    </div>
+                    <div style="padding:8px 10px;font-size:12px;color:#4c1d95;line-height:1.45;background:#f5f3ff">${p.caption}</div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
           </div>
 
         </div>
