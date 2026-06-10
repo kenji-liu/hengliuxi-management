@@ -31,6 +31,11 @@ class HLXHandler(http.server.SimpleHTTPRequestHandler):
             return
         if path in ('/webapp', '/webapp/'):
             self.path = '/webapp/index.html'
+        elif path.startswith('/media/'):
+            # /media/<rel_path> → 直接從 project root 提供 <rel_path>
+            # 例：/media/01_工程設施維護與資料/成果報告/xxx.pdf
+            #   → project_root/01_工程設施維護與資料/成果報告/xxx.pdf
+            self.path = '/' + path[len('/media/'):]
         else:
             self.path = path
         return super().do_GET()

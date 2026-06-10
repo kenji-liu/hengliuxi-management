@@ -27,15 +27,16 @@ const MONITORING_REPORT = {
     algoComparison: { 'YOLOv4': 85.42, 'YOLOv5': 82.1, 'YOLOv9t': 78.6, 'YOLOv11n': 76.3 }
   },
   // ── 各魚道 AI 辨識最大魚類數量（表4-9, 1分鐘內最大值, 尾）──
+  // structure: 對應橫流溪工程構造物代號及位置（供 AI 回答時提供區位說明）
   fishwayAIDetection: [
-    { id: 'FD1', name: '粗石斜曲面 (1-1)', max112Oct: 18, max113Apr: 22, max113Sep: 15, note: '濱溪植物遮蓋良好' },
-    { id: 'FD2', name: '改良舟通式 (1-2)', max112Oct: 12, max113Apr: 16, max113Sep: 11, note: '魚骨型水路魚道' },
-    { id: 'FD3', name: '粗石斜曲面式',     max112Oct: 41, max113Apr: 66, max113Sep: 48, note: '數量第2多，根團微棲地佳' },
-    { id: 'FD4', name: '階段式魚道',       max112Oct: 52, max113Apr: 68, max113Sep: 57, note: '★最多，水棲昆蟲352隻' },
-    { id: 'FD5', name: '潛越式(階段)',     max112Oct: 9,  max113Apr: 14, max113Sep: 8,  note: '偵測數量偏低' },
-    { id: 'FD6', name: '階段式(半斷面)',   max112Oct: 23, max113Apr: 31, max113Sep: 27, note: '' },
-    { id: 'FD7', name: '降壩(上游階段)',   max112Oct: 7,  max113Apr: 11, max113Sep: 9,  note: '臺灣間爬岩鰍有紀錄' },
-    { id: 'FD8', name: '梯狀(階段)魚道',  max112Oct: 14, max113Apr: 19, max113Sep: 16, note: '' }
+    { id: 'FD1', name: '粗石斜曲面 (1-1)', structure: '溪構1-1 粗石斜曲面式魚道', km: '1K+400', max112Oct: 18, max113Apr: 22, max113Sep: 15, note: '濱溪植物遮蓋良好' },
+    { id: 'FD2', name: '改良舟通式 (1-2)', structure: '溪構1-2 改良型舟通式魚道', km: '1K+400', max112Oct: 12, max113Apr: 16, max113Sep: 11, note: '魚骨型水路魚道' },
+    { id: 'FD3', name: '粗石斜曲面式',     structure: '溪構3 斜坡式魚道',         km: '1K+225', max112Oct: 41, max113Apr: 66, max113Sep: 48, note: '數量第2多，根團微棲地佳' },
+    { id: 'FD4', name: '階段式魚道',       structure: '溪構4 階段式魚道',         km: '1K+170', max112Oct: 52, max113Apr: 68, max113Sep: 57, note: '★最多，水棲昆蟲352隻' },
+    { id: 'FD5', name: '潛越式(階段)',     structure: '溪構5-2 潛越式魚道',       km: '1K+000', max112Oct: 9,  max113Apr: 14, max113Sep: 8,  note: '偵測數量偏低' },
+    { id: 'FD6', name: '階段式(半斷面)',   structure: '溪構6 階段式魚道',         km: '0K+740', max112Oct: 23, max113Apr: 31, max113Sep: 27, note: '' },
+    { id: 'FD7', name: '降壩(上游階段)',   structure: '溪構7 降壩魚道',           km: '0K+560', max112Oct: 7,  max113Apr: 11, max113Sep: 9,  note: '臺灣間爬岩鰍有紀錄' },
+    { id: 'FD8', name: '梯狀(階段)魚道',  structure: '溪構8-2 之字形魚道',       km: '0K+460', max112Oct: 14, max113Apr: 19, max113Sep: 16, note: '' }
   ],
   // ── 電捕法調查（8座魚道，113年4月）──
   electricFishing113: [

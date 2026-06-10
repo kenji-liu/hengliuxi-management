@@ -391,48 +391,168 @@ function tokenize(query) {
 }
 
 // ── 動態資料檢索（從已載入的 JS 全域資料）──────────────
+/* ══════════════════════════════════════════════════════════
+   buildDynamicContext — 從 DB 擷取相關資料注入 AI 問答上下文
+   版本 2.0：全面整合設施、巡查、DER&U、魚類、統計資料
+   ══════════════════════════════════════════════════════════ */
 function buildDynamicContext(query) {
   const q = query.toLowerCase();
   const parts = [];
 
-  // 從 MONITORING_REPORT（chapter4_ecology.js）
+  // ── A. MONITORING_REPORT（chapter4_ecology.js）──────────
   if (typeof MONITORING_REPORT !== 'undefined') {
     const mr = MONITORING_REPORT;
-    // 魚道偵測數查詢
-    if (q.match(/fd[0-9]|魚道[1-9]|第[一二三四五六七八]/)) {
-      mr.fishwayAIDetection.forEach(fd => {
-        if (q.includes(fd.id.toLowerCase()) || q.includes(fd.name.substring(0, 3))) {
-          parts.push(`${fd.id} ${fd.name}：112/10=${fd.max112Oct}尾、113/4=${fd.max113Apr}尾、113/9=${fd.max113Sep}尾。備註：${fd.note}`);
-        }
+
+    // 魚道 AI 辨識監測（含構造物名稱與公里位置）
+    const isFDQuery = q.match(/fd[0-9]|魚道[1-9]|第[一二三四五六七八]|監測|辨識.*魚|魚.*辨識/);
+    if (isFDQuery) {
+      // 特定 FD 查詢
+      const specificFDs = mr.fishwayAIDetection.filter(fd =>
+        q.includes(fd.id.toLowerCase()) ||
+        (fd.structure && q.includes(fd.structure.substring(0,4))) ||
+        q.includes(fd.name.substring(0, 3))
+      );
+      const targetFDs = specificFDs.length > 0 ? specificFDs : mr.fishwayAIDetection;
+      targetFDs.forEach(fd => {
+        const structureInfo = fd.structure ? `【${fd.structure}，位於 ${fd.km}】` : '';
+        parts.push(
+          `${fd.id}（${fd.name}）${structureInfo}` +
+          `：112年10月=${fd.max112Oct}尾、113年4月=${fd.max113Apr}尾（峰值）、113年9月=${fd.max113Sep}尾` +
+          (fd.note ? `。備註：${fd.note}` : '')
+        );
       });
+      // 若查詢所有魚道，補充全覽說明
+      if (specificFDs.length === 0) {
+        parts.push('【魚道區位說明】FD編號由下游向上游排列：FD8(0K+460)→FD7(0K+560)→FD6(0K+740)→FD5(1K+000)→FD4(1K+170)→FD3(1K+225)→FD2/FD1(1K+400)');
+      }
     }
-    // 棲地WUA查詢
+
     if (q.includes('wua') || q.includes('棲地') || q.includes('間爬岩鰍')) {
       const ha = mr.habitatAssessment;
       parts.push(`棲地適合度（WUA）：上游${ha.upstreamWUA}%（${ha.upstreamPoints}點）、下游${ha.downstreamWUA}%（${ha.downstreamPoints}點）。目標物種：${ha.targetSpecies}。`);
     }
-    // AI模型查詢
-    if (q.includes('yolo') || q.includes('map') || q.includes('辨識') || q.includes('ai')) {
+    if (q.includes('yolo') || q.includes('map') || q.includes('辨識') || q.includes('ai模型')) {
       const am = mr.aiModel;
       parts.push(`YOLOv4模型：日間mAP=${am.dayMAP}%（精確率${(am.dayPrecision*100).toFixed(0)}%、召回率${(am.dayRecall*100).toFixed(0)}%），夜間mAP=${am.nightMAP}%（精確率${(am.nightPrecision*100).toFixed(0)}%、召回率${(am.nightRecall*100).toFixed(0)}%）。`);
     }
   }
 
-  // 從 DB 工程設施
-  if (typeof DB !== 'undefined') {
-    try {
-      const facilities = DB.getAll('facilities');
-      if (facilities && facilities.length) {
-        // 搜尋相符設施
-        const matches = facilities.filter(f => {
-          const fname = (f.name || f.id || '').toLowerCase();
-          return q.includes(fname) || (f.type && q.includes(f.type.toLowerCase()));
-        });
-        matches.slice(0, 3).forEach(f => {
-          parts.push(`設施「${f.name || f.id}」（${f.type || ''}）：位置${f.location || f.km || ''}，目前狀態${f.status || '未知'}。`);
-        });
+  if (typeof DB === 'undefined') return parts.join('\n');
+
+  try {
+    const facilities   = DB.getAll('facilities')   || [];
+    const inspections  = DB.getAll('inspections')  || [];
+    const fishRecords  = DB.getAll('fish')          || [];
+
+    // ── B. 設施資料（精準比對名稱/代碼/類型）───────────────
+    const isGeneralFacQuery = q.includes('設施') || q.includes('構造物') || q.includes('工程') || q.includes('維護');
+    const facMatches = facilities.filter(f => {
+      const txt = `${f.name||''} ${f.code||''} ${f.type||''} ${f.subType||''} ${f.location||''}`.toLowerCase();
+      return txt.split(' ').some(token => token && q.includes(token)) ||
+             (f.type && q.includes(f.type)) ||
+             (f.name && q.split(/\s+/).some(w => w.length > 1 && (f.name.includes(w) || (f.code && f.code.includes(w)))));
+    });
+
+    // 若查詢關鍵字涉及統計摘要
+    if (isGeneralFacQuery && facMatches.length === 0) {
+      const byType = {};
+      facilities.forEach(f => { byType[f.type||'其他'] = (byType[f.type||'其他']||0)+1; });
+      const typeStr = Object.entries(byType).map(([t,n]) => `${t}${n}座`).join('、');
+      const needMaint = facilities.filter(f => f.status === '需維護' || f.status === '損壞').length;
+      parts.push(`【設施總覽】共${facilities.length}座工程構造物（${typeStr}）。需維護/損壞：${needMaint}座。`);
+    }
+
+    facMatches.slice(0, 4).forEach(f => {
+      const hp = f.condition ? `健康指數約${Math.round(f.condition*20)}分` : '';
+      const deruStr = f.derLevel ? `DER&U等級 ${f.derLevel}` : '';
+      const riskStr = f.riskScore ? `風險分數 ${f.riskScore}` : '';
+      const noteStr = f.evaluationNotes ? `評估備註：${f.evaluationNotes}` : '';
+      const inspDate = f.lastInspect ? `最近巡查：${f.lastInspect}` : '未巡查';
+      const strategy = f.maintenanceStrategy ? `維護策略：${f.maintenanceStrategy}` : '';
+      parts.push([
+        `【設施】${f.name}（${f.type||''}${f.subType?'/'+f.subType:''}，代號${f.code||'-'}）`,
+        `位置：${f.stationKm||f.location||'-'}，TWD97(${f.twd97x||'-'},${f.twd97y||'-'})`,
+        `狀態：${f.status||'未知'}，${hp}，${deruStr}，${riskStr}`,
+        `材料：${f.material||'-'}，建造年：${f.year||'-'}`,
+        `${inspDate}，${strategy}`,
+        noteStr,
+        f.judgement_basis ? `判斷依據：${f.judgement_basis}` : '',
+        f.note ? `備註：${f.note}` : ''
+      ].filter(Boolean).join('\n  '));
+    });
+
+    // ── C. 巡查紀錄（最近相關紀錄）───────────────────────
+    const isInspQuery = q.includes('巡查') || q.includes('檢查') || q.includes('紀錄') ||
+                        q.includes('異常') || q.includes('問題') || q.includes('發現');
+    const facIds = new Set(facMatches.map(f => String(f.id)));
+
+    let inspMatches = inspections.filter(r => {
+      const rFacId = String(r.facilityId || r.facility_id || '');
+      const rText  = `${r.facilityName||''} ${r.findings||''} ${r.action||''}`.toLowerCase();
+      return facIds.has(rFacId) ||
+             (isInspQuery && (q.split(/\s+/).some(w => w.length > 1 && rText.includes(w))));
+    }).sort((a, b) => String(b.date||'').localeCompare(String(a.date||'')));
+
+    // 一般查詢：如果沒有特定設施，取最近3筆異常/高優先
+    if (inspMatches.length === 0 && isInspQuery) {
+      inspMatches = inspections
+        .filter(r => r.priority === '高' || r.priority === '緊急' || r.status === '待處理')
+        .sort((a, b) => String(b.date||'').localeCompare(String(a.date||''))).slice(0, 3);
+    }
+
+    inspMatches.slice(0, 3).forEach(r => {
+      const typeLabel = r.type === 'deru_assessment' ? 'DER&U評估' : (r.sourceType || r.type || '巡查');
+      const deruStr = r.deru_d !== undefined ? ` D${r.deru_d}/E${r.deru_e}/R${r.deru_r} U${r.deru_u}(${r.deru_label||''})` : '';
+      parts.push([
+        `【巡查紀錄】${r.facilityName||r.facility_name||''}｜${typeLabel}`,
+        `日期：${r.date||'-'}，巡查員：${r.inspector||'-'}，天氣：${r.weather||'-'}`,
+        `狀態：${r.status||'-'}，優先度：${r.priority||'-'}${deruStr}`,
+        r.findings ? `發現：${r.findings}` : '',
+        r.action   ? `建議：${r.action}`   : ''
+      ].filter(Boolean).join('\n  '));
+    });
+
+    // ── D. 魚類調查資料 ────────────────────────────────────
+    const isFishQuery = q.includes('魚') || q.includes('生態') || q.includes('物種') ||
+                        q.includes('保育') || q.includes('調查') || q.includes('尾數');
+    if (isFishQuery && fishRecords.length) {
+      const fishMatches = fishRecords.filter(r => {
+        const txt = `${r.chineseName||r.species||''} ${r.family||''} ${r.conservationStatus||''}`.toLowerCase();
+        return q.split(/\s+/).some(w => w.length > 1 && txt.includes(w)) ||
+               q.includes(r.chineseName||'') || q.includes(r.species||'');
+      });
+      if (fishMatches.length === 0 && q.includes('魚')) {
+        // 摘要統計
+        const total = fishRecords.reduce((s, r) => s + (Number(r.totalCount)||0), 0);
+        const protected_ = fishRecords.filter(r => r.conservationStatus && r.conservationStatus !== '一般').length;
+        parts.push(`【魚類資料庫】共記錄${fishRecords.length}種魚類，合計${total}尾次，保育類${protected_}種。`);
       }
-    } catch(e) { /* DB 可能未初始化 */ }
+      fishMatches.slice(0, 3).forEach(r => {
+        parts.push([
+          `【魚類】${r.chineseName||r.species||''}（${r.latinName||r.species_latin||''}，${r.family||''}）`,
+          `保育等級：${r.conservationStatus||'一般'}，總數量：${r.totalCount||'-'}尾次`,
+          `棲地需求：${r.habitatRequirements||r.notes||'-'}`,
+          r.surveys ? `調查紀錄：${r.surveys}筆` : ''
+        ].filter(Boolean).join('\n  '));
+      });
+    }
+
+    // ── E. DER&U 整體摘要（當問到評估/評分/維護優先）──────
+    const isDeruQuery = q.includes('deru') || q.includes('評估') || q.includes('急迫') ||
+                        q.includes('ics') || q.includes('優先') || q.includes('風險');
+    if (isDeruQuery) {
+      const withDeru = facilities.filter(f => f.derLevel);
+      const urgent   = withDeru.filter(f => f.derLevel && /C|D/.test(f.derLevel)).length;
+      const avgRisk  = withDeru.length ? Math.round(withDeru.reduce((s,f)=>s+(f.riskScore||0),0)/withDeru.length) : 0;
+      parts.push(`【DER&U摘要】${withDeru.length}座設施已評估，緊急/嚴重等級${urgent}座，平均風險分${avgRisk}。`);
+      // 列出最高風險設施
+      withDeru.sort((a,b)=>(b.riskScore||0)-(a.riskScore||0)).slice(0,3).forEach(f => {
+        parts.push(`  高風險：${f.name}（${f.derLevel}，分數${f.riskScore}，策略：${f.maintenanceStrategy||'-'}）`);
+      });
+    }
+
+  } catch(e) {
+    console.warn('[buildDynamicContext] DB 查詢錯誤:', e.message);
   }
 
   return parts.join('\n');
@@ -515,13 +635,14 @@ function queryLocalKB(query) {
     recommendations: confidence_level === 'none'
       ? [
           '📋 可詢問的主題（直接複製貼上）：',
-          '「臺灣白甲魚體長與棲地需求」、「魚道是否符合白甲魚需求」',
-          '「DER&U評估方法」、「溪構5-2維護重點」',
-          '「FD4魚道監測成果」、「FD5潛越式魚道」',
-          '「魚道水理風險評估」、「纓口臺鰍保育現況」',
-          '「WUA棲地適合度」、「整合管理建議」',
-          '「YOLOv4辨識系統準確率」、「水棲昆蟲FBI水質」',
-          '「橫流溪生態資料庫概況」、「季節性魚類洄游」'
+          '「溪構11 目前狀況與維護建議」',
+          '「哪些設施風險最高需優先處理？」',
+          '「平台近期有異常巡查紀錄嗎？」',
+          '「魚道 DER&U 評估等級彙整」',
+          '「臺灣白甲魚調查數量與棲地需求」',
+          '「纓口臺鰍保育現況」、「FD4魚道監測成果」',
+          '「WUA棲地適合度分析」、「YOLOv4辨識準確率」',
+          '「DER&U評估方法」、「ICS急迫性指標計算」'
         ]
       : []
   };
@@ -606,20 +727,10 @@ function initAIChat() {
         </div>
       </div>
       <div class="ai-messages" id="aiMessages">
-        <div class="ai-msg bot" style="white-space:pre-wrap">您好！我是橫流溪智慧管理平台 AI 助理。
-我使用<b>本機知識庫</b>即時回答（不需要網路或後端伺服器）。
-
-可詢問：
-• 「臺灣白甲魚體長與棲地需求」
-• 「橫流溪魚道是否符合白甲魚需求」
-• 「纓口臺鰍保育現況」
-• 「溪構5-2維護重點」
-• 「FD4魚道監測成果」
-• 「WUA棲地適合度分析」
-• 「DER&U評估方法」</div>
+        <div class="ai-msg bot" id="aiWelcomeMsg" style="white-space:pre-wrap">載入中…</div>
       </div>
       <div class="ai-input-row">
-        <input class="ai-input" id="aiInput" placeholder="例如：臺灣白甲魚的體長與魚道棲地需求" onkeydown="if(event.key==='Enter')aiSend()">
+        <input class="ai-input" id="aiInput" placeholder="例如：溪構11 目前狀況如何？" onkeydown="if(event.key==='Enter')aiSend()">
         <button class="ai-send" onclick="aiSend()">送出</button>
       </div>
     </div>
@@ -628,9 +739,51 @@ function initAIChat() {
   document.body.appendChild(widget);
 }
 
+function _buildWelcomeMessage() {
+  let stats = { fac: 0, needMaint: 0, insp: 0, fish: 0, fishProtected: 0, urgentFac: [] };
+  try {
+    const facilities  = (typeof DB !== 'undefined') ? DB.getAll('facilities')  || [] : [];
+    const inspections = (typeof DB !== 'undefined') ? DB.getAll('inspections') || [] : [];
+    const fishRecords = (typeof DB !== 'undefined') ? DB.getAll('fish')        || [] : [];
+    stats.fac       = facilities.length;
+    stats.needMaint = facilities.filter(f => f.status === '需維護' || f.status === '損壞').length;
+    stats.insp      = inspections.length;
+    stats.fish      = fishRecords.length;
+    stats.fishProtected = fishRecords.filter(r => r.conservationStatus && r.conservationStatus !== '一般').length;
+    stats.urgentFac = facilities
+      .filter(f => f.riskScore >= 50 || f.status === '損壞' || (f.derLevel && /C|D/.test(f.derLevel)))
+      .sort((a,b)=>(b.riskScore||0)-(a.riskScore||0))
+      .slice(0,2).map(f => f.name);
+  } catch(e) {}
+
+  const urgentLine = stats.urgentFac.length
+    ? `\n⚠️ 高風險設施：${stats.urgentFac.join('、')}` : '';
+
+  return `您好！我是<b>橫流溪管理平台 AI 助理</b>，可直接查詢資料庫即時資料。
+
+📊 目前資料庫概況：
+• 工程設施 ${stats.fac} 座，需維護 ${stats.needMaint} 座${urgentLine}
+• 巡查紀錄 ${stats.insp} 筆，魚類記錄 ${stats.fish} 種（保育類 ${stats.fishProtected} 種）
+
+💬 試試看以下問題：
+• 「溪構11 目前狀況與維護建議」
+• 「哪些設施風險最高需優先處理？」
+• 「平台近期有異常紀錄嗎？」
+• 「臺灣白甲魚調查數量與棲地需求」
+• 「魚道 DER&U 評估等級彙整」
+• 「巡查發現哪些異常問題？」
+• 「WUA 棲地適合度分析結果」`;
+}
+
 function toggleAIChat() {
-  document.getElementById("aiChatPanel").classList.toggle("open");
+  const panel = document.getElementById("aiChatPanel");
+  panel.classList.toggle("open");
   _updateAiSubLabel();
+  // 首次開啟時動態填入歡迎訊息
+  const welcome = document.getElementById("aiWelcomeMsg");
+  if (welcome && welcome.textContent === '載入中…') {
+    welcome.innerHTML = _buildWelcomeMessage();
+  }
 }
 
 function _updateAiSubLabel() {
@@ -749,18 +902,7 @@ function collectCitations(data) {
 }
 
 function renderFeedbackBlock() {
-  return `
-    <div class="ai-feedback-section">
-      <p class="ai-feedback-prompt">這次回答是否有幫助？</p>
-      <div class="ai-feedback-buttons">
-        <button class="ai-feedback-btn helpful" data-feedback="helpful">有幫助</button>
-        <button class="ai-feedback-btn neutral" data-feedback="neutral">普通</button>
-        <button class="ai-feedback-btn unhelpful" data-feedback="unhelpful">需修正</button>
-      </div>
-      <textarea class="ai-feedback-comment" placeholder="可補充需要修正或加強的地方..." maxlength="500"></textarea>
-      <button class="ai-feedback-submit">送出回饋</button>
-    </div>
-  `;
+  return ''; // 回饋區塊已停用
 }
 
 function composeAnswer(query, data) {
@@ -831,7 +973,14 @@ function composeAnswer(query, data) {
 }
 
 // ── 直接從瀏覽器呼叫 Groq API（免費、快速、不需後端）──────────────
-const AI_SYSTEM = "你是一位流利使用繁體中文的專業助理，擅長工程維護、生態保育與一般知識問答。回答清晰自然、適當分段，不使用 Markdown 標題符號（#、##）。";
+const AI_SYSTEM = `你是「橫流溪管理平台」的專屬 AI 助理，使用繁體中文回答，擅長工程維護、生態保育與設施管理。
+
+【核心規則】
+1. 若【橫流溪本機資料】中有相關資訊，必須優先引用並明確說明來源（如「根據資料庫紀錄…」）。
+2. 回答需結合資料庫實際數值（設施狀態、DER&U等級、巡查發現、魚類調查數量等），不得憑空捏造數字。
+3. 若資料庫無相關資料，誠實說明「目前資料庫無此紀錄」，再提供一般專業知識補充。
+4. 回答清晰自然、適當分段（可用換行與數字列點），不使用 Markdown 標題符號（#、##）。
+5. 回答長度 150～400 字，簡潔有據。`;
 
 function getAIKey() {
   return localStorage.getItem("GROQ_API_KEY") || "";
@@ -841,8 +990,13 @@ async function callGroqDirect(query, localCtx = "") {
   const key = getAIKey();
   if (!key) return null;
 
-  const ctxBlock = localCtx ? `\n【橫流溪本機資料】\n${localCtx}\n` : "";
-  const userMsg = `${ctxBlock}\n【使用者問題】\n${query}\n\n請以繁體中文回答（200～500字）：`;
+  // 同時注入即時 DB 資料（不受靜態 KB 限制）
+  const dbCtx = buildDynamicContext(query);
+  const combined = [localCtx, dbCtx].filter(Boolean).join('\n\n');
+  const ctxBlock = combined
+    ? `\n【橫流溪本機資料庫（即時查詢）】\n${combined}\n\n請優先依上述資料回答，資料不足時再補充專業知識。\n`
+    : "";
+  const userMsg = `${ctxBlock}\n【使用者問題】\n${query}\n\n請以繁體中文回答：`;
 
   const models = ["llama-3.3-70b-versatile", "llama-3.1-70b-versatile", "llama3-70b-8192"];
 
