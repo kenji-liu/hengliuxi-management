@@ -698,15 +698,8 @@ function initAIChat() {
     .ai-citation-preview{font-size:12px;color:#475569;margin-top:5px;white-space:pre-wrap}
     .ai-citation-link{font-size:12px;color:#155eef;text-decoration:none;white-space:nowrap}
     .ai-citation-link:hover{text-decoration:underline}
-    .ai-feedback-section{margin-top:12px;padding:10px;background:#f9f9f9;border-left:3px solid #999;border-radius:4px}
-    .ai-feedback-prompt{font-size:12px;color:#666;margin:0 0 8px 0}
-    .ai-feedback-buttons{display:flex;gap:8px;margin-bottom:8px}
-    .ai-feedback-btn{padding:6px 12px;border:1px solid #ddd;border-radius:4px;background:#fff;cursor:pointer;font-size:12px;transition:all .2s}
-    .ai-feedback-btn:hover{border-color:#999;background:#f0f0f0}
-    .ai-feedback-btn.selected{background:#4CAF50;color:#fff;border-color:#45a049}
-    .ai-feedback-comment{width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;font-size:12px;margin-bottom:8px;font-family:inherit;resize:vertical;min-height:56px;box-sizing:border-box}
-    .ai-feedback-submit{padding:6px 16px;background:#4CAF50;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px}
-    .ai-feedback-confirmation{color:#4CAF50;font-size:12px;text-align:center;padding:8px;background:#f1f8f6}
+    .ai-feedback-section,.ai-feedback-prompt,.ai-feedback-buttons,.ai-feedback-btn,
+    .ai-feedback-comment,.ai-feedback-submit,.ai-feedback-confirmation{display:none!important}
     @keyframes bounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-6px)}}
   `;
   document.head.appendChild(style);
