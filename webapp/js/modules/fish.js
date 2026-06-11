@@ -993,6 +993,20 @@ const BIO_LAND_DATA = [
     ]
   },
   {
+    category: '臺灣黑熊・大雪山監測',
+    icon: 'fa-paw',
+    color: '#292524',
+    bg: '#fafaf9',
+    border: '#d6d3d1',
+    items: [
+      { name: '棲息範圍', detail: '大雪山及谷關為臺灣中北部核心棲地，西部開發區與山村部落・登山步道・遊樂區高度重疊，人熊共域', tag: '瀕危' },
+      { name: '繫放個體', detail: '104年起共追蹤10隻（6♂4♀）；112年3月新增4隻，其中93681(♀)・93686(♂)累積完整一年連續軌跡', tag: '監測' },
+      { name: '活動軌跡', detail: '主要活動集中於200林道南側至台8線北側；春夏活動範圍較小，秋冬明顯擴大；具趨避林道現象', tag: '軌跡' },
+      { name: '相機調查', detail: '42台紅外線相機・32個4×4km網格，17台拍到黑熊；遊客中心周邊推估至少4個體，發現4處直徑80-100cm熊窩', tag: '相機' },
+      { name: 'AI黑熊預警', detail: '大雪山遊客中心・住宿餐廳區・小雪山49K共設15台4G即時相機，AI辨識誤判率0.104%，LINE自動通報即時應變', tag: 'AI' }
+    ]
+  },
+  {
     category: '鳥音監測・臺灣鳥類地圖',
     icon: 'fa-microphone',
     color: '#7c3aed',
@@ -1085,10 +1099,11 @@ const LAND_LIFE_DATA = [
   },
   {
     category: '哺乳類', icon: 'fa-paw', color: '#92400e', bg: '#fffbeb', border: '#fde68a',
-    count: 4, source: '期中報告書 p.230–232；紅外線相機',
-    summary: '紅外線自動相機記錄大型哺乳類4種，穿山甲為最重要保育物種。',
+    count: 5, source: '期中報告書 p.230–232；紅外線相機',
+    summary: '紅外線自動相機記錄大型哺乳類5種，穿山甲為最重要保育物種，臺灣黑熊為瀕危物種。',
     items: [
       { name: '臺灣穿山甲', sci: 'Manis pentadactyla',       tag: '一級保育', note: '極度瀕危，橫流溪工作站周邊影像紀錄' },
+      { name: '臺灣黑熊',   sci: 'Ursus thibetanus formosanus', tag: '瀕危', note: '大雪山地區繫放追蹤，104年起共10隻，112年新增4隻完整軌跡' },
       { name: '食蟹獴',     sci: 'Herpestes urva',           tag: '二級保育', note: '溪岸活動，捕食魚蟹及兩棲類' },
       { name: '臺灣山羌',   sci: 'Muntiacus reevesi micrurus', tag: '特有亞種', note: '夜間紅外線相機記錄' },
       { name: '臺灣野豬',   sci: 'Sus scrofa taivanus',      tag: '常見',   note: '溪岸泥地拱土痕跡及紅外線影像' }
@@ -1096,8 +1111,8 @@ const LAND_LIFE_DATA = [
   },
   {
     category: '陸域昆蟲', icon: 'fa-bug', color: '#854d0e', bg: '#fef9c3', border: '#fde047',
-    count: 18, source: '期中報告書 p.233；網捕法＋掃網法',
-    summary: '調查陸域昆蟲18種（含水棲昆蟲），以鱗翅目、鞘翅目及蜻蛉目為主。',
+    count: 17, source: '期中報告書 p.233；網捕法＋掃網法',
+    summary: '調查陸域昆蟲17種（含水棲昆蟲），以鱗翅目、鞘翅目及蜻蛉目為主。',
     items: [
       { name: '寬腹蜻蜓', sci: 'Lyriothemis pachygastra',    tag: '指標',  note: '清潔溪流指標性蜻蜓' },
       { name: '粗鉤春蜓', sci: 'Davidius moiwanus',          tag: '特有種', note: '溪流型蜻蜓目，礫石底床繁殖' },
@@ -1116,7 +1131,6 @@ const LAND_LIFE_DATA = [
       { name: '獨角仙',   sci: 'Allomyrina dichotoma',       tag: '常見',  note: '闊葉林樹液吸食' },
       { name: '斑紋蟬（數種）', sci: 'Cicadidae spp.',       tag: '常見',  note: '樹液吸食，夏季鳴聲明顯' },
       { name: '埋葬蟲（數種）', sci: 'Nicrophorus spp.',     tag: '常見',  note: '腐食性甲蟲，分解有機質' },
-      { name: '粗石斜曲面魚道昆蟲', sci: '-',               tag: '指標',  note: '魚道兩側水際帶昆蟲群落調查' }
     ]
   }
 ];
@@ -1150,25 +1164,42 @@ const LAND_WIKI_TITLES = {
   '小啄木':     'Grey-capped_pygmy_woodpecker',
   '臺灣畫眉':   'Taiwan_hwamei',
   /* 兩棲爬蟲 */
-  '梭德氏赤蛙': 'Rana_sauteri',
+  '梭德氏赤蛙': 'Nidirana_adenopleura',
   '斯文豪氏赤蛙': 'Odorrana_swinhoana',
   '褡裢樹蛙':   'Rhacophorus_arvalis',
   '面天樹蛙':   'Kurixalus_idiootocus',
   '拉都希氏赤蛙': 'Rana_latouchii',
-  '臺灣草蜥':   'Taiwan_grass_lizard',
+  '臺灣草蜥':   'Takydromus_formosanus',
   '龜殼花':     'Chinese_habu',
+  '高砂蛇':     'Oligodon_formosanus',
+  '臺灣爬岩鰍守宮': 'Gekko_japonicus',
   /* 哺乳類 */
   '臺灣穿山甲': 'Chinese_pangolin',
   '食蟹獴':     'Crab-eating_mongoose',
   '臺灣山羌':   "Reeve's_muntjac",
   '臺灣野豬':   'Wild_boar',
+  '臺灣黑熊':   'Formosan_black_bear',
   /* 昆蟲 */
   '黃裳鳳蝶':   'Troides_aeacus',
-  '臺灣寬尾鳳蝶': 'Broad-tailed_swallowtail',
+  '臺灣寬尾鳳蝶': 'Papilio_maraho',
   '枯葉蝶':     'Orange_oakleaf',
   '獨角仙':     'Japanese_rhinoceros_beetle',
-  '寬腹蜻蜓':   'Lyriothemis_pachygastra',
-  '粗鉤春蜓':   'Davidius_moiwanus'
+  '寬腹蜻蜓':   'Lyriothemis',
+  '粗鉤春蜓':   'Gomphidae',
+  '臺灣紋白蝶': 'Pieris_canidia',
+  '霧社血斑天牛': 'Chlorophorus',
+  '大圓翅鍬形蟲': 'Lucanus_formosanus',
+  '蜉蝣目（數種）': 'Mayfly',
+  '石蠅（數種）': 'Stonefly',
+  '毛翅目（數種）': 'Caddisfly',
+  '魚蛉':       'Dobsonfly',
+  '短翅蟋蟀':   'Cricket_(insect)',
+  '斑紋蟬（數種）': 'Cicada',
+  '埋葬蟲（數種）': 'Nicrophorus'
+};
+
+const DIRECT_PHOTO_URLS = {
+  '臺灣大鍬': { src: 'http://gagaphoto.com/9806/985.jpg', credit: '© 嘎嘎昆蟲網' }
 };
 
 async function _loadLandLifePhotos() {
@@ -1182,12 +1213,13 @@ async function _loadLandLifePhotos() {
       const res = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`);
       if (!res.ok) continue;
       const data = await res.json();
-      const src = data.thumbnail?.source || (data.originalimage?.source);
+      const src = data.thumbnail?.source || data.originalimage?.source;
+      const hires = data.originalimage?.source || src;
       if (!src) continue;
-      // Update all img tags with this wiki title
       document.querySelectorAll(`[data-wiki="${CSS.escape(title)}"]`).forEach(el => {
         el.src = src;
         el.style.display = 'block';
+        if (hires) el.setAttribute('data-hires', hires);
         const wrap = el.closest('[data-photowrap]');
         if (wrap) wrap.style.display = 'block';
       });
@@ -1205,8 +1237,8 @@ function renderLandLife() {
       ${[
         ['fa-dove',   '#1d4ed8','#eff6ff', '16 種', '鳥類'],
         ['fa-frog',   '#0f766e','#f0fdfa',  '9 種', '兩棲爬蟲'],
-        ['fa-paw',    '#92400e','#fffbeb',  '4 種', '哺乳類'],
-        ['fa-bug',    '#854d0e','#fef9c3', '18 種', '陸域昆蟲'],
+        ['fa-paw',    '#92400e','#fffbeb',  '5 種', '哺乳類'],
+        ['fa-bug',    '#854d0e','#fef9c3', '17 種', '陸域昆蟲'],
         ['fa-layer-group','#7c3aed','#f5f3ff', `${totalSpecies} 種`, '合計物種']
       ].map(([ic,col,bg,val,lbl]) => `
         <div style="background:${bg};border-radius:12px;padding:16px 14px;display:flex;align-items:center;gap:12px">
@@ -1259,10 +1291,15 @@ function renderLandLife() {
               <div style="font-size:13px;color:#94a3b8;margin-top:4px;margin-left:48px">© Wikipedia</div>
             </div>
             <!-- 右側：照片（載入後顯示，漸層融入背景） -->
-            <div data-photowrap style="position:absolute;right:0;top:0;bottom:0;width:52%;display:none;overflow:hidden">
+            <div data-photowrap data-name="${cat.category}" data-wikititle="${LAND_CAT_WIKI[cat.category] || ''}"
+              style="position:absolute;right:0;top:0;bottom:0;width:52%;display:none;overflow:hidden;cursor:zoom-in"
+              onclick="(function(w){var img=w.querySelector('img');if(img&&img.src)landPhotoLightbox(w.dataset.name,w.dataset.wikititle,img.getAttribute('data-hires')||img.src)})(this)">
               <img data-wiki="${LAND_CAT_WIKI[cat.category] || ''}" alt="${cat.category}"
                 src="" style="width:100%;height:100%;object-fit:cover;display:none">
               <div style="position:absolute;inset:0;background:linear-gradient(to right,${cat.bg} 0%,${cat.bg}88 25%,transparent 55%);pointer-events:none"></div>
+              <div style="position:absolute;bottom:4px;right:8px;pointer-events:none">
+                <span style="color:rgba(255,255,255,0.7);font-size:10px;text-shadow:0 1px 3px rgba(0,0,0,0.6)">© Wikipedia</span>
+              </div>
             </div>
             <!-- 背景大圖示裝飾 -->
             <i class="fas ${cat.icon}" style="position:absolute;right:54%;top:50%;transform:translateY(-50%);
@@ -1280,13 +1317,20 @@ function renderLandLife() {
                 '指標': ['#fce7f3','#9d174d'], '常見': ['#f1f5f9','#475569']
               };
               const [tbg, tcl] = tagColors[item.tag] || ['#f1f5f9','#475569'];
-              const spPhoto = LAND_WIKI_TITLES[item.name] || '';
+              const wikiKey = LAND_WIKI_TITLES[item.name] || '';
+              const directP = DIRECT_PHOTO_URLS[item.name] || null;
               return `
                 <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden">
-                  ${LAND_WIKI_TITLES[item.name] ? `
-                  <div data-photowrap style="height:150px;overflow:hidden;background:${cat.color}11;display:none">
-                    <img data-wiki="${LAND_WIKI_TITLES[item.name]}" alt="${item.name}"
-                      src="" style="width:100%;height:100%;object-fit:cover;display:none">
+                  ${(wikiKey || directP) ? `
+                  <div data-photowrap data-name="${item.name}" data-wikititle="${wikiKey || item.name}" data-credit="${directP ? directP.credit : ''}"
+                    style="height:150px;overflow:hidden;background:${cat.color}11;display:${directP ? 'block' : 'none'};position:relative;cursor:zoom-in"
+                    onclick="(function(w){var img=w.querySelector('img');if(img&&img.src)landPhotoLightbox(w.dataset.name,w.dataset.wikititle,img.getAttribute('data-hires')||img.src,w.dataset.credit)})(this)">
+                    <img ${wikiKey ? `data-wiki="${wikiKey}"` : ''} alt="${item.name}"
+                      src="${directP ? directP.src : ''}" style="width:100%;height:100%;object-fit:cover;display:${directP ? 'block' : 'none'}">
+                    <div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,0.62));padding:5px 9px 4px;pointer-events:none;display:flex;align-items:center;justify-content:space-between">
+                      <span style="color:rgba(255,255,255,0.82);font-size:11px">${directP ? directP.credit : '© Wikipedia'}</span>
+                      <span style="color:rgba(255,255,255,0.55);font-size:10px"><i class="fas fa-search-plus" style="font-size:9px;margin-right:3px"></i>點擊放大</span>
+                    </div>
                   </div>` : ''}
                   <div style="padding:12px 14px">
                     <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px">
@@ -1322,7 +1366,45 @@ function renderLandLife() {
 
   `;
 
+  // 建立／重用 lightbox DOM
+  if (!document.getElementById('landLightbox')) {
+    const lb = document.createElement('div');
+    lb.id = 'landLightbox';
+    lb.style.cssText = 'display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.93);cursor:zoom-out;align-items:center;justify-content:center;flex-direction:column;gap:16px;padding:20px';
+    lb.innerHTML = `
+      <button id="landLightboxCloseBtn" style="position:absolute;top:14px;right:18px;background:rgba(255,255,255,0.12);border:none;color:#fff;font-size:26px;cursor:pointer;width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center">&times;</button>
+      <img id="landLightboxImg" src="" alt="" style="max-width:90vw;max-height:76vh;object-fit:contain;border-radius:10px;box-shadow:0 8px 48px rgba(0,0,0,0.7)">
+      <div id="landLightboxCaption" style="color:#e2e8f0;font-size:15px;text-align:center;max-width:620px;line-height:1.6"></div>`;
+    lb.addEventListener('click', e => { if (e.target === lb) landLightboxClose(); });
+    lb.querySelector('#landLightboxCloseBtn').addEventListener('click', landLightboxClose);
+    document.body.appendChild(lb);
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') landLightboxClose(); });
+  }
+
   setTimeout(() => { _loadLandLifePhotos(); }, 200);
+}
+
+function landPhotoLightbox(name, wikiTitle, imgSrc, creditText) {
+  const lb  = document.getElementById('landLightbox');
+  const img = document.getElementById('landLightboxImg');
+  const cap = document.getElementById('landLightboxCaption');
+  if (!lb || !img || !imgSrc) return;
+  img.src = imgSrc;
+  img.alt = name;
+  const creditHtml = creditText
+    ? `<span style="color:#93c5fd;font-size:13px">${creditText}</span>`
+    : `<a href="https://en.wikipedia.org/wiki/${encodeURIComponent(wikiTitle)}" target="_blank"
+        style="color:#93c5fd;font-size:13px" onclick="event.stopPropagation()">
+        © Wikipedia · ${wikiTitle.replace(/_/g,' ')}</a>`;
+  cap.innerHTML = `<strong style="font-size:18px;color:#f8fafc">${name}</strong><br>${creditHtml}`;
+  lb.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function landLightboxClose() {
+  const lb = document.getElementById('landLightbox');
+  if (lb) lb.style.display = 'none';
+  document.body.style.overflow = '';
 }
 
 function landCatToggle(idx) {
@@ -1648,21 +1730,32 @@ function renderVegetation() {
         橫流溪沿岸植被調查樣點、優勢植群帶及周邊環境比對 ｜ 點選標記查看詳細植被資訊
       </div>
       <!-- 圖例 -->
-      <div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:12px;font-size:13px">
-        <div style="display:flex;align-items:center;gap:6px">
-          <div style="width:14px;height:14px;border-radius:50%;background:#16a34a;border:2px solid #fff;box-shadow:0 0 0 2px #16a34a"></div>
+      <div style="display:flex;flex-wrap:wrap;gap:14px;margin-bottom:12px;font-size:13px;align-items:center">
+        <div style="display:flex;align-items:center;gap:7px">
+          <div style="width:22px;height:22px;background:#16a34a;border:2.5px solid #14532d;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <i class="fas fa-seedling" style="color:#fff;font-size:10px"></i>
+          </div>
           <span>濱溪帶樣區（五節芒優勢）</span>
         </div>
-        <div style="display:flex;align-items:center;gap:6px">
-          <div style="width:14px;height:14px;border-radius:50%;background:#92400e;border:2px solid #fff;box-shadow:0 0 0 2px #92400e"></div>
+        <div style="display:flex;align-items:center;gap:7px">
+          <div style="width:22px;height:22px;background:#92400e;border:2.5px solid #7c2d12;border-radius:5px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <i class="fas fa-tree" style="color:#fff;font-size:10px"></i>
+          </div>
           <span>工寮周邊（臺灣五葉松）</span>
         </div>
-        <div style="display:flex;align-items:center;gap:6px">
-          <div style="width:14px;height:14px;border-radius:50%;background:#dc2626;border:2px solid #fff;box-shadow:0 0 0 2px #dc2626"></div>
+        <div style="display:flex;align-items:center;gap:7px">
+          <div style="position:relative;width:24px;height:22px;flex-shrink:0">
+            <div style="width:0;height:0;border-left:12px solid transparent;border-right:12px solid transparent;border-bottom:22px solid #dc2626"></div>
+            <i class="fas fa-cannabis" style="color:#fff;font-size:9px;position:absolute;top:8px;left:0;width:100%;text-align:center"></i>
+          </div>
           <span>外來植物警示區</span>
         </div>
-        <div style="display:flex;align-items:center;gap:6px">
-          <div style="width:14px;height:14px;border-radius:50%;background:#1d4ed8;border:2px solid #fff;box-shadow:0 0 0 2px #1d4ed8"></div>
+        <div style="display:flex;align-items:center;gap:7px">
+          <div style="width:22px;height:22px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <div style="width:16px;height:16px;background:#0d9488;border:2.5px solid #134e4a;transform:rotate(45deg);display:flex;align-items:center;justify-content:center">
+              <i class="fas fa-spa" style="color:#fff;font-size:8px;transform:rotate(-45deg)"></i>
+            </div>
+          </div>
           <span>蕨類植物豐富區</span>
         </div>
       </div>
@@ -1691,9 +1784,11 @@ function _initVegMap() {
   vegMap = L.map('vegMap', { zoomControl: true, scrollWheelZoom: true })
     .setView([24.181, 120.909], 15);
 
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap contributors',
-    maxZoom: 19
+  L.tileLayer('https://wmts.nlsc.gov.tw/wmts/PHOTO2/default/GoogleMapsCompatible/{z}/{y}/{x}', {
+    attribution: '© 內政部國土測繪中心', maxZoom: 20, crossOrigin: true
+  }).addTo(vegMap);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png', {
+    subdomains: 'abcd', maxZoom: 19, opacity: 0.88
   }).addTo(vegMap);
 
   // ── 植被調查樣點 ──
@@ -1740,15 +1835,43 @@ function _initVegMap() {
       invasive: '無', cover: '林下遮陰 > 80%，蕨類多樣性高', ndvi: 0.79 }
   ];
 
-  const colorMap = { riparian: '#16a34a', worksite: '#92400e', invasive: '#dc2626', fern: '#1d4ed8' };
+  const colorMap = { riparian: '#16a34a', worksite: '#92400e', invasive: '#dc2626', fern: '#0d9488' };
   const labelMap = { riparian: '濱溪帶', worksite: '松林帶', invasive: '外來種警示', fern: '蕨類豐富帶' };
+
+  const vegIconCfg = {
+    riparian: { bg: '#16a34a', dark: '#14532d', fa: 'fa-seedling', shape: 'circle'   },
+    worksite: { bg: '#92400e', dark: '#7c2d12', fa: 'fa-tree',     shape: 'square'   },
+    invasive: { bg: '#dc2626', dark: '#991b1b', fa: 'fa-cannabis', shape: 'triangle' },
+    fern:     { bg: '#0d9488', dark: '#134e4a', fa: 'fa-spa',      shape: 'diamond'  }
+  };
+
+  function makeVegDivIcon(type) {
+    const c = vegIconCfg[type] || vegIconCfg.riparian;
+    const s = 34;
+    let html;
+    if (c.shape === 'circle') {
+      html = `<div style="width:${s}px;height:${s}px;background:${c.bg};border:3px solid ${c.dark};border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(0,0,0,.45)">
+        <i class="fas ${c.fa}" style="color:#fff;font-size:15px"></i></div>`;
+    } else if (c.shape === 'square') {
+      html = `<div style="width:${s}px;height:${s}px;background:${c.bg};border:3px solid ${c.dark};border-radius:7px;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(0,0,0,.45)">
+        <i class="fas ${c.fa}" style="color:#fff;font-size:15px"></i></div>`;
+    } else if (c.shape === 'triangle') {
+      html = `<div style="position:relative;width:${s+4}px;height:${s}px;filter:drop-shadow(0 3px 5px rgba(0,0,0,.4))">
+        <div style="width:0;height:0;border-left:${(s+4)/2}px solid transparent;border-right:${(s+4)/2}px solid transparent;border-bottom:${s}px solid ${c.bg}"></div>
+        <i class="fas ${c.fa}" style="color:#fff;font-size:14px;position:absolute;top:12px;left:0;width:100%;text-align:center"></i></div>`;
+    } else {
+      const ds = Math.round(s * 0.72);
+      html = `<div style="width:${s}px;height:${s}px;display:flex;align-items:center;justify-content:center">
+        <div style="width:${ds}px;height:${ds}px;background:${c.bg};border:3px solid ${c.dark};transform:rotate(45deg);display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(0,0,0,.45)">
+          <i class="fas ${c.fa}" style="color:#fff;font-size:13px;transform:rotate(-45deg)"></i></div></div>`;
+    }
+    const w = c.shape === 'triangle' ? s + 4 : s;
+    return L.divIcon({ className: '', html, iconSize: [w, s], iconAnchor: [w / 2, s / 2] });
+  }
 
   vegPoints.forEach(pt => {
     const col = colorMap[pt.type] || '#16a34a';
-    const marker = L.circleMarker([pt.lat, pt.lng], {
-      radius: 11, fillColor: col, color: '#fff', weight: 2.5,
-      opacity: 1, fillOpacity: 0.85
-    }).addTo(vegMap);
+    const marker = L.marker([pt.lat, pt.lng], { icon: makeVegDivIcon(pt.type) }).addTo(vegMap);
 
     marker.bindPopup(`
       <div style="min-width:230px;font-size:13px;line-height:1.7">
@@ -1769,15 +1892,6 @@ function _initVegMap() {
       </div>
     `, { maxWidth: 280 });
   });
-
-  // ── 溪流主軸線 ──
-  const streamPath = [
-    [24.1748, 120.9072],[24.1760, 120.9076],[24.1775, 120.9082],
-    [24.1792, 120.9085],[24.1810, 120.9089],[24.1828, 120.9094],
-    [24.1845, 120.9100],[24.1860, 120.9107],[24.1875, 120.9113]
-  ];
-  L.polyline(streamPath, { color: '#0ea5e9', weight: 3.5, opacity: 0.7,
-    dashArray: null }).addTo(vegMap);
 
   // ── 動物通道位置標記 ──
   L.marker([24.1840, 120.9098], {
@@ -2393,9 +2507,11 @@ function renderFishBioMap() {
                 <i class="fas fa-hard-hat" style="font-size:15px"></i> 工程構造物
               </div>
               ${[
-                ['#1565c0','fa-fish',       '魚道設施','之字形・階梯式・斜坡式'],
-                ['#795548','fa-water',      '防砂壩',  '攔砂壩・固床工'],
-                ['#827717','fa-layer-group','固床工',  '階段式・粗石面']
+                ['#1565c0','fa-fish',        '魚道設施','之字形・階梯式・斜坡式'],
+                ['#795548','fa-water',       '防砂壩',  '攔砂壩・固床工'],
+                ['#827717','fa-layer-group', '固床工',  '階段式・粗石面'],
+                ['#7c3aed','fa-vector-square','平台',   '維護・觀察・眺望平台'],
+                ['#0f766e','fa-route',        '步道',   '溪濱步道 0K+000～1K+290']
               ].map(([col,ic,name,sub])=>`
                 <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
                   <div style="width:42px;height:42px;border-radius:50%;background:${col};
@@ -2783,8 +2899,8 @@ function initBioGISMap(fishSpecies, facilities) {
   L.control.attribution({ prefix: false }).addTo(biogisMap);
 
   // 底圖
-  const satLayer  = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution:'Tiles © Esri', maxZoom:19 });
-  const lblLayer  = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png', { subdomains:'abcd', maxZoom:19, opacity:.9 });
+  const satLayer  = L.tileLayer('https://wmts.nlsc.gov.tw/wmts/PHOTO2/default/GoogleMapsCompatible/{z}/{y}/{x}', { attribution:'© 內政部國土測繪中心', maxZoom:20, crossOrigin:true });
+  const lblLayer  = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png', { subdomains:'abcd', maxZoom:20, opacity:.9 });
   const roadLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution:'© OpenStreetMap contributors', maxZoom:19 });
 
   window._biogisBaseLayers = { hybrid: L.layerGroup([satLayer, lblLayer]), satellite: satLayer, road: roadLayer };
@@ -2907,6 +3023,8 @@ function initBioGISMap(fishSpecies, facilities) {
     if (/魚道/.test(f.type)) return '#1565c0';
     if (/壩|壩堰/.test(f.type)) return '#795548';
     if (/固床/.test(f.type)) return '#827717';
+    if (/平台|平臺/.test(f.type)) return '#7c3aed';
+    if (/步道/.test(f.type)) return '#0f766e';
     return '#546e7a';
   };
   const statusRing = (f) => {
@@ -2917,8 +3035,16 @@ function initBioGISMap(fishSpecies, facilities) {
 
   facilities.forEach(f => {
     if (!f.lat || !f.lng) return;
-    const facIc = /魚道/.test(f.type)?'fa-fish':/壩/.test(f.type)?'fa-water':'fa-layer-group';
-    const facLabel = /魚道/.test(f.type)?'魚道':/壩/.test(f.type)?'防砂壩':'固床工';
+    const facIc = /魚道/.test(f.type) ? 'fa-fish' :
+                  /壩/.test(f.type) ? 'fa-water' :
+                  /固床/.test(f.type) ? 'fa-layer-group' :
+                  /平台|平臺/.test(f.type) ? 'fa-vector-square' :
+                  /步道/.test(f.type) ? 'fa-route' : 'fa-layer-group';
+    const facLabel = /魚道/.test(f.type) ? '魚道' :
+                     /壩/.test(f.type) ? '防砂壩' :
+                     /固床/.test(f.type) ? '固床工' :
+                     /平台|平臺/.test(f.type) ? '平台' :
+                     /步道/.test(f.type) ? '步道' : (f.type || '設施');
     const icon = L.divIcon({
       className: '',
       html: `<div style="display:flex;flex-direction:column;align-items:center;cursor:pointer;

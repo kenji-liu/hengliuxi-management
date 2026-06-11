@@ -812,8 +812,8 @@ def classify_answer_confidence(docs: List[Dict[str, Any]]) -> Dict[str, Any]:
             'message': '文檔中未找到相關信息',
             'action': 'REJECT_AND_GUIDE',
             'recommendations': [
-                '請補充更明確的設施名稱、日期或報告名稱',
-                '例如：溪構11、保育魚類、2025年巡查記錄'
+                '查無相關資料，建議換個關鍵字再試。',
+                '可嘗試：保育魚類、巡查紀錄、設施損壞、黑熊監測、生態調查'
             ]
         }
 

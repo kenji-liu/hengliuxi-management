@@ -555,6 +555,84 @@ function buildDynamicContext(query) {
     console.warn('[buildDynamicContext] DB 查詢錯誤:', e.message);
   }
 
+  // ── F. 陸域生態（BIO_LAND_DATA / LAND_LIFE_DATA / BIO_WATER_DATA）──
+  try {
+    const ecoKws = ['生態','動物','陸域','保育','物種','棲地','哺乳','鳥','兩棲','爬蟲',
+                    '昆蟲','植物','蛙','蝶','蜻蜓','蜥蜴','蛇','鍬形','鳳蝶','石蠅',
+                    '黑熊','穿山甲','山羊','野豬','獴','山羌','兔',
+                    '藍腹鷳','翠鳥','鷺','鷹','鷲','鵯','鶯','啄木','畫眉',
+                    '梭德','赤蛙','樹蛙','草蜥','龜殼花','高砂蛇',
+                    '魚蛉','石蠶','春蜓','大鍬','獨角仙','臺灣大鍬',
+                    '水棲昆蟲','甲殼','蝦'];
+    const isEcoQuery = ecoKws.some(kw => q.includes(kw));
+
+    if (isEcoQuery) {
+      // 從查詢提取 2~4 字滑動視窗，讓 '黑熊' 能匹配 '臺灣黑熊' 等全名
+      const qSlices = [];
+      for (let len = 2; len <= 4; len++)
+        for (let i = 0; i <= q.length - len; i++) qSlices.push(q.slice(i, i + len));
+      const nameHit = (name) => q.includes(name) || qSlices.some(s => name.includes(s));
+      const txtHit  = (txt)  => txt.split(/[，。　\s]/).some(s => s.length >= 2 && q.includes(s));
+
+      // F-1. BIO_LAND_DATA（陸域生態分布圖資料）
+      if (typeof BIO_LAND_DATA !== 'undefined') {
+        BIO_LAND_DATA.forEach(cat => {
+          const catWords = cat.category.split(/[・\s（）]/g).filter(w => w.length >= 2);
+          // catHit：查詢字詞直接出現在類別名稱，或 ecoKws 中有既在查詢也在類別名稱的詞
+          const catHit   = catWords.some(w => q.includes(w)) ||
+                           ecoKws.some(kw => q.includes(kw) && cat.category.includes(kw));
+          const hitItems = (cat.items || []).filter(item => {
+            const txt = `${item.name} ${item.detail||''} ${item.tag||''}`.toLowerCase();
+            return nameHit(item.name) || txtHit(txt);
+          });
+          if (catHit || hitItems.length > 0) {
+            // catHit → 類別名稱命中，顯示全部項目；否則只顯示命中項目
+            const show = catHit ? (cat.items || []).slice(0, 6) : hitItems;
+            parts.push(`【陸域生態－${cat.category}】`);
+            show.forEach(item => parts.push(`  · ${item.name}：${item.detail}（${item.tag}）`));
+          }
+        });
+      }
+
+      // F-2. LAND_LIFE_DATA（物種詳細調查清單）
+      if (typeof LAND_LIFE_DATA !== 'undefined') {
+        LAND_LIFE_DATA.forEach(cat => {
+          const hitItems = (cat.items || []).filter(item =>
+            nameHit(item.name) ||
+            (item.sci && qSlices.some(s => item.sci.includes(s))) ||
+            (item.note && txtHit(item.note))
+          );
+          if (hitItems.length > 0) {
+            parts.push(`【物種調查記錄－${cat.category}（共${cat.count}種，${cat.source}）】`);
+            hitItems.forEach(item =>
+              parts.push(`  · ${item.name}（${item.sci}，${item.tag}）：${item.note}`)
+            );
+          } else if (q.includes(cat.category.slice(0,2))) {
+            parts.push(`【${cat.category}（共${cat.count}種）】${cat.summary}`);
+          }
+        });
+      }
+
+      // F-3. BIO_WATER_DATA（水域生態）
+      if (typeof BIO_WATER_DATA !== 'undefined') {
+        const waterKws = ['水棲','昆蟲','甲殼','蝦','蜉蝣','石蠅','毛翅','搖蚊'];
+        if (waterKws.some(kw => q.includes(kw))) {
+          BIO_WATER_DATA.filter(cat => !cat.dynamic).forEach(cat => {
+            const hitItems = (cat.items || []).filter(item =>
+              nameHit(item.name) || (item.detail && txtHit(item.detail))
+            );
+            if (hitItems.length > 0) {
+              parts.push(`【水域生態－${cat.category}】`);
+              hitItems.forEach(item => parts.push(`  · ${item.name}：${item.detail}（${item.tag}）`));
+            }
+          });
+        }
+      }
+    }
+  } catch(e) {
+    console.warn('[buildDynamicContext] 生態資料查詢錯誤:', e.message);
+  }
+
   return parts.join('\n');
 }
 
@@ -714,7 +792,9 @@ function initAIChat() {
           <div class="ai-sub" id="aiSubLabel">本機知識庫 + RAG 即時檢索</div>
         </div>
         <div style="display:flex;align-items:center;gap:8px">
-          <button onclick="aiSetKey()" title="設定 Gemini API Key"
+          <button onclick="clearAIChat()" title="清除對話記錄"
+            style="background:rgba(255,255,255,0.2);border:none;color:#fff;border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer">清除</button>
+          <button onclick="aiSetKey()" title="設定 Groq API Key"
             style="background:rgba(255,255,255,0.2);border:none;color:#fff;border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer">🔑 Key</button>
           <button class="ai-header-close" onclick="toggleAIChat()">×</button>
         </div>
@@ -862,7 +942,7 @@ function fallbackConfidence(citations) {
       label: "無依據拒答",
       message: "文檔中未找到相關信息",
       action: "REJECT_AND_GUIDE",
-      recommendations: ["請補充更明確的設施名稱、日期或報告名稱", "例如：溪構11、魚道維護、平台設施、棲地二維模式"]
+      recommendations: ["查無相關資料，建議換個關鍵字。", "可嘗試：保育魚類、巡查紀錄、設施損壞、黑熊監測、生態調查"]
     };
   }
 
@@ -920,10 +1000,11 @@ function composeAnswer(query, data) {
   // 有 Ollama 實際答案 → 不因為缺乏本機引用就走「找不到資料」分支
   const hasRealAnswer = answer.length > 20;
 
-  // 找不到資料且無 Ollama 答案時，顯示簡單提示
-  if ((!citations.length && !hasRealAnswer) || answerPolicy === "refuse" || answerPolicy === "REJECT_AND_GUIDE") {
+  // 找不到資料且無 AI 答案時，顯示簡單提示
+  const showNoData = !hasRealAnswer && (!citations.length || answerPolicy === "refuse" || answerPolicy === "REJECT_AND_GUIDE");
+  if (showNoData) {
     return `
-      <div class="ai-answer">${escapeHtml(answer || "目前找不到相關資料，請換個關鍵字再試。")}</div>
+      <div class="ai-answer">目前找不到相關資料，請換個關鍵字再試。</div>
       ${recsHtml}
       ${renderFeedbackBlock()}
     `;
@@ -971,25 +1052,80 @@ const AI_SYSTEM = `你是「橫流溪管理平台」的專屬 AI 助理，使用
 【核心規則】
 1. 若【橫流溪本機資料】中有相關資訊，必須優先引用並明確說明來源（如「根據資料庫紀錄…」）。
 2. 回答需結合資料庫實際數值（設施狀態、DER&U等級、巡查發現、魚類調查數量等），不得憑空捏造數字。
-3. 若資料庫無相關資料，誠實說明「目前資料庫無此紀錄」，再提供一般專業知識補充。
-4. 回答清晰自然、適當分段（可用換行與數字列點），不使用 Markdown 標題符號（#、##）。
-5. 回答長度 150～400 字，簡潔有據。`;
+3. 若有【網路補充資料】，可作為輔助說明，並標示「（參考維基百科）」。
+4. 若資料庫無相關資料，誠實說明「資料庫無此紀錄」，再補充網路資料或一般專業知識。
+5. 這是連續對話，請理解前後問題的關聯，提供連貫一致的回答；若問題接續上題，可直接延伸說明，不必重複前述內容。
+6. 回答清晰自然、適當分段（可用換行與數字列點），不使用 Markdown 標題符號（#、##）。
+7. 回答長度 150～400 字，簡潔有據。`;
 
 function getAIKey() {
   return localStorage.getItem("GROQ_API_KEY") || "";
+}
+
+const _chatHistory = [];
+const CHAT_HISTORY_TURNS = 5;
+
+async function webSearchWiki(query) {
+  try {
+    const q = encodeURIComponent(query);
+    const sr = await fetch(
+      `https://zh.wikipedia.org/w/api.php?action=query&list=search&srsearch=${q}&srlimit=3&format=json&origin=*`,
+      { signal: AbortSignal.timeout(6000) }
+    );
+    if (!sr.ok) return [];
+    const sd = await sr.json();
+    const pages = (sd?.query?.search || []).slice(0, 2);
+    if (!pages.length) return [];
+    const summaries = await Promise.all(pages.map(async p => {
+      try {
+        const t = encodeURIComponent(p.title);
+        const r = await fetch(`https://zh.wikipedia.org/api/rest_v1/page/summary/${t}`,
+          { signal: AbortSignal.timeout(5000) });
+        if (!r.ok) return null;
+        const d = await r.json();
+        return {
+          title: d.title,
+          extract: (d.extract || '').slice(0, 280),
+          url: d.content_urls?.desktop?.page || `https://zh.wikipedia.org/wiki/${t}`
+        };
+      } catch { return null; }
+    }));
+    return summaries.filter(Boolean);
+  } catch (e) {
+    console.warn('[webSearch] 維基百科搜尋失敗:', e.message);
+    return [];
+  }
 }
 
 async function callGroqDirect(query, localCtx = "") {
   const key = getAIKey();
   if (!key) return null;
 
-  // 同時注入即時 DB 資料（不受靜態 KB 限制）
+  // 即時 DB 資料
   const dbCtx = buildDynamicContext(query);
-  const combined = [localCtx, dbCtx].filter(Boolean).join('\n\n');
-  const ctxBlock = combined
-    ? `\n【橫流溪本機資料庫（即時查詢）】\n${combined}\n\n請優先依上述資料回答，資料不足時再補充專業知識。\n`
+  const localCombined = [localCtx, dbCtx].filter(Boolean).join('\n\n');
+
+  // 網路補充：當本機資料量少，或查詢涉及通用知識時，從維基百科補充
+  const needsWeb = !localCombined || localCombined.length < 120 ||
+    /標準|法規|規範|學術|研究|統計|全國|文獻|介紹|是什麼|意思/.test(query);
+  let webCtx = '';
+  let webSources = [];
+  if (needsWeb) {
+    webSources = await webSearchWiki(query);
+    if (webSources.length) {
+      webCtx = '\n【網路補充資料（維基百科）】\n' +
+        webSources.map(r => `◆ ${r.title}：${r.extract}`).join('\n');
+    }
+  }
+
+  const fullCtx = [localCombined, webCtx].filter(Boolean).join('\n');
+  const ctxBlock = fullCtx
+    ? `\n【橫流溪本機資料庫（即時查詢）】\n${fullCtx}\n\n請優先依上述資料回答，不足時再補充專業知識。\n`
     : "";
   const userMsg = `${ctxBlock}\n【使用者問題】\n${query}\n\n請以繁體中文回答：`;
+
+  // 多輪對話歷史（最近 CHAT_HISTORY_TURNS 輪）
+  const histMsgs = _chatHistory.slice(-(CHAT_HISTORY_TURNS * 2));
 
   const models = ["llama-3.3-70b-versatile", "llama-3.1-70b-versatile", "llama3-70b-8192"];
 
@@ -1005,6 +1141,7 @@ async function callGroqDirect(query, localCtx = "") {
           model,
           messages: [
             { role: "system", content: AI_SYSTEM },
+            ...histMsgs,
             { role: "user",   content: userMsg }
           ],
           temperature: 0.4,
@@ -1018,7 +1155,13 @@ async function callGroqDirect(query, localCtx = "") {
       }
       const data = await res.json();
       const text = data?.choices?.[0]?.message?.content?.trim();
-      if (text) return { text, model };
+      if (text) {
+        // 儲存到多輪歷史（user 端只存乾淨問題，不存長上下文）
+        _chatHistory.push({ role: "user", content: query });
+        _chatHistory.push({ role: "assistant", content: text });
+        while (_chatHistory.length > CHAT_HISTORY_TURNS * 2) _chatHistory.shift();
+        return { text, model, webSources };
+      }
     } catch (err) {
       console.error(`[Groq] ${model} 例外:`, err.message || err);
     }
@@ -1043,7 +1186,7 @@ async function queryRAG(query) {
       confidence_score: 90,
       policy_label: "AI 綜合回答",
       message: `本機資料 ＋ ${groq.model}`,
-      web_sources: [],
+      web_sources: groq.webSources || [],
       structured_citations: kbResult?.structured_citations || []
     };
   }
@@ -1082,6 +1225,12 @@ async function queryRAG(query) {
 
   // ── 4. 完全 fallback：本機知識庫
   return kbResult;
+}
+
+function clearAIChat() {
+  _chatHistory.length = 0;
+  const log = document.getElementById('aiMessages');
+  if (log) log.innerHTML = '<div class="ai-msg bot">對話已清除，可繼續提問。</div>';
 }
 
 async function aiSend() {
