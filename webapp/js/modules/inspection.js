@@ -54,11 +54,21 @@ const MAINTENANCE_MANUAL_BOOKS = [
 ];
 
 /* ── 橫流溪林業巡護管理（南勢社區林業計畫）文件清單 ── */
-const FORESTRY_PATROL_BASE = '01_工程設施維護與資料/維管計畫/';
+const FORESTRY_PATROL_BASE = '01_工程設施維護與資料/橫流溪林業巡護管理/';
 const FORESTRY_PATROL_DOCS = [
+  { year: '114', type: '計畫核定本',  file: '南勢-114年社區林業計畫核定本.pdf' },
+  { year: '114', type: '結案計畫報表', file: '南勢-114年結案計畫報表.pdf' },
+  { year: '113', type: '計畫核定本',  file: '南勢-113年社區林業計畫核定本.pdf' },
   { year: '113', type: '結案計畫報表', file: '南勢-113年結案計畫報表.pdf' },
+  { year: '113', type: '成果報告',    file: '南勢-113年社區林業成果報告.pdf' },
+  { year: '112', type: '計畫核定本',  file: '南勢-112年社區林業計畫核定本.pdf' },
   { year: '112', type: '結案計畫報表', file: '南勢-112年結案計畫報表.pdf' },
+  { year: '111', type: '計畫核定本',  file: '南勢-111年社區林業計畫核定本.pdf' },
   { year: '111', type: '結案計畫報表', file: '南勢-111年結案計畫報表.pdf' },
+  { year: '110', type: '計畫核定本',  file: '南勢-110年社區林業計畫核定本.pdf' },
+  { year: '110', type: '結案計畫報表', file: '南勢-110年結案計畫報表.pdf' },
+  { year: '106', type: '計畫核定本',  file: '1.106南勢社區林業計畫V2.pdf' },
+  { year: '106', type: '成果報告',    file: '南勢-成果報告1061222第5版.pdf' },
 ];
 
 function inspectionEscape(value) {
