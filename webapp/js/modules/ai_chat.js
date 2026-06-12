@@ -36,25 +36,26 @@ U（急迫性 Urgency）：根據D×E×R綜合分數自動建議處置時程
 
 5. 濱溪生態帶：種植原生植物（61種），設置根團微棲地，提升水棲昆蟲多樣性。` },
 
-  { id:'xlx52', kw:['溪構5-2','5-2','第五號','固床工5'],
-    title:'溪構5-2 維護重點',
-    body:`溪構5-2（橫流溪固床工）維護重點與常見缺損：
+  { id:'xlx52', kw:['溪構5-2','5-2','潛越式魚道','固床工5'],
+    title:'溪構5-2 潛越式魚道 維護背景',
+    body:`溪構5-2 潛越式魚道（橫流溪魚道設施）背景說明：
 
-位置：橫流溪中上游段，鄰近FD3/FD4魚道區域。
+【設施類型】魚道設施 / 潛越式（非固床工）。潛越式魚道設計使水流貼底通過，適合底棲魚種（如臺灣間爬岩鰍）。
 
-常見缺損：
-• 壩頂面裂縫：因溫差與乾濕循環產生表面龜裂，深度<1cm屬輕微（D=1）
-• 下游護坦沖刷：高流量期（>10 cms）溪床剪力超過設計值，護坦塊石位移
-• 翼牆回填流失：側向滲流帶走細料，導致局部下陷（DER&U評分需現地確認）
-• 魚道接口：固床工壩頂與魚道入口高差需維持設計值（±5cm容許誤差）
+【設施現況】請參見即時資料庫查詢結果（【★ 設施現況 ★】區塊）中的最新狀態、健康指數與未結案件數。
 
-維護建議（依急迫性）：
-1. 汛後每年10月：護坦石料補充、裂縫灌漿
-2. 每季：目視巡查翼牆、量測固床工頂高程
-3. 枯水期：機械清淤（若回淤深度>80cm）
-4. 發現D≥3時立即通報並啟動應急修復程序
+【潛越式魚道常見問題】
+• 潛越口積砂堵塞：颱風後砂石大量堆積，易造成低流量期無法通水
+• 出口沖刷：高流量時出口護坦塊石位移
+• 底部磨損：長期水流摩擦導致混凝土底板剝蝕（需量測厚度）
 
-注意：進行任何清淤或修復作業前，需確認魚道正常通水，避免影響洄游魚類。` },
+【維護建議】
+1. 每季：清除潛越口積砂，確保最小取水量 > 0.003 cms
+2. 汛後10月：量測底板剝蝕深度，超過2cm需進行修補
+3. 颱風後48小時內：確認潛越口暢通，避免底棲魚種無法通行
+4. 配合FD5電捕記錄（17尾，最多），追蹤臺灣間爬岩鰍通過情況
+
+注意：潛越式設計在AI水面攝影偵測時計數較低，但電捕數量實際最多；評估設施效能需以電捕資料為主。` },
 
   { id:'maintenance_general', kw:['維護','修復','巡查','檢查','保養','清淤','裂縫','修繕'],
     title:'工程設施巡查與維護原則',
@@ -446,12 +447,26 @@ function buildDynamicContext(query) {
 
     // ── B. 設施資料（精準比對名稱/代碼/類型）───────────────
     const isGeneralFacQuery = q.includes('設施') || q.includes('構造物') || q.includes('工程') || q.includes('維護');
-    const facMatches = facilities.filter(f => {
-      const txt = `${f.name||''} ${f.code||''} ${f.type||''} ${f.subType||''} ${f.location||''}`.toLowerCase();
-      return txt.split(' ').some(token => token && q.includes(token)) ||
-             (f.type && q.includes(f.type)) ||
-             (f.name && q.split(/\s+/).some(w => w.length > 1 && (f.name.includes(w) || (f.code && f.code.includes(w)))));
-    });
+
+    // Score facilities by how specifically they match the query
+    const facScored = facilities.map(f => {
+      const fName = (f.name || '').toLowerCase();
+      const fCode = (f.code || '').toLowerCase();
+      const txt = `${fName} ${fCode} ${f.type||''} ${f.subType||''} ${f.location||''}`.toLowerCase();
+      const qWords = q.split(/\s+/).filter(w => w.length > 1);
+      let score = 0;
+      // Highest priority: exact full name in query
+      if (fName && q.includes(fName)) score += 200;
+      // High: code appears in query
+      if (fCode && q.includes(fCode)) score += 100;
+      // Medium: query words appear in facility name
+      qWords.forEach(w => { if (w.length > 1 && fName.includes(w)) score += 40; });
+      // Low: facility tokens appear in query (type/subType generic match)
+      txt.split(/\s+/).forEach(token => { if (token.length > 1 && q.includes(token)) score += (token.length > 3 ? 5 : 2); });
+      return { f, score };
+    }).filter(x => x.score > 0).sort((a, b) => b.score - a.score);
+
+    const facMatches = facScored.map(x => x.f);
 
     // 若查詢關鍵字涉及統計摘要
     if (isGeneralFacQuery && facMatches.length === 0) {
@@ -462,8 +477,29 @@ function buildDynamicContext(query) {
       parts.push(`【設施總覽】共${facilities.length}座工程構造物（${typeStr}）。需維護/損壞：${needMaint}座。`);
     }
 
+    // 特定設施命中時，在 context 最前方插入醒目的現況摘要（讓 Groq 優先看到）
+    if (facMatches.length > 0) {
+      const f0 = facMatches[0];
+      const healthVal = typeof fac_health === 'function' ? fac_health(f0) : (f0.healthScore ?? Math.round((f0.condition || 0) * 20));
+      const facInsp = inspections.filter(r => String(r.facilityId || r.facility_id || '') === String(f0.id));
+      const openCnt = facInsp.filter(r => r.status !== '完成').length;
+      const summaryLines = [
+        `【★ 設施現況 ★】資料庫確有此設施記錄，請直接引用以下數值：`,
+        `名稱：${f0.name}　類型：${f0.type || '-'}${f0.subType ? '/' + f0.subType : ''}`,
+        `目前狀態：${f0.status || '未知'}　健康指數：${healthVal}%　未結案件：${openCnt} 件`,
+        f0.derLevel ? `DER&U等級：${f0.derLevel}　風險分數：${f0.riskScore || '-'}` : '',
+        f0.maintenanceStrategy ? `維護策略：${f0.maintenanceStrategy}` : '',
+        f0.judgement_basis ? `異常判斷依據：${String(f0.judgement_basis).slice(0, 150)}` : '',
+        `巡查紀錄：共 ${facInsp.length} 筆　最近巡查日期：${f0.lastInspect || '無記錄'}`,
+        f0.year ? `建造年：${f0.year}　材料：${f0.material || '-'}` : '',
+        f0.stationKm ? `里程：${f0.stationKm}` : '',
+      ].filter(Boolean).join('\n');
+      parts.unshift(summaryLines);
+    }
+
     facMatches.slice(0, 4).forEach(f => {
-      const hp = f.condition ? `健康指數約${Math.round(f.condition*20)}分` : '';
+      const healthVal = typeof fac_health === 'function' ? fac_health(f) : (f.healthScore ?? Math.round((f.condition || 0) * 20));
+      const hp = healthVal !== undefined && healthVal !== null ? `健康指數 ${healthVal}%` : '';
       const deruStr = f.derLevel ? `DER&U等級 ${f.derLevel}` : '';
       const riskStr = f.riskScore ? `風險分數 ${f.riskScore}` : '';
       const noteStr = f.evaluationNotes ? `評估備註：${f.evaluationNotes}` : '';
@@ -1047,16 +1083,26 @@ function composeAnswer(query, data) {
 }
 
 // ── 直接從瀏覽器呼叫 Groq API（免費、快速、不需後端）──────────────
-const AI_SYSTEM = `你是「橫流溪管理平台」的專屬 AI 助理，使用繁體中文回答，擅長工程維護、生態保育與設施管理。
+const AI_SYSTEM = `你是「橫流溪工程設施維護與資料管理作業」的專案資料分析助理，使用繁體中文回答，擅長工程維護、生態保育、設施管理、巡查資料分析。
 
-【核心規則】
-1. 若【橫流溪本機資料】中有相關資訊，必須優先引用並明確說明來源（如「根據資料庫紀錄…」）。
-2. 回答需結合資料庫實際數值（設施狀態、DER&U等級、巡查發現、魚類調查數量等），不得憑空捏造數字。
-3. 若有【網路補充資料】，可作為輔助說明，並標示「（參考維基百科）」。
-4. 若資料庫無相關資料，誠實說明「資料庫無此紀錄」，再補充網路資料或一般專業知識。
-5. 這是連續對話，請理解前後問題的關聯，提供連貫一致的回答；若問題接續上題，可直接延伸說明，不必重複前述內容。
-6. 回答清晰自然、適當分段（可用換行與數字列點），不使用 Markdown 標題符號（#、##）。
-7. 回答長度 150～400 字，簡潔有據。`;
+【資料來源優先順序】
+1. ★最優先★ 若上下文中出現「【★ 設施現況 ★】」開頭的資料，代表資料庫確有該設施的完整最新記錄，必須直接引用其狀態、健康指數、DER&U等級、未結案件數等數值，不得說「沒有直接資料」、「沒有直接提到」或「資料庫無此紀錄」。
+2. 若上下文含有【即時資料庫查詢】或【巡查紀錄】，優先引用其數值，並說明「根據資料庫記錄…」。
+3. 若有【網路補充資料（維基百科）】，作為輔助說明，標示「（參考維基百科）」。
+4. 只有在以上三種資料均無相關內容時，才說明「目前資料不足」，並補充一般專業知識。
+
+【回答格式】遇到工程分析類問題，請依以下結構回答：
+【回答結論】一句話說明核心答案。
+【資料依據】引用資料庫具體數值（狀態、指數、筆數、日期等）。
+【詳細分析】2-4點分析，結合數據與現場知識。
+【建議作法】依急迫性排列的具體改善步驟。
+【不足與風險】資料缺口或需人工確認的事項。
+
+【其他規則】
+- 這是連續對話，請理解前後問題關聯，不必重複前述內容。
+- 回答清晰自然、適當分段，不使用 Markdown 標題符號（#、##）。
+- 回答長度 150～500 字，簡潔有據；純確認類問題可較短。
+- 不得憑空捏造數字，若資料庫數值與一般知識有出入，以資料庫為準。`;
 
 function getAIKey() {
   return localStorage.getItem("GROQ_API_KEY") || "";
