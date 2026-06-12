@@ -1914,7 +1914,7 @@ function renderFishTrend() {
   // ── 歷年調查資料（橫流溪下游樣站，單次調查捕獲尾數） ──────────────────────────
   // 來源：麗陽工作站歷年溪流魚類監測調查記錄表、東勢處魚道評估成果報告
   const SURVEYS = [
-    // label, year, 白甲魚, 石賓, 鬚鱲, 纓口臺鰍, 間爬岩鰍, note
+    // label, year, 白甲魚, 石魚賓, 鬚鱲, 纓口臺鰍, 間爬岩鰍, note
     { label:'106年 Q1\n(3月)',  year:2017, m:3,  bai:25, shi:2,  xu:0,  ying:1,  jian:3,  note:'電捕法，橫流溪(下游)' },
     { label:'106年 Q2\n(6月)',  year:2017, m:6,  bai:22, shi:7,  xu:0,  ying:1,  jian:0,  note:'電捕法，橫流溪(下游)' },
     { label:'106年 Q3\n(9月)',  year:2017, m:9,  bai:26, shi:3,  xu:0,  ying:0,  jian:2,  note:'電捕法，橫流溪(下游)' },
@@ -1958,14 +1958,84 @@ function renderFishTrend() {
 
   const SPECIES = [
     { key:'bai',  name:'臺灣白甲魚', color:'#0ea5e9', engName:'Onychostoma barbatulum',    conserve:'保育類二級' },
-    { key:'shi',  name:'臺灣石賓',   color:'#f97316', engName:'Acrossocheilus formosanus',  conserve:'台灣特有種' },
+    { key:'shi',  name:'臺灣石魚賓', color:'#f97316', engName:'Acrossocheilus paradoxus',   conserve:'台灣特有種' },
     { key:'xu',   name:'臺灣鬚鱲',   color:'#a855f7', engName:'Candidia barbata',           conserve:'台灣特有種' },
-    { key:'ying', name:'纓口臺鰍',   color:'#22c55e', engName:'Crossostoma lacustre',       conserve:'保育類二級' },
+    { key:'ying', name:'纓口臺鰍',   color:'#22c55e', engName:'Formosania lacustre',        conserve:'保育類二級' },
     { key:'jian', name:'臺灣間爬岩鰍',color:'#f43f5e', engName:'Hemimyzon formosanus',      conserve:'保育類二級' },
   ];
 
+  const FULL_FISH_LIST = [
+    '臺灣間爬岩鰍','纓口臺鰍','臺灣白甲魚','臺灣石魚賓',
+    '臺灣鬚鱲','明潭吻鰕虎','短吻紅斑吻鰕虎','短臀瘋鱨'
+  ];
+  const HISTORICAL_EXTRA_SPECIES = ['粗首馬口鱲'];
+  const FISHWAY_TYPES = [
+    {
+      key: 'zigzag', name: '之字形魚道', facilities: '溪構8-2', station: '0K+460',
+      targetKeys: ['bai', 'ying'], color: '#0ea5e9', status: '正常',
+      note: '低落差曲折水路，適合中低流速通行；巡查記錄有臺灣白甲魚及纓口臺鰍通行。',
+      management: '維持入口清淤與低流速連續水路，作為最下游連通性門檻。'
+    },
+    {
+      key: 'drop', name: '降壩魚道', facilities: '溪構7', station: '0K+560',
+      targetKeys: ['bai', 'shi', 'ying'], color: '#f59e0b', status: '正常',
+      note: '利用壩體落差與水躍消能銜接上下游，關聯白甲魚、石魚賓及底棲爬鰍類。',
+      management: '定期確認水深0.1～0.6m與跌水消能，避免局部沖刷形成過高落差。'
+    },
+    {
+      key: 'pool', name: '階段式魚道', facilities: '溪構6、溪構4、溪構2', station: '0K+740、1K+170、1K+315',
+      targetKeys: ['bai', 'ying', 'jian'], color: '#22c55e', status: '多數正常',
+      note: '多級水池消能，適合臺灣白甲魚、纓口臺鰍與臺灣間爬岩鰍分段上溯；溪構4需注意裂縫與基礎侵蝕。',
+      management: '優先維持池間高差、水深與池壁完整性，溪構4列為保全與修繕追蹤點。'
+    },
+    {
+      key: 'submerged', name: '潛越式魚道', facilities: '溪構5-2', station: '1K+000',
+      targetKeys: ['bai', 'shi', 'jian'], color: '#ef4444', status: '堵塞列管',
+      note: '原設計可提供潛越通道，但現況記錄為入口遭土石堵塞，通行功能受損。',
+      management: '應列入緊急清淤與入口斷面復原，否則中游連通性會成為瓶頸。'
+    },
+    {
+      key: 'slope', name: '斜坡式魚道', facilities: '溪構3', station: '1K+225',
+      targetKeys: ['bai', 'ying'], color: '#8b5cf6', status: '正常',
+      note: '斜坡面營造連續水流，報告記錄纓口臺鰍及臺灣白甲魚可通行。',
+      management: '維持坡面粗糙度與水膜連續，避免淤積造成局部乾段或集中高速流。'
+    },
+    {
+      key: 'roughstone', name: '粗石斜曲面式魚道', facilities: '溪構1-1', station: '1K+400',
+      targetKeys: ['bai', 'ying', 'jian'], color: '#14b8a6', status: '正常',
+      note: '粗石提供多樣流速帶，對底棲吸附型與游泳能力不同的魚類較友善。',
+      management: '保留粗石孔隙與緩流避難帶，是上游示範型連通設施。'
+    },
+    {
+      key: 'boat', name: '改良型舟通式魚道', facilities: '溪構1-2', station: '1K+400',
+      targetKeys: ['bai', 'ying'], color: '#6366f1', status: '正常',
+      note: '與粗石斜曲面式魚道併設，形成上游雙通道，已記錄保育魚類成功通行。',
+      management: '持續監測結構磨耗與通水斷面，和溪構1-1共同維持上游連通。'
+    }
+  ];
+  const annualFishwaySeries = annualYears.map(year => {
+    const d = annualData[year];
+    return {
+      year,
+      label: `${Number(year) - 1911}年`,
+      bai: d.bai,
+      shi: d.shi,
+      xu: d.xu,
+      ying: d.ying,
+      jian: d.jian,
+      total: d.bai + d.shi + d.xu + d.ying + d.jian
+    };
+  });
+  const fishwayTargetNames = fw => fw.targetKeys
+    .map(k => SPECIES.find(sp => sp.key === k)?.name || k)
+    .join('、');
+  const fishwayTargetTotals = fw => annualFishwaySeries.map(row =>
+    fw.targetKeys.reduce((sum, key) => sum + (row[key] || 0), 0)
+  );
+  window.hlxFishwayTrendPayload = { fishwayTypes: FISHWAY_TYPES, annualFishwaySeries };
+
   el.innerHTML = `
-  <div style="padding:24px 28px;max-width:1140px;margin:0 auto;font-size:15px">
+  <div style="padding:24px 28px 36px;max-width:none;width:100%;margin:0;box-sizing:border-box;font-size:16px">
 
     <!-- 標題區 -->
     <div style="display:flex;align-items:center;gap:16px;margin-bottom:24px">
@@ -1985,24 +2055,25 @@ function renderFishTrend() {
       <div style="font-size:13px;font-weight:700;color:#7dd3fc;letter-spacing:2px;margin-bottom:10px;text-transform:uppercase">
         ✦ 生態專家綜合評估結論
       </div>
-      <div style="font-size:20px;font-weight:800;line-height:1.6;margin-bottom:20px;color:#fff">
-        橫流溪經多年整治維護與魚道設施完善，魚類族群已呈現<span style="color:#86efac;font-size:23px">顯著復甦</span>趨勢。<br>
-        106年單次平均捕獲 <span style="color:#fde68a;font-size:24px;font-weight:900">28尾</span>，至114年12月已達
-        <span style="color:#86efac;font-size:24px;font-weight:900">146尾</span>，
-        族群生物量<span style="color:#86efac;font-size:22px"> 成長逾4倍</span>，
+      <div style="font-size:18px;font-weight:800;line-height:1.7;margin-bottom:20px;color:#fff">
+        橫流溪經多年整治維護與魚道設施完善，趨勢指標魚類族群已呈現<span style="color:#86efac;font-size:20px;font-weight:900">顯著復甦</span>趨勢。<br>
+        106年單次平均捕獲 <span style="color:#fde68a;font-size:20px;font-weight:900">28.8尾</span>，至114年12月已達
+        <span style="color:#86efac;font-size:20px;font-weight:900">146尾</span>，
+        較106年單次高值31尾提升約<span style="color:#86efac;font-size:20px;font-weight:900">4.7倍</span>，若以106年平均估算約<span style="color:#86efac;font-size:20px;font-weight:900">5.1倍</span>，
         保育成效顯著。
       </div>
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px">
         ${[
-          { num:'5種', sub:'全數台灣特有種', icon:'🐟', color:'#7dd3fc' },
+          { num:'5種', sub:'長期趨勢指標種\n全數臺灣特有種', icon:'🐟', color:'#7dd3fc' },
+          { num:'8種', sub:'109～114樣站表\n完整魚類名錄', icon:'📋', color:'#93c5fd' },
           { num:'×4.7', sub:'族群量成長倍數\n(106→114年)', icon:'📈', color:'#86efac' },
           { num:'3種', sub:'保育類第II級\n(保育旗艦)', icon:'🛡️', color:'#fde68a' },
           { num:'8年', sub:'持續監測掌握\n長期生態變化', icon:'📅', color:'#c4b5fd' },
         ].map(c=>`
           <div style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:12px;padding:16px;text-align:center">
-            <div style="font-size:26px;margin-bottom:4px">${c.icon}</div>
-            <div style="font-size:26px;font-weight:900;color:${c.color};line-height:1">${c.num}</div>
-            <div style="font-size:12px;color:#cbd5e1;margin-top:5px;white-space:pre-line;line-height:1.4">${c.sub}</div>
+            <div style="font-size:22px;margin-bottom:4px">${c.icon}</div>
+            <div style="font-size:24px;font-weight:900;color:${c.color};line-height:1">${c.num}</div>
+            <div style="font-size:13px;color:#cbd5e1;margin-top:5px;white-space:pre-line;line-height:1.45">${c.sub}</div>
           </div>`).join('')}
       </div>
     </div>
@@ -2011,17 +2082,46 @@ function renderFishTrend() {
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;margin-bottom:28px">
       ${[
         { icon:'fa-calendar-alt', color:'#0e7490', label:'調查跨度', val:'106～114年', sub:'(2017～2025)' },
-        { icon:'fa-fish',         color:'#f97316', label:'記錄物種數', val:'5 種', sub:'全數台灣特有種' },
+        { icon:'fa-fish',         color:'#f97316', label:'趨勢指標種', val:'5 種', sub:'長期可比對特有種' },
+        { icon:'fa-list-check',   color:'#0284c7', label:'完整魚類名錄', val:'8 種', sub:'109～114年樣站表' },
         { icon:'fa-chart-line',   color:'#22c55e', label:'最高單次捕獲', val:'146 尾', sub:'(114年12月冬季)' },
         { icon:'fa-shield-alt',   color:'#f43f5e', label:'保育類物種', val:'3 種', sub:'第II類保育類' },
         { icon:'fa-water',        color:'#7c3aed', label:'主要樣站', val:'橫流溪', sub:'(下游 ‧ 上游)' },
       ].map(c=>`
         <div style="background:#fff;border:2px solid #e2e8f0;border-radius:14px;padding:18px 20px;transition:box-shadow .2s" onmouseover="this.style.boxShadow='0 4px 20px rgba(0,0,0,.1)'" onmouseout="this.style.boxShadow=''">
-          <i class="fas ${c.icon}" style="font-size:22px;color:${c.color};margin-bottom:10px;display:block"></i>
+          <i class="fas ${c.icon}" style="font-size:20px;color:${c.color};margin-bottom:10px;display:block"></i>
           <div style="font-size:22px;font-weight:900;color:#0f172a;line-height:1.1">${c.val}</div>
           <div style="font-size:13px;color:#64748b;margin-top:4px">${c.sub}</div>
           <div style="font-size:12px;color:#94a3b8;margin-top:2px">${c.label}</div>
         </div>`).join('')}
+    </div>
+
+    <!-- 資料口徑校正與來源補充 -->
+    <div style="background:#fff;border:2px solid #bfdbfe;border-radius:16px;padding:22px 24px;margin-bottom:24px">
+      <div style="font-size:20px;font-weight:900;color:#0f172a;margin-bottom:8px">
+        <i class="fas fa-circle-info" style="color:#2563eb;margin-right:10px"></i>魚類資料口徑確認與來源補充
+      </div>
+      <div style="font-size:14px;color:#475569;line-height:1.8;margin-bottom:14px">
+        本頁已將「歷年趨勢分析」與「完整魚類名錄」分開呈現：趨勢圖採用具跨年度連續量化資料的5種指標魚類；
+        109～114年樣站彙整表則列出8種魚類。歷史資料庫另保留107～108成果報告中的粗首馬口鱲，因此平台完整歷史名錄可追溯至9種。
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px">
+        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:14px 16px">
+          <div style="font-size:15px;font-weight:900;color:#1d4ed8;margin-bottom:8px">5種長期趨勢指標特有種</div>
+          <div style="font-size:13px;color:#334155;line-height:1.8">${SPECIES.map(s=>`${s.name}（${s.engName}）`).join('、')}</div>
+        </div>
+        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:14px 16px">
+          <div style="font-size:15px;font-weight:900;color:#166534;margin-bottom:8px">109～114年樣站表8種</div>
+          <div style="font-size:13px;color:#334155;line-height:1.8">${FULL_FISH_LIST.join('、')}</div>
+        </div>
+        <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:14px 16px">
+          <div style="font-size:15px;font-weight:900;color:#c2410c;margin-bottom:8px">歷史資料庫補充物種</div>
+          <div style="font-size:13px;color:#334155;line-height:1.8">107～108成果報告另載明：${HISTORICAL_EXTRA_SPECIES.join('、')}。此物種目前列入完整歷史名錄，但未納入5種趨勢指標圖。</div>
+        </div>
+      </div>
+      <div style="font-size:12px;color:#64748b;margin-top:14px;line-height:1.6">
+        本機資料路徑：C:/Users/kenji-PC/Desktop/橫流溪工程設施維護與資料管理作業 - CLaude/魚/魚
+      </div>
     </div>
 
     <!-- 主圖表：族群消長（Chart.js bar） -->
@@ -2045,7 +2145,7 @@ function renderFishTrend() {
       <div style="background:#f8fafc;border-radius:10px;padding:14px 18px;margin-top:16px;font-size:14px;color:#334155;line-height:1.7;border-left:4px solid #0e7490">
         <strong>📊 圖表解讀：</strong>
         堆疊色塊越高代表當次捕獲量越多。106年（2017）每次調查約23～31尾，以臺灣白甲魚為絕對優勢；進入112～114年後捕獲量大幅提升，
-        且臺灣鬚鱲、石賓等物種比例增加，<strong>物種組成趨於多樣化</strong>，顯示棲地環境品質持續改善。
+        且臺灣鬚鱲、臺灣石魚賓等物種比例增加，<strong>物種組成趨於多樣化</strong>，顯示棲地環境品質持續改善。
       </div>
     </div>
 
@@ -2098,7 +2198,7 @@ function renderFishTrend() {
         <div style="font-size:18px;font-weight:900;color:#0f172a;margin-bottom:6px">
           <i class="fas fa-chart-pie" style="color:#0e7490;margin-right:10px"></i>114年物種組成比例
         </div>
-        <div style="font-size:13px;color:#64748b;margin-bottom:16px">最新年度 ‧ 5種台灣特有種魚類捕獲比例分布</div>
+        <div style="font-size:13px;color:#64748b;margin-bottom:16px">最新年度 ‧ 5種長期趨勢指標特有魚類捕獲比例分布</div>
         <div style="position:relative;height:190px">
           <canvas id="fishPieChart"></canvas>
         </div>
@@ -2107,8 +2207,91 @@ function renderFishTrend() {
             <span style="width:10px;height:10px;border-radius:50%;background:${s.color};flex-shrink:0;display:inline-block"></span>${s.name}</span>`).join('')}
         </div>
         <div style="background:#f0fdf4;border-radius:8px;padding:10px 14px;margin-top:10px;font-size:13px;color:#166534;line-height:1.6">
-          臺灣白甲魚占比約<strong>55%</strong>，石賓與鬚鱲各約<strong>10～15%</strong>，物種組成趨於均衡。
+          臺灣白甲魚占比約<strong>55%</strong>，臺灣石魚賓與臺灣鬚鱲各約<strong>10～15%</strong>，物種組成趨於均衡。
         </div>
+      </div>
+    </div>
+
+    <!-- 各魚道型式關聯魚類歷年趨勢 -->
+    <div style="background:#fff;border:2px solid #dbeafe;border-radius:18px;padding:24px;margin-bottom:28px">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:20px;flex-wrap:wrap;margin-bottom:24px">
+        <div>
+          <div style="font-size:22px;font-weight:900;color:#0f172a;line-height:1.3">
+            <i class="fas fa-water" style="color:#2563eb;margin-right:12px"></i>各種魚道關聯魚類歷年趨勢圖
+          </div>
+          <div style="font-size:15px;color:#64748b;margin-top:8px;line-height:1.75">
+            依魚道型式、所在里程與報告記錄之通行／棲地關聯物種分組，呈現106～114年指標魚種年度捕獲尾數變化。
+          </div>
+        </div>
+        <div style="background:#eff6ff;border:2px solid #bfdbfe;border-radius:14px;padding:14px 18px;font-size:15px;color:#1d4ed8;font-weight:900;line-height:1.55">
+          7 種魚道型式<br>9 座魚道設施
+        </div>
+      </div>
+
+      <div style="background:#f8fafc;border-left:4px solid #2563eb;border-radius:14px;padding:16px 20px;margin-bottom:24px;font-size:14px;color:#334155;line-height:1.85">
+        <strong>判讀限制：</strong>本圖為「魚道型式關聯指標魚種」趨勢，數值來自歷年魚類調查中該型式主要關聯魚種的年度捕獲尾數加總；
+        並非每座魚道逐年直接過魚量。若後續設置魚道攝影或 PIT tag 監測，可再升級為逐座魚道通行量時間序列。
+      </div>
+
+      <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(420px,.85fr);gap:20px;margin-bottom:28px;align-items:start">
+        <div style="border:2px solid #e2e8f0;border-radius:18px;padding:20px">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:12px">
+            <div>
+              <div style="font-size:18px;font-weight:900;color:#0f172a;margin-bottom:8px">魚道型式關聯指標總量比較</div>
+              <div style="font-size:14px;color:#64748b;line-height:1.7">折線越高，代表該型式關聯魚種於該年度調查捕獲尾數越高。</div>
+            </div>
+            <button type="button" onclick="openFishwayTrendModal('all')" style="border:1.5px solid #93c5fd;background:#eff6ff;color:#1d4ed8;border-radius:10px;padding:9px 14px;font-size:14px;font-weight:900;cursor:pointer">
+              <i class="fas fa-up-right-and-down-left-from-center"></i> 放大圖表
+            </button>
+          </div>
+          <div onclick="openFishwayTrendModal('all')" title="點選放大圖表" style="position:relative;height:400px;cursor:zoom-in">
+            <canvas id="fishwayTypeTrend"></canvas>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-content:start">
+          ${FISHWAY_TYPES.map(fw => {
+            const totals = fishwayTargetTotals(fw);
+            const latest = totals[totals.length - 1] || 0;
+            const first = totals[0] || 0;
+            const delta = latest - first;
+            return `
+              <div style="border:2px solid ${fw.color}55;border-radius:14px;padding:12px 14px;background:${fw.color}0d;min-height:132px">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px">
+                  <div style="font-size:15px;font-weight:900;color:#0f172a;line-height:1.25">${fw.name}</div>
+                  <span style="font-size:12px;border-radius:999px;padding:3px 9px;background:#fff;color:${fw.color};border:1.5px solid ${fw.color}66;font-weight:900;white-space:nowrap">${fw.status}</span>
+                </div>
+                <div style="font-size:12px;color:#64748b;line-height:1.5">${fw.facilities}｜${fw.station}</div>
+                <div style="font-size:12px;color:#334155;margin-top:6px;line-height:1.55">關聯物種：${fishwayTargetNames(fw)}</div>
+                <div style="display:flex;align-items:baseline;gap:8px;margin-top:8px;flex-wrap:wrap">
+                  <span style="font-size:22px;font-weight:900;color:${fw.color};line-height:1">${latest}</span>
+                  <span style="font-size:12px;color:#64748b">114年關聯尾數</span>
+                  <span style="font-size:12px;color:${delta>=0?'#15803d':'#b91c1c'};font-weight:900">${delta>=0?'+':''}${delta} 較106年</span>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:18px">
+        ${FISHWAY_TYPES.map(fw => `
+          <div style="border:2px solid #e2e8f0;border-radius:18px;padding:18px;background:#fff">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px">
+              <div>
+                <div style="font-size:17px;font-weight:900;color:#0f172a;line-height:1.35">${fw.name}</div>
+                <div style="font-size:13px;color:#64748b;margin-top:5px;line-height:1.5">${fw.facilities}｜${fw.station}</div>
+              </div>
+              <button type="button" onclick="openFishwayTrendModal('${fw.key}')" title="放大${fw.name}趨勢圖" style="border:1.5px solid ${fw.color}66;background:${fw.color}14;color:${fw.color};border-radius:10px;padding:7px 10px;font-size:14px;font-weight:900;cursor:pointer;flex-shrink:0">
+                <i class="fas fa-up-right-and-down-left-from-center"></i>
+              </button>
+            </div>
+            <div onclick="openFishwayTrendModal('${fw.key}')" title="點選放大圖表" style="position:relative;height:220px;cursor:zoom-in">
+              <canvas id="fishwayTrend_${fw.key}"></canvas>
+            </div>
+            <div style="font-size:14px;color:#475569;line-height:1.75;margin-top:14px">${fw.note}</div>
+            <div style="font-size:14px;color:#166534;line-height:1.75;margin-top:10px;background:#f0fdf4;border-radius:12px;padding:12px 14px">${fw.management}</div>
+          </div>
+        `).join('')}
       </div>
     </div>
 
@@ -2120,13 +2303,13 @@ function renderFishTrend() {
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
         ${[
           { icon:'fa-arrow-trend-up', title:'✅ 族群量顯著增加，棲地恢復成效卓著', color:'#22c55e', bg:'#f0fdf4', bd:'#bbf7d0',
-            body:'106年（2017年）橫流溪每次調查捕獲僅23～31尾（4種），至113～114年躍升為59～146尾（4～5種）。特別是臺灣白甲魚在114年12月達105尾，為近8年最高紀錄。這一族群生物量超過4倍的增幅，充分驗證橫流溪整治工程與棲地維護措施的長期正向效益。',
+            body:'106年（2017年）橫流溪5種趨勢指標魚類每次調查捕獲僅23～31尾，平均28.8尾；至113～114年躍升為59～146尾。特別是臺灣白甲魚在114年12月達105尾，為近8年最高紀錄。以106年單次高值31尾比較，族群量約增加4.7倍；以106年平均值比較則約5.1倍，顯示橫流溪整治工程與棲地維護措施具長期正向效益。',
             badge:'族群量 ×4.7' },
           { icon:'fa-route', title:'✅ 魚道通行功能正常，洄游物種成功上溯', color:'#f59e0b', bg:'#fffbeb', bd:'#fde68a',
             body:'臺灣間爬岩鰍為典型溪內洄游保育物種（第II類）。110年4月首次大量捕獲（32尾），114年12月再現（13尾），搭配雪山坑溪同期高捕獲（91尾），印證魚道設施發揮阻隔改善功效，洄游魚類已能成功上溯至中上游繁殖棲地，魚道工程價值獲實際調查數據驗證。',
             badge:'魚道效益確認' },
           { icon:'fa-layer-group', title:'✅ 物種組成趨多元，生態健全度提升', color:'#3b82f6', bg:'#eff6ff', bd:'#bfdbfe',
-            body:'106年魚相由臺灣白甲魚高度主導（占比89%），至112～114年臺灣鬚鱲（春季占比達25%）及石賓族群同步擴增，物種多樣性指數H′由0.3～0.5提升至1.0以上（高多樣性），顯示棲地空間異質性改善，魚類群聚結構從單一優勢走向健全多元生態系。',
+            body:'106年魚相由臺灣白甲魚高度主導（占比約74～100%，依季節波動），至112～114年臺灣鬚鱲及臺灣石魚賓族群同步擴增，物種多樣性指數H′由0～0.7提升至多次達1.0以上，顯示棲地空間異質性改善，魚類群聚結構從單一優勢走向較健全的多元生態系。',
             badge:'H′ 多樣性上升' },
           { icon:'fa-droplet', title:'✅ 水質長期優良，支撐保育類物種生存', color:'#7c3aed', bg:'#faf5ff', bd:'#ddd6fe',
             body:'歷次調查pH值維持在7.87～8.03之間（弱鹼性優良水質），水溫夏季22.5～24.9°C、冬季11～11.4°C，均處於臺灣原生魚類最適生存範圍。電導度265～363μS/m亦顯示無污染。穩定優良的水質條件，為3種保育類特有魚類長期定居與繁殖提供了堅實的環境基礎。',
@@ -2156,7 +2339,7 @@ function renderFishTrend() {
             <tr style="background:linear-gradient(135deg,#0e7490,#0369a1);color:#fff">
               <th style="padding:13px 14px;text-align:left;font-weight:700;border-radius:8px 0 0 0;font-size:15px">調查時間</th>
               <th style="padding:13px 14px;text-align:center;font-size:15px">臺灣白甲魚</th>
-              <th style="padding:13px 14px;text-align:center;font-size:15px">臺灣石賓</th>
+              <th style="padding:13px 14px;text-align:center;font-size:15px">臺灣石魚賓</th>
               <th style="padding:13px 14px;text-align:center;font-size:15px">臺灣鬚鱲</th>
               <th style="padding:13px 14px;text-align:center;font-size:15px">纓口臺鰍</th>
               <th style="padding:13px 14px;text-align:center;font-size:15px">臺灣間爬岩鰍</th>
@@ -2197,16 +2380,16 @@ function renderFishTrend() {
       <div style="font-size:20px;font-weight:900;color:#0f172a;margin-bottom:6px">
         <i class="fas fa-info-circle" style="color:#0369a1;margin-right:10px"></i>橫流溪記錄魚種生態特性一覽
       </div>
-      <div style="font-size:14px;color:#64748b;margin-bottom:18px">5種台灣特有種 ‧ 含3種保育類第II級物種</div>
+      <div style="font-size:14px;color:#64748b;margin-bottom:18px">5種長期趨勢指標特有種 ‧ 含3種保育類第II級物種；完整樣站表另列8種魚類</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px">
         ${[
           { sp:'臺灣白甲魚', eng:'Onychostoma barbatulum', fam:'鯉科', status:'🔴 保育類第II類 ‧ 台灣特有種', icon:'🐟',
             desc:'橫流溪第一優勢種，長期占總捕獲量50～85%。初級性淡水魚，喜愛水質潔淨、水流湍急之中上游河段。游泳能力強，可通過魚道進行溪內洄游，為本區生態健康評估最重要的旗艦指標物種。', color:'#0ea5e9', bg:'#f0f9ff' },
-          { sp:'臺灣石賓', eng:'Acrossocheilus formosanus', fam:'鯉科', status:'🟡 台灣特有種', icon:'🐠',
-            desc:'橫流溪第二優勢種，棲息於水流湍急或清澈深水潭，喜好大型礫石或岩石底質環境。106年占比偏高（可達20%），後隨鬚鱲族群擴增而趨於平衡，目前仍維持穩定族群。', color:'#f97316', bg:'#fff7ed' },
+          { sp:'臺灣石魚賓', eng:'Acrossocheilus paradoxus', fam:'鯉科', status:'🟡 台灣特有種', icon:'🐠',
+            desc:'橫流溪第二優勢種，棲息於水流湍急或清澈深水潭，喜好大型礫石或岩石底質環境。106年部分季節占比偏高，後隨臺灣鬚鱲族群擴增而趨於平衡，目前仍維持穩定族群。', color:'#f97316', bg:'#fff7ed' },
           { sp:'臺灣鬚鱲', eng:'Candidia barbata', fam:'鯉科', status:'🟡 台灣特有種', icon:'🦈',
             desc:'109年後在橫流溪大量出現，112～113年春季占比可達25%以上，顯示上游棲地環境持續改善。初級淡水魚，棲息於河川中上游開闊河段，族群擴增與魚道設置後基因交流加強有關。', color:'#a855f7', bg:'#faf5ff' },
-          { sp:'纓口臺鰍', eng:'Crossostoma lacustre', fam:'爬鰍科', status:'🔴 保育類第II類 ‧ 台灣特有種', icon:'🦎',
+          { sp:'纓口臺鰍', eng:'Formosania lacustre', fam:'爬鰍科', status:'🔴 保育類第II類 ‧ 台灣特有種', icon:'🦎',
             desc:'初級淡水魚，喜好清澈水流及礫石底質。歷次調查均有穩定出現，說明橫流溪礫石底質棲地保持良好，為附著性底棲保育魚類提供優質微棲地。', color:'#22c55e', bg:'#f0fdf4' },
           { sp:'臺灣間爬岩鰍', eng:'Hemimyzon formosanus', fam:'爬鰍科', status:'🔴 保育類第II類 ‧ 台灣特有種', icon:'🦊',
             desc:'溪內洄游旗艦物種，其出現與否直接反映魚道通行效益。110年4月大量上溯（32尾），114年12月再現（13尾），搭配雪山坑溪91尾紀錄，確認魚道發揮連結上下游族群之關鍵功能。', color:'#f43f5e', bg:'#fff1f2' },
@@ -2386,7 +2569,225 @@ function renderFishTrend() {
         }
       });
     }
+
+    // 5. 各種魚道型式關聯魚類趨勢圖
+    const fishwayLabels = annualFishwaySeries.map(row => row.label);
+    const ctxFishwayType = document.getElementById('fishwayTypeTrend');
+    if (ctxFishwayType) {
+      new Chart(ctxFishwayType, {
+        type: 'line',
+        data: {
+          labels: fishwayLabels,
+          datasets: FISHWAY_TYPES.map(fw => ({
+            label: fw.name,
+            data: fishwayTargetTotals(fw),
+            borderColor: fw.color,
+            backgroundColor: fw.color + '22',
+            borderWidth: fw.key === 'submerged' ? 4 : 3,
+            borderDash: fw.key === 'submerged' ? [6, 4] : [],
+            pointRadius: 5,
+            pointHoverRadius: 8,
+            pointBackgroundColor: fw.color,
+            tension: 0.32,
+            fill: false
+          }))
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { position: 'bottom', labels: { boxWidth: 14, padding: 14, font: { size: 13, weight: '700' } } },
+            tooltip: {
+              titleFont: { size: 14, weight: '700' },
+              bodyFont: { size: 14 },
+              padding: 12,
+              callbacks: {
+                afterLabel(ctx) {
+                  const fw = FISHWAY_TYPES[ctx.datasetIndex];
+                  return `關聯物種：${fishwayTargetNames(fw)}`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: { ticks: { font: { size: 13, weight: '700' } } },
+            y: {
+              beginAtZero: true,
+              ticks: { font: { size: 13, weight: '700' } },
+              title: { display: true, text: '關聯指標魚種年度捕獲尾數', font: { size: 14, weight: '700' } }
+            }
+          }
+        }
+      });
+    }
+
+    FISHWAY_TYPES.forEach(fw => {
+      const ctx = document.getElementById(`fishwayTrend_${fw.key}`);
+      if (!ctx) return;
+      const totals = fishwayTargetTotals(fw);
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: fishwayLabels,
+          datasets: [{
+            label: '關聯指標尾數',
+            data: totals,
+            backgroundColor: totals.map((v, i) => i === totals.length - 1 ? fw.color + 'dd' : fw.color + '66'),
+            borderColor: fw.color,
+            borderWidth: 2,
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              titleFont: { size: 13, weight: '700' },
+              bodyFont: { size: 13 },
+              padding: 12,
+              callbacks: {
+                afterBody() { return [`關聯物種：${fishwayTargetNames(fw)}`]; }
+              }
+            }
+          },
+          scales: {
+            x: { ticks: { font: { size: 12, weight: '700' }, maxRotation: 0 } },
+            y: { beginAtZero: true, ticks: { font: { size: 12, weight: '700' } } }
+          }
+        }
+      });
+    });
   }, 100);
+}
+
+function openFishwayTrendModal(key = 'all') {
+  const payload = window.hlxFishwayTrendPayload;
+  if (!payload || !Array.isArray(payload.fishwayTypes) || !Array.isArray(payload.annualFishwaySeries)) return;
+
+  const fishwayTypes = payload.fishwayTypes;
+  const series = payload.annualFishwaySeries;
+  const speciesNames = {
+    bai: '臺灣白甲魚',
+    shi: '臺灣石魚賓',
+    xu: '臺灣鬚鱲',
+    ying: '纓口臺鰍',
+    jian: '臺灣間爬岩鰍'
+  };
+  const targetNames = fw => fw.targetKeys.map(k => speciesNames[k] || k).join('、');
+  const targetTotals = fw => series.map(row => fw.targetKeys.reduce((sum, k) => sum + (row[k] || 0), 0));
+  const labels = series.map(row => row.label);
+  const fw = key === 'all' ? null : fishwayTypes.find(item => item.key === key);
+  const title = fw ? `${fw.name}魚類歷年趨勢放大圖` : '各種魚道關聯魚類歷年趨勢放大圖';
+
+  document.getElementById('modalTitle').innerHTML = `<span style="font-size:24px;font-weight:900;color:#0f172a">${title}</span>`;
+  document.getElementById('modalBody').innerHTML = `
+    <div style="font-size:16px;color:#475569;line-height:1.75;margin-bottom:16px">
+      ${fw
+        ? `${fw.facilities}｜${fw.station}｜關聯物種：${targetNames(fw)}`
+        : '依魚道型式分組，呈現106～114年關聯指標魚種年度捕獲尾數。'}
+    </div>
+    <div style="background:#f8fafc;border-left:5px solid ${fw ? fw.color : '#2563eb'};border-radius:12px;padding:14px 18px;margin-bottom:18px;font-size:15px;color:#334155;line-height:1.75">
+      本圖為魚道型式與魚類調查資料的關聯趨勢判讀，適合比較不同魚道型態周邊指標魚種變化；非逐座魚道直接過魚量。
+    </div>
+    <div style="height:68vh;min-height:480px;border:1.5px solid #e2e8f0;border-radius:16px;padding:18px;background:#fff">
+      <canvas id="fishwayTrendModalChart"></canvas>
+    </div>
+  `;
+  document.getElementById('modalFooter').innerHTML = `
+    <button class="btn btn-outline" onclick="closeModal()" style="font-size:15px;padding:10px 20px">關閉</button>
+  `;
+  const modal = document.getElementById('modal');
+  if (modal) {
+    modal.style.maxWidth = '96vw';
+    modal.style.width = '96vw';
+    modal.style.maxHeight = '94vh';
+  }
+  openModal();
+
+  setTimeout(() => {
+    const ctx = document.getElementById('fishwayTrendModalChart');
+    if (!ctx || typeof Chart === 'undefined') return;
+    if (fw) {
+      const totals = targetTotals(fw);
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label: `${fw.name}關聯指標尾數`,
+            data: totals,
+            backgroundColor: totals.map((v, i) => i === totals.length - 1 ? fw.color + 'dd' : fw.color + '66'),
+            borderColor: fw.color,
+            borderWidth: 3,
+            borderRadius: 8
+          }]
+        },
+        options: fishwayLargeChartOptions(`關聯物種：${targetNames(fw)}`, 'bar')
+      });
+      return;
+    }
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: fishwayTypes.map(item => ({
+          label: item.name,
+          data: targetTotals(item),
+          borderColor: item.color,
+          backgroundColor: item.color + '22',
+          borderWidth: item.key === 'submerged' ? 4 : 3,
+          borderDash: item.key === 'submerged' ? [8, 5] : [],
+          pointRadius: 6,
+          pointHoverRadius: 9,
+          pointBackgroundColor: item.color,
+          tension: 0.32,
+          fill: false
+        }))
+      },
+      options: fishwayLargeChartOptions('', 'line', fishwayTypes, targetNames)
+    });
+  }, 80);
+}
+
+function fishwayLargeChartOptions(extraLabel = '', type = 'line', fishwayTypes = [], targetNames = null) {
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: {
+        display: type === 'line',
+        position: 'bottom',
+        labels: { boxWidth: 16, padding: 16, font: { size: 16, weight: '700' } }
+      },
+      tooltip: {
+        titleFont: { size: 16, weight: '700' },
+        bodyFont: { size: 15 },
+        footerFont: { size: 14 },
+        padding: 14,
+        callbacks: {
+          afterLabel(ctx) {
+            if (type === 'line' && targetNames) {
+              const fw = fishwayTypes[ctx.datasetIndex];
+              return `關聯物種：${targetNames(fw)}`;
+            }
+            return extraLabel || '';
+          }
+        }
+      }
+    },
+    scales: {
+      x: { ticks: { font: { size: 16, weight: '700' } } },
+      y: {
+        beginAtZero: true,
+        ticks: { font: { size: 16, weight: '700' } },
+        title: { display: true, text: '關聯指標魚種年度捕獲尾數', font: { size: 16, weight: '700' } }
+      }
+    }
+  };
 }
 
 function renderFishBioMap() {
@@ -2626,7 +3027,7 @@ function renderFishBioMap() {
           <!-- 統計橫幅 -->
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:18px">
             ${[
-              ['fa-fish','#0e7490','#cffafe','魚類總計','1,522 尾','8 種・6 樣站'],
+              ['fa-fish','#0e7490','#cffafe','魚類總計','1,523 尾','8 種・6 樣站'],
               ['fa-shrimp','#b45309','#fef3c7','蝦蟹總計','372 尾','2 種・6 樣站'],
               ['fa-shield-halved','#dc2626','#fee2e2','外來入侵種','0 種','目前並無調查到'],
               ['fa-plus-circle','#166534','#dcfce7','新增物種','短臀瘋鱨','新增記錄魚種']
@@ -2664,8 +3065,8 @@ function renderFishBioMap() {
                   ['鯉科','臺灣白甲魚',48,94,73,91,36,68,410],
                   ['','臺灣石魚賓',46,51,79,63,10,39,288],
                   ['','臺灣鬚鱲',37,34,29,50,52,81,283],
-                  ['蝦虎科','明潭吻蝦虎',84,58,51,57,37,30,317],
-                  ['','短吻紅斑吻蝦虎',2,4,2,3,2,1,14],
+                  ['鰕虎科','明潭吻鰕虎',84,58,51,57,37,30,317],
+                  ['','短吻紅斑吻鰕虎',2,4,2,3,2,1,14],
                   ['鱨科','短臀瘋鱨',1,1,'','',1,1,4]
                 ].map((r,i) => `
                   <tr style="${i%2===0?'background:#f0fdfa':'background:#fff'}">
@@ -2677,8 +3078,8 @@ function renderFishBioMap() {
                 `).join('')}
                 <tr style="background:#e0f7fa;font-weight:800">
                   <td colspan="2" style="padding:8px 10px;border:1px solid #b2ebf2;color:#0e7490">總計</td>
-                  ${[278,269,246,286,142,301].map(v=>`<td style="padding:8px 10px;border:1px solid #b2ebf2;text-align:center;color:#0e7490">${v}</td>`).join('')}
-                  <td style="padding:8px 10px;border:1px solid #b2ebf2;text-align:center;color:#0284c7;font-size:16px">1,522</td>
+                  ${[278,270,246,286,142,301].map(v=>`<td style="padding:8px 10px;border:1px solid #b2ebf2;text-align:center;color:#0e7490">${v}</td>`).join('')}
+                  <td style="padding:8px 10px;border:1px solid #b2ebf2;text-align:center;color:#0284c7;font-size:16px">1,523</td>
                 </tr>
               </tbody>
             </table>

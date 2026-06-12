@@ -36,6 +36,12 @@ while ($true) {
     $listener = New-Object System.Net.HttpListener
     $listener.Prefixes.Add("http://localhost:$Port/")
     $listener.Prefixes.Add("http://127.0.0.1:$Port/")
+    # Timeout guard: HTTP.SYS aborts stalled clients so the single-threaded loop never blocks forever
+    try {
+      $listener.TimeoutManager.MinSendBytesPerSecond = 1000
+      $listener.TimeoutManager.DrainEntityBody = [TimeSpan]::FromSeconds(10)
+      $listener.TimeoutManager.IdleConnection  = [TimeSpan]::FromSeconds(30)
+    } catch {}
     $listener.Start()
     $crashCount = 0
 
@@ -43,13 +49,17 @@ while ($true) {
     Write-Host "      Root: $root" -ForegroundColor Gray
     Write-Host "      Press Ctrl+C to stop." -ForegroundColor DarkGray
 
+    # IMPORTANT: keep exactly ONE pending BeginGetContext at all times.
+    # The old pattern re-issued BeginGetContext on every 1s timeout, leaking orphan
+    # waiters; incoming requests completed an orphan and were never handled.
+    $async = $listener.BeginGetContext($null, $null)
     while ($listener.IsListening) {
-      $async = $listener.BeginGetContext($null, $null)
       if (-not $async.AsyncWaitHandle.WaitOne(1000)) { continue }
 
       $ctx = $null
       try { $ctx = $listener.EndGetContext($async) }
-      catch { continue }
+      catch { $async = $listener.BeginGetContext($null, $null); continue }
+      $async = $listener.BeginGetContext($null, $null)
 
       $req = $ctx.Request
       $res = $ctx.Response
@@ -79,6 +89,8 @@ while ($true) {
         }
 
         $decoded = [System.Uri]::UnescapeDataString($path.TrimStart('/'))
+        # Match Flask's /media/<path> route: files are served from project root
+        if ($decoded.StartsWith('media/')) { $decoded = $decoded.Substring(6) }
         $filePath = Join-Path $root $decoded
 
         if (Test-Path $filePath -PathType Leaf) {
@@ -115,6 +127,7 @@ while ($true) {
   } catch {
     $crashCount++
     Write-Host "$(ts) [ERR] Listener error #$crashCount : $_" -ForegroundColor Red
+    Write-Host "      at line $($_.InvocationInfo.ScriptLineNumber): $($_.InvocationInfo.Line.Trim())" -ForegroundColor Red
     if ($_.Exception.Message -match 'Access is denied') {
       Write-Host "      Port $Port may be in use. Retrying in 10s..." -ForegroundColor Red
       Start-Sleep -Seconds 10

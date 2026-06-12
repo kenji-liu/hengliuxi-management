@@ -43,6 +43,11 @@ input, select, textarea, button { font-family: inherit; }
   transition: width 0.3s ease; overflow: hidden;
 }
 .sidebar.collapsed { width: var(--sidebar-collapsed); }
+.sidebar.collapsed .logo { display: none; }
+.sidebar.collapsed .sidebar-header { justify-content: center; padding: 16px 8px; }
+.sidebar.collapsed .nav-item a span { display: none; }
+.sidebar.collapsed .nav-item a { justify-content: center; padding: 12px 0; gap: 0; }
+.sidebar.collapsed .sidebar-footer { display: none; }
 .sidebar-header {
   display: flex; align-items: center; justify-content: space-between;
   padding: 16px; height: var(--topbar-height); border-bottom: 1px solid rgba(255,255,255,0.1);

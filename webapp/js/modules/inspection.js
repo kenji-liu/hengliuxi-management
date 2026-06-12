@@ -53,6 +53,24 @@ const MAINTENANCE_MANUAL_BOOKS = [
   }
 ];
 
+/* ── 橫流溪林業巡護管理（南勢社區林業計畫）文件清單 ── */
+const FORESTRY_PATROL_BASE = '非橫流溪資料/03_行政簡報與雜項/橫流溪林業巡護管理/';
+const FORESTRY_PATROL_DOCS = [
+  { year: '114', type: '計畫核定本', file: '南勢-114年社區林業計畫核定本.pdf' },
+  { year: '114', type: '結案計畫報表', file: '南勢-114年結案計畫報表.pdf' },
+  { year: '113', type: '計畫核定本', file: '南勢-113年社區林業計畫核定本.pdf' },
+  { year: '113', type: '結案計畫報表', file: '南勢-113年結案計畫報表.pdf' },
+  { year: '113', type: '成果報告', file: '南勢-113年社區林業成果報告.pdf' },
+  { year: '112', type: '計畫核定本', file: '南勢-112年社區林業計畫核定本.pdf' },
+  { year: '112', type: '結案計畫報表', file: '南勢-112年結案計畫報表.pdf' },
+  { year: '111', type: '計畫核定本', file: '南勢-111年社區林業計畫核定本.pdf' },
+  { year: '111', type: '結案計畫報表', file: '南勢-111年結案計畫報表.pdf' },
+  { year: '110', type: '計畫核定本', file: '南勢-110年社區林業計畫核定本.pdf' },
+  { year: '110', type: '結案計畫報表', file: '南勢-110年結案計畫報表.pdf' },
+  { year: '106', type: '計畫核定本', file: '1.106南勢社區林業計畫V2.pdf' },
+  { year: '106', type: '成果報告', file: '南勢-成果報告1061222第5版.pdf' }
+];
+
 function inspectionEscape(value) {
   return String(value ?? '').replace(/[&<>"']/g, ch => ({
     '&': '&amp;',
@@ -1837,8 +1855,111 @@ function openMaintenancePhotoViewer(photos, index = 0) {
 function renderInspection() {
   document.getElementById('contentArea').innerHTML = `
     ${renderMaintenancePhotoArchiveSection()}
+    ${renderForestryPatrolSection()}
   `;
   loadMaintenancePhotoArchive();
+}
+
+/* ── 橫流溪林業巡護管理 ────────────────────────────────────────── */
+
+let _forestryDocIdx = 0;
+
+function forestryDocHrefOf(d) {
+  return inspectionDocHref(FORESTRY_PATROL_BASE + d.file);
+}
+
+const FORESTRY_TYPE_STYLE = {
+  '計畫核定本':  { color: '#0f766e', icon: 'fa-file-signature' },
+  '結案計畫報表': { color: '#1565c0', icon: 'fa-file-invoice' },
+  '成果報告':    { color: '#c2410c', icon: 'fa-flag-checkered' }
+};
+
+function renderForestryPatrolSection() {
+  const years = [...new Set(FORESTRY_PATROL_DOCS.map(d => d.year))];
+  const current = FORESTRY_PATROL_DOCS[_forestryDocIdx] || FORESTRY_PATROL_DOCS[0];
+  const currentHref = forestryDocHrefOf(current);
+
+  const yearBlocks = years.map(year => {
+    const docs = FORESTRY_PATROL_DOCS
+      .map((d, i) => ({ ...d, idx: i }))
+      .filter(d => d.year === year);
+    return `
+      <div style="border:1px solid #e2e8f0;border-radius:10px;overflow:hidden">
+        <div style="background:#f0fdf4;border-bottom:1px solid #dcfce7;padding:10px 14px;display:flex;align-items:center;gap:10px">
+          <i class="fas fa-tree" style="color:#16a34a;font-size:20px"></i>
+          <b style="font-size:20px;color:#14532d">${year} 年度</b>
+          <span style="font-size:15px;color:#64748b">${docs.length} 份</span>
+        </div>
+        <div style="padding:6px;display:grid;gap:4px">
+          ${docs.map(d => {
+            const st = FORESTRY_TYPE_STYLE[d.type] || { color: '#475569', icon: 'fa-file-pdf' };
+            const active = d.idx === _forestryDocIdx;
+            return `
+              <div class="forestry-doc-item" data-fidx="${d.idx}" onclick="forestrySelectDoc(${d.idx})"
+                   style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;cursor:pointer;
+                          background:${active ? '#ecfdf5' : 'transparent'};border:1px solid ${active ? '#6ee7b7' : 'transparent'}"
+                   onmouseover="if(!this.dataset.active)this.style.background='#f8fafc'"
+                   onmouseout="if(!this.dataset.active)this.style.background=this.dataset.fidx==window._forestryActiveIdx?'#ecfdf5':'transparent'"
+                   ${active ? 'data-active="1"' : ''}>
+                <span style="background:${st.color}18;color:${st.color};border:1px solid ${st.color}44;border-radius:999px;padding:4px 12px;font-size:15px;font-weight:700;white-space:nowrap"><i class="fas ${st.icon}" style="margin-right:5px"></i>${d.type}</span>
+                <span style="flex:1;font-size:18px;font-weight:600;color:#0f172a;line-height:1.45">${inspectionEscape(d.file.replace(/\.pdf$/i, ''))}</span>
+                <i class="fas fa-chevron-right" style="font-size:14px;color:#94a3b8"></i>
+              </div>`;
+          }).join('')}
+        </div>
+      </div>`;
+  }).join('');
+
+  return `
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-header" style="flex-wrap:wrap;gap:8px">
+        <span class="card-title" style="font-size:23px"><i class="fas fa-shield-halved"></i> 橫流溪林業巡護管理</span>
+        <span style="font-size:16px;color:#64748b">南勢社區林業計畫（106、110～114 年）：點選左側文件，右側直接預覽 PDF 內容</span>
+      </div>
+      <div class="card-body" style="padding:16px">
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;margin-bottom:16px">
+          ${inspectionManualMetric('巡護文件', FORESTRY_PATROL_DOCS.length, '份PDF', 'folder-open', '#16a34a', true)}
+          ${inspectionManualMetric('計畫核定本', FORESTRY_PATROL_DOCS.filter(d => d.type === '計畫核定本').length, '份', 'file-signature', '#0f766e', true)}
+          ${inspectionManualMetric('結案計畫報表', FORESTRY_PATROL_DOCS.filter(d => d.type === '結案計畫報表').length, '份', 'file-invoice', '#1565c0', true)}
+          ${inspectionManualMetric('成果報告', FORESTRY_PATROL_DOCS.filter(d => d.type === '成果報告').length, '份', 'flag-checkered', '#c2410c', true)}
+        </div>
+        <div style="display:grid;grid-template-columns:minmax(380px,480px) 1fr;gap:14px;align-items:start">
+          <!-- 左：文件清單 -->
+          <div style="display:grid;gap:10px;max-height:680px;overflow-y:auto;padding-right:4px">
+            ${yearBlocks}
+          </div>
+          <!-- 右：常駐 PDF 預覽 -->
+          <div style="border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;position:sticky;top:12px">
+            <div style="background:#f8fafc;border-bottom:1px solid #e2e8f0;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+              <b id="forestryDocPreviewTitle" style="font-size:20px;color:#0f172a"><i class="fas fa-file-pdf" style="color:#dc2626;margin-right:8px"></i>${inspectionEscape(current.file.replace(/\.pdf$/i, ''))}</b>
+              <a id="forestryDocOpenLink" class="btn btn-sm btn-outline" href="${currentHref}" target="_blank" rel="noopener noreferrer" style="font-size:15px"><i class="fas fa-up-right-from-square"></i> 新頁開啟</a>
+            </div>
+            <iframe id="forestryDocFrame" src="${currentHref}" style="width:100%;height:640px;border:none;display:block;background:#525659"></iframe>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function forestrySelectDoc(idx) {
+  const d = FORESTRY_PATROL_DOCS[idx];
+  if (!d) return;
+  _forestryDocIdx = idx;
+  window._forestryActiveIdx = idx;
+  const href = forestryDocHrefOf(d);
+  const frame = document.getElementById('forestryDocFrame');
+  const label = document.getElementById('forestryDocPreviewTitle');
+  const open  = document.getElementById('forestryDocOpenLink');
+  if (frame) frame.src = href;
+  if (label) label.innerHTML = `<i class="fas fa-file-pdf" style="color:#dc2626;margin-right:8px"></i>${inspectionEscape(d.file.replace(/\.pdf$/i, ''))}`;
+  if (open)  open.href = href;
+  document.querySelectorAll('.forestry-doc-item').forEach(el => {
+    const active = Number(el.dataset.fidx) === idx;
+    el.style.background = active ? '#ecfdf5' : 'transparent';
+    el.style.borderColor = active ? '#6ee7b7' : 'transparent';
+    if (active) el.dataset.active = '1'; else delete el.dataset.active;
+  });
 }
 
 function renderMaintenanceManualShelf() {
@@ -1871,11 +1992,14 @@ function renderMaintenanceManualShelf() {
   `;
 }
 
-function inspectionManualMetric(label, value, unit, icon, color) {
+function inspectionManualMetric(label, value, unit, icon, color, big = false) {
+  const vSize = big ? 28 : 18;
+  const lSize = big ? 16 : 12;
+  const box   = big ? 44 : 34;
   return `
     <div style="display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #e2e8f0;border-left:4px solid ${color};border-radius:8px;padding:10px">
-      <span style="width:34px;height:34px;border-radius:8px;background:${color};color:#fff;display:flex;align-items:center;justify-content:center"><i class="fas fa-${icon}"></i></span>
-      <div><div style="font-size:18px;font-weight:900;color:#0f172a">${value}</div><div style="font-size:12px;color:#64748b">${label} ${unit}</div></div>
+      <span style="width:${box}px;height:${box}px;border-radius:8px;background:${color};color:#fff;display:flex;align-items:center;justify-content:center;font-size:${big ? 19 : 14}px"><i class="fas fa-${icon}"></i></span>
+      <div><div style="font-size:${vSize}px;font-weight:900;color:#0f172a">${value}</div><div style="font-size:${lSize}px;color:#64748b">${label} ${unit}</div></div>
     </div>
   `;
 }
@@ -1914,7 +2038,8 @@ function renderMaintenanceManualBook(book, index) {
 }
 
 function inspectionDocHref(path) {
-  return '../' + String(path || '').split('/').map(encodeURIComponent).join('/');
+  // Flask /media/ 路由從 project root 提供靜態媒體檔案（serve.ps1 亦支援同一路徑）
+  return '/media/' + String(path || '').split('/').map(encodeURIComponent).join('/');
 }
 
 function inspectionAttr(value) {
