@@ -1,6 +1,12 @@
 /* ===== 根字體大小設定 ===== */
 html { font-size: 130%; }
 
+/* 使用者手動調整字體（按鈕循環）*/
+html[data-font='xs'] { font-size: 90%  !important; }
+html[data-font='sm'] { font-size: 100% !important; }
+html[data-font='md'] { font-size: 115% !important; }
+html[data-font='lg'] { font-size: 130% !important; }
+
 /* ===== CSS 變數 ===== */
 :root {
   --primary: #1a6b3c;
@@ -259,7 +265,12 @@ textarea { resize: vertical; min-height: 80px; }
 .tab-content.active { display: block; }
 
 /* ===== GIS 地圖 ===== */
-#map { height: calc(100vh - 140px); border-radius: var(--radius-lg); }
+#map,
+#gisLeafletMap {
+  height: calc(100vh - 140px);
+  border-radius: var(--radius-lg);
+  touch-action: none; /* 讓 Leaflet 完整接管觸控事件（iPad兩指縮放/平移） */
+}
 #inspectionStatusMap {
   position: relative;
   z-index: 0;
@@ -294,12 +305,65 @@ textarea { resize: vertical; min-height: 80px; }
 .page-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
 
 /* ===== 響應式 ===== */
+
+/* ── iPad 11" / 平板（769–1194px）── */
+@media (min-width: 769px) and (max-width: 1194px) {
+  html { font-size: 100%; }
+  html[data-font='xs'] { font-size: 82%  !important; }
+  html[data-font='sm'] { font-size: 90%  !important; }
+  html[data-font='md'] { font-size: 100% !important; }
+  html[data-font='lg'] { font-size: 112% !important; }
+
+  :root {
+    --sidebar-width: 200px;
+    --topbar-height: 54px;
+  }
+
+  .content-area { padding: 14px 16px; }
+
+  /* 地圖高度隨 topbar 調整 */
+  #map { height: calc(100vh - 120px); }
+
+  /* 頂欄字體 */
+  .page-title { font-size: 16px; }
+  .date-display { font-size: 12px; }
+
+  /* 側欄文字 */
+  .nav-item a span { font-size: 13px; }
+  .logo-text { font-size: 13px; }
+  .sidebar-footer { font-size: 10px; }
+
+  /* 卡片 */
+  .card-title { font-size: 14px; }
+  .stat-value { font-size: 24px; }
+  .stat-label { font-size: 12px; }
+
+  /* 表格 */
+  table { font-size: 13px; }
+  th, td { padding: 8px 10px; }
+
+  /* 按鈕 */
+  .btn { font-size: 13px; }
+  .btn-sm { font-size: 12px; }
+
+  /* 表單 */
+  label { font-size: 12px; }
+  input, select, textarea { font-size: 13px; }
+
+  /* 網格 */
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .dashboard-grid { gap: 14px; }
+}
+
+/* ── 手機（≤768px）── */
 @media (max-width: 768px) {
+  html { font-size: 95%; }
   .sidebar { width: var(--sidebar-collapsed); }
   .logo-text, .nav-item a span, .sidebar-footer { display: none; }
   .main-content { margin-left: var(--sidebar-collapsed); }
   .dashboard-grid { grid-template-columns: 1fr; }
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  #map { height: calc(100vh - 120px); }
 }
 
 /* ===== 工具 ===== */

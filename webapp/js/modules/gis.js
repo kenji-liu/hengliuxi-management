@@ -298,7 +298,15 @@ function initGisMap() {
   console.log(`[GIS] Loading ${facs.length} facilities:`, facs.map(f => ({id: f.id, name: f.name, lat: f.lat, lng: f.lng})));
 
   if (leafletMap) { leafletMap.remove(); leafletMap = null; }
-  leafletMap = L.map('map', { zoomControl: false }).setView([24.183, 120.909], 15);
+  leafletMap = L.map('map', {
+    zoomControl: false,
+    touchZoom: true,        // 兩指捏合縮放（iPad）
+    scrollWheelZoom: true,  // 滑鼠滾輪縮放（桌面）
+    dragging: true,
+    tap: true,
+    tapTolerance: 15,
+    bounceAtZoomLimits: false
+  }).setView([24.183, 120.909], 15);
   L.control.zoom({ position: 'bottomleft' }).addTo(leafletMap);
 
   // ===== 底圖層（含高清衛星影像） =====

@@ -335,7 +335,13 @@ function initGISEnhancedMap() {
     maxZoom: 18,
     minZoom: 12,
     zoomSnap: 1,
-    wheelPxPerZoomLevel: 90
+    wheelPxPerZoomLevel: 90,
+    touchZoom: true,        // 兩指捏合縮放（iPad）
+    scrollWheelZoom: true,
+    dragging: true,
+    tap: true,
+    tapTolerance: 15,
+    bounceAtZoomLimits: false
   }).setView([centerLat, centerLng], 13);
 
   initGisBaseLayers();

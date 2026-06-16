@@ -75,6 +75,9 @@
       </div>
       <div class="top-bar-right">
         <span class="date-display" id="dateDisplay"></span>
+        <button class="btn btn-sm btn-outline" id="fontSizeBtn" onclick="cycleFontSize()" title="調整字體大小" style="min-width:56px;letter-spacing:0.5px">
+          <i class="fas fa-text-height"></i> <span id="fontSizeLabel">A</span>
+        </button>
         <button class="btn btn-sm btn-outline" onclick="exportData()">
           <i class="fas fa-download"></i> 匯出資料
         </button>
@@ -121,5 +124,44 @@
   <script src="js/modules/quality_dashboard.js"></script>
   <script src="js/modules/deru_assessment.js"></script>
   <script src="js/app.js"></script>
+
+  <script>
+  /* ===== 字體大小循環切換 ===== */
+  (function() {
+    const SIZES = [
+      { key: 'xs', label: 'A−−', title: '最小字體 90%' },
+      { key: 'sm', label: 'A−',  title: '小字體 100%' },
+      { key: 'md', label: 'A',   title: '標準字體' },
+      { key: 'lg', label: 'A+',  title: '大字體' }
+    ];
+    const STORE_KEY = 'hengliuxi_fontsize';
+
+    function applySize(key) {
+      document.documentElement.setAttribute('data-font', key);
+      const s = SIZES.find(x => x.key === key) || SIZES[2];
+      const lbl = document.getElementById('fontSizeLabel');
+      const btn = document.getElementById('fontSizeBtn');
+      if (lbl) lbl.textContent = s.label;
+      if (btn) btn.title = s.title;
+      localStorage.setItem(STORE_KEY, key);
+    }
+
+    // 載入儲存的設定（或依螢幕寬自動選預設值）
+    const saved = localStorage.getItem(STORE_KEY);
+    if (saved && SIZES.find(x => x.key === saved)) {
+      applySize(saved);
+    } else {
+      // iPad 11 (≤1194px) 預設 'md'(100%)；桌面預設 'lg'(130%)
+      applySize(window.innerWidth <= 1194 ? 'md' : 'lg');
+    }
+
+    window.cycleFontSize = function() {
+      const cur = document.documentElement.getAttribute('data-font') || 'md';
+      const idx = SIZES.findIndex(x => x.key === cur);
+      const next = SIZES[(idx + 1) % SIZES.length];
+      applySize(next.key);
+    };
+  })();
+  </script>
 </body>
 </html>
