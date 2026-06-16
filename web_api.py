@@ -121,8 +121,22 @@ ALLOWED_MEDIA_EXTENSIONS = {
     '.xlsx', '.xls', '.csv', '.json', '.md', '.qgis'
 }
 
+# 與 webapp/serve_static.py 的 NO_CACHE_EXTS 保持一致，避免瀏覽器快取舊版前端程式碼
+NO_CACHE_EXTS = {'.html', '.js', '.mjs', '.json', '.jsonl', '.css'}
+
 app = Flask(__name__, static_folder=WEBAPP_DIR, static_url_path='/webapp')
 CORS(app, expose_headers='*')  # Expose all headers to ensure no fields are filtered
+
+
+@app.after_request
+def _disable_static_cache(response):
+    """停用 /webapp 前端資源（HTML/JS/CSS/JSON）的瀏覽器快取，確保程式碼修改後立即生效。"""
+    ext = os.path.splitext(request.path)[1].lower()
+    if request.path.startswith('/webapp/') and ext in NO_CACHE_EXTS:
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+    return response
 
 # Register RAG blueprint if available
 if RAG_AVAILABLE:

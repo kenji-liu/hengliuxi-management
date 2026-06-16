@@ -25,21 +25,21 @@ const FISH_PHOTO_LIBRARY = {
     position: 'center 40%'
   },
   '纓口臺鰍': {
-    image: '/webapp/assets/fish-photos/mingtan-rhinogobius-field.jpg',
-    source: '02_魚類與棲地資料庫／施工前魚類調查代表影像',
-    caption: '橫流溪底棲魚類田野調查實拍（代表圖），纓口臺鰍（Formosania lacustre）爬鰍科，底棲吸附型，偏好礫石急流',
-    position: 'center 55%'
+    image: '/webapp/assets/fish-photos/formosania-lacustre-field.png',
+    source: '使用者提供之田野辨識照片',
+    caption: '纓口臺鰍（Formosania lacustre）田野實拍；已修正原先誤用明潭吻鰕虎照片的問題，體表深淺交錯虎斑紋為辨識特徵，底棲吸附型，偏好礫石急流',
+    position: 'center center'
   },
   '明潭吻鰕虎': {
-    image: '/webapp/assets/fish-photos/mingtan-rhinogobius-field-framed.jpg',
-    source: '工作站魚類調查田野記錄（量尺盤實拍）',
-    caption: '明潭吻鰕虎（Rhinogobius candidianus）橫流溪工作站調查田野實拍；已重新取景使魚體主角上移並置中，底棲鰕虎科，大圓頭、褐色斑紋為辨識特徵',
-    position: 'center 58%'
+    image: '/webapp/assets/fish-photos/rhinogobius-candidianus-field2.png',
+    source: '使用者提供之田野辨識照片',
+    caption: '明潭吻鰕虎（Rhinogobius candidianus）田野實拍，底棲鰕虎科，眼下橙色條紋、體側藍色斑點為辨識特徵',
+    position: 'center center'
   },
   '臺灣間爬岩鰍': {
-    image: '/webapp/assets/fish-photos/hemimyzon-formosanus.jpg',
-    source: '網路補充標準照：FishBase／Photo by Liao, T.-Y.；報告書影像未找到可明確確認之橫流溪田野特寫',
-    caption: '臺灣間爬岩鰍（Hemimyzon formosanus）俯視標準照；用於修正原先誤置之田野照片，體縱扁，胸鰭極寬大平展，黑底金黃斑紋為辨識特徵',
+    image: '/webapp/assets/fish-photos/hemimyzon-formosanus-field3.png',
+    source: '使用者提供之田野辨識照片',
+    caption: '臺灣間爬岩鰍（Hemimyzon formosanus）田野實拍；體側橄欖褐色帶花紋，胸鰭略帶橙紅色，扁長體型吸附於礫石為辨識特徵',
     position: 'center center'
   },
   '短臀瘋鱨': {
