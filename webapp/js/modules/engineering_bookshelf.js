@@ -136,6 +136,88 @@ const ENGINEERING_BOOKS = [
     tags: ['野溪', '周邊維護', '維護工程'],
     summary: '野溪周邊維護工程資料，可支援平台、步道與周邊設施維護管理。',
     path: '01_工程設施維護與資料/橫流溪歷年整治工程/橫流溪野溪周邊維護工程.pdf'
+  },
+
+  /* ── 歷年崩塌及現地調查規劃 ── */
+  {
+    category: '歷年崩塌及現地調查規劃', year: '早期',
+    title: '東勢處轄內崩塌地調查緊急評估規劃',
+    type: '調查評估', format: 'PDF',
+    tags: ['崩塌地', '東勢處', '緊急評估', '調查規劃'],
+    summary: '東勢林區管理處轄內崩塌地緊急調查與評估規劃，作為後續監測與治理基準。',
+    path: '01_工程設施維護與資料/其他相關資料/00東勢處轄內崩塌地調查緊急評估規劃.pdf'
+  },
+  {
+    category: '歷年崩塌及現地調查規劃', year: '105-106',
+    title: '105~106年度東勢處轄內崩塌地監測及調查評估工作',
+    type: '監測成果', format: 'PDF',
+    tags: ['崩塌地', '監測', '調查評估', '105', '106'],
+    summary: '105~106年度東勢處轄內崩塌地監測及評估成果，含現地調查與影像判釋資料。',
+    path: '01_工程設施維護與資料/其他相關資料/105~106年度東勢處轄內崩塌地監測及調查評估工作.pdf'
+  },
+  {
+    category: '歷年崩塌及現地調查規劃', year: '107-108',
+    title: '107~108年度東勢處轄內崩塌地監測及調查評估工作',
+    type: '監測成果', format: 'PDF',
+    tags: ['崩塌地', '監測', '調查評估', '107', '108'],
+    summary: '107~108年度東勢處轄內崩塌地監測及評估成果，可與同期整治規劃交叉比對。',
+    path: '01_工程設施維護與資料/其他相關資料/107~108年度東勢處轄內崩塌地監測及調查評估工作.pdf'
+  },
+  {
+    category: '歷年崩塌及現地調查規劃', year: '109-110',
+    title: '109~110年度東勢處轄內崩塌地監測及調查評估工作',
+    type: '監測成果', format: 'PDF',
+    tags: ['崩塌地', '監測', '調查評估', '109', '110'],
+    summary: '109~110年度東勢處轄內崩塌地監測及評估成果，供崩塌演變趨勢分析。',
+    path: '01_工程設施維護與資料/其他相關資料/109~110年度東勢處轄內崩塌地監測及調查評估工作.pdf'
+  },
+  {
+    category: '歷年崩塌及現地調查規劃', year: '113',
+    title: '113年臺中分署轄內崩塌地監測及資訊平臺維運工作',
+    type: '成果報告', format: 'PDF',
+    tags: ['崩塌地', '資訊平臺', '監測', '113', '臺中分署'],
+    summary: '113年臺中分署崩塌地監測及資訊平臺維運成果，含最新崩塌地分布資訊。',
+    path: '01_工程設施維護與資料/其他相關資料/113 年臺中分署轄內崩塌地監測及資訊平臺維運工作-成果報告.pdf'
+  },
+  {
+    category: '整治規劃設計監造', year: '98',
+    title: '98年國有林地魚道設置原則及圖說規範建置之研究',
+    type: '研究報告', format: 'PDF',
+    tags: ['魚道', '國有林地', '設計規範', '98'],
+    summary: '國有林地魚道設置原則與圖說規範研究，為橫流溪魚道工程設計的參考基礎文件。',
+    path: '01_工程設施維護與資料/其他相關資料/98年國有林地魚道設置原則及圖說規範建置之研究.pdf'
+  },
+  {
+    category: '歷年崩塌及現地調查規劃', year: '104',
+    title: '東勢處轄內崩塌地影像判釋及調查評估三期工作',
+    type: '調查評估', format: 'PDF',
+    tags: ['崩塌地', '影像判釋', '三期', '104'],
+    summary: '104年度東勢處轄內崩塌地影像判釋與評估三期工作成果，含遙測影像分析資料。',
+    path: '01_工程設施維護與資料/其他相關資料/東勢處轄內崩塌地影像判釋及調查評估三期工作-104.pdf'
+  },
+  {
+    category: '歷年崩塌及現地調查規劃', year: '104',
+    title: '東勢轄內崩塌地調查緊急評估規劃（二）',
+    type: '調查評估', format: 'PDF',
+    tags: ['崩塌地', '東勢', '緊急評估', '104'],
+    summary: '東勢轄內崩塌地調查緊急評估規劃第二期，延續前期調查成果進行補充評估。',
+    path: '01_工程設施維護與資料/其他相關資料/東勢轄內崩塌地調查緊急評估規劃(二)-104.pdf'
+  },
+  {
+    category: '整治規劃設計監造', year: '近年',
+    title: '橫流溪動物通道及周邊設施檢查效能智慧評估（第三次期中）',
+    type: '期中報告', format: 'PDF',
+    tags: ['動物通道', '周邊設施', '智慧評估', '效能檢查'],
+    summary: '橫流溪動物通道及周邊設施第三次期中智慧評估，含各通道現況與效能分析。',
+    path: '01_工程設施維護與資料/其他相關資料/橫流溪動物通道及周邊設施檢查效能智慧評估_第三次期中_報告書.pdf'
+  },
+  {
+    category: '整治規劃設計監造', year: '近年',
+    title: '裏冷溪及橫流溪整體治理規劃與監測調查成果報告（橫流溪部分）',
+    type: '成果報告', format: 'PDF',
+    tags: ['裏冷溪', '整體治理', '監測調查', '橫流溪'],
+    summary: '裏冷溪與橫流溪整體治理規劃及監測調查報告，橫流溪部分提供流域整體治理脈絡。',
+    path: '01_工程設施維護與資料/其他相關資料/裏冷溪及橫流溪整體治理規劃與監測調查-成果報告-橫流溪部分.pdf'
   }
 
 ];
@@ -234,8 +316,8 @@ const MONITORING_VIDEOS = [
   }
 ];
 
-let engineeringShelfFilter = '全部';
-let _shelfSelectedDoc = null; // 目前預覽的文件
+let bookshelfActiveTab = '整治規劃';
+let _shelfSelectedDoc = null;
 
 // 兩大分類定義
 const SHELF_MAIN_CATS = {
@@ -248,7 +330,18 @@ const SHELF_MAIN_CATS = {
     color: '#2e7d32', bg: '#f0fdf4', icon: 'fa-hard-hat',
     desc: '各期整治工程設計/施工圖說與結算決算明細，依工程名稱整合',
     keys: ['仙區23林班治理工程','橫流溪整治第二期工程','橫流溪下游整治第二期工程','橫流溪下游段改善工程','橫流溪野溪整治工程','橫流溪野溪整治第三期工程','橫流溪野溪周邊維護工程']
+  },
+  '歷年崩塌及現地調查規劃': {
+    color: '#7c3aed', bg: '#f5f3ff', icon: 'fa-mountain',
+    desc: '崩塌地監測與調查評估、魚道設計規範、現地勘查等相關規劃文件',
+    keys: ['歷年崩塌及現地調查規劃']
   }
+};
+
+const SHELF_CAT_META = {
+  '整治規劃':              { color:'#1565c0', bg:'#eff6ff', border:'#bfdbfe', icon:'fa-drafting-compass' },
+  '歷年整治工程':          { color:'#2e7d32', bg:'#f0fdf4', border:'#bbf7d0', icon:'fa-hard-hat'         },
+  '歷年崩塌及現地調查規劃':{ color:'#7c3aed', bg:'#f5f3ff', border:'#ddd6fe', icon:'fa-mountain'        }
 };
 
 function shelfMainCatOf(book) {
@@ -279,38 +372,55 @@ function shelfSelectDoc(path, title) {
 }
 
 function renderEngineeringBookshelf() {
-  const totalPlanning = ENGINEERING_BOOKS.filter(b => shelfMainCatOf(b) === '整治規劃').length;
-  const totalWorks    = ENGINEERING_BOOKS.filter(b => shelfMainCatOf(b) === '歷年整治工程').length;
-  const totalBudget   = ENGINEERING_BOOKS.filter(b => b.type === '結算明細' || b.type === '決算明細').length;
-  const firstDoc      = ENGINEERING_BOOKS[0];
+  const planningBooks  = ENGINEERING_BOOKS.filter(b => shelfMainCatOf(b) === '整治規劃');
+  const worksBooks     = ENGINEERING_BOOKS.filter(b => shelfMainCatOf(b) === '歷年整治工程');
+  const landslideBooks = ENGINEERING_BOOKS.filter(b => shelfMainCatOf(b) === '歷年崩塌及現地調查規劃');
+  const activeMap      = { '整治規劃': planningBooks, '歷年整治工程': worksBooks, '歷年崩塌及現地調查規劃': landslideBooks };
+  const firstDoc       = activeMap[bookshelfActiveTab]?.[0] || ENGINEERING_BOOKS[0];
 
   document.getElementById('contentArea').innerHTML = `
     <!-- 標題列 -->
-    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:18px;flex-wrap:wrap">
-      <div>
-        <div style="font-size:14px;color:var(--text-muted);margin-bottom:5px">歷年工程設計資料歸檔</div>
-        <h2 style="margin:0;font-size:26px;font-weight:900;color:var(--text)">橫流溪工程設計書架</h2>
-        <div style="font-size:14px;color:#64748b;margin-top:5px">依整治規劃與歷年工程兩大類別整合，點選文件即可右側預覽</div>
+    <div style="margin-bottom:18px">
+      <div style="font-size:14px;color:var(--text-muted);margin-bottom:5px">歷年工程設計資料歸檔</div>
+      <h2 style="margin:0;font-size:26px;font-weight:900;color:var(--text)">橫流溪書架</h2>
+      <div style="font-size:14px;color:#64748b;margin-top:5px">整合整治規劃、歷年整治工程與崩塌現地調查，依類別統整文件管理與瀏覽。</div>
+    </div>
+
+    <!-- ── 三類統計卡 ── -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:22px">
+      ${renderShelfStatCard('整治規劃',            planningBooks,  '98年 ~ 近年',  '整治規劃設計監造報告')}
+      ${renderShelfStatCard('歷年整治工程',         worksBooks,     '歷年',          '橫流溪各期整治工程')}
+      ${renderShelfStatCard('歷年崩塌及現地調查規劃', landslideBooks, '早期 ~ 113年', '東勢處轄內崩塌地調查')}
+    </div>
+
+    <!-- ── Tab 列 + 搜尋框 ── -->
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
+                border-bottom:2px solid #e2e8f0;margin-bottom:16px">
+      <div style="display:flex;gap:0">
+        ${[['整治規劃','#1565c0',planningBooks.length],
+           ['歷年整治工程','#2e7d32',worksBooks.length],
+           ['歷年崩塌及現地調查規劃','#7c3aed',landslideBooks.length]].map(([key,cl,cnt])=>{
+          const active = bookshelfActiveTab === key;
+          return `<button onclick="bookshelfSwitchTab('${shelfAttr(key)}')"
+            style="padding:10px 14px;background:none;border:none;
+                   border-bottom:3px solid ${active?cl:'transparent'};
+                   font-size:14px;font-weight:${active?'800':'500'};color:${active?cl:'#64748b'};
+                   cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap">
+            ${shelfEscape(key)}
+            <span style="font-size:12px;background:${active?cl+'18':'#f1f5f9'};color:${active?cl:'#64748b'};
+                         border-radius:999px;padding:1px 7px;font-weight:700">${cnt}</span>
+          </button>`;
+        }).join('')}
       </div>
-      <input id="engineeringBookSearch" oninput="updateEngineeringBookshelf()" placeholder="搜尋工程名稱…"
-        style="width:240px;padding:10px 14px;border:1px solid #d5dde7;border-radius:10px;font-size:15px;align-self:flex-end">
+      <input id="engineeringBookSearch" oninput="updateEngineeringBookshelf()" placeholder="搜尋文件名稱…"
+        style="width:200px;padding:8px 12px;border:1px solid #d5dde7;border-radius:10px;font-size:14px">
     </div>
 
-    <!-- 統計卡 -->
-    <div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));margin-bottom:20px">
-      ${engineeringShelfMetric('上架文件', ENGINEERING_BOOKS.length, '本', 'book-open', '#1565c0')}
-      ${engineeringShelfMetric('整治規劃', totalPlanning, '本', 'drafting-compass', '#0369a1')}
-      ${engineeringShelfMetric('整治工程', totalWorks, '本', 'hard-hat', '#2e7d32')}
-      ${engineeringShelfMetric('結算決算', totalBudget, '本', 'file-invoice-dollar', '#8a5a00')}
-    </div>
+    <!-- ── 主體：左列表 + 右 PDF 預覽 ── -->
+    <div style="display:grid;grid-template-columns:400px 1fr;gap:16px;align-items:start">
+      <div id="engineeringBookshelfContent"
+           style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;max-height:860px;overflow-y:auto"></div>
 
-    <!-- 主體：左側文件清單 + 右側 PDF 預覽 -->
-    <div style="display:grid;grid-template-columns:420px 1fr;gap:16px;align-items:start">
-
-      <!-- 左側：文件清單 -->
-      <div id="engineeringBookshelfContent" style="display:flex;flex-direction:column;gap:0;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;max-height:900px;overflow-y:auto"></div>
-
-      <!-- 右側：PDF 預覽 -->
       <div style="position:sticky;top:16px">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;flex-wrap:wrap">
           <div style="font-size:16px;font-weight:800;color:#0f172a;flex:1;min-width:0" id="shelfPdfTitle">
@@ -344,95 +454,123 @@ function renderEngineeringBookshelf() {
   updateEngineeringBookshelf();
 }
 
-function engineeringShelfMetric(label, value, unit, icon, color) {
+function renderShelfStatCard(mainCat, books, yearRange, source) {
+  const m = SHELF_CAT_META[mainCat];
+  if (!m) return '';
+  const active = bookshelfActiveTab === mainCat;
+  const CARD_PAD='18px', NUM_BIG='44px', LBL='22px', SUB_NUM='26px',
+        SUB_LBL='14px', SRC='13px', BTN='16px', ICON_SZ='48px', ICON_FS='22px';
   return `
-    <div class="stat-card">
-      <div class="stat-icon" style="background:${color}18;color:${color}"><i class="fas fa-${icon}"></i></div>
-      <div>
-        <div class="stat-value">${value}</div>
-        <div class="stat-label">${label} ${unit}</div>
+  <div data-shelf-cat="${shelfEscape(mainCat)}"
+       onclick="bookshelfSwitchTab('${shelfAttr(mainCat)}')"
+       style="border:${active?'3px':'2px'} solid ${active?m.color:m.border};background:${active?m.bg:'#fff'};
+              border-radius:14px;padding:${CARD_PAD};cursor:pointer;transition:box-shadow .15s;
+              box-shadow:${active?'0 6px 20px rgba(15,23,42,.12)':'none'}">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div style="width:${ICON_SZ};height:${ICON_SZ};border-radius:10px;background:${m.color};color:#fff;
+                  display:flex;align-items:center;justify-content:center;font-size:${ICON_FS}">
+        <i class="fas ${m.icon}"></i>
+      </div>
+      <div style="font-size:${NUM_BIG};font-weight:900;color:${m.color};line-height:1">${books.length}</div>
+    </div>
+    <div style="font-size:${LBL};font-weight:900;color:#0f172a;margin-bottom:8px">${shelfEscape(mainCat)}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">
+      <div style="text-align:center;background:#fff;border:1px solid ${m.border};border-radius:8px;padding:7px 4px">
+        <div style="font-size:${SUB_NUM};font-weight:900;color:${m.color}">${books.length}</div>
+        <div style="font-size:${SUB_LBL};color:#64748b;margin-top:2px">文件本數</div>
+      </div>
+      <div style="text-align:center;background:#fff;border:1px solid ${m.border};border-radius:8px;padding:7px 4px">
+        <div style="font-size:11px;font-weight:800;color:${m.color};line-height:1.4">${shelfEscape(yearRange)}</div>
+        <div style="font-size:${SUB_LBL};color:#64748b;margin-top:2px">年份範圍</div>
       </div>
     </div>
-  `;
+    <div style="font-size:${SRC};color:#64748b">來源：${shelfEscape(source)}</div>
+    <div data-shelf-footer style="font-size:${BTN};font-weight:800;color:${m.color};margin-top:8px">
+      ${active ? '▶ 目前篩選中' : '展開此類清單'}
+    </div>
+  </div>`;
 }
 
-function setEngineeringShelfFilter(category) {
-  engineeringShelfFilter = category;
-  renderEngineeringBookshelf();
+function bookshelfSwitchTab(tab) {
+  bookshelfActiveTab = tab;
+  // 更新 tab 按鈕
+  document.querySelectorAll('[onclick^="bookshelfSwitchTab"]').forEach(btn => {
+    const key = btn.getAttribute('onclick').match(/'([^']+)'/)?.[1];
+    const bm = SHELF_CAT_META[key];
+    if (!bm) return;
+    const active = key === tab;
+    btn.style.fontWeight    = active ? '800' : '500';
+    btn.style.color         = active ? bm.color : '#64748b';
+    btn.style.borderBottom  = active ? `3px solid ${bm.color}` : '3px solid transparent';
+  });
+  // 更新統計卡
+  document.querySelectorAll('[data-shelf-cat]').forEach(card => {
+    const key = card.dataset.shelfCat;
+    const cm = SHELF_CAT_META[key];
+    if (!cm) return;
+    const active = key === tab;
+    card.style.border     = `${active?'3px':'2px'} solid ${active?cm.color:cm.border}`;
+    card.style.background = active ? cm.bg : '#fff';
+    card.style.boxShadow  = active ? '0 6px 20px rgba(15,23,42,.12)' : 'none';
+    const footer = card.querySelector('[data-shelf-footer]');
+    if (footer) footer.textContent = active ? '▶ 目前篩選中' : '展開此類清單';
+  });
+  _shelfSelectedDoc = null;
+  updateEngineeringBookshelf();
 }
 
 function updateEngineeringBookshelf() {
   const container = document.getElementById('engineeringBookshelfContent');
   if (!container) return;
 
-  const keyword = (document.getElementById('engineeringBookSearch')?.value || '').trim().toLowerCase();
+  const keyword   = (document.getElementById('engineeringBookSearch')?.value || '').trim().toLowerCase();
+  const m         = SHELF_CAT_META[bookshelfActiveTab];
+  const mainColor = m?.color || '#1565c0';
+
   const books = ENGINEERING_BOOKS.filter(book => {
+    if (shelfMainCatOf(book) !== bookshelfActiveTab) return false;
+    if (!keyword) return true;
     const haystack = [book.title, book.category, book.year, book.type, book.summary, ...(book.tags||[])].join(' ').toLowerCase();
-    return !keyword || haystack.includes(keyword);
+    return haystack.includes(keyword);
   });
 
   if (!books.length) {
-    container.innerHTML = `<div style="padding:32px;text-align:center;color:#94a3b8;font-size:15px"><i class="fas fa-search" style="font-size:32px;margin-bottom:10px;display:block"></i>找不到符合條件的文件</div>`;
+    container.innerHTML = `<div style="padding:32px;text-align:center;color:#94a3b8;font-size:15px">
+      <i class="fas fa-search" style="font-size:32px;margin-bottom:10px;display:block"></i>找不到符合條件的文件</div>`;
     return;
   }
 
-  // 按兩大主類分組 → 再按工程名稱分子群
-  const result = {};
-  for (const [main, def] of Object.entries(SHELF_MAIN_CATS)) {
-    const mainBooks = books.filter(b => shelfMainCatOf(b) === main);
-    if (!mainBooks.length) continue;
-    // 子分類（整治規劃不再分子類；歷年工程依 category 分）
-    if (main === '整治規劃') {
-      result[main] = { def, sub: { '整治規劃設計監造': mainBooks } };
-    } else {
-      const sub = {};
-      mainBooks.forEach(b => { if (!sub[b.category]) sub[b.category] = []; sub[b.category].push(b); });
-      result[main] = { def, sub };
-    }
-  }
-
-  const catColors = {
-    '整治規劃設計監造': '#0369a1',
-    '仙區23林班治理工程': '#1565c0',
-    '橫流溪整治第二期工程': '#2e7d32',
-    '橫流溪下游整治第二期工程': '#166534',
-    '橫流溪下游段改善工程': '#7c3aed',
-    '橫流溪野溪整治工程': '#854d0e',
-    '橫流溪野溪整治第三期工程': '#9a3412',
-    '橫流溪野溪周邊維護工程': '#0f766e'
-  };
-
-  container.innerHTML = Object.entries(result).map(([main, { def, sub }]) => `
-    <!-- 主類標題 -->
-    <div style="background:${def.color};color:#fff;padding:14px 18px">
-      <div style="display:flex;align-items:center;gap:10px">
-        <i class="fas ${def.icon}" style="font-size:20px"></i>
-        <div>
-          <div style="font-size:20px;font-weight:900">${shelfEscape(main)}</div>
-          <div style="font-size:13px;opacity:.88;margin-top:3px">${shelfEscape(def.desc)}</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 子類（工程名稱）→ 文件列 -->
-    ${Object.entries(sub).map(([subCat, items]) => {
-      const cc = catColors[subCat] || def.color;
-      const isMultiSub = Object.keys(sub).length > 1;
+  // 歷年整治工程 → 依工程名稱分子群並加子標頭
+  if (bookshelfActiveTab === '歷年整治工程') {
+    const sub = {};
+    books.forEach(b => { if (!sub[b.category]) sub[b.category] = []; sub[b.category].push(b); });
+    const subColors = {
+      '仙區23林班治理工程':     '#1565c0',
+      '橫流溪整治第二期工程':   '#2e7d32',
+      '橫流溪下游整治第二期工程':'#166534',
+      '橫流溪下游段改善工程':   '#7c3aed',
+      '橫流溪野溪整治工程':     '#854d0e',
+      '橫流溪野溪整治第三期工程':'#9a3412',
+      '橫流溪野溪周邊維護工程': '#0f766e'
+    };
+    container.innerHTML = Object.entries(sub).map(([subCat, items]) => {
+      const cc = subColors[subCat] || mainColor;
       return `
-        ${isMultiSub ? `
-        <div style="padding:8px 18px;background:#f8fafc;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:8px">
+        <div style="padding:8px 18px;background:#f8fafc;border-bottom:1px solid #e2e8f0;
+                    display:flex;align-items:center;gap:8px;position:sticky;top:0;z-index:1">
           <div style="width:3px;height:20px;background:${cc};border-radius:2px"></div>
           <span style="font-size:15px;font-weight:800;color:#0f172a">${shelfEscape(subCat)}</span>
           <span style="font-size:12px;background:${cc}18;color:${cc};border-radius:999px;padding:1px 8px">${items.length} 份</span>
-        </div>` : ''}
+        </div>
         ${items.map(book => renderEngineeringBook(book, cc)).join('')}`;
-    }).join('')}
-  `).join('');
+    }).join('');
+  } else {
+    // 整治規劃 & 崩塌調查：平鋪列表
+    container.innerHTML = books.map(book => renderEngineeringBook(book, mainColor)).join('');
+  }
 
-  // 預設選中第一份可用文件（初次載入）
   if (!_shelfSelectedDoc && books.length) {
-    const first = books[0];
-    shelfSelectDoc(first.path, first.title);
+    shelfSelectDoc(books[0].path, books[0].title);
   }
 }
 

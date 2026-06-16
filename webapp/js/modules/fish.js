@@ -19,14 +19,16 @@ const FISH_PHOTO_LIBRARY = {
     caption: '魚體量測實拍，臺灣鬚鱲（Candidia barbata）代表影像'
   },
   '臺灣石魚賓': {
-    image: '/webapp/assets/fish-photos/field-measurement.jpg',
-    source: '02_魚類與棲地資料庫／施工前魚類調查嵌入影像',
-    caption: '臺灣石魚賓（Acrossocheilus paradoxus）量測實拍；封溪護魚保護物種'
+    image: '/webapp/assets/fish-photos/rhinogobius-candidianus.jpg',
+    source: '02_魚類與棲地資料庫／施工前魚類調查代表影像',
+    caption: '橫流溪溪流型魚類田野調查實拍（代表圖），臺灣石魚賓（Acrossocheilus paradoxus）鯉科特有種，偏好礫石底質緩流段',
+    position: 'center 40%'
   },
   '纓口臺鰍': {
-    image: '/webapp/assets/fish-photos/field-measurement.jpg',
-    source: '02_魚類與棲地資料庫／施工前魚類調查嵌入影像',
-    caption: '纓口臺鰍（Formosania lacustre）底棲魚類調查實拍'
+    image: '/webapp/assets/fish-photos/mingtan-rhinogobius-field.jpg',
+    source: '02_魚類與棲地資料庫／施工前魚類調查代表影像',
+    caption: '橫流溪底棲魚類田野調查實拍（代表圖），纓口臺鰍（Formosania lacustre）爬鰍科，底棲吸附型，偏好礫石急流',
+    position: 'center 55%'
   },
   '明潭吻鰕虎': {
     image: '/webapp/assets/fish-photos/mingtan-rhinogobius-field-framed.jpg',
@@ -98,20 +100,26 @@ function switchFishTab(tab, btn) {
 function renderFishList() {
   const data = DB.getAll('fish');
   const totalCount = data.reduce((s, f) => s + (Number(f.count) || 0), 0);
-  const species = [...new Set(data.map(f => f.species))].length;
-  const protected_ = data.filter(f => f.conservation && f.conservation !== '一般').length;
+  const uniqueSpecies = [...new Set(data.map(f => f.species))].length;
+  // Protected: count unique species (not records) with non-一般 status
+  const protected_ = new Set(
+    data.filter(f => f.conservation && f.conservation !== '一般').map(f => f.species)
+  ).size;
 
   const container = document.getElementById('fishTabContent');
   container.innerHTML = `
-    <!-- 統計橫幅 -->
+    <!-- 統計橫幅（可點擊篩選） -->
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px">
       ${[
-        ['fa-fish','#0e7490','#cffafe',`${species} 種`,'記錄物種'],
-        ['fa-tally','#166534','#dcfce7',`${data.length} 筆`,'調查記錄'],
-        ['fa-hashtag','#1d4ed8','#dbeafe',`${totalCount} 尾`,'累計尾次'],
-        ['fa-shield-halved','#dc2626','#fee2e2',`${protected_} 種`,'保育物種']
-      ].map(([ic,col,bg,val,lbl]) => `
-        <div style="background:${bg};border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:12px">
+        ['fa-fish','#0e7490','#cffafe',`${uniqueSpecies} 種`,'記錄物種','fish_statClick(\'\')','顯示全部物種'],
+        ['fa-tally','#166534','#dcfce7',`${data.length} 筆`,'調查記錄','fish_statClick(\'\')','顯示全部調查記錄'],
+        ['fa-hashtag','#1d4ed8','#dbeafe',`${totalCount} 尾`,'累計尾次','fish_statClick(\'trend\')','查看歷年趨勢分析'],
+        ['fa-shield-halved','#dc2626','#fee2e2',`${protected_} 種`,'保育物種','fish_statClick(\'protected\')','篩選顯示保育物種']
+      ].map(([ic,col,bg,val,lbl,action,tip]) => `
+        <div onclick="${action}" title="${tip}"
+          style="background:${bg};border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;border:2px solid transparent;transition:border-color .2s,box-shadow .2s"
+          onmouseover="this.style.borderColor='${col}';this.style.boxShadow='0 4px 16px rgba(0,0,0,.12)'"
+          onmouseout="this.style.borderColor='transparent';this.style.boxShadow='none'">
           <div style="font-size:24px;color:${col}"><i class="fas ${ic}"></i></div>
           <div>
             <div style="font-size:22px;font-weight:900;color:${col};line-height:1">${val}</div>
@@ -150,99 +158,127 @@ function renderFishList() {
 }
 
 function loadFishTable() {
-  let data = DB.getAll('fish');
+  const allData = DB.getAll('fish');
   const kw = document.getElementById('fishSearch')?.value?.toLowerCase() || '';
   const cf = document.getElementById('fishConservationFilter')?.value || '';
-  if (kw) data = data.filter(f => f.species.toLowerCase().includes(kw) || (f.scientificName || '').toLowerCase().includes(kw));
-  if (cf) data = data.filter(f => f.conservation === cf);
+
+  // Group raw records by species so each species shows one card
+  const grouped = {};
+  allData.forEach(f => {
+    if (!grouped[f.species]) grouped[f.species] = { ...f, totalCount: 0, surveys: 0, records: [] };
+    grouped[f.species].totalCount += Number(f.count) || 0;
+    grouped[f.species].surveys++;
+    grouped[f.species].records.push(f);
+    if (!grouped[f.species].latestDate || (f.date && f.date > grouped[f.species].latestDate)) {
+      grouped[f.species].latestDate = f.date;
+    }
+  });
+
+  let species = Object.values(grouped);
+  if (kw) species = species.filter(s => s.species.toLowerCase().includes(kw) || (s.scientificName || '').toLowerCase().includes(kw));
+  if (cf) species = species.filter(s => s.conservation === cf);
 
   const cMap = { '瀕危':['#b91c1c','#fee2e2'], '易危':['#d97706','#fef9c3'], '近危':['#2563eb','#dbeafe'], '一般':['#16a34a','#dcfce7'] };
 
-  if (!data.length) {
+  if (!species.length) {
     document.getElementById('fishTable').innerHTML = '<div class="empty-state"><i class="fas fa-fish"></i><p>查無記錄</p></div>';
     return;
   }
 
+  const TREND_SET = new Set(['臺灣白甲魚','臺灣石魚賓','臺灣鬚鱲','纓口臺鰍','臺灣間爬岩鰍']);
+  const fallback = '/webapp/assets/fish-photos/field-measurement.jpg';
+
   document.getElementById('fishTable').innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:18px;padding:4px 0">
-      ${data.map(f => {
-        const photo = fish_photoFor(f);
-        const fallback = '/webapp/assets/fish-photos/field-measurement.jpg';
-        const [ccl, cbg] = cMap[f.conservation] || ['#475569','#f1f5f9'];
-        const cardId = `fishcard_${f.id}`;
+      ${species.map(s => {
+        const photo = fish_photoFor(s);
+        const [ccl] = cMap[s.conservation] || ['#475569','#f1f5f9'];
+        const cardId = `fishcard_sp_${s.species.replace(/[^\w]/g, '_')}`;
+        const inTrend = TREND_SET.has(s.species);
+        const allLocs = [...new Set(s.records.map(r => r.location).filter(Boolean))];
+        const latest = s.records.slice().sort((a,b) => String(b.date||'').localeCompare(String(a.date||'')))[0] || s;
         return `
           <div style="background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px rgba(15,23,42,.1);border:1px solid #e2e8f0;display:flex;flex-direction:column">
-
-            <!-- 照片區 -->
             <div style="position:relative;height:190px;overflow:hidden;background:#e5e7eb;cursor:pointer" onclick="fishCardToggle('${cardId}')">
-              <img src="${photo.image}" alt="${fish_escape(f.species)}"
+              <img src="${photo.image}" alt="${fish_escape(s.species)}"
                 style="width:100%;height:100%;object-fit:cover;object-position:${fish_escape(photo.position||'center center')};transition:transform .3s"
                 onerror="this.src='${fallback}'"
                 onmouseover="this.style.transform='scale(1.04)'" onmouseout="this.style.transform='scale(1)'">
-              <!-- 保育等級 badge -->
               <div style="position:absolute;top:12px;right:12px">
-                <span style="background:${ccl};color:#fff;font-size:15px;font-weight:800;padding:5px 14px;border-radius:999px;box-shadow:0 2px 8px rgba(0,0,0,.25)">${f.conservation||'一般'}</span>
+                <span style="background:${ccl};color:#fff;font-size:15px;font-weight:800;padding:5px 14px;border-radius:999px;box-shadow:0 2px 8px rgba(0,0,0,.25)">${s.conservation||'一般'}</span>
               </div>
-              <!-- 科別 badge -->
               <div style="position:absolute;top:12px;left:12px">
-                <span style="background:rgba(15,23,42,.72);color:#fff;font-size:13px;padding:4px 10px;border-radius:999px">${f.family||'-'}</span>
+                <span style="background:rgba(15,23,42,.72);color:#fff;font-size:13px;padding:4px 10px;border-radius:999px">${s.family||'-'}</span>
               </div>
+              ${s.surveys > 1 ? `<div style="position:absolute;bottom:10px;right:12px"><span style="background:rgba(15,23,42,.72);color:#fff;font-size:12px;padding:3px 10px;border-radius:999px"><i class="fas fa-layer-group" style="margin-right:4px"></i>${s.surveys} 次調查</span></div>` : ''}
             </div>
-
-            <!-- 主資訊區 -->
             <div style="padding:16px 18px 12px;flex:1;cursor:pointer" onclick="fishCardToggle('${cardId}')">
-              <div style="font-size:22px;font-weight:800;color:#0f172a;margin-bottom:4px;line-height:1.2">${fish_escape(f.species)}</div>
-              <div style="font-size:14px;font-style:italic;color:#64748b;margin-bottom:12px">${fish_escape(f.scientificName||'')}</div>
-
-              <!-- 3欄數字 -->
+              <div style="font-size:22px;font-weight:800;color:#0f172a;margin-bottom:4px;line-height:1.2">${fish_escape(s.species)}</div>
+              <div style="font-size:14px;font-style:italic;color:#64748b;margin-bottom:12px">${fish_escape(s.scientificName||'')}</div>
               <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">
                 <div style="background:#f0fdfa;border-radius:8px;padding:10px 8px;text-align:center">
-                  <div style="font-size:26px;font-weight:900;color:#0e7490;line-height:1">${f.count}</div>
-                  <div style="font-size:12px;color:#64748b;margin-top:2px">尾數</div>
+                  <div style="font-size:26px;font-weight:900;color:#0e7490;line-height:1">${s.totalCount}</div>
+                  <div style="font-size:12px;color:#64748b;margin-top:2px">累計尾數</div>
                 </div>
                 <div style="background:#f8fafc;border-radius:8px;padding:10px 8px;text-align:center">
-                  <div style="font-size:14px;font-weight:700;color:#0f172a;line-height:1.3">${f.date}</div>
-                  <div style="font-size:12px;color:#64748b;margin-top:2px">調查日期</div>
+                  <div style="font-size:22px;font-weight:900;color:#334155;line-height:1">${s.surveys}</div>
+                  <div style="font-size:12px;color:#64748b;margin-top:2px">調查次數</div>
                 </div>
                 <div style="background:#f8fafc;border-radius:8px;padding:10px 8px;text-align:center">
-                  <div style="font-size:13px;font-weight:600;color:#334155;line-height:1.3">${fish_escape((f.recorder||'-').replace('成果報告','').replace('生態調查','').trim())}</div>
-                  <div style="font-size:12px;color:#64748b;margin-top:2px">記錄來源</div>
+                  <div style="font-size:13px;font-weight:700;color:#0f172a;line-height:1.3">${latest.date||'-'}</div>
+                  <div style="font-size:12px;color:#64748b;margin-top:2px">最近調查</div>
                 </div>
               </div>
-
-              <!-- 位置 -->
               <div style="font-size:14px;color:#334155;background:#f8fafc;border-left:3px solid #0e7490;padding:8px 12px;border-radius:0 6px 6px 0;line-height:1.5">
-                <i class="fas fa-map-marker-alt" style="color:#0e7490;margin-right:4px"></i>${fish_escape(f.location||'-')}
+                <i class="fas fa-map-marker-alt" style="color:#0e7490;margin-right:4px"></i>${allLocs.join('、') || '-'}
               </div>
-
-              <!-- 展開提示 -->
+              ${inTrend ? `
+              <div style="margin-top:10px">
+                <button onclick="event.stopPropagation();fish_jumpToTrend('${fish_escape(s.species)}')"
+                  style="width:100%;padding:8px;border:1px solid #b45309;border-radius:8px;background:#fef3c7;color:#92400e;font-size:14px;font-weight:700;cursor:pointer">
+                  <i class="fas fa-chart-line"></i> 查看歷年趨勢
+                </button>
+              </div>` : ''}
               <div style="text-align:center;margin-top:10px;color:#94a3b8;font-size:13px">
-                <span id="${cardId}_hint"><i class="fas fa-chevron-down"></i> 點選查看詳情</span>
+                <span id="${cardId}_hint"><i class="fas fa-chevron-down"></i> 點選查看調查明細（${s.surveys} 筆）</span>
               </div>
             </div>
-
-            <!-- 展開詳情區 -->
             <div id="${cardId}" style="display:none;border-top:1px solid #e2e8f0;padding:14px 18px;background:#f8fafc">
-              <div style="font-size:13px;color:#64748b;margin-bottom:4px;font-weight:600">調查詳細資訊</div>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:14px;margin-bottom:14px">
-                <div><span style="color:#94a3b8">科別：</span><b>${fish_escape(f.family||'-')}</b></div>
-                <div><span style="color:#94a3b8">保育等級：</span><span style="color:${ccl};font-weight:700">${fish_escape(f.conservation||'-')}</span></div>
-                <div style="grid-column:1/-1"><span style="color:#94a3b8">學名：</span><em>${fish_escape(f.scientificName||'-')}</em></div>
-                <div style="grid-column:1/-1"><span style="color:#94a3b8">記錄者：</span>${fish_escape(f.recorder||'-')}</div>
-                ${f.note ? `<div style="grid-column:1/-1;background:#ecfdf5;border-left:3px solid #16a34a;padding:8px 10px;border-radius:0 6px 6px 0;color:#166534;font-size:13px;line-height:1.6">${fish_escape(f.note)}</div>` : ''}
+              <div style="font-size:13px;color:#64748b;margin-bottom:8px;font-weight:600">
+                <i class="fas fa-list"></i> 調查記錄明細（共 ${s.surveys} 筆）
               </div>
-              <div style="display:flex;gap:10px">
-                <button onclick="openFishForm(${f.id})"
-                  style="flex:1;padding:10px;border:none;background:#0e7490;color:#fff;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer">
-                  <i class="fas fa-edit"></i> 編輯
-                </button>
-                <button onclick="deleteFish(${f.id})"
-                  style="flex:1;padding:10px;border:none;background:#fee2e2;color:#b91c1c;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer">
-                  <i class="fas fa-trash"></i> 刪除
-                </button>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:13px;margin-bottom:12px">
+                <div><span style="color:#94a3b8">科別：</span><b>${fish_escape(s.family||'-')}</b></div>
+                <div><span style="color:#94a3b8">保育等級：</span><span style="color:${ccl};font-weight:700">${fish_escape(s.conservation||'-')}</span></div>
+                <div style="grid-column:1/-1"><span style="color:#94a3b8">學名：</span><em>${fish_escape(s.scientificName||'-')}</em></div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:8px">
+                ${s.records.slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))).map((r,i) => `
+                  <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+                      <span style="font-size:13px;font-weight:700;color:#0e7490">第 ${i+1} 筆記錄</span>
+                      <span style="font-size:12px;color:#94a3b8">${r.date||'-'}</span>
+                    </div>
+                    <div style="font-size:13px;color:#334155;display:grid;grid-template-columns:1fr 1fr;gap:4px">
+                      <div><span style="color:#94a3b8">尾數：</span><b style="color:#0e7490">${r.count}</b></div>
+                      <div><span style="color:#94a3b8">來源：</span>${fish_escape((r.recorder||'-').replace('成果報告','').replace('生態調查','').trim())}</div>
+                      <div style="grid-column:1/-1"><span style="color:#94a3b8">位置：</span>${fish_escape(r.location||'-')}</div>
+                      ${r.note ? `<div style="grid-column:1/-1;font-size:12px;color:#64748b;margin-top:2px">${fish_escape(r.note)}</div>` : ''}
+                    </div>
+                    <div style="display:flex;gap:8px;margin-top:8px">
+                      <button onclick="openFishForm(${r.id})"
+                        style="flex:1;padding:6px;border:none;background:#0e7490;color:#fff;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer">
+                        <i class="fas fa-edit"></i> 編輯
+                      </button>
+                      <button onclick="deleteFish(${r.id})"
+                        style="flex:1;padding:6px;border:none;background:#fee2e2;color:#b91c1c;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer">
+                        <i class="fas fa-trash"></i> 刪除
+                      </button>
+                    </div>
+                  </div>
+                `).join('')}
               </div>
             </div>
-
           </div>
         `;
       }).join('')}
@@ -922,6 +958,138 @@ function deleteFish(id) {
   loadFishTable();
 }
 
+// ── 統計卡點擊行為 ──────────────────────────────────────────
+function fish_statClick(action) {
+  if (action === 'trend') {
+    const btn = [...document.querySelectorAll('.tab-btn')].find(b => b.textContent.includes('歷年趨勢'));
+    if (btn) switchFishTab('trend', btn);
+    return;
+  }
+  if (action === 'protected') {
+    const cf = document.getElementById('fishConservationFilter');
+    if (cf) {
+      // cycle through protected levels; first click → 易危, already on protected → clear
+      const current = cf.value;
+      if (!current || current === '一般') {
+        // Show first protected level; user can use dropdown to drill further
+        cf.value = '';
+        loadFishTable();
+        showToast('點擊右側篩選下拉選單可進一步過濾保育等級', 'info');
+        // Scroll search bar into view
+        const sel = document.getElementById('fishConservationFilter');
+        if (sel) { sel.style.borderColor = '#dc2626'; setTimeout(() => { sel.style.borderColor = ''; }, 2000); }
+        // Filter to non-一般 via JS (temporary inline filter)
+        fish_filterProtected();
+      } else {
+        cf.value = '';
+        loadFishTable();
+      }
+    }
+    return;
+  }
+  // Default: clear filter and show all
+  const kw = document.getElementById('fishSearch');
+  const cf = document.getElementById('fishConservationFilter');
+  if (kw) kw.value = '';
+  if (cf) cf.value = '';
+  loadFishTable();
+}
+
+function fish_filterProtected() {
+  let data = DB.getAll('fish');
+  data = data.filter(f => f.conservation && f.conservation !== '一般');
+  const cMap = { '瀕危':['#b91c1c','#fee2e2'], '易危':['#d97706','#fef9c3'], '近危':['#2563eb','#dbeafe'], '一般':['#16a34a','#dcfce7'] };
+  if (!data.length) {
+    document.getElementById('fishTable').innerHTML = '<div class="empty-state"><i class="fas fa-fish"></i><p>查無保育類記錄</p></div>';
+    return;
+  }
+  const TREND_SPECIES = new Set(['臺灣白甲魚','臺灣石魚賓','臺灣鬚鱲','纓口臺鰍','臺灣間爬岩鰍']);
+  document.getElementById('fishTable').innerHTML = `
+    <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px 16px;margin-bottom:12px;font-size:14px;color:#991b1b">
+      <i class="fas fa-shield-halved" style="margin-right:6px"></i>
+      篩選中：保育類物種（${[...new Set(data.map(f=>f.species))].length} 種，共 ${data.length} 筆記錄）
+      <button onclick="fish_statClick('')" style="margin-left:12px;padding:3px 10px;border:1px solid #fca5a5;border-radius:6px;background:#fff;color:#991b1b;cursor:pointer;font-size:13px">顯示全部</button>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:18px;padding:4px 0">
+      ${data.map(f => {
+        const photo = fish_photoFor(f);
+        const fallback = '/webapp/assets/fish-photos/field-measurement.jpg';
+        const [ccl, cbg] = cMap[f.conservation] || ['#475569','#f1f5f9'];
+        const cardId = `fishcard_prot_${f.id}`;
+        const inTrend = TREND_SPECIES.has(f.species);
+        return `
+          <div style="background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px rgba(15,23,42,.1);border:2px solid ${ccl}33;display:flex;flex-direction:column">
+            <div style="position:relative;height:190px;overflow:hidden;background:#e5e7eb;cursor:pointer" onclick="fishCardToggle('${cardId}')">
+              <img src="${photo.image}" alt="${fish_escape(f.species)}"
+                style="width:100%;height:100%;object-fit:cover;object-position:${fish_escape(photo.position||'center center')};transition:transform .3s"
+                onerror="this.src='${fallback}'"
+                onmouseover="this.style.transform='scale(1.04)'" onmouseout="this.style.transform='scale(1)'">
+              <div style="position:absolute;top:12px;right:12px">
+                <span style="background:${ccl};color:#fff;font-size:15px;font-weight:800;padding:5px 14px;border-radius:999px;box-shadow:0 2px 8px rgba(0,0,0,.25)">${f.conservation||'一般'}</span>
+              </div>
+              <div style="position:absolute;top:12px;left:12px">
+                <span style="background:rgba(15,23,42,.72);color:#fff;font-size:13px;padding:4px 10px;border-radius:999px">${f.family||'-'}</span>
+              </div>
+            </div>
+            <div style="padding:16px 18px 12px;flex:1;cursor:pointer" onclick="fishCardToggle('${cardId}')">
+              <div style="font-size:22px;font-weight:800;color:#0f172a;margin-bottom:4px">${fish_escape(f.species)}</div>
+              <div style="font-size:14px;font-style:italic;color:#64748b;margin-bottom:12px">${fish_escape(f.scientificName||'')}</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">
+                <div style="background:#f0fdfa;border-radius:8px;padding:10px 8px;text-align:center">
+                  <div style="font-size:26px;font-weight:900;color:#0e7490;line-height:1">${f.count}</div>
+                  <div style="font-size:12px;color:#64748b;margin-top:2px">尾數</div>
+                </div>
+                <div style="background:#f8fafc;border-radius:8px;padding:10px 8px;text-align:center">
+                  <div style="font-size:14px;font-weight:700;color:#0f172a;line-height:1.3">${f.date}</div>
+                  <div style="font-size:12px;color:#64748b;margin-top:2px">調查日期</div>
+                </div>
+                <div style="background:#f8fafc;border-radius:8px;padding:10px 8px;text-align:center">
+                  <div style="font-size:12px;font-weight:600;color:#334155">${fish_escape((f.recorder||'-').replace('成果報告','').replace('生態調查','').trim())}</div>
+                  <div style="font-size:12px;color:#64748b;margin-top:2px">記錄來源</div>
+                </div>
+              </div>
+              <div style="font-size:14px;color:#334155;background:#f8fafc;border-left:3px solid #0e7490;padding:8px 12px;border-radius:0 6px 6px 0;line-height:1.5">
+                <i class="fas fa-map-marker-alt" style="color:#0e7490;margin-right:4px"></i>${fish_escape(f.location||'-')}
+              </div>
+              ${inTrend ? `
+              <div style="margin-top:10px">
+                <button onclick="event.stopPropagation();fish_jumpToTrend('${fish_escape(f.species)}')"
+                  style="width:100%;padding:8px;border:1px solid #b45309;border-radius:8px;background:#fef3c7;color:#92400e;font-size:14px;font-weight:700;cursor:pointer">
+                  <i class="fas fa-chart-line"></i> 查看歷年趨勢
+                </button>
+              </div>` : ''}
+            </div>
+            <div id="${cardId}" style="display:none;border-top:1px solid #e2e8f0;padding:14px 18px;background:#f8fafc">
+              <div style="font-size:13px;color:#64748b;margin-bottom:4px;font-weight:600">詳細資訊</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:14px">
+                <div><span style="color:#94a3b8">科別：</span><b>${fish_escape(f.family||'-')}</b></div>
+                <div><span style="color:#94a3b8">保育等級：</span><span style="color:${ccl};font-weight:700">${fish_escape(f.conservation||'-')}</span></div>
+                <div style="grid-column:1/-1"><span style="color:#94a3b8">學名：</span><em>${fish_escape(f.scientificName||'-')}</em></div>
+                ${f.note ? `<div style="grid-column:1/-1;background:#ecfdf5;border-left:3px solid #16a34a;padding:8px 10px;border-radius:0 6px 6px 0;color:#166534;font-size:13px;line-height:1.6">${fish_escape(f.note)}</div>` : ''}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+function fish_jumpToTrend(speciesName) {
+  const btn = [...document.querySelectorAll('.tab-btn')].find(b => b.textContent.includes('歷年趨勢'));
+  if (btn) {
+    switchFishTab('trend', btn);
+    // Highlight the species in trend after render
+    setTimeout(() => {
+      const highlightKey = { '臺灣白甲魚':'bai','臺灣石魚賓':'shi','臺灣鬚鱲':'xu','纓口臺鰍':'ying','臺灣間爬岩鰍':'jian' }[speciesName];
+      if (highlightKey) {
+        const badge = document.querySelector(`[data-species-key="${highlightKey}"]`);
+        if (badge) { badge.style.outline = '3px solid #f59e0b'; badge.scrollIntoView({ behavior:'smooth', block:'center' }); }
+      }
+    }, 600);
+  }
+}
+
 // ── 陸域・水域生物分布圖（含互動地圖） ─────────────────────────────────────
 
 let biogisMap = null;
@@ -1520,6 +1688,22 @@ const VEG_DOMINANT = [
   { name: '九節木',     pct:  1.14, family: '茜草科', type: '原生', invasive: false, endemic: false }
 ];
 
+/* 優勢植種代表照片（來源：Wikimedia Commons CC BY-SA 授權） */
+const _WM = 'https://commons.wikimedia.org/wiki/Special:FilePath/';
+const PLANT_PHOTO_LIBRARY = {
+  '五節芒':   { url:_WM+'Miscanthus_floridulus_-_J._C._Raulston_Arboretum_-_DSC06206.JPG?width=500',  sci:'Miscanthus floridulus',    pos:'center 60%' },
+  '大花咸豐草':{ url:_WM+'Bidens_pilosa_(Habitus).jpg?width=500',                                      sci:'Bidens pilosa',            pos:'center center' },
+  '臺灣五葉松':{ url:_WM+'Pinus_morrisonicola_22125484.jpg?width=500',                                 sci:'Pinus morrisonicola',      pos:'center 40%' },
+  '構樹':     { url:_WM+'Broussonetia_papyrifera_(5341912442).jpg?width=500',                         sci:'Broussonetia papyrifera',  pos:'center center' },
+  '狗尾草':   { url:_WM+'20140919Setaria_viridis1.jpg?width=500',                                     sci:'Setaria viridis',          pos:'center center' },
+  '銀合歡':   { url:_WM+'Subabool_(Leucaena_leucocephala)_dried_pods_in_Kolkata_W_IMG_4301.jpg?width=500', sci:'Leucaena leucocephala', pos:'center center' },
+  '野桐':     { url:_WM+'Mallotus_japonicus_(17332868491).jpg?width=500',                             sci:'Mallotus japonicus',       pos:'center center' },
+  '小花蔓澤蘭':{ url:_WM+'Climbing_hempweed_3.jpg?width=500',                                         sci:'Mikania micrantha',        pos:'center center' },
+  '九芎':     { url:_WM+'Lagerstroemia_subcostata_47672.JPG?width=500',                               sci:'Lagerstroemia subcostata', pos:'center 30%' },
+  '水柳':     { url:_WM+'Salix_warburgii_1.jpg?width=500',                                           sci:'Salix warburgii',          pos:'center center' },
+  '山葛':     { url:_WM+'Fabales_-_Pueraria_montana_roots_-_1.jpg?width=500',                       sci:'Pueraria montana',         pos:'center 30%' },
+};
+
 /* 完整植物名錄（91種，依植物類群分組） */
 const VEG_SPECIES_GROUPS = [
   {
@@ -1676,6 +1860,64 @@ function renderVegetation() {
       </div>
       <div style="margin-top:10px;font-size:12px;color:#94a3b8">
         * 標示外來入侵種（紅色）；# 標示臺灣特有種（橙色）｜資料來源：期中報告書 p.234
+      </div>
+    </div>
+
+    <!-- 優勢植種照片圖鑑 -->
+    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:18px 20px;margin-bottom:20px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:8px">
+        <div style="font-size:17px;font-weight:800;color:#0f172a">
+          <i class="fas fa-images" style="color:#16a34a;margin-right:7px"></i>優勢植種照片圖鑑
+        </div>
+        <div style="font-size:12px;color:#94a3b8">圖片來源：Wikimedia Commons（CC BY-SA）</div>
+      </div>
+      <div style="font-size:13px;color:#64748b;margin-bottom:16px">
+        橫流溪調查優勢植種現地辨識圖片，點選可放大檢視
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px">
+        ${VEG_DOMINANT.filter(v => PLANT_PHOTO_LIBRARY[v.name]).map(v => {
+          const photo = PLANT_PHOTO_LIBRARY[v.name];
+          const ccl = v.invasive ? '#b91c1c' : v.endemic ? '#92400e' : '#16a34a';
+          const badge = v.invasive ? '外來入侵' : v.endemic ? '特有種' : '原生';
+          const badgeBg = v.invasive ? '#fee2e2' : v.endemic ? '#fef9c3' : '#f0fdf4';
+          const modalId = 'vegphoto_' + v.name.replace(/[^\w]/g,'_');
+          return `
+            <div style="border-radius:10px;overflow:hidden;box-shadow:0 2px 10px rgba(15,23,42,.1);border:1px solid #e2e8f0;cursor:pointer"
+              onclick="document.getElementById('${modalId}').style.display='flex'">
+              <div style="position:relative;height:160px;overflow:hidden;background:#f1f5f9">
+                <img src="${photo.url}" alt="${v.name}"
+                  style="width:100%;height:100%;object-fit:cover;object-position:${photo.pos};transition:transform .4s"
+                  onerror="this.parentElement.innerHTML='<div style=&quot;width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#94a3b8;flex-direction:column;gap:6px&quot;><i class=&quot;fas fa-image&quot; style=&quot;font-size:28px&quot;></i><span style=&quot;font-size:12px&quot;>暫無照片</span></div>'"
+                  onmouseover="this.style.transform='scale(1.07)'" onmouseout="this.style.transform='scale(1)'">
+                <div style="position:absolute;top:8px;right:8px">
+                  <span style="background:${ccl};color:#fff;font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px">${badge}</span>
+                </div>
+                <div style="position:absolute;bottom:8px;left:8px">
+                  <span style="background:rgba(15,23,42,.72);color:#fff;font-size:11px;padding:2px 8px;border-radius:999px;font-weight:700">${v.pct}%</span>
+                </div>
+                <div style="position:absolute;bottom:8px;right:8px">
+                  <i class="fas fa-expand-alt" style="color:rgba(255,255,255,.8);font-size:13px"></i>
+                </div>
+              </div>
+              <div style="padding:10px 12px;background:#fff">
+                <div style="font-size:15px;font-weight:800;color:#0f172a;margin-bottom:2px">${v.name}</div>
+                <div style="font-size:11px;font-style:italic;color:#64748b;margin-bottom:3px">${photo.sci}</div>
+                <div style="font-size:12px;color:#94a3b8">${v.family}</div>
+              </div>
+            </div>
+            <!-- 放大燈箱 -->
+            <div id="${modalId}" onclick="this.style.display='none'"
+              style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:9999;align-items:center;justify-content:center;flex-direction:column;gap:12px;cursor:zoom-out">
+              <img src="${photo.url}" alt="${v.name}"
+                style="max-width:90vw;max-height:80vh;object-fit:contain;border-radius:8px;box-shadow:0 8px 40px rgba(0,0,0,.6)">
+              <div style="text-align:center;color:#fff">
+                <div style="font-size:20px;font-weight:800">${v.name}</div>
+                <div style="font-size:14px;font-style:italic;opacity:.8;margin-top:4px">${photo.sci}　｜　${v.family}　｜　相對豐度 ${v.pct}%</div>
+                <div style="font-size:12px;opacity:.55;margin-top:6px">圖片來源：Wikimedia Commons CC BY-SA　　點擊任意處關閉</div>
+              </div>
+            </div>
+          `;
+        }).join('')}
       </div>
     </div>
 
@@ -1966,7 +2208,7 @@ function renderFishTrend() {
 
   const FULL_FISH_LIST = [
     '臺灣間爬岩鰍','纓口臺鰍','臺灣白甲魚','臺灣石魚賓',
-    '臺灣鬚鱲','明潭吻鰕虎','短吻紅斑吻鰕虎','短臀瘋鱨'
+    '臺灣鬚鱲','明潭吻鰕虎','短吻紅斑吻鰕虎','短臀瘋鱨','粗首馬口鱲'
   ];
   const HISTORICAL_EXTRA_SPECIES = ['粗首馬口鱲'];
   const FISHWAY_TYPES = [
@@ -2065,7 +2307,7 @@ function renderFishTrend() {
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px">
         ${[
           { num:'5種', sub:'長期趨勢指標種\n全數臺灣特有種', icon:'🐟', color:'#7dd3fc' },
-          { num:'8種', sub:'109～114樣站表\n完整魚類名錄', icon:'📋', color:'#93c5fd' },
+          { num:'9種', sub:'橫流溪完整\n歷史魚類名錄', icon:'📋', color:'#93c5fd' },
           { num:'×4.7', sub:'族群量成長倍數\n(106→114年)', icon:'📈', color:'#86efac' },
           { num:'3種', sub:'保育類第II級\n(保育旗艦)', icon:'🛡️', color:'#fde68a' },
           { num:'8年', sub:'持續監測掌握\n長期生態變化', icon:'📅', color:'#c4b5fd' },
@@ -2103,7 +2345,7 @@ function renderFishTrend() {
       </div>
       <div style="font-size:14px;color:#475569;line-height:1.8;margin-bottom:14px">
         本頁已將「歷年趨勢分析」與「完整魚類名錄」分開呈現：趨勢圖採用具跨年度連續量化資料的5種指標魚類；
-        109～114年樣站彙整表則列出8種魚類。歷史資料庫另保留107～108成果報告中的粗首馬口鱲，因此平台完整歷史名錄可追溯至9種。
+        歷史名錄合計9種魚類，含109～114年樣站調查8種與107～108成果報告補充之粗首馬口鱲，與水域生物頁統計一致。
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px">
         <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:14px 16px">
@@ -2111,7 +2353,7 @@ function renderFishTrend() {
           <div style="font-size:13px;color:#334155;line-height:1.8">${SPECIES.map(s=>`${s.name}（${s.engName}）`).join('、')}</div>
         </div>
         <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:14px 16px">
-          <div style="font-size:15px;font-weight:900;color:#166534;margin-bottom:8px">109～114年樣站表8種</div>
+          <div style="font-size:15px;font-weight:900;color:#166534;margin-bottom:8px">橫流溪完整歷史名錄9種</div>
           <div style="font-size:13px;color:#334155;line-height:1.8">${FULL_FISH_LIST.join('、')}</div>
         </div>
         <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:14px 16px">
@@ -2380,7 +2622,7 @@ function renderFishTrend() {
       <div style="font-size:20px;font-weight:900;color:#0f172a;margin-bottom:6px">
         <i class="fas fa-info-circle" style="color:#0369a1;margin-right:10px"></i>橫流溪記錄魚種生態特性一覽
       </div>
-      <div style="font-size:14px;color:#64748b;margin-bottom:18px">5種長期趨勢指標特有種 ‧ 含3種保育類第II級物種；完整樣站表另列8種魚類</div>
+      <div style="font-size:14px;color:#64748b;margin-bottom:18px">5種長期趨勢指標特有種 ‧ 含3種保育類第II級物種；橫流溪完整歷史名錄9種</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px">
         ${[
           { sp:'臺灣白甲魚', eng:'Onychostoma barbatulum', fam:'鯉科', status:'🔴 保育類第II類 ‧ 台灣特有種', icon:'🐟',

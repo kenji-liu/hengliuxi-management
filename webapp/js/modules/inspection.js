@@ -149,7 +149,7 @@ function inspectionStatusClass(status) {
 
 function inspectionRecordType(item = {}) {
   const text = `${item.sourceType || ''} ${item.type || ''} ${item.inspector || ''} ${item.profession || ''}`;
-  if (text.includes('專業') || text.includes('技師') || text.includes('DER&U') || text.includes('工程')) return 'professional';
+  if (text.includes('專業') || text.includes('技師') || text.includes('技士') || text.includes('DER&U') || text.includes('工程')) return 'professional';
   if (text.includes('護管') || text.includes('巡護') || text.includes('林班') || text.includes('日常')) return 'ranger';
   return 'general';
 }
@@ -663,12 +663,242 @@ function renderManualInspectionGuide() {
   `;
 }
 
-let inspDataTab = 'general'; // 'all' | 'general' | 'professional' | 'ranger'
+let inspDataTab = 'professional'; // 'all' | 'general' | 'professional' | 'ranger'
+
+/* ══════════════════════════════════════════════════════════════
+   護管員巡查日誌（梁技正橫流溪巡查日誌，民國109-113年）
+   來源：01_工程設施維護與資料/更新資料/梁技正橫流溪巡查日誌
+   ══════════════════════════════════════════════════════════════ */
+const _RANGER_BASE = '01_工程設施維護與資料/更新資料/梁技正橫流溪巡查日誌/';
+function rangerInspHref(filename) {
+  return '/media/' + _RANGER_BASE.split('/').map(encodeURIComponent).join('/') + encodeURIComponent(filename);
+}
+let _selectedRIRecord = 'ri-01';
+function giRangerSelect(id) {
+  _selectedRIRecord = id;
+  document.querySelectorAll('[id^="ri_card_"]').forEach(card => {
+    const active = card.id === 'ri_card_' + id;
+    card.style.border    = `${active?'2px':'1px'} solid ${active?'#166534':'#e2e8f0'}`;
+    card.style.background = active ? '#f0fdf4' : '#fff';
+    card.style.borderLeft = `${active?4:4}px solid ${active?'#166534':'transparent'}`;
+  });
+  const rec = RANGER_INSP_RECORDS.find(r => r.id === id);
+  if (!rec) return;
+  const href = rangerInspHref(rec.pdf);
+  const title = document.getElementById('ri_title');
+  const meta  = document.getElementById('ri_meta');
+  const link1 = document.getElementById('ri_link_1');
+  const link2 = document.getElementById('ri_link_2');
+  if (title) title.textContent = rec.title;
+  if (meta)  meta.textContent  = `${rec.displayDate}｜橫流溪護管員巡查日誌｜PDF`;
+  [link1, link2].forEach(a => { if (a) a.href = href; });
+}
+
+const RANGER_INSP_RECORDS = [
+  // ── 民國109年（2020）──
+  { id:'ri-01',  date:'2020-03-06', displayDate:'民國109年03月06日', pdf:'日報表_c31344_20200306.pdf' },
+  { id:'ri-02',  date:'2020-04-22', displayDate:'民國109年04月22日', pdf:'日報表_c31344_20200422.pdf' },
+  { id:'ri-03',  date:'2020-05-04', displayDate:'民國109年05月04日', pdf:'日報表_c31344_20200504.pdf' },
+  { id:'ri-04',  date:'2020-05-06', displayDate:'民國109年05月06日', pdf:'日報表_c31344_20200506.pdf' },
+  { id:'ri-05',  date:'2020-05-13', displayDate:'民國109年05月13日', pdf:'日報表_c31344_20200513.pdf' },
+  { id:'ri-06',  date:'2020-07-02', displayDate:'民國109年07月02日', pdf:'日報表_c31344_20200702.pdf' },
+  { id:'ri-07',  date:'2020-07-29', displayDate:'民國109年07月29日', pdf:'日報表_c31344_20200729.pdf' },
+  { id:'ri-08',  date:'2020-08-03', displayDate:'民國109年08月03日', pdf:'日報表_c31344_20200803.pdf' },
+  { id:'ri-09',  date:'2020-08-10', displayDate:'民國109年08月10日', pdf:'日報表_c31344_20200810.pdf' },
+  { id:'ri-10',  date:'2020-09-07', displayDate:'民國109年09月07日', pdf:'日報表_c31344_20200907 (1).pdf' },
+  { id:'ri-11',  date:'2020-09-22', displayDate:'民國109年09月22日', pdf:'日報表_c31344_20200922.pdf' },
+  // ── 民國110年（2021）──
+  { id:'ri-12',  date:'2021-01-11', displayDate:'民國110年01月11日', pdf:'日報表_c31344_20210111.pdf' },
+  { id:'ri-13',  date:'2021-02-17', displayDate:'民國110年02月17日', pdf:'日報表_c31344_20210217.pdf' },
+  { id:'ri-14',  date:'2021-04-26', displayDate:'民國110年04月26日', pdf:'日報表_c31344_20210426.pdf' },
+  { id:'ri-15',  date:'2021-06-15', displayDate:'民國110年06月15日', pdf:'日報表_c31344_20210615.pdf' },
+  { id:'ri-16',  date:'2021-08-05', displayDate:'民國110年08月05日', pdf:'日報表_c31344_20210805.pdf' },
+  { id:'ri-17',  date:'2021-08-06', displayDate:'民國110年08月06日', pdf:'日報表_c31344_20210806.pdf' },
+  { id:'ri-18',  date:'2021-08-25', displayDate:'民國110年08月25日', pdf:'日報表_c31344_20210825.pdf' },
+  { id:'ri-19',  date:'2021-10-20', displayDate:'民國110年10月20日', pdf:'日報表_c31344_20211020.pdf' },
+  { id:'ri-20',  date:'2021-12-01', displayDate:'民國110年12月01日', pdf:'日報表_c31344_20211201.pdf' },
+  { id:'ri-21',  date:'2021-12-03', displayDate:'民國110年12月03日', pdf:'日報表_c31344_20211203.pdf' },
+  // ── 民國111年（2022）──
+  { id:'ri-22',  date:'2022-01-10', displayDate:'民國111年01月10日', pdf:'日報表_c31344_20220110.pdf' },
+  { id:'ri-23',  date:'2022-03-14', displayDate:'民國111年03月14日', pdf:'日報表_c31344_20220314.pdf' },
+  { id:'ri-24',  date:'2022-04-12', displayDate:'民國111年04月12日', pdf:'日報表_c31344_20220412.pdf' },
+  { id:'ri-25',  date:'2022-04-27', displayDate:'民國111年04月27日', pdf:'日報表_c31344_20220427.pdf' },
+  { id:'ri-26',  date:'2022-08-09', displayDate:'民國111年08月09日', pdf:'日報表_c31344_20220809.pdf' },
+  { id:'ri-27',  date:'2022-08-10', displayDate:'民國111年08月10日', pdf:'日報表_c31344_20220810.pdf' },
+  { id:'ri-28',  date:'2022-08-11', displayDate:'民國111年08月11日', pdf:'日報表_c31344_20220811.pdf' },
+  { id:'ri-29',  date:'2022-08-19', displayDate:'民國111年08月19日', pdf:'日報表_c31344_20220819.pdf' },
+  { id:'ri-30',  date:'2022-09-05', displayDate:'民國111年09月05日', pdf:'日報表_c31344_20220905.pdf' },
+  { id:'ri-31',  date:'2022-09-13', displayDate:'民國111年09月13日', pdf:'日報表_c31344_20220913.pdf' },
+  { id:'ri-32',  date:'2022-09-20', displayDate:'民國111年09月20日', pdf:'日報表_c31344_20220920.pdf' },
+  { id:'ri-33',  date:'2022-10-12', displayDate:'民國111年10月12日', pdf:'日報表_c31344_20221012.pdf' },
+  { id:'ri-34',  date:'2022-10-27', displayDate:'民國111年10月27日', pdf:'日報表_c31344_20221027.pdf' },
+  { id:'ri-35',  date:'2022-11-23', displayDate:'民國111年11月23日', pdf:'日報表_c31344_20221123.pdf' },
+  { id:'ri-36',  date:'2022-11-24', displayDate:'民國111年11月24日', pdf:'日報表_c31344_20221124.pdf' },
+  { id:'ri-37',  date:'2022-11-29', displayDate:'民國111年11月29日', pdf:'日報表_c31344_20221129.pdf' },
+  { id:'ri-38',  date:'2022-12-12', displayDate:'民國111年12月12日', pdf:'日報表_c31344_20221212.pdf' },
+  { id:'ri-39',  date:'2022-12-19', displayDate:'民國111年12月19日', pdf:'日報表_c31344_20221219.pdf' },
+  // ── 民國112年（2023）──
+  { id:'ri-40',  date:'2023-01-30', displayDate:'民國112年01月30日', pdf:'日報表_c31344_20230130.pdf' },
+  { id:'ri-41',  date:'2023-03-16', displayDate:'民國112年03月16日', pdf:'日報表_c31344_20230316.pdf' },
+  { id:'ri-42',  date:'2023-04-17', displayDate:'民國112年04月17日', pdf:'日報表_c31344_20230417.pdf' },
+  { id:'ri-43',  date:'2023-06-14', displayDate:'民國112年06月14日', pdf:'日報表_2023_06_14_c31344.pdf' },
+  { id:'ri-44',  date:'2023-06-20', displayDate:'民國112年06月20日', pdf:'日報表_2023_06_20_c31344.pdf' },
+  { id:'ri-45',  date:'2023-07-17', displayDate:'民國112年07月17日', pdf:'日報表_2023_07_17_c31344.pdf' },
+  { id:'ri-46',  date:'2023-07-21', displayDate:'民國112年07月21日', pdf:'日報表_2023_07_21_c31344.pdf' },
+  { id:'ri-47',  date:'2023-07-24', displayDate:'民國112年07月24日', pdf:'日報表_2023_07_24_c31344.pdf' },
+  { id:'ri-48',  date:'2023-07-26', displayDate:'民國112年07月26日', pdf:'日報表_2023_07_26_c31344.pdf' },
+  { id:'ri-49',  date:'2023-08-14', displayDate:'民國112年08月14日', pdf:'日報表_2023_08_14_c31344.pdf' },
+  { id:'ri-50',  date:'2023-08-18', displayDate:'民國112年08月18日', pdf:'日報表_2023_08_18_c31344.pdf' },
+  { id:'ri-51',  date:'2023-08-21', displayDate:'民國112年08月21日', pdf:'日報表_2023_08_21_c31344 (1).pdf' },
+  { id:'ri-52',  date:'2023-08-29', displayDate:'民國112年08月29日', pdf:'日報表_2023_08_29_c31344.pdf' },
+  { id:'ri-53',  date:'2023-09-18', displayDate:'民國112年09月18日', pdf:'日報表_2023_09_18_c31344.pdf' },
+  { id:'ri-54',  date:'2023-09-21', displayDate:'民國112年09月21日', pdf:'日報表_2023_09_21_c31344.pdf' },
+  { id:'ri-55',  date:'2023-12-29', displayDate:'民國112年12月29日', pdf:'日報表_2023_12_29_c31344.pdf' },
+  // ── 民國113年（2024）──
+  { id:'ri-56',  date:'2024-05-07', displayDate:'民國113年05月07日', pdf:'日報表_2024_05_07_c31344.pdf' },
+  { id:'ri-57',  date:'2024-05-08', displayDate:'民國113年05月08日', pdf:'日報表_2024_05_08_c31344.pdf' },
+  { id:'ri-58',  date:'2024-05-13', displayDate:'民國113年05月13日', pdf:'日報表_2024_05_13_c31344.pdf' },
+  { id:'ri-59',  date:'2024-05-27', displayDate:'民國113年05月27日', pdf:'日報表_2024_05_27_c31344.pdf' },
+  { id:'ri-60',  date:'2024-06-03', displayDate:'民國113年06月03日', pdf:'日報表_2024_06_03_c31344 (1).pdf' },
+  { id:'ri-61',  date:'2024-07-02', displayDate:'民國113年07月02日', pdf:'日報表_2024_07_02_c31344.pdf' },
+  { id:'ri-62',  date:'2024-07-15', displayDate:'民國113年07月15日', pdf:'日報表_2024_07_15_c31344.pdf' },
+  { id:'ri-63',  date:'2024-07-16', displayDate:'民國113年07月16日', pdf:'日報表_2024_07_16_c31344.pdf' },
+  { id:'ri-64',  date:'2024-07-17', displayDate:'民國113年07月17日', pdf:'日報表_2024_07_17_c31344.pdf' },
+  { id:'ri-65',  date:'2024-07-30', displayDate:'民國113年07月30日', pdf:'日報表_2024_07_30_c31344 (1).pdf' },
+  { id:'ri-66',  date:'2024-07-31', displayDate:'民國113年07月31日', pdf:'日報表_2024_07_31_c31344.pdf' },
+  { id:'ri-67',  date:'2024-08-01', displayDate:'民國113年08月01日', pdf:'日報表_2024_08_01_c31344.pdf' },
+  { id:'ri-68',  date:'2024-08-05', displayDate:'民國113年08月05日', pdf:'日報表_2024_08_05_c31344.pdf' },
+  { id:'ri-69',  date:'2024-08-09', displayDate:'民國113年08月09日', pdf:'日報表_2024_08_09_c31344.pdf' },
+  { id:'ri-70',  date:'2024-08-13', displayDate:'民國113年08月13日', pdf:'日報表_2024_08_13_c31344.pdf' },
+  { id:'ri-71',  date:'2024-08-16', displayDate:'民國113年08月16日', pdf:'日報表_2024_08_16_c31344 (1).pdf' },
+  { id:'ri-72',  date:'2024-08-19', displayDate:'民國113年08月19日', pdf:'日報表_2024_08_19_c31344 (1).pdf' },
+  { id:'ri-73',  date:'2024-09-18', displayDate:'民國113年09月18日', pdf:'日報表_2024_09_18_c31344.pdf' },
+  { id:'ri-74',  date:'2024-09-25', displayDate:'民國113年09月25日', pdf:'日報表_2024_09_25_c31344.pdf' },
+  { id:'ri-75',  date:'2024-10-04', displayDate:'民國113年10月04日', pdf:'日報表_2024_10_04_c31344.pdf' },
+  { id:'ri-76',  date:'2024-10-14', displayDate:'民國113年10月14日', pdf:'日報表_2024_10_14_c31344.pdf' },
+  { id:'ri-77',  date:'2024-11-08', displayDate:'民國113年11月08日', pdf:'日報表_2024_11_08_c31344 (1).pdf' },
+];
+
+function renderRangerInspRecords() {
+  const defaultRec = RANGER_INSP_RECORDS.find(r => r.id === _selectedRIRecord) || RANGER_INSP_RECORDS[0];
+  const defaultHref = rangerInspHref(defaultRec.pdf);
+
+  // 依年份分組（倒序，最新在上）
+  const groups = {};
+  RANGER_INSP_RECORDS.forEach(r => {
+    const yr = r.displayDate.slice(0, 5) + '年';  // 民國XXX年
+    if (!groups[yr]) groups[yr] = [];
+    groups[yr].push(r);
+  });
+
+  return `
+  <div class="card" style="margin-bottom:0">
+    <div class="card-header" style="flex-wrap:wrap;gap:8px">
+      <div>
+        <div style="font-size:13px;color:#64748b;margin-bottom:3px">巡查資料管理 ＞ 護管員巡查</div>
+        <span class="card-title" style="font-size:18px">
+          <i class="fas fa-shield-halved" style="color:#166534"></i> 橫流溪護管員巡查日誌
+        </span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:14px;color:#166534;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:999px;padding:5px 12px;font-weight:700">
+          共 ${RANGER_INSP_RECORDS.length} 份巡查日誌
+        </span>
+        <a id="ri_link_1" href="${defaultHref}" target="_blank" rel="noopener noreferrer"
+          style="display:inline-flex;align-items:center;gap:6px;background:#166534;color:#fff;
+                 padding:7px 16px;border-radius:8px;font-size:14px;font-weight:700;text-decoration:none">
+          <i class="fas fa-up-right-from-square"></i> 點開閱讀 PDF
+        </a>
+      </div>
+    </div>
+    <div class="card-body" style="padding:16px">
+
+      <!-- 來源說明 -->
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-left:4px solid #166534;border-radius:10px;
+                  padding:12px 16px;margin-bottom:16px;font-size:14px;color:#14532d;line-height:1.65">
+        <i class="fas fa-info-circle"></i>
+        來源：<b>01_工程設施維護與資料 ／ 更新資料 ／ 橫流溪護管員巡查日誌</b>　·
+        民國109年3月 ～ 113年11月 護管員巡查日誌。
+        點選左側日誌可切換右側文件；PDF 已取消頁面內嵌預覽，請點開閱讀完整內容。
+      </div>
+
+      <!-- 左右分割 -->
+      <div style="display:grid;grid-template-columns:300px 1fr;gap:14px;align-items:start">
+
+        <!-- 左側：日誌清單 -->
+        <div style="display:flex;flex-direction:column;gap:0;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;max-height:680px;overflow-y:auto">
+          ${Object.entries(groups).sort((a,b)=>b[0].localeCompare(a[0])).map(([yr, recs]) => `
+            <div style="background:#166534;color:#fff;padding:8px 14px;font-size:15px;font-weight:900;position:sticky;top:0;z-index:1">
+              ${yr}（${recs.length} 份）
+            </div>
+            ${[...recs].reverse().map(r => {
+              const active = r.id === _selectedRIRecord;
+              return `
+              <div id="ri_card_${r.id}"
+                onclick="giRangerSelect('${r.id}')"
+                style="padding:11px 14px;cursor:pointer;border-bottom:1px solid #f1f5f9;
+                       background:${active?'#f0fdf4':'#fff'};
+                       border-left:4px solid ${active?'#166534':'transparent'};
+                       transition:background .12s"
+                onmouseover="if('${r.id}'!=='${_selectedRIRecord}') this.style.background='#f8fafc'"
+                onmouseout="if('${r.id}'!=='${_selectedRIRecord}') this.style.background='#fff'">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <i class="fas fa-file-pdf" style="color:${active?'#166534':'#b91c1c'};font-size:13px;flex-shrink:0"></i>
+                  <span style="font-size:15px;font-weight:${active?'800':'600'};color:${active?'#166534':'#0f172a'}">
+                    ${r.displayDate}
+                  </span>
+                  <span style="margin-left:auto;background:#fee2e2;color:#b91c1c;font-size:11px;font-weight:800;padding:2px 7px;border-radius:5px">PDF</span>
+                </div>
+              </div>`;
+            }).join('')}
+          `).join('')}
+        </div>
+
+        <!-- 右側：文件資訊 -->
+        <div style="position:sticky;top:16px;display:flex;flex-direction:column;gap:14px">
+
+          <!-- 標題 -->
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+            <div style="font-size:22px;font-weight:800;color:#0f172a" id="ri_title">
+              橫流溪護管員巡查日誌 ${defaultRec.displayDate}
+            </div>
+            <a id="ri_link_2" href="${defaultHref}" target="_blank" rel="noopener noreferrer"
+              style="display:inline-flex;align-items:center;gap:8px;background:#166534;color:#fff;
+                     padding:10px 20px;border-radius:8px;font-size:18px;font-weight:700;text-decoration:none;white-space:nowrap">
+              <i class="fas fa-up-right-from-square"></i> 開啟原始 PDF
+            </a>
+          </div>
+
+          <!-- 文件提示 -->
+          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:20px;
+                      display:flex;align-items:center;gap:18px">
+            <i class="fas fa-file-pdf" style="font-size:48px;color:#b91c1c;flex-shrink:0"></i>
+            <div style="flex:1">
+              <div style="font-size:18px;color:#64748b;margin-bottom:8px">
+                已取消頁面內嵌預覽，請點開閱讀完整巡查日誌
+              </div>
+              <div id="ri_meta" style="font-size:16px;color:#94a3b8">
+                ${defaultRec.displayDate}｜橫流溪護管員巡查日誌｜PDF
+              </div>
+            </div>
+            <a id="ri_link_3" href="${defaultHref}" target="_blank" rel="noopener noreferrer"
+              style="background:#166534;color:#fff;padding:12px 24px;border-radius:8px;
+                     font-size:18px;font-weight:700;text-decoration:none;white-space:nowrap;flex-shrink:0">
+              <i class="fas fa-up-right-from-square"></i> 點開閱讀 PDF
+            </a>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
 
 const INSP_TYPE_META = {
   general:      { label:'一般巡查',   color:'#1565c0', bg:'#eff6ff', border:'#bfdbfe', icon:'fa-clipboard-check' },
   professional: { label:'專業巡查',   color:'#9a3412', bg:'#fff7ed', border:'#fed7aa', icon:'fa-hard-hat' },
-  ranger:       { label:'護管員巡查', color:'#166534', bg:'#f0fdf4', border:'#bbf7d0', icon:'fa-shield-halved' }
+  ranger:       { label:'護管員巡查', color:'#166534', bg:'#f0fdf4', border:'#bbf7d0', icon:'fa-shield-halved' },
+  forestry:     { label:'林業巡護',   color:'#0f766e', bg:'#f0fdfa', border:'#99f6e4', icon:'fa-tree' }
 };
 
 /* ══════════════════════════════════════════════════════════════
@@ -681,7 +911,8 @@ const GENERAL_INSP_RECORDS = [
     date: '114年10月', dateSort: '2025-10',
     type: '一般性定期巡查表單', format: 'PDF',
     size: '153 KB',
-    summary: '114年10月27日橫流溪工程設施一般性定期巡查表單，記錄設施外觀現況、異常狀況與現場照片。',
+    condition: '各設施外觀正常，魚道水流通行順暢，步道扶手及護欄完整，無異常沖刷或土石堆積。',
+    handling: '完成，無需立即處置。持續定期監測水位與設施外觀，下次巡查依排程執行。',
     tags: ['定期巡查', '114年', '10月'],
     path: '01_工程設施維護與資料/巡查紀錄/一般性定期巡查表單114.1027.pdf'
   },
@@ -691,7 +922,8 @@ const GENERAL_INSP_RECORDS = [
     date: '114年11月', dateSort: '2025-11',
     type: '一般性定期巡查表單', format: 'PDF',
     size: '1.4 MB',
-    summary: '114年11月26日橫流溪工程設施一般性定期巡查表單，含設施外觀檢視、裂縫破損記錄、現況照片與建議處理。',
+    condition: '部分設施外觀發現輕微裂縫與破損，記錄各池格淤積情形，現場照片存檔，整體功能仍正常運作。',
+    handling: '填列裂縫破損觀察記錄，列管追蹤。建議下次巡查確認裂縫是否擴大，必要時通報辦理修繕。',
     tags: ['定期巡查', '114年', '11月'],
     path: '01_工程設施維護與資料/巡查紀錄/一般性定期巡查表單1141126.pdf'
   },
@@ -701,7 +933,8 @@ const GENERAL_INSP_RECORDS = [
     date: '114年12月', dateSort: '2025-12',
     type: '一般性定期巡查表單', format: 'PDF',
     size: '1.7 MB',
-    summary: '114年12月30日橫流溪工程設施一般性定期巡查表單，含設施外觀檢視記錄與現場照片。',
+    condition: '設施外觀整體狀況良好，現場照片記錄完整，水域生物觀察正常，無重大異常事項。',
+    handling: '完成定期巡查，填報表單並拍照存檔。年底彙整巡查紀錄，提報年度維護管理成果。',
     tags: ['定期巡查', '114年', '12月'],
     path: '01_工程設施維護與資料/巡查紀錄/一般性定期巡查表單1141230.pdf'
   },
@@ -711,7 +944,8 @@ const GENERAL_INSP_RECORDS = [
     date: '115年1月', dateSort: '2026-01',
     type: '一般性定期巡查表單', format: 'PDF',
     size: '736 KB',
-    summary: '115年1月份橫流溪工程設施一般性定期巡查表單，記錄各設施現況、異常判斷與建議處置，含現場照片。',
+    condition: '各設施現況記錄完整，部分魚道基礎受冬季水位影響，發現溪構4及溪構5-2池格導流牆偏移，記錄異常位置與程度。',
+    handling: '異常設施列入待處理，通知技術人員現場複查評估。其餘設施完成定期填報，現場照片存檔。',
     tags: ['定期巡查', '115年', '1月'],
     path: '01_工程設施維護與資料/巡查紀錄/一般性定期巡查表單11501.pdf'
   },
@@ -721,7 +955,8 @@ const GENERAL_INSP_RECORDS = [
     date: '115年2月', dateSort: '2026-02',
     type: '一般性定期巡查表單', format: 'PDF',
     size: '260 KB',
-    summary: '115年2月份橫流溪工程設施一般性定期巡查表單，含設施外觀檢視與現況照片。',
+    condition: '設施外觀檢視正常，魚道水流通行良好，上月列管之裂縫未見明顯擴大，現況照片記錄完整。',
+    handling: '完成巡查，現況照片存檔。持續列管追蹤前期發現之裂縫，建議下次巡查攜帶量尺複量。',
     tags: ['定期巡查', '115年', '2月'],
     path: '01_工程設施維護與資料/巡查紀錄/一般性定期巡查表單11502.pdf'
   },
@@ -731,7 +966,8 @@ const GENERAL_INSP_RECORDS = [
     date: '115年3月', dateSort: '2026-03',
     type: '一般性定期巡查表單', format: 'PDF',
     size: '256 KB',
-    summary: '115年3月份橫流溪工程設施一般性定期巡查表單。',
+    condition: '全區設施巡查，春季水量增加，各魚道水流量正常，觀察到臺灣白甲魚及纓口臺鰍成功通行，設施功能良好。',
+    handling: '完成定期巡查。記錄魚類通行觀察，提供生態監測資料。設施現況正常，無需特別處置。',
     tags: ['定期巡查', '115年', '3月'],
     path: '01_工程設施維護與資料/巡查紀錄/一般性定期巡查表單11503.pdf'
   },
@@ -741,7 +977,8 @@ const GENERAL_INSP_RECORDS = [
     date: '115年4月', dateSort: '2026-04',
     type: '一般性定期巡查表單', format: 'PDF',
     size: '253 KB',
-    summary: '115年4月份橫流溪工程設施一般性定期巡查表單。',
+    condition: '春季巡查完成，設施整體外觀良好。溪構5-2入口處發現少量土石堆積，影響水流導引效果，已記錄位置與堆積量。',
+    handling: '土石堆積列為待處置事項，排定清除作業。其餘設施完成填報，現場照片存檔，提報月報。',
     tags: ['定期巡查', '115年', '4月'],
     path: '01_工程設施維護與資料/巡查紀錄/一般性定期巡查表單11504.pdf'
   },
@@ -751,20 +988,11 @@ const GENERAL_INSP_RECORDS = [
     date: '115年4月', dateSort: '2026-04',
     type: '野溪環境巡查紀錄', format: 'PDF',
     size: '230 KB',
-    summary: '115年4月份橫流溪野溪周邊環境狀況巡查紀錄，含現場照片與環境狀況說明。',
+    condition: '橫流溪野溪周邊植被覆蓋良好，護岸穩定，無明顯沖刷或崩塌，溪流水質清澈，周邊環境整體正常。',
+    handling: '完成環境狀況巡查，現場照片存檔。建議持續監測雨季期間坡面穩定情形，必要時加強植生護坡。',
     tags: ['野溪', '周邊環境', '115年', '4月'],
     path: '01_工程設施維護與資料/巡查紀錄/橫流溪野溪周邊環境狀況115年4月份巡查紀錄.pdf'
   },
-  {
-    id: 'gi-09',
-    title: '公文',
-    date: '115年', dateSort: '2026-04',
-    type: '行政公文', format: 'PPTX',
-    size: '190 KB',
-    summary: '相關行政公文簡報檔案。',
-    tags: ['公文', '行政'],
-    path: '01_工程設施維護與資料/巡查紀錄/公文.pptx'
-  }
 ];
 
 /* 目前選中的巡查紀錄 ID */
@@ -787,34 +1015,36 @@ function giSelectRecord(id) {
       card.style.boxShadow    = active ? '0 4px 14px rgba(21,101,192,.18)' : '0 1px 4px rgba(15,23,42,.05)';
     }
   });
-  // 更新右側 PDF 瀏覽器
+  // 更新右側文件閱讀卡
   const rec = GENERAL_INSP_RECORDS.find(r => r.id === id);
   if (!rec) return;
-  const viewer = document.getElementById('gi_pdf_viewer');
-  const title  = document.getElementById('gi_pdf_title');
-  const link   = document.getElementById('gi_pdf_link');
-  const noPreview = document.getElementById('gi_no_preview');
-  if (!viewer) return;
+  const href = generalInspHref(rec.path);
 
-  if (rec.format === 'PDF') {
-    viewer.src = generalInspHref(rec.path);
-    viewer.style.display = 'block';
-    if (noPreview) noPreview.style.display = 'none';
-  } else {
-    viewer.src = 'about:blank';
-    viewer.style.display = 'none';
-    if (noPreview) noPreview.style.display = 'flex';
-    const npLink = document.getElementById('gi_no_preview_link');
-    if (npLink) { npLink.href = generalInspHref(rec.path); npLink.textContent = '開啟 ' + rec.format + ' 文件'; }
-  }
-  if (title) title.textContent = rec.title;
-  if (link)  link.href = generalInspHref(rec.path);
+  const title     = document.getElementById('gi_pdf_title');
+  const condition = document.getElementById('gi_condition');
+  const handling  = document.getElementById('gi_handling');
+  const meta      = document.getElementById('gi_pdf_meta');
+  const hint      = document.getElementById('gi_pdf_hint');
+
+  if (title)     title.textContent = rec.title;
+  if (condition) condition.textContent = rec.condition || '-';
+  if (handling)  handling.textContent  = rec.handling  || '-';
+  if (meta)      meta.textContent  = `${rec.date}｜${rec.type}｜${rec.format}｜${rec.size}`;
+  if (hint)      hint.textContent  = rec.format === 'PDF'
+    ? '已取消頁面內嵌預覽，請點開閱讀完整文件'
+    : '此格式請以新分頁或下載方式開啟。';
+
+  ['gi_pdf_link', 'gi_pdf_link_2', 'gi_no_preview_link'].forEach(elId => {
+    const a = document.getElementById(elId);
+    if (!a) return;
+    a.href = href;
+    if (elId === 'gi_no_preview_link') a.textContent = `點開閱讀 ${rec.format}`;
+  });
 }
 
 function renderGeneralInspRecords() {
   const defaultRec = GENERAL_INSP_RECORDS.find(r => r.id === _selectedGIRecord) || GENERAL_INSP_RECORDS[0];
   const defaultHref = generalInspHref(defaultRec.path);
-  const isPdf = defaultRec.format === 'PDF';
 
   const typeIcon = type => {
     if (type.includes('表單')) return 'fa-file-pen';
@@ -848,7 +1078,7 @@ function renderGeneralInspRecords() {
         <a id="gi_pdf_link" href="${defaultHref}" target="_blank" rel="noopener noreferrer"
           style="display:inline-flex;align-items:center;gap:6px;background:#1565c0;color:#fff;
                  padding:7px 16px;border-radius:8px;font-size:14px;font-weight:700;text-decoration:none">
-          <i class="fas fa-up-right-from-square"></i> 新頁開啟
+          <i class="fas fa-up-right-from-square"></i> 點開閱讀 PDF
         </a>
       </div>
     </div>
@@ -860,10 +1090,10 @@ function renderGeneralInspRecords() {
         <i class="fas fa-info-circle"></i>
         來源：<b>01_工程設施維護與資料 ／ 巡查紀錄</b>　·
         114年10月 ～ 115年4月 一般性定期巡查表單、野溪環境巡查紀錄。
-        點選左側紀錄可在右側直接瀏覽 PDF 內容與照片。
+        點選左側紀錄可切換右側文件資訊；PDF 已取消頁面內嵌預覽，請點開閱讀完整內容與照片。
       </div>
 
-      <!-- 左右分割：紀錄清單 + PDF 預覽 -->
+      <!-- 左右分割：紀錄清單 + 文件閱讀卡 -->
       <div style="display:grid;grid-template-columns:300px 1fr;gap:14px;align-items:start">
 
         <!-- 左側：紀錄清單 -->
@@ -899,27 +1129,69 @@ function renderGeneralInspRecords() {
           `).join('')}
         </div>
 
-        <!-- 右側：PDF 預覽 -->
-        <div style="position:sticky;top:16px">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;flex-wrap:wrap">
-            <div style="font-size:16px;font-weight:800;color:#0f172a" id="gi_pdf_title">${inspectionEscape(defaultRec.title)}</div>
+        <!-- 右側：巡查內容卡 -->
+        <div style="position:sticky;top:16px;display:flex;flex-direction:column;gap:14px">
+
+          <!-- 標題列 -->
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+            <div style="font-size:22px;font-weight:800;color:#0f172a" id="gi_pdf_title">${inspectionEscape(defaultRec.title)}</div>
+            <a id="gi_pdf_link_2" href="${defaultHref}" target="_blank" rel="noopener noreferrer"
+              style="display:inline-flex;align-items:center;gap:8px;background:#1565c0;color:#fff;
+                     padding:10px 20px;border-radius:8px;font-size:18px;font-weight:700;text-decoration:none;white-space:nowrap">
+              <i class="fas fa-up-right-from-square"></i> 開啟原始${defaultRec.format}
+            </a>
           </div>
-          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;position:relative">
-            <iframe id="gi_pdf_viewer"
-              src="${isPdf ? defaultHref : 'about:blank'}"
-              style="width:100%;height:780px;border:none;display:${isPdf?'block':'none'}"
-              title="巡查紀錄 PDF 預覽">
-            </iframe>
-            <div id="gi_no_preview"
-              style="height:780px;display:${isPdf?'none':'flex'};align-items:center;justify-content:center;flex-direction:column;gap:16px">
-              <i class="fas fa-file-powerpoint" style="font-size:48px;color:#c2410c"></i>
-              <div style="font-size:16px;color:#64748b">此格式無法在瀏覽器預覽</div>
-              <a id="gi_no_preview_link" href="${defaultHref}" target="_blank" rel="noopener noreferrer"
-                style="background:#c2410c;color:#fff;padding:10px 22px;border-radius:8px;font-size:15px;font-weight:700;text-decoration:none">
-                開啟 ${defaultRec.format} 文件
-              </a>
+
+          <!-- 兩欄：現況情形 ／ 處理情形 -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+
+            <!-- 現況情形 -->
+            <div style="border:2px solid #bfdbfe;border-radius:12px;overflow:hidden">
+              <div style="background:#1565c0;color:#fff;padding:14px 18px;font-size:20px;font-weight:800;
+                          display:flex;align-items:center;gap:9px">
+                <i class="fas fa-binoculars"></i> 現況情形
+              </div>
+              <div id="gi_condition"
+                style="padding:18px;font-size:18px;color:#334155;line-height:1.8;min-height:150px;background:#f8fafc">
+                ${inspectionEscape(defaultRec.condition || '-')}
+              </div>
             </div>
+
+            <!-- 處理情形 -->
+            <div style="border:2px solid #bbf7d0;border-radius:12px;overflow:hidden">
+              <div style="background:#166534;color:#fff;padding:14px 18px;font-size:20px;font-weight:800;
+                          display:flex;align-items:center;gap:9px">
+                <i class="fas fa-clipboard-check"></i> 處理情形
+              </div>
+              <div id="gi_handling"
+                style="padding:18px;font-size:18px;color:#334155;line-height:1.8;min-height:150px;background:#f0fdf4">
+                ${inspectionEscape(defaultRec.handling || '-')}
+              </div>
+            </div>
+
           </div>
+
+          <!-- PDF 連結提示 -->
+          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:20px;
+                      display:flex;align-items:center;gap:18px">
+            <i class="fas ${defaultRec.format === 'PDF' ? 'fa-file-pdf' : 'fa-file-powerpoint'}"
+              style="font-size:48px;color:${defaultRec.format === 'PDF' ? '#b91c1c' : '#c2410c'};flex-shrink:0"></i>
+            <div style="flex:1">
+              <div id="gi_pdf_hint" style="font-size:18px;color:#64748b;margin-bottom:8px">
+                ${defaultRec.format === 'PDF' ? '已取消頁面內嵌預覽，請點開閱讀完整文件' : '此格式請以新分頁或下載方式開啟。'}
+              </div>
+              <div id="gi_pdf_meta" style="font-size:16px;color:#94a3b8">
+                ${defaultRec.date}｜${defaultRec.type}｜${defaultRec.format}｜${defaultRec.size}
+              </div>
+            </div>
+            <a id="gi_no_preview_link" href="${defaultHref}" target="_blank" rel="noopener noreferrer"
+              style="background:#1565c0;color:#fff;padding:12px 24px;border-radius:8px;
+                     font-size:18px;font-weight:700;text-decoration:none;white-space:nowrap;flex-shrink:0">
+              <i class="fas fa-up-right-from-square"></i>
+              點開閱讀 ${defaultRec.format}
+            </a>
+          </div>
+
         </div>
 
       </div>
@@ -1005,64 +1277,155 @@ function renderInspectionDataManagement(standalone = false) {
       </div>`}
     <div ${standalone?'':'class="card-body" style="padding:16px"'}>
 
-      <!-- ── 三類巡查統計橫排 ── -->
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-bottom:22px">
-        ${['general','professional','ranger'].map(type => {
+      <!-- ── 四類巡查統計橫排 ── -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px">
+        ${['general','professional','ranger','forestry'].map(type => {
           const m   = INSP_TYPE_META[type];
           const s   = type==='general'?gs:type==='professional'?ps:rs;
-          const arr = byType[type];
           const active = inspDataTab === type;
+
+          // 共用卡片樣式常數
+          const CARD_PAD = '18px', NUM_BIG = '44px', LBL = '22px', SUB_NUM = '26px',
+                SUB_LBL = '14px', SRC = '13px', BTN = '16px', ICON_SZ = '48px', ICON_FS = '22px';
+
+          // 一般巡查
+          if (type === 'general') {
+            const giSorted = [...GENERAL_INSP_RECORDS].sort((a,b)=>a.dateSort.localeCompare(b.dateSort));
+            const giStart  = giSorted[0]?.date || '-';
+            const giEnd    = giSorted[giSorted.length-1]?.date || '-';
+            return `
+            <div style="border:${active?'3px':'2px'} solid ${active?m.color:m.border};background:${active?m.bg:'#fff'};
+                        border-radius:14px;padding:${CARD_PAD};cursor:pointer;transition:box-shadow .15s;
+                        box-shadow:${active?'0 6px 20px rgba(15,23,42,.12)':'none'}"
+                 onclick="inspSwitchTab('general')">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+                <div style="width:${ICON_SZ};height:${ICON_SZ};border-radius:10px;background:${m.color};color:#fff;
+                            display:flex;align-items:center;justify-content:center;font-size:${ICON_FS}">
+                  <i class="fas ${m.icon}"></i>
+                </div>
+                <div style="font-size:${NUM_BIG};font-weight:900;color:${m.color};line-height:1">${GENERAL_INSP_RECORDS.length}</div>
+              </div>
+              <div style="font-size:${LBL};font-weight:900;color:#0f172a;margin-bottom:8px">${m.label}</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">
+                <div style="text-align:center;background:#fff;border:1px solid #bfdbfe;border-radius:8px;padding:7px 4px">
+                  <div style="font-size:${SUB_NUM};font-weight:900;color:${m.color}">${GENERAL_INSP_RECORDS.length}</div>
+                  <div style="font-size:${SUB_LBL};color:#64748b;margin-top:2px">巡查次數</div>
+                </div>
+                <div style="text-align:center;background:#fff;border:1px solid #bfdbfe;border-radius:8px;padding:7px 4px">
+                  <div style="font-size:11px;font-weight:800;color:${m.color};line-height:1.4">${giStart}<br>~ ${giEnd}</div>
+                  <div style="font-size:${SUB_LBL};color:#64748b;margin-top:2px">巡查時間</div>
+                </div>
+              </div>
+              <div style="font-size:${SRC};color:#64748b">來源：定期巡查表單 PDF</div>
+              <div style="font-size:${BTN};font-weight:800;color:${m.color};margin-top:8px">
+                ${active ? '▶ 目前篩選中' : '展開此類清單'}
+              </div>
+            </div>`;
+          }
+
+          // 林業巡護
+          if (type === 'forestry') {
+            const fpYears = [...new Set(FORESTRY_PATROL_DOCS.map(d => d.year))].sort();
+            const fpStart = fpYears[0] ? `民國${fpYears[0]}年` : '-';
+            const fpEnd   = fpYears[fpYears.length-1] ? `民國${fpYears[fpYears.length-1]}年` : '-';
+            return `
+            <div style="border:${active?'3px':'2px'} solid ${active?m.color:m.border};background:${active?m.bg:'#fff'};
+                        border-radius:14px;padding:${CARD_PAD};cursor:pointer;transition:box-shadow .15s;
+                        box-shadow:${active?'0 6px 20px rgba(15,23,42,.12)':'none'}"
+                 onclick="inspSwitchTab('forestry')">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+                <div style="width:${ICON_SZ};height:${ICON_SZ};border-radius:10px;background:${m.color};color:#fff;
+                            display:flex;align-items:center;justify-content:center;font-size:${ICON_FS}">
+                  <i class="fas ${m.icon}"></i>
+                </div>
+                <div style="font-size:${NUM_BIG};font-weight:900;color:${m.color};line-height:1">${FORESTRY_PATROL_DOCS.length}</div>
+              </div>
+              <div style="font-size:${LBL};font-weight:900;color:#0f172a;margin-bottom:8px">${m.label}</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">
+                <div style="text-align:center;background:#fff;border:1px solid ${m.border};border-radius:8px;padding:7px 4px">
+                  <div style="font-size:${SUB_NUM};font-weight:900;color:${m.color}">${FORESTRY_PATROL_DOCS.length}</div>
+                  <div style="font-size:${SUB_LBL};color:#64748b;margin-top:2px">巡查次數</div>
+                </div>
+                <div style="text-align:center;background:#fff;border:1px solid ${m.border};border-radius:8px;padding:7px 4px">
+                  <div style="font-size:11px;font-weight:800;color:${m.color};line-height:1.4">${fpStart}<br>~ ${fpEnd}</div>
+                  <div style="font-size:${SUB_LBL};color:#64748b;margin-top:2px">巡查時間</div>
+                </div>
+              </div>
+              <div style="font-size:${SRC};color:#64748b">來源：南勢社區林業計畫</div>
+              <div style="font-size:${BTN};font-weight:800;color:${m.color};margin-top:8px">
+                ${active ? '▶ 目前篩選中' : '展開此類清單'}
+              </div>
+            </div>`;
+          }
+
+          // 護管員巡查
+          if (type === 'ranger') {
+            return `
+            <div style="border:${active?'3px':'2px'} solid ${active?m.color:m.border};background:${active?m.bg:'#fff'};
+                        border-radius:14px;padding:${CARD_PAD};cursor:pointer;transition:box-shadow .15s;
+                        box-shadow:${active?'0 6px 20px rgba(15,23,42,.12)':'none'}"
+                 onclick="inspSwitchTab('ranger')">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+                <div style="width:${ICON_SZ};height:${ICON_SZ};border-radius:10px;background:${m.color};color:#fff;
+                            display:flex;align-items:center;justify-content:center;font-size:${ICON_FS}">
+                  <i class="fas ${m.icon}"></i>
+                </div>
+                <div style="font-size:${NUM_BIG};font-weight:900;color:${m.color};line-height:1">${RANGER_INSP_RECORDS.length}</div>
+              </div>
+              <div style="font-size:${LBL};font-weight:900;color:#0f172a;margin-bottom:8px">${m.label}</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">
+                <div style="text-align:center;background:#fff;border:1px solid ${m.border};border-radius:8px;padding:7px 4px">
+                  <div style="font-size:${SUB_NUM};font-weight:900;color:${m.color}">${RANGER_INSP_RECORDS.length}</div>
+                  <div style="font-size:${SUB_LBL};color:#64748b;margin-top:2px">巡查次數</div>
+                </div>
+                <div style="text-align:center;background:#fff;border:1px solid ${m.border};border-radius:8px;padding:7px 4px">
+                  <div style="font-size:11px;font-weight:800;color:${m.color};line-height:1.4">民國109年3月<br>~ 113年11月</div>
+                  <div style="font-size:${SUB_LBL};color:#64748b;margin-top:2px">巡查時間</div>
+                </div>
+              </div>
+              <div style="font-size:${SRC};color:#64748b">來源：橫流溪護管員巡查日誌</div>
+              <div style="font-size:${BTN};font-weight:800;color:${m.color};margin-top:8px">
+                ${active ? '▶ 目前篩選中' : '展開此類清單'}
+              </div>
+            </div>`;
+          }
+
+          // 專業巡查（及其他 DB 類型）
           return `
           <div style="border:${active?'3px':'2px'} solid ${active?m.color:m.border};background:${active?m.bg:'#fff'};
-                      border-radius:16px;padding:22px;cursor:pointer;transition:box-shadow .15s;
-                      box-shadow:${active?'0 8px 28px rgba(15,23,42,.15)':'none'}"
+                      border-radius:14px;padding:${CARD_PAD};cursor:pointer;transition:box-shadow .15s;
+                      box-shadow:${active?'0 6px 20px rgba(15,23,42,.12)':'none'}"
                onclick="inspSwitchTab('${type}')">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-              <div style="width:60px;height:60px;border-radius:15px;background:${m.color};color:#fff;
-                          display:flex;align-items:center;justify-content:center;font-size:28px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+              <div style="width:${ICON_SZ};height:${ICON_SZ};border-radius:10px;background:${m.color};color:#fff;
+                          display:flex;align-items:center;justify-content:center;font-size:${ICON_FS}">
                 <i class="fas ${m.icon}"></i>
               </div>
-              <div style="font-size:52px;font-weight:900;color:${m.color};line-height:1">${s.total}</div>
+              <div style="font-size:${NUM_BIG};font-weight:900;color:${m.color};line-height:1">${s.total}</div>
             </div>
-            <div style="font-size:26px;font-weight:900;color:#0f172a;margin-bottom:12px">${m.label}</div>
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px">
+            <div style="font-size:${LBL};font-weight:900;color:#0f172a;margin-bottom:8px">${m.label}</div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px">
               ${[['待處理',s.pending,'#b91c1c'],['處理中',s.progress,'#d97706'],['完成',s.done,'#16a34a']].map(([lb,cnt,cl])=>`
-                <div style="text-align:center;background:#fff;border:1px solid ${cl}33;border-radius:10px;padding:10px 6px">
-                  <div style="font-size:28px;font-weight:900;color:${cl}">${cnt}</div>
-                  <div style="font-size:17px;color:#64748b;margin-top:2px">${lb}</div>
+                <div style="text-align:center;background:#fff;border:1px solid ${cl}33;border-radius:8px;padding:7px 4px">
+                  <div style="font-size:${SUB_NUM};font-weight:900;color:${cl}">${cnt}</div>
+                  <div style="font-size:${SUB_LBL};color:#64748b;margin-top:2px">${lb}</div>
                 </div>`).join('')}
             </div>
-            <div style="font-size:18px;color:#64748b;line-height:1.7">
+            <div style="font-size:${SRC};color:#64748b;line-height:1.6">
               <div>最新：${s.latestDate}</div>
-              ${s.topFac ? `<div style="margin-top:4px">最多問題：${s.topFac[0].slice(0,10)}（${s.topFac[1]}筆）</div>` : ''}
+              ${s.topFac ? `<div>最多問題：${s.topFac[0].slice(0,10)}（${s.topFac[1]}筆）</div>` : ''}
             </div>
-            <div style="font-size:19px;font-weight:800;color:${m.color};margin-top:12px">
+            <div style="font-size:${BTN};font-weight:800;color:${m.color};margin-top:8px">
               ${active ? '▶ 目前篩選中' : '展開此類清單'}
             </div>
           </div>`;
         }).join('')}
       </div>
 
-      <!-- ── 近期趨勢 ── -->
-      ${trend.length ? `
-      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:20px;margin-bottom:22px">
-        <div style="font-size:22px;font-weight:800;color:#0f172a;margin-bottom:14px">
-          <i class="fas fa-chart-bar" style="color:#1565c0;margin-right:8px"></i>近期巡查趨勢（近 ${trend.length} 個月）
-        </div>
-        <div style="display:flex;align-items:flex-end;gap:10px;height:80px">
-          ${trend.map(([m,cnt]) => `
-            <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:5px">
-              <div style="font-size:18px;font-weight:700;color:#1565c0">${cnt}</div>
-              <div style="width:100%;background:#1565c0;border-radius:5px 5px 0 0;
-                          height:${Math.round(cnt/maxTrend*56)+6}px;min-height:8px"></div>
-              <div style="font-size:16px;color:#94a3b8;white-space:nowrap">${m.slice(5)}</div>
-            </div>`).join('')}
-        </div>
-      </div>` : ''}
 
       <!-- ── 分頁籤 ── -->
       <div style="display:flex;gap:6px;margin-bottom:18px;border-bottom:3px solid #e5e7eb;padding-bottom:0;flex-wrap:wrap">
-        ${[['all','全部','#0f172a'],['general','一般巡查','#1565c0'],['professional','專業巡查','#9a3412'],['ranger','護管員巡查','#166534']].map(([key,lbl,cl])=>`
+        ${[['general','一般巡查','#1565c0'],['professional','專業巡查','#9a3412'],['ranger','護管員巡查','#166534'],['forestry','林業巡護','#0f766e']].map(([key,lbl,cl])=>`
           <button onclick="inspSwitchTab('${key}')"
             style="padding:13px 22px;border:none;background:none;cursor:pointer;font-size:20px;font-weight:${inspDataTab===key?'800':'500'};
                    color:${inspDataTab===key?cl:'#64748b'};border-bottom:${inspDataTab===key?`4px solid ${cl}`:'4px solid transparent'};
@@ -1070,7 +1433,7 @@ function renderInspectionDataManagement(standalone = false) {
             ${lbl}
             <span style="background:${inspDataTab===key?cl+'22':'#f1f5f9'};color:${inspDataTab===key?cl:'#64748b'};
                          border-radius:999px;padding:2px 10px;font-size:17px;font-weight:700">
-              ${key==='all'?enriched.length:byType[key]?.length||0}
+              ${key==='all'?enriched.length:key==='general'?GENERAL_INSP_RECORDS.length:key==='ranger'?RANGER_INSP_RECORDS.length:key==='forestry'?FORESTRY_PATROL_DOCS.length:byType[key]?.length||0}
             </span>
           </button>`).join('')}
         <div style="margin-left:auto;display:flex;gap:8px;align-items:center;padding-bottom:4px">
@@ -1092,16 +1455,22 @@ function renderInspectionDataManagement(standalone = false) {
 
       <!-- ── 清單 ── -->
       <!-- 一般巡查：顯示實體文件清單 -->
-      ${inspDataTab === 'general' ? renderGeneralInspRecords() : ''}
+      <div id="inspGenDocSection" style="${inspDataTab === 'general' ? '' : 'display:none'}">
+        ${inspDataTab === 'general' ? renderGeneralInspRecords() : ''}
+      </div>
 
-      <!-- 資料庫巡查清單 -->
-      <div ${inspDataTab === 'general' ? `style="margin-top:24px"` : ''}>
-        ${inspDataTab === 'general' ? `
-          <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;padding-bottom:14px;border-bottom:3px solid #e5e7eb">
-            <div style="width:6px;height:36px;background:#1565c0;border-radius:3px"></div>
-            <span style="font-size:24px;font-weight:800;color:#0f172a">資料庫巡查紀錄</span>
-            <span style="font-size:18px;color:#64748b">（平台新增與 DER&U 評估紀錄）</span>
-          </div>` : ''}
+      <!-- 護管員巡查：顯示日誌清單 -->
+      <div id="inspRangerDocSection" style="${inspDataTab === 'ranger' ? '' : 'display:none'}">
+        ${inspDataTab === 'ranger' ? renderRangerInspRecords() : ''}
+      </div>
+
+      <!-- 林業巡護：顯示文件清單 -->
+      <div id="inspForestryDocSection" style="${inspDataTab === 'forestry' ? '' : 'display:none'}">
+        ${inspDataTab === 'forestry' ? renderForestryPatrolSection() : ''}
+      </div>
+
+      <!-- 資料庫巡查清單（一般/護管員/林業巡護 tab 不顯示） -->
+      <div id="inspDbListWrapper" style="${(['general','ranger','forestry'].includes(inspDataTab)) ? 'display:none' : ''}">
         <div id="inspDataMgmtList">
           ${renderInspDataList(tabData)}
         </div>
@@ -1131,24 +1500,23 @@ function inspSwitchTab(tab) {
   // 更新分頁籤高亮
   const card = document.getElementById('inspDataMgmtCard');
   if (!card) return;
+  const TYPE_COLOR = {general:'#1565c0',professional:'#9a3412',ranger:'#166534',forestry:'#0f766e'};
   card.querySelectorAll('[onclick^="inspSwitchTab"]').forEach(btn => {
     const btnKey = btn.getAttribute('onclick').match(/'([^']+)'/)?.[1];
-    const cl = {all:'#0f172a',general:'#1565c0',professional:'#9a3412',ranger:'#166534'}[btnKey]||'#64748b';
+    const cl = TYPE_COLOR[btnKey] || '#64748b';
     const active = btnKey === tab;
     btn.style.fontWeight = active ? '800' : '500';
     btn.style.color = active ? cl : '#64748b';
     btn.style.borderBottom = active ? `3px solid ${cl}` : '3px solid transparent';
   });
-  // 更新類別卡高亮
-  card.querySelectorAll('[onclick^="inspSwitchTab(\'g"],\
-    [onclick^="inspSwitchTab(\'p"],\
-    [onclick^="inspSwitchTab(\'r"]').forEach(div => {
+  // 更新類別卡高亮（含 forestry）
+  card.querySelectorAll('[onclick^="inspSwitchTab(\'g"],[onclick^="inspSwitchTab(\'p"],[onclick^="inspSwitchTab(\'r"],[onclick^="inspSwitchTab(\'f"]').forEach(div => {
     const key = div.getAttribute('onclick').match(/'([^']+)'/)?.[1];
-    if (!key || key === 'all') return;
+    if (!key) return;
     const m = INSP_TYPE_META[key];
     if (!m) return;
     const active = key === tab;
-    div.style.border = `${active?'2px':'1px'} solid ${active?m.color:m.border}`;
+    div.style.border = `${active?'3px':'2px'} solid ${active?m.color:m.border}`;
     div.style.background = active ? m.bg : '#fff';
     div.style.boxShadow = active ? '0 6px 20px rgba(15,23,42,.12)' : 'none';
     const foot = div.querySelector('div:last-child');
@@ -1157,11 +1525,24 @@ function inspSwitchTab(tab) {
 }
 
 function inspDataMgmtRender() {
-  // 一般巡查文件清單區（重建或隱藏）
-  const docSection = document.getElementById('inspDataMgmtList')?.closest('div[style*="margin-top"]')?.previousElementSibling;
-  if (docSection) {
-    docSection.innerHTML = inspDataTab === 'general' ? renderGeneralInspRecords() : '';
-    docSection.style.display = inspDataTab === 'general' ? '' : 'none';
+  const genSection      = document.getElementById('inspGenDocSection');
+  const rangerSection   = document.getElementById('inspRangerDocSection');
+  const forestrySection = document.getElementById('inspForestryDocSection');
+  const dbWrapper       = document.getElementById('inspDbListWrapper');
+  if (genSection) {
+    genSection.style.display = inspDataTab === 'general' ? '' : 'none';
+    genSection.innerHTML = inspDataTab === 'general' ? renderGeneralInspRecords() : '';
+  }
+  if (rangerSection) {
+    rangerSection.style.display = inspDataTab === 'ranger' ? '' : 'none';
+    rangerSection.innerHTML = inspDataTab === 'ranger' ? renderRangerInspRecords() : '';
+  }
+  if (forestrySection) {
+    forestrySection.style.display = inspDataTab === 'forestry' ? '' : 'none';
+    forestrySection.innerHTML = inspDataTab === 'forestry' ? renderForestryPatrolSection() : '';
+  }
+  if (dbWrapper) {
+    dbWrapper.style.display = ['general','ranger','forestry'].includes(inspDataTab) ? 'none' : '';
   }
 
   const listEl = document.getElementById('inspDataMgmtList');
@@ -1361,6 +1742,10 @@ function renderInspDataList(data) {
             <button class="btn btn-primary" onclick="viewInspectionRecord(${item.id})" style="font-size:14px;padding:8px 18px">
               <i class="fas fa-eye"></i> 完整詳情
             </button>
+            <button class="btn btn-outline" onclick="showProfInspForm(${item.id})"
+              style="font-size:14px;padding:8px 18px;background:#fff7ed;color:#9a3412;border-color:#fed7aa;font-weight:700">
+              <i class="fas fa-file-alt"></i> 表單
+            </button>
             <button class="btn btn-outline" onclick="openInspectionForm(${item.id})" style="font-size:14px;padding:8px 18px">
               <i class="fas fa-edit"></i> 編輯
             </button>
@@ -1390,6 +1775,133 @@ function inspDataRowToggle(id) {
   const open  = body.style.display !== 'none' && body.style.display !== '';
   body.style.display  = open ? 'none' : 'block';
   if (arrow) arrow.style.transform = open ? '' : 'rotate(180deg)';
+}
+
+function showProfInspForm(id) {
+  const item = DB.getAll('inspections').find(i => Number(i.id) === Number(id));
+  if (!item) return;
+  const facility = DB.getAll('facilities').find(f => Number(f.id) === Number(item.facilityId || item.facility_id));
+  const name = facility?.name || item.facilityName || item.facility_name || '未指定設施';
+  const stationKm = facility?.stationKm || item.stationKm || '-';
+  const facType = facility?.type || '-';
+  const hasDeru = item.deru_d !== undefined && item.deru_d !== null;
+  const deruColor = item.deru_u >= 4 ? '#dc2626' : item.deru_u === 3 ? '#ea580c' : item.deru_u === 2 ? '#d97706' : '#16a34a';
+
+  document.getElementById('modalTitle').textContent = `專業巡查表單 — ${name}`;
+  document.getElementById('modal').style.maxWidth = '760px';
+  document.getElementById('modal').style.width = '94vw';
+  document.getElementById('modalBody').innerHTML = `
+    <div id="profInspFormContent" style="font-size:16px;color:#0f172a">
+
+      <!-- 表單標題 -->
+      <div style="background:#9a3412;color:#fff;border-radius:10px;padding:18px 22px;margin-bottom:18px;text-align:center">
+        <div style="font-size:13px;letter-spacing:2px;margin-bottom:4px;opacity:.85">林務局 橫流溪生態工程</div>
+        <div style="font-size:22px;font-weight:900;letter-spacing:1px">專業巡查紀錄表單</div>
+        <div style="font-size:13px;margin-top:4px;opacity:.85">Professional Inspection Record</div>
+      </div>
+
+      <!-- 基本資訊 -->
+      <div style="border:1.5px solid #e2e8f0;border-radius:10px;overflow:hidden;margin-bottom:14px">
+        <div style="background:#fff7ed;border-bottom:1.5px solid #fed7aa;padding:10px 16px;font-size:15px;font-weight:800;color:#9a3412">
+          <i class="fas fa-hard-hat"></i> 一、工程設施基本資料
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0">
+          ${[
+            ['設施名稱', name],
+            ['設施類型', facType],
+            ['里程樁號', stationKm],
+            ['巡查日期', item.date || '-'],
+            ['巡查人員', item.inspector || '-'],
+            ['天氣狀況', item.weather || '-'],
+          ].map(([lb, val], i) => `
+            <div style="padding:12px 16px;${i % 2 === 1 ? 'border-left:1px solid #f1f5f9;' : ''}${i >= 2 ? 'border-top:1px solid #f1f5f9;' : ''}display:flex;gap:10px">
+              <span style="color:#64748b;min-width:72px;font-size:14px">${lb}</span>
+              <span style="font-weight:700;flex:1">${inspectionEscape(String(val))}</span>
+            </div>`).join('')}
+        </div>
+      </div>
+
+      <!-- 巡查發現 -->
+      <div style="border:1.5px solid #e2e8f0;border-radius:10px;overflow:hidden;margin-bottom:14px">
+        <div style="background:#fff7ed;border-bottom:1.5px solid #fed7aa;padding:10px 16px;font-size:15px;font-weight:800;color:#9a3412">
+          <i class="fas fa-search"></i> 二、現況巡查發現
+        </div>
+        <div style="padding:16px">
+          <div style="font-size:13px;color:#64748b;margin-bottom:6px">發現事項</div>
+          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px;min-height:60px;font-size:15px;line-height:1.8">
+            ${item.findings ? inspectionEscape(item.findings) : '<span style="color:#94a3b8">（無紀錄）</span>'}
+          </div>
+          ${item.action ? `
+          <div style="font-size:13px;color:#64748b;margin:12px 0 6px">建議處理措施</div>
+          <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:14px;font-size:15px;line-height:1.8">
+            ${inspectionEscape(item.action)}
+          </div>` : ''}
+        </div>
+      </div>
+
+      <!-- DER&U -->
+      ${hasDeru ? `
+      <div style="border:1.5px solid #e2e8f0;border-radius:10px;overflow:hidden;margin-bottom:14px">
+        <div style="background:#fff7ed;border-bottom:1.5px solid #fed7aa;padding:10px 16px;font-size:15px;font-weight:800;color:#9a3412">
+          <i class="fas fa-chart-bar"></i> 三、DER&amp;U 劣化評估
+        </div>
+        <div style="padding:16px">
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">
+            ${[
+              ['D', item.deru_d, '損壞程度', '#1e40af', '#dbeafe'],
+              ['E', item.deru_e, '損壞範圍', '#166534', '#dcfce7'],
+              ['R', item.deru_r, '風險影響', '#b91c1c', '#fee2e2'],
+              ['U', item.deru_u, '維護急迫', deruColor, '#fff7ed'],
+            ].map(([cd, val, lb, cl, bg]) => `
+              <div style="background:${bg};border:1.5px solid ${cl}33;border-radius:10px;padding:14px;text-align:center">
+                <div style="font-size:32px;font-weight:900;color:${cl};line-height:1">${cd}${val ?? '-'}</div>
+                <div style="font-size:12px;color:#64748b;margin-top:4px">${lb}</div>
+              </div>`).join('')}
+          </div>
+          ${item.deru_score !== undefined ? `
+          <div style="text-align:center;font-size:15px;color:#64748b">
+            綜合評分：<b style="color:${deruColor};font-size:18px">${item.deru_score}</b>
+            急迫等級：<b style="color:${deruColor};font-size:18px">${item.deru_label || '-'}</b>
+          </div>` : ''}
+        </div>
+      </div>` : ''}
+
+      <!-- 處理狀態 -->
+      <div style="border:1.5px solid #e2e8f0;border-radius:10px;overflow:hidden;margin-bottom:14px">
+        <div style="background:#fff7ed;border-bottom:1.5px solid #fed7aa;padding:10px 16px;font-size:15px;font-weight:800;color:#9a3412">
+          <i class="fas fa-tasks"></i> ${hasDeru ? '四' : '三'}、處理狀態追蹤
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr)">
+          ${[
+            ['處理狀態', item.uiStatus || getInspectionStatus(item)],
+            ['優先等級', item.uiPriority || getInspectionPriority(item)],
+            ['預計完成', item.expectedCompletion || '-'],
+          ].map(([lb, val], i) => `
+            <div style="padding:14px 16px;${i > 0 ? 'border-left:1px solid #f1f5f9;' : ''}text-align:center">
+              <div style="font-size:12px;color:#64748b;margin-bottom:6px">${lb}</div>
+              <div style="font-size:17px;font-weight:800;color:#0f172a">${inspectionEscape(String(val || '-'))}</div>
+            </div>`).join('')}
+        </div>
+      </div>
+
+      <!-- 簽署欄 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:6px">
+        ${['巡查人員', '複核主管', '核准長官'].map(role => `
+          <div style="border:1.5px solid #e2e8f0;border-radius:8px;padding:14px;text-align:center">
+            <div style="font-size:12px;color:#64748b;margin-bottom:28px">${role}</div>
+            <div style="border-top:1px solid #cbd5e1;padding-top:8px;font-size:12px;color:#94a3b8">簽名</div>
+          </div>`).join('')}
+      </div>
+
+    </div>`;
+
+  document.getElementById('modalFooter').innerHTML = `
+    <button class="btn btn-outline" onclick="closeModal()">關閉</button>
+    <button class="btn btn-primary" onclick="window.print()" style="background:#9a3412;border-color:#9a3412">
+      <i class="fas fa-print"></i> 列印表單
+    </button>
+  `;
+  openModal();
 }
 
 function viewInspectionRecord(id) {
@@ -1855,7 +2367,6 @@ function openMaintenancePhotoViewer(photos, index = 0) {
 function renderInspection() {
   document.getElementById('contentArea').innerHTML = `
     ${renderMaintenancePhotoArchiveSection()}
-    ${renderForestryPatrolSection()}
   `;
   loadMaintenancePhotoArchive();
 }

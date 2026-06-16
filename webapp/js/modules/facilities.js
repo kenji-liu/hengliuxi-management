@@ -5,6 +5,7 @@ let facilityFilter = { keyword: '', type: '', status: '' };
 let facilityViewMode = 'cards';  // 'cards' 或 'map'
 let facilityMapInstance = null;  // Leaflet 地圖物件
 let facilityPrimaryCategory = 'fishway';
+let _expandedFacId = null;
 
 const FACILITY_PRIMARY_CATEGORIES = [
   {
@@ -246,6 +247,7 @@ function facListToggle(id) {
   const open = body.style.display !== 'none' && body.style.display !== '';
   body.style.display  = open ? 'none' : 'block';
   if (arrow) arrow.style.transform = open ? '' : 'rotate(180deg)';
+  _expandedFacId = open ? null : id;
 }
 
 /* ── 詳情欄位列 ── */
@@ -1090,6 +1092,7 @@ function loadFacilitiesTable() {
                 ${facDetailRow('建造年', f.year ? f.year + ' 年' : '-')}
                 ${facDetailRow('材料', f.material)}
                 ${facDetailRow('DER&U 等級', f.derLevel || '-')}
+                ${facDetailRow('評估日期', f.assessmentDate || '')}
                 ${f.length ? facDetailRow('長度', f.length + ' m') : ''}
                 ${f.width  ? facDetailRow('寬度', f.width  + ' m') : ''}
               </div>
@@ -1162,6 +1165,14 @@ function loadFacilitiesTable() {
       </div>
     </div>
   `;
+  if (_expandedFacId) {
+    const _row = document.getElementById(_expandedFacId);
+    if (_row) {
+      _row.style.display = 'block';
+      const _arrow = document.getElementById(_expandedFacId + '_arrow');
+      if (_arrow) _arrow.style.transform = 'rotate(180deg)';
+    }
+  }
 }
 
 /* ── 地圖檢視模式 ── */
