@@ -1927,6 +1927,7 @@ function openDERUAssessmentForm(id = null) {
           <option value="">-- 選擇評等級 --</option>
           <option value="A1" ${f.derLevel==='A1'?'selected':''}>A1 優良（Acceptable）</option>
           <option value="B1-I" ${f.derLevel==='B1-I'?'selected':''}>B1-I 輕度劣化（Incipient）</option>
+          <option value="C3" ${f.derLevel==='C3'?'selected':''}>C3 顯著缺失（Significant）</option>
           <option value="C4-C5" ${f.derLevel==='C4-C5'?'selected':''}>C4-C5 重度劣化（Considerable/Critical）</option>
         </select>
       </div>

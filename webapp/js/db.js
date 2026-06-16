@@ -14,7 +14,7 @@ const DB = {
   },
 
   // 資料版本（每次重大更新設施資料時遞增）
-  VERSION: '3.9',  // DER評等更新：溪構11(C4-C5)、溪構5-2(C4-C5)、溪構4(C4-C5)等修正
+  VERSION: '4.0',  // DER評等同步：溪構5-2/4/3/1-2更新為A1，巡查紀錄1&3更新為完成
 
   // 讀取所有資料
   load() {
@@ -103,7 +103,7 @@ const DB = {
 
         { id: 7, name: '溪構5-2 潛越式魚道', type: '魚道', subType: '潛越式', code: '5-2', stationKm: '1K+000', location: '溪構5-2', twd97x: 240812, twd97y: 2675353, lat: 24.183541, lng: 120.909564, km_num: 1000,
           year: 105, status: '損壞', material: '混凝土', length: 18, width: 1.0, condition: 1, lastInspect: '2025-01-10', source: '107-108成果報告 / 維護管理手冊表5-1',
-          derLevel: 'C4-C5', assessmentDate: '2025-01-10', riskScore: 95, maintenanceStrategy: '升級式', retirementEligible: true, evaluationNotes: '颱風後入口完全堵塞，喪失魚道通行功能；棲地連通性嚴重受損，需評估升級改造或更新',
+          derLevel: 'A1', assessmentDate: '2025-01-10', riskScore: 95, maintenanceStrategy: '升級式', retirementEligible: true, evaluationNotes: '颱風後入口完全堵塞，喪失魚道通行功能；棲地連通性嚴重受損，需評估升級改造或更新',
           river_segment: '橫流溪中游', anomaly_type: '魚道阻塞|淘空|淤積', anomaly_level: '高', maintenance_priority: '緊急',
           judgement_basis: '颱風入口完全堵塞，喪失通行功能，棲地連通性嚴重受損，健康指數15分，需緊急清除堵塞並評估結構安全，優先進行升級改造',
           note: '潛越式魚道（溪構5-2），颱風後入口遭土石堵塞完全阻塞，喪失通行功能；需緊急清除土石並評估結構安全；為棲地連通性優先修復項目',
@@ -119,7 +119,7 @@ const DB = {
 
         { id: 9, name: '溪構4 階段式魚道', type: '魚道', subType: '階段式', code: '4', stationKm: '1K+170', location: '溪構4', twd97x: 240832, twd97y: 2675493, lat: 24.184805, lng: 120.909760, km_num: 1170,
           year: 108, status: '需維護', material: '混凝土/塊石', length: 42, width: 1.8, condition: 3, lastInspect: '2025-02-20', source: '107-108成果報告 / 維護管理手冊表5-1',
-          derLevel: 'C4-C5', assessmentDate: '2025-02-20', riskScore: 68, maintenanceStrategy: '反應式', retirementEligible: false, evaluationNotes: '池壁裂縫與基礎侵蝕為主要劣化因素，需優先進行基礎補強與混凝土修復',
+          derLevel: 'A1', assessmentDate: '2025-02-20', riskScore: 68, maintenanceStrategy: '反應式', retirementEligible: false, evaluationNotes: '池壁裂縫與基礎侵蝕為主要劣化因素，需優先進行基礎補強與混凝土修復',
           river_segment: '橫流溪上游', anomaly_type: '裂縫|侵蝕|破損', anomaly_level: '高', maintenance_priority: '高',
           judgement_basis: '池壁出現裂縫，基礎受洪水侵蝕，混凝土局部裸露，健康指數38分，需優先進行基礎補強與混凝土修復工程',
           note: '階段式魚道（溪構4），1K+170節點；各水池高差0.15~0.3m；部分池壁有裂縫，基礎受侵蝕，混凝土局部裸露；流速3.2m/s（107年）；建議優先維護',
@@ -127,7 +127,7 @@ const DB = {
 
         { id: 10, name: '溪構3 斜坡式魚道', type: '魚道', subType: '斜坡式', code: '3', stationKm: '1K+225', location: '溪構3', twd97x: 240873, twd97y: 2675532, lat: 24.185158, lng: 120.910163, km_num: 1225,
           year: 108, status: '正常', material: '混凝土/塊石', length: 35, width: 1.2, condition: 4, lastInspect: '2025-03-15', source: '107-108成果報告 / 維護管理手冊表5-1',
-          derLevel: 'B1-I', assessmentDate: '2025-03-15', riskScore: 26, maintenanceStrategy: '預防式', retirementEligible: false, evaluationNotes: '坡面設計合理，通行效果良好，纓口臺鰍及臺灣白甲魚可順利通過',
+          derLevel: 'A1', assessmentDate: '2025-03-15', riskScore: 26, maintenanceStrategy: '預防式', retirementEligible: false, evaluationNotes: '坡面設計合理，通行效果良好，纓口臺鰍及臺灣白甲魚可順利通過',
           river_segment: '橫流溪上游', anomaly_type: null, anomaly_level: '正常', maintenance_priority: '低',
           judgement_basis: '坡面設計合理，通行效果良好，多種保育魚類通行成功率高，健康指數90分，定期巡查即可',
           note: '斜坡式魚道（溪構3），1K+225節點；坡面落差5.105%~1.808%坡降；流速3.1m/s；改善後纓口臺鰍及臺灣白甲魚可通行；維護管理手冊p.5-2',
@@ -159,7 +159,7 @@ const DB = {
 
         { id: 14, name: '溪構1-2 改良型舟通式魚道', type: '魚道', subType: '舟通式', code: '1-2', stationKm: '1K+400', location: '溪構1-2', twd97x: 240773, twd97y: 2675689, lat: 24.186575, lng: 120.909178, km_num: 1400,
           year: 107, status: '正常', material: '混凝土', length: 24, width: 1.8, condition: 4, lastInspect: '2025-03-15', source: '107-108成果報告 / 維護管理手冊表5-1',
-          derLevel: 'B1-I', assessmentDate: '2025-03-15', riskScore: 30, maintenanceStrategy: '預防式', retirementEligible: false, evaluationNotes: '與粗石魚道併設功能互補，通行率佳，建議監測磨耗狀況',
+          derLevel: 'A1', assessmentDate: '2025-03-15', riskScore: 30, maintenanceStrategy: '預防式', retirementEligible: false, evaluationNotes: '與粗石魚道併設功能互補，通行率佳，建議監測磨耗狀況',
           river_segment: '橫流溪上游', anomaly_type: null, anomaly_level: '正常', maintenance_priority: '低',
           judgement_basis: '與粗石魚道併設功能互補，通行率佳，保育魚類成功通行記錄，健康指數91分，建議監測結構磨耗狀況',
           note: '改良型舟通式魚道（溪構1-2），與粗石斜曲面式（溪構1-1）併設；流速3.8m/s（107年）；已記錄臺灣白甲魚、纓口臺鰍成功通行',
@@ -246,9 +246,9 @@ const DB = {
       ],
       reports: [],
       inspections: [
-        { id: 1, facilityId: 7, facilityName: '溪構5-2 潛越式魚道', date: '2025-01-10', inspector: '張技士', weather: '晴', findings: '入口遭颱風帶入土石完全堵塞，魚類無法通行，池壁左側出現縱向裂縫約20cm', action: '提報緊急維護計畫，申請預算清除堵塞土石', status: '待處理', priority: '緊急', photos: [] },
+        { id: 1, facilityId: 7, facilityName: '溪構5-2 潛越式魚道', date: '2025-01-10', inspector: '張技士', weather: '晴', findings: '入口遭颱風帶入土石完全堵塞，魚類無法通行，池壁左側出現縱向裂縫約20cm', action: '提報緊急維護計畫，申請預算清除堵塞土石', status: '完成', priority: '低', photos: [], maintenanceStart: '2025-01-10', expectedCompletion: '', completedAt: '', deru_d: 0, deru_e: 1, deru_r: 1, deru_u: 1, deru_label: 'U1 定期巡查', deru_score: 0 },
         { id: 2, facilityId: 3, facilityName: '溪構11 階梯式固床工', date: '2025-01-10', inspector: '張技士', weather: '晴', findings: '左岸翼牆出現細裂縫約15cm，鋼筋有鏽蝕現象，需儘速修補防止擴大', action: '提報維護計畫，安排鋼筋防蝕處理', status: '待處理', priority: '高', photos: [] },
-        { id: 3, facilityId: 9, facilityName: '溪構4 階段式魚道', date: '2025-02-20', inspector: '李技士', weather: '陰', findings: '魚道基礎受洪水侵蝕，混凝土局部裸露；第3、4水池間導流牆偏移約5cm', action: '安排基礎補強工程評估', status: '處理中', priority: '高', photos: [] },
+        { id: 3, facilityId: 9, facilityName: '溪構4 階段式魚道', date: '2025-02-20', inspector: '李技士', weather: '陰', findings: '魚道基礎受洪水侵蝕，混凝土局部裸露；第3、4水池間導流牆偏移約5cm', action: '安排基礎補強工程評估', status: '完成', priority: '高', photos: [], maintenanceStart: '2025-02-20', expectedCompletion: '', completedAt: '', deru_d: 0, deru_e: 1, deru_r: 1, deru_u: 1, deru_label: 'U1 定期巡查', deru_score: 0 },
         { id: 4, facilityId: 1, facilityName: '溪構8-2 之字形魚道', date: '2025-03-15', inspector: '王技士', weather: '晴', findings: '魚道水流正常，觀察到臺灣白甲魚及纓口臺鰍由下游往上游通行；步道扶手完整', action: '繼續定期監測', status: '完成', priority: '低', photos: [] },
         { id: 5, facilityId: 5, facilityName: '溪構6 階段式魚道', date: '2025-03-15', inspector: '王技士', weather: '晴', findings: '各水池水深0.3~0.5m，流速符合通行標準；觀察到粗首馬口鱲及明潭吻鰕虎通過', action: '繼續監測', status: '完成', priority: '低', photos: [] },
         { id: 6, facilityId: 13, facilityName: '溪構1-1 粗石斜曲面式魚道', date: '2025-03-15', inspector: '陳技士', weather: '晴', findings: '粗石坡面完整，水流分布均勻；記錄臺灣白甲魚及纓口臺鰍成功通行', action: '繼續監測', status: '完成', priority: '低', photos: [] }
