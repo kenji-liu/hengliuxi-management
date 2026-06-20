@@ -76,6 +76,108 @@ function fac_twd97ToWgs84(tx, ty) {
    維度三：魚類通行效果     20 分
    維度四：周邊環境         10 分
    ══════════════════════════════════════════════════════════════ */
+
+/* 展開/收合 toggle（健康指數、備用） */
+function facDetailToggle(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const open = el.style.display !== 'none';
+  el.style.display = open ? 'none' : 'block';
+  const arrow = document.getElementById(id + '_arrow');
+  if (arrow) arrow.style.transform = open ? '' : 'rotate(180deg)';
+}
+
+/* 從設施詳情開啟新增巡查表單選擇器，儲存後返回設施詳情 */
+function fac_openNewInspection(facilityId, preType) {
+  if (preType) { fac_openInspForm(preType, facilityId); return; }
+  const f = DB.getById('facilities', facilityId);
+  const fname = f?.name || '設施';
+  document.getElementById('modalTitle').textContent = `新增巡查紀錄 — ${fname}`;
+  document.getElementById('modalBody').innerHTML = `
+    <div style="font-size:13px;color:#64748b;background:#f8fafc;border-radius:8px;padding:10px 14px;margin-bottom:14px">
+      <i class="fas fa-info-circle" style="color:#1565c0;margin-right:5px"></i>
+      三類巡查均支援 <span style="color:#b91c1c;font-weight:700"><i class="fas fa-file-pdf"></i> PDF 下載</span>
+      及 <span style="color:#16a34a;font-weight:700"><i class="fas fa-cloud-upload-alt"></i> Google Drive 同步</span>，
+      儲存後自動更新設施狀態評估。
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px;padding:4px 0">
+
+      <!-- 一般巡查 -->
+      <button onclick="fac_openInspForm('general',${facilityId})"
+        style="padding:16px 18px;background:#eff6ff;border:2px solid #1565c0;border-radius:12px;cursor:pointer;text-align:left">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+          <div style="font-weight:800;color:#1565c0;font-size:17px"><i class="fas fa-clipboard-check" style="margin-right:8px"></i>一般巡查（附錄一）</div>
+          <div style="display:flex;gap:6px">
+            <span style="font-size:11px;background:#fff1f2;color:#b91c1c;border:1px solid #fecaca;border-radius:999px;padding:2px 8px;font-weight:700"><i class="fas fa-file-pdf"></i> PDF</span>
+            <span style="font-size:11px;background:#dcfce7;color:#166534;border:1px solid #86efac;border-radius:999px;padding:2px 8px;font-weight:700"><i class="fas fa-cloud-upload-alt"></i> Drive</span>
+          </div>
+        </div>
+        <div style="color:#475569;margin-top:6px;font-size:14px">例行定期巡查，涵蓋步道、護岸、魚道、標示牌等全設施種類。表單：表3-1 一般性定期巡查表單。</div>
+      </button>
+
+      <!-- 專業巡查 -->
+      <div style="background:#fff7ed;border:2px solid #ea580c;border-radius:12px;overflow:hidden">
+        <div style="padding:14px 18px 10px;border-bottom:1px solid #fed7aa">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+            <div style="font-weight:800;color:#9a3412;font-size:17px"><i class="fas fa-hard-hat" style="margin-right:8px"></i>專業巡查（附錄二＋三）</div>
+            <div style="display:flex;gap:6px">
+              <span style="font-size:11px;background:#fff1f2;color:#b91c1c;border:1px solid #fecaca;border-radius:999px;padding:2px 8px;font-weight:700"><i class="fas fa-file-pdf"></i> PDF</span>
+              <span style="font-size:11px;background:#dcfce7;color:#166534;border:1px solid #86efac;border-radius:999px;padding:2px 8px;font-weight:700"><i class="fas fa-cloud-upload-alt"></i> Drive</span>
+            </div>
+          </div>
+          <div style="color:#78350f;margin-top:4px;font-size:13px">專業人員執行，含構造物評估（附錄二）與魚道檢核（附錄三），應同步更新 DER&U 評等。</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0">
+          <button onclick="fac_openInspForm('structure',${facilityId})"
+            style="padding:12px 16px;background:transparent;border:none;border-right:1px solid #fed7aa;cursor:pointer;text-align:left">
+            <div style="font-weight:700;color:#9a3412;font-size:14px"><i class="fas fa-building" style="margin-right:6px"></i>構造物調查表</div>
+            <div style="font-size:12px;color:#78350f;margin-top:3px">外觀檢視、損壞原因、DER&U 評分與功能分級（表3-2）</div>
+          </button>
+          <button onclick="fac_openInspForm('fishway',${facilityId})"
+            style="padding:12px 16px;background:transparent;border:none;cursor:pointer;text-align:left">
+            <div style="font-weight:700;color:#0f766e;font-size:14px"><i class="fas fa-fish" style="margin-right:6px"></i>魚道檢核表</div>
+            <div style="font-size:12px;color:#0f766e;margin-top:3px">結構破損、淤積、水位差、斷流 4 項 DER&U 評估（表3-3）</div>
+          </button>
+        </div>
+      </div>
+
+      <!-- 魚道檢核表（獨立快速版） -->
+      <button onclick="fac_openInspForm('fishway',${facilityId})"
+        style="padding:16px 18px;background:#f0fdfa;border:2px solid #0f766e;border-radius:12px;cursor:pointer;text-align:left">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+          <div style="font-weight:800;color:#0f766e;font-size:17px"><i class="fas fa-fish" style="margin-right:8px"></i>魚道檢核表（附錄三）</div>
+          <div style="display:flex;gap:6px">
+            <span style="font-size:11px;background:#fff1f2;color:#b91c1c;border:1px solid #fecaca;border-radius:999px;padding:2px 8px;font-weight:700"><i class="fas fa-file-pdf"></i> PDF</span>
+            <span style="font-size:11px;background:#dcfce7;color:#166534;border:1px solid #86efac;border-radius:999px;padding:2px 8px;font-weight:700"><i class="fas fa-cloud-upload-alt"></i> Drive</span>
+          </div>
+        </div>
+        <div style="color:#134e4a;margin-top:6px;font-size:14px">快速現場魚道專項檢核，不需全套構造物調查。適合日常管理人員或例行抽查。</div>
+      </button>
+    </div>
+  `;
+  document.getElementById('modalFooter').innerHTML = `
+    <button class="btn btn-outline" onclick="closeModal()">取消</button>
+  `;
+  openModal();
+}
+
+function fac_openInspForm(type, facilityId) {
+  closeModal();
+  window._facAfterInspectionSave = () => viewFacility(facilityId);
+  setTimeout(() => {
+    if (type === 'general') openGeneralPeriodicForm(facilityId);
+    else if (type === 'structure') openStructureInspectionForm(facilityId);
+    else if (type === 'fishway') openFishwayForm(facilityId);
+    else openInspectionForm(null, facilityId);
+  }, 120);
+}
+
+/* 從設施詳情開啟編輯巡查表單，儲存後返回設施詳情 */
+function fac_editInspection(inspectionId, facilityId) {
+  window._facAfterInspectionSave = () => viewFacility(facilityId);
+  openInspectionForm(inspectionId);
+}
+
 /* DER 等級顏色對照 */
 function fac_derColor(level) {
   if (!level || level === '-') return { text: '#94a3b8', bg: '#f1f5f9', border: '#e2e8f0', label: '未評估' };
@@ -118,26 +220,245 @@ function fac_linkedInspections(f) {
     .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
 }
 
+function fac_inspectionText(item = {}) {
+  return [
+    item.findings, item.action, item.recommendation, item.notes, item.inspector,
+    item.sourceType, item.inspectionItem, item.formType, item.type,
+    item.sf_functionComment, item.sf_overall, item.fw_generalComment,
+    ...(Array.isArray(item.sf_deruItems) ? item.sf_deruItems.map(row => `${row.defectType || ''} ${row.note || ''}`) : []),
+    ...(Array.isArray(item.fw_deruItems) ? item.fw_deruItems.map(row => `${row.name || ''} ${row.note || ''}`) : [])
+  ].filter(Boolean).join(' ');
+}
+
+function fac_isProfessionalInspection(item = {}) {
+  const t = fac_inspectionType(item);
+  if (t === 'professional' || t === 'fishway') return true;
+  const text = fac_inspectionText(item);
+  return /技士|技師|專業|構造物|魚道檢核|DER&U|工程檢核|外觀檢視/.test(text)
+    || item.type === 'deru_assessment'
+    || item.deru_d !== undefined
+    || item.aiImageAnalysis;
+}
+
+function fac_professionalInspectionRows(f) {
+  return fac_linkedInspections(f).filter(fac_isProfessionalInspection);
+}
+
+function fac_deriveUrgency(d = 0, e = 1, r = 1) {
+  const score = Number((Number(d || 0) * 0.4 + Number(e || 1) * 0.25 + Number(r || 1) * 0.35).toFixed(2));
+  const u = d <= 0 && r <= 1 ? 1 : score >= 3.2 ? 4 : score >= 2.5 ? 3 : score >= 1.5 ? 2 : 1;
+  const label = {
+    1: 'U1 定期巡查',
+    2: 'U2 追蹤觀察',
+    3: 'U3 優先維護',
+    4: 'U4 緊急處置'
+  }[u];
+  return { score, u, label };
+}
+
+function fac_derLevelFromDeru(d, e, r, u) {
+  if (d <= 0 && u <= 1) return 'A1';
+  return `D${d}/E${e}/R${r}・U${u}`;
+}
+
+function fac_healthFromDeru(d, e, r, text = '') {
+  const severity = Number(d || 0) * 0.45 + Number(e || 1) * 0.2 + Number(r || 1) * 0.35;
+  let health = Math.round(100 - severity * 21);
+  if (/完全堵塞|無法通行|喪失通行|嚴重淘空|嚴重淘刷|危及安全|崩塌|倒塌|緊急/.test(text)) health = Math.min(health, 25);
+  if (/淘空|淘刷|基礎受.*侵蝕|基礎裸露|導流牆偏移|位移/.test(text)) health = Math.min(health, 45);
+  if (/水流正常|結構完整|坡面完整|成功通行|符合通行標準/.test(text)) health = Math.max(health, 86);
+  return Math.max(15, Math.min(95, health));
+}
+
+function fac_inferDeruFromInspection(item = {}) {
+  const text = fac_inspectionText(item);
+  let d = Number.isFinite(Number(item.deru_d)) ? Number(item.deru_d) : 0;
+  let e = Number.isFinite(Number(item.deru_e)) ? Number(item.deru_e) : 1;
+  let r = Number.isFinite(Number(item.deru_r)) ? Number(item.deru_r) : 1;
+  let source = item.deru_d !== undefined ? 'DER&U表單值' : '專業巡查文字判讀';
+
+  const hasSevereText = /完全堵塞|無法通行|喪失通行|嚴重淘空|嚴重淘刷|危及安全|崩塌|倒塌|緊急/.test(text);
+  const hasScourText = /淘空|淘刷|基礎受.*侵蝕|基礎裸露|導流牆偏移|位移|偏移|沖刷|下刷/.test(text);
+  const hasModerateText = /裂縫|破損|鏽蝕|淤積|阻塞|裸露|補強|修補|維護計畫/.test(text);
+  const hasNormalText = /水流正常|結構完整|坡面完整|成功通行|符合通行標準|繼續監測|定期監測/.test(text);
+
+  // 構造物調查表功能分級（sf_grade）具最高語義優先權：
+  // A 級 = 外觀良好功能健全，不論 DER&U 欄位舊值為何，一律覆蓋為 D=0/E=1/R=1（良好基準）
+  // 但若文字明確描述嚴重異常（hasSevereText），仍以文字判讀為準。
+  if (item.sf_grade === 'A' && !hasSevereText) {
+    d = 0; e = Math.min(e, 1); r = Math.min(r, 1);
+    source = '構造物調查A級覆蓋';
+  } else if (item.sf_grade && item.sf_grade.startsWith('B') && !hasSevereText) {
+    d = Math.min(d, 2); // B 級最多 D=2
+    source = `構造物調查${item.sf_grade}級輔助`;
+  }
+
+  // 早期匯入資料有時 DER&U 預設為 U1，但文字已描述明確異常；此處以專業巡查內容保守修正。
+  if (hasSevereText) {
+    d = Math.max(d, 4);
+    e = Math.max(e, /完全堵塞|喪失通行|崩塌|倒塌/.test(text) ? 4 : 3);
+    r = Math.max(r, 4);
+    source = item.deru_d !== undefined && item.deru_u > 1 ? source : '專業巡查文字判讀';
+  } else if (hasScourText) {
+    d = Math.max(d, 3);
+    e = Math.max(e, /偏移|裸露|基礎/.test(text) ? 3 : 2);
+    r = Math.max(r, 3);
+    source = item.deru_d !== undefined && item.deru_u > 1 ? source : '專業巡查文字判讀';
+  } else if (hasModerateText) {
+    d = Math.max(d, 2);
+    e = Math.max(e, 2);
+    r = Math.max(r, /通行|排洪|功能/.test(text) ? 3 : 2);
+    source = item.deru_d !== undefined && item.deru_u > 1 ? source : '專業巡查文字判讀';
+  } else if (hasNormalText && d <= 0) {
+    d = 0;
+    e = 1;
+    r = 1;
+  }
+
+  const deru = fac_deriveUrgency(d, e, r);
+  // A 級覆蓋：deru_u 取計算值（不讓舊的高 U 值反壓）；其他情況保守取 max
+  const u = (item.sf_grade === 'A' && !hasSevereText)
+    ? deru.u
+    : Math.max(Number(item.deru_u || 0), deru.u);
+  const label = u === deru.u ? deru.label : (item.deru_label || fac_deriveUrgency(d, e, r).label);
+  const health = fac_healthFromDeru(d, e, r, text);
+  const status = u >= 4 || health < 35 ? '損壞' : u >= 2 || health < 75 ? '需維護' : '正常';
+  const priority = u >= 4 ? '緊急' : u === 3 ? '高' : u === 2 ? '中' : '低';
+  const condition = health >= 85 ? 5 : health >= 70 ? 4 : health >= 50 ? 3 : health >= 30 ? 2 : 1;
+
+  return {
+    d, e, r, u, label,
+    score: deru.score,
+    derLevel: fac_derLevelFromDeru(d, e, r, u),
+    health,
+    status,
+    priority,
+    condition,
+    source,
+    text
+  };
+}
+
+function fac_latestProfessionalAssessment(f) {
+  const professionalRows = fac_professionalInspectionRows(f);
+  const latestProfessional = professionalRows[0] || null;
+  if (!latestProfessional) {
+    const health = fac_health(f);
+    return {
+      hasProfessional: false,
+      professionalRows,
+      latestProfessional: null,
+      health,
+      status: f.status || '正常',
+      condition: f.condition || 3,
+      derLevel: f.derLevel || '-',
+      assessmentDate: f.assessmentDate || f.lastInspect || '',
+      priority: f.maintenance_priority || '低',
+      sourceLabel: '設施基本資料',
+      basis: f.judgement_basis || f.evaluationNotes || '尚無專業巡查紀錄，暫以設施基本狀態計算。',
+      strategy: f.maintenanceStrategy || '-'
+    };
+  }
+
+  const deru = fac_inferDeruFromInspection(latestProfessional);
+  const typeLabel = fac_inspectionTypeLabel(fac_inspectionType(latestProfessional));
+  const finding = String(latestProfessional.findings || latestProfessional.notes || '').trim();
+  const action = String(latestProfessional.action || latestProfessional.recommendation || '').trim();
+  const basis = `採最新專業巡查作為最後表徵：${latestProfessional.date || '-'} ${typeLabel}（${latestProfessional.inspector || '未填巡查人員'}），${deru.source}，判定 ${deru.derLevel}、${deru.label}，代表健康分數 ${deru.health} 分。${finding ? `主要發現：${finding}` : ''}`;
+
+  return {
+    hasProfessional: true,
+    professionalRows,
+    latestProfessional,
+    health: deru.health,
+    status: deru.status,
+    condition: deru.condition,
+    derLevel: deru.derLevel,
+    assessmentDate: latestProfessional.date || f.assessmentDate || f.lastInspect || '',
+    priority: deru.priority,
+    sourceLabel: `最新${typeLabel}`,
+    basis,
+    strategy: action || (deru.u >= 4 ? '緊急處置' : deru.u >= 3 ? '優先維護' : deru.u >= 2 ? '追蹤觀察' : '定期巡查'),
+    deru,
+    finding,
+    action
+  };
+}
+
+function fac_syncLatestProfessionalAssessment(f) {
+  const assessment = fac_latestProfessionalAssessment(f);
+  if (!assessment.hasProfessional || !f?.id) return assessment;
+  const updates = {
+    lastInspect: assessment.assessmentDate,
+    assessmentDate: assessment.assessmentDate,
+    status: assessment.status,
+    condition: assessment.condition,
+    derLevel: assessment.derLevel,
+    maintenance_priority: assessment.priority,
+    maintenanceStrategy: assessment.strategy,
+    riskScore: Math.max(0, Math.min(100, 100 - assessment.health)),
+    evaluationNotes: assessment.basis,
+    professionalAssessmentSource: assessment.sourceLabel
+  };
+  const needsUpdate = Object.keys(updates).some(key => f[key] !== updates[key]);
+  if (needsUpdate) DB.update('facilities', f.id, { ...updates, professionalAssessmentSyncAt: new Date().toISOString() });
+  return { ...assessment, synced: needsUpdate };
+}
+
+function fac_syncAllLatestProfessionalAssessments() {
+  DB.getAll('facilities').forEach(fac_syncLatestProfessionalAssessment);
+}
+
+function fac_historicalInspectionSummary(f) {
+  const rows = fac_linkedInspections(f);
+  const groups = {};
+  rows.forEach(item => {
+    const year = String(item.date || '').slice(0, 4) || '未填年度';
+    if (!groups[year]) {
+      groups[year] = { year, count: 0, professional: 0, maxU: 0, latestDate: '', open: 0, findings: [] };
+    }
+    const g = groups[year];
+    const deru = fac_inferDeruFromInspection(item);
+    g.count += 1;
+    if (fac_isProfessionalInspection(item)) g.professional += 1;
+    g.maxU = Math.max(g.maxU, deru.u || 0);
+    if (String(item.date || '') > String(g.latestDate || '')) g.latestDate = item.date || '';
+    if ((item.status || '') !== '完成' || (deru.u || 0) >= 2 || ['緊急', '高'].includes(item.priority)) g.open += 1;
+    const finding = String(item.findings || item.notes || '').trim();
+    if (finding) g.findings.push(finding);
+  });
+  return Object.values(groups).sort((a, b) => String(b.year).localeCompare(String(a.year)));
+}
+
 function fac_inspectionLinkage(f) {
   const inspections = fac_linkedInspections(f);
-  const openItems = inspections.filter(item => item.status !== '完成');
+  const openItems = inspections.filter(item => {
+    const deru = fac_inferDeruFromInspection(item);
+    return item.status !== '完成' || (deru.u || 0) >= 2 || ['緊急', '高'].includes(item.priority);
+  });
   const aiItems = inspections.filter(item => item.aiImageAnalysis);
+  const finalAssessment = fac_latestProfessionalAssessment(f);
+  const professionalRows = finalAssessment.professionalRows || [];
+  const latestProfessional = finalAssessment.latestProfessional || null;
   const maxU = inspections.reduce((max, item) => {
     const aiU = item.aiImageAnalysis?.deru?.u || 0;
-    return Math.max(max, Number(item.deru_u || 0), Number(aiU || 0));
+    const inferredU = fac_inferDeruFromInspection(item).u || 0;
+    return Math.max(max, Number(item.deru_u || 0), Number(aiU || 0), Number(inferredU || 0));
   }, 0);
   const maxDamage = aiItems.reduce((max, item) => Math.max(max, Number(item.aiImageAnalysis?.damageCoverage || 0)), 0);
   const maxConfidence = aiItems.reduce((max, item) => Math.max(max, Number(item.aiImageAnalysis?.confidence || 0)), 0);
   const latest = inspections[0] || null;
   const features = [...new Set(aiItems.flatMap(item => item.aiImageAnalysis?.deteriorationFeatures || []))].slice(0, 5);
 
-  const baseHealth = fac_health(f);
+  const baseHealth = finalAssessment.hasProfessional ? finalAssessment.health : fac_health(f);
   const penalty = Math.min(55,
     openItems.length * 3 +
     Math.max(0, maxU - 1) * 8 +
     (maxDamage >= 50 ? 12 : maxDamage >= 25 ? 8 : maxDamage >= 5 ? 4 : 0)
   );
-  const linkedHealth = Math.max(5, Math.round(baseHealth - penalty));
+  const linkedHealth = finalAssessment.hasProfessional
+    ? baseHealth
+    : Math.max(5, Math.round(baseHealth - penalty));
   const riskScore = Math.min(100, Math.max(0, 100 - linkedHealth + openItems.length * 3 + Math.max(0, maxU - 2) * 6));
   const riskLevel = riskScore >= 75 || maxU >= 4
     ? { label: '高風險', className: 'danger', color: '#c62828', bg: '#ffebee' }
@@ -171,7 +492,10 @@ function fac_inspectionLinkage(f) {
     maxConfidence,
     riskScore,
     riskLevel,
-    recommendations
+    recommendations,
+    professionalRows,
+    latestProfessional,
+    finalAssessment
   };
 }
 
@@ -201,19 +525,42 @@ function fac_renderInspectionLinkageMini(f) {
 
 function fac_renderInspectionLinkageDetail(f) {
   const link = fac_inspectionLinkage(f);
+  const assessment = link.finalAssessment || fac_latestProfessionalAssessment(f);
   const recent = link.inspections.slice(0, 5);
+  const history = fac_historicalInspectionSummary(f);
+  const latestType = assessment.latestProfessional
+    ? fac_inspectionTypeLabel(fac_inspectionType(assessment.latestProfessional))
+    : '尚無專業巡查';
   return `
     <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px">
         <div style="font-weight:800;color:#0f172a"><i class="fas fa-link"></i> 工程設施與巡查異常連動分析</div>
         <span class="badge badge-${link.riskLevel.className}">${link.riskLevel.label}</span>
       </div>
+      <div style="background:#fff;border:1px solid #dbeafe;border-left:4px solid #2563eb;border-radius:8px;padding:10px 12px;margin-bottom:10px">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap">
+          <div>
+            <div style="font-size:13px;font-weight:900;color:#1e3a8a">最新專業巡查代表評估</div>
+            <div style="font-size:12px;color:#334155;line-height:1.65;margin-top:4px">
+              ${assessment.hasProfessional
+                ? `${assessment.assessmentDate || '-'} ${latestType}，採 ${assessment.sourceLabel} 作為最後表徵。`
+                : '尚無專業巡查紀錄，暫以設施基本資料及一般巡查計算。'}
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            ${fac_linkageMetric('代表分數', `${assessment.health}%`)}
+            ${fac_linkageMetric('代表DER&U', `${assessment.derLevel || '-'}`)}
+            ${fac_linkageMetric('維護優先', `${assessment.priority || '-'}`)}
+          </div>
+        </div>
+        <div style="font-size:12px;line-height:1.7;color:#475569;margin-top:8px">${assessment.basis || ''}</div>
+      </div>
       <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:10px">
-        ${fac_linkageMetric('原健康', `${link.baseHealth}%`)}
-        ${fac_linkageMetric('連動後', `${link.linkedHealth}%`)}
+        ${fac_linkageMetric('代表健康', `${link.baseHealth}%`)}
+        ${fac_linkageMetric('連動結果', `${link.linkedHealth}%`)}
         ${fac_linkageMetric('巡查數', `${link.inspections.length}筆`)}
+        ${fac_linkageMetric('專業巡查', `${link.professionalRows.length}筆`)}
         ${fac_linkageMetric('未完成', `${link.openItems.length}筆`)}
-        ${fac_linkageMetric('AI影像', `${link.aiItems.length}筆`)}
       </div>
       <div style="font-size:12px;line-height:1.65;color:#334155;margin-bottom:8px">
         <b>最高DER&U：</b>${link.maxU ? `U${link.maxU}` : '尚無評分'}　
@@ -223,6 +570,41 @@ function fac_renderInspectionLinkageDetail(f) {
       <div style="background:#fff;border-left:3px solid ${link.riskLevel.color};border-radius:0 6px 6px 0;padding:8px 10px;font-size:12px;line-height:1.7;color:#334155;margin-bottom:8px">
         ${link.recommendations.map(item => `<div>${item}</div>`).join('')}
       </div>
+      ${history.length ? `
+        <div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;margin-bottom:10px">
+          <div style="padding:9px 10px;background:#f1f5f9;border-bottom:1px solid #e2e8f0;font-size:13px;font-weight:900;color:#0f172a">
+            <i class="fas fa-history"></i> 歷年巡檢成果
+          </div>
+          <div style="overflow:auto">
+            <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:680px">
+              <thead>
+                <tr style="background:#f8fafc;color:#475569;text-align:left">
+                  <th style="padding:8px;border-bottom:1px solid #e2e8f0">年度</th>
+                  <th style="padding:8px;border-bottom:1px solid #e2e8f0">巡檢件數</th>
+                  <th style="padding:8px;border-bottom:1px solid #e2e8f0">專業巡查</th>
+                  <th style="padding:8px;border-bottom:1px solid #e2e8f0">最高U</th>
+                  <th style="padding:8px;border-bottom:1px solid #e2e8f0">最後巡查</th>
+                  <th style="padding:8px;border-bottom:1px solid #e2e8f0">未結</th>
+                  <th style="padding:8px;border-bottom:1px solid #e2e8f0">代表發現事項</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${history.map(row => `
+                  <tr>
+                    <td style="padding:8px;border-bottom:1px solid #f1f5f9;font-weight:800;color:#0f172a">${row.year}</td>
+                    <td style="padding:8px;border-bottom:1px solid #f1f5f9">${row.count} 筆</td>
+                    <td style="padding:8px;border-bottom:1px solid #f1f5f9">${row.professional} 筆</td>
+                    <td style="padding:8px;border-bottom:1px solid #f1f5f9;color:${row.maxU >= 4 ? '#dc2626' : row.maxU >= 3 ? '#ea580c' : '#166534'};font-weight:800">${row.maxU ? `U${row.maxU}` : '-'}</td>
+                    <td style="padding:8px;border-bottom:1px solid #f1f5f9">${row.latestDate || '-'}</td>
+                    <td style="padding:8px;border-bottom:1px solid #f1f5f9">${row.open} 筆</td>
+                    <td style="padding:8px;border-bottom:1px solid #f1f5f9;color:#475569;line-height:1.55">${(row.findings[0] || '尚無文字摘要').slice(0, 90)}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ` : ''}
       ${recent.length ? `
         <div style="display:grid;gap:6px">
           ${recent.map(item => `
@@ -270,7 +652,16 @@ function fac_linkageMetric(label, value) {
 
 /* ── 健康指數判斷依據文字說明 ── */
 function fac_judgment(f) {
-  const hp = fac_health(f);
+  const assessment = fac_latestProfessionalAssessment(f);
+  const hp = assessment.health;
+  if (assessment.hasProfessional) {
+    const item = assessment.latestProfessional || {};
+    const typeLabel = fac_inspectionTypeLabel(fac_inspectionType(item));
+    const deru = assessment.deru || fac_inferDeruFromInspection(item);
+    const finding = assessment.finding || String(item.findings || item.notes || '').trim();
+    const action = assessment.action || String(item.action || item.recommendation || '').trim();
+    return `判斷依據：本次狀態評估採 ${item.date || '-'} ${typeLabel} 作為最後表徵資料，巡查人員為 ${item.inspector || '未填'}。最新專業紀錄判定為 ${deru.derLevel}、${deru.label}，代表健康分數 ${hp} 分；${finding ? `主要發現為「${finding}」。` : ''}${action ? `後續建議為「${action}」。` : ''}`;
+  }
   const c = f.condition || 3;
   const parts = [];
 
@@ -522,8 +913,12 @@ function fac_filterPrimaryCategory(data) {
 }
 
 function fac_inspectionType(item = {}) {
+  if (item.formType === 'general_periodic') return 'general';
+  if (item.formType === 'professional_structure') return 'professional';
+  if (item.formType === 'professional_fishway') return 'fishway';
   const text = `${item.sourceType || ''} ${item.type || ''} ${item.inspector || ''} ${item.profession || ''}`;
-  if (text.includes('專業') || text.includes('技師') || text.includes('DER&U') || text.includes('工程')) return 'professional';
+  if (text.includes('魚道檢核')) return 'fishway';
+  if (text.includes('專業') || text.includes('技師') || text.includes('技士') || text.includes('DER&U') || text.includes('工程')) return 'professional';
   if (text.includes('護管') || text.includes('巡護') || text.includes('林班') || text.includes('日常')) return 'ranger';
   return 'general';
 }
@@ -532,6 +927,7 @@ function fac_inspectionTypeLabel(type) {
   return {
     general: '一般巡查紀錄',
     professional: '專業巡查紀錄',
+    fishway: '魚道檢核表',
     ranger: '護管員巡查紀錄'
   }[type] || '一般巡查紀錄';
 }
@@ -580,7 +976,7 @@ function renderFacilityMaintenanceCategoryPanel() {
         <div style="border:1px solid #bfdbfe;border-left:4px solid #1565c0;background:#eff6ff;border-radius:10px;padding:12px">
           <div style="font-size:14px;font-weight:900;color:#1e3a8a;margin-bottom:8px"><i class="fas fa-clipboard-check"></i> 巡查資料</div>
           <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:9px">
-            ${['general','professional','ranger'].map(type => `
+            ${['general','professional','fishway'].map(type => `
               <div style="background:#fff;border:1px solid #dbeafe;border-radius:8px;padding:8px;text-align:center">
                 <div style="font-size:18px;font-weight:900;color:#1565c0">${inspections.filter(item => fac_inspectionType(item) === type).length}</div>
                 <div style="font-size:11px;color:#475569;margin-top:2px">${fac_inspectionTypeLabel(type).replace('紀錄','')}</div>
@@ -632,44 +1028,75 @@ function renderFacilityDetailTabsGuide(f) {
 
 function renderFacilityInspectionDataSection(f) {
   const inspections = fac_linkedInspections(f);
-  const groups = ['general', 'professional', 'ranger'];
+  const groups = [
+    { type:'general',      label:'一般巡查',  color:'#1565c0', bg:'#eff6ff', border:'#bfdbfe', preType:'general',   icon:'fa-clipboard-check' },
+    { type:'professional', label:'專業巡查',  color:'#9a3412', bg:'#fff7ed', border:'#fed7aa', preType:'structure', icon:'fa-hard-hat' },
+    { type:'fishway',      label:'魚道檢核表', color:'#0f766e', bg:'#f0fdfa', border:'#99f6e4', preType:'fishway',   icon:'fa-fish' },
+  ];
+  const syncColor = s => s === '已上傳' ? '#166534' : s === '同步中' ? '#d97706' : '#64748b';
   return `
     <div style="background:#f8fbff;border:1px solid #bfdbfe;border-left:4px solid #1565c0;border-radius:10px;padding:12px">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:12px">
         <div>
           <div style="font-size:15px;font-weight:900;color:#1e3a8a"><i class="fas fa-clipboard-check"></i> 巡查資料</div>
-          <div style="font-size:12px;color:#475569;margin-top:3px">重點為發現問題、記錄現況、影像留存與初步異常判斷。</div>
+          <div style="font-size:12px;color:#475569;margin-top:3px">重點為發現問題、記錄現況、影像留存與初步異常判斷。儲存後同步更新設施狀態評估。</div>
         </div>
-        <span style="font-size:12px;color:#1565c0;background:#fff;border:1px solid #bfdbfe;border-radius:999px;padding:5px 9px;font-weight:800">${inspections.length} 筆巡查</span>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span style="font-size:12px;color:#1565c0;background:#fff;border:1px solid #bfdbfe;border-radius:999px;padding:5px 9px;font-weight:800">${inspections.length} 筆巡查</span>
+          <button onclick="fac_openNewInspection(${f.id})" style="font-size:12px;font-weight:700;color:#1565c0;background:#eff6ff;border:1px solid #bfdbfe;border-radius:999px;padding:5px 12px;cursor:pointer;display:flex;align-items:center;gap:5px">
+            <i class="fas fa-plus"></i> 新增巡查
+          </button>
+        </div>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px">
-        ${groups.map(type => {
-          const rows = inspections.filter(item => fac_inspectionType(item) === type);
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px">
+        ${groups.map(g => {
+          const rows = inspections.filter(item => fac_inspectionType(item) === g.type);
           const latest = rows[0];
           return `
-            <div style="background:#fff;border:1px solid #dbeafe;border-radius:8px;padding:10px">
-              <div style="font-size:13px;font-weight:900;color:#1e3a8a;margin-bottom:6px">${fac_inspectionTypeLabel(type)}</div>
-              <div style="font-size:22px;font-weight:900;color:#1565c0">${rows.length}</div>
-              <div style="font-size:11px;color:#64748b;margin-top:4px">最近日期：${latest?.date || '-'}</div>
-              <div style="font-size:11px;color:#64748b;margin-top:2px">人員：${latest?.inspector || '-'}</div>
+            <div style="background:#fff;border:1.5px solid ${g.border};border-top:3px solid ${g.color};border-radius:10px;padding:10px">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+                <div style="font-size:12px;font-weight:900;color:${g.color}"><i class="fas ${g.icon}" style="margin-right:4px"></i>${g.label}</div>
+                <button onclick="event.stopPropagation();fac_openNewInspection(${f.id},'${g.preType}')"
+                  style="font-size:10px;color:${g.color};background:${g.bg};border:1px solid ${g.border};border-radius:999px;padding:2px 7px;cursor:pointer;font-weight:700">
+                  <i class="fas fa-plus"></i> 新增
+                </button>
+              </div>
+              <div style="font-size:24px;font-weight:900;color:${g.color}">${rows.length}</div>
+              <div style="font-size:11px;color:#64748b;margin-top:4px">最近：${latest?.date || '-'}</div>
+              <div style="font-size:11px;color:#64748b">人員：${latest?.inspector || '-'}</div>
+              ${latest?.cloudSyncStatus ? `<div style="font-size:10px;color:${syncColor(latest.cloudSyncStatus)};margin-top:3px"><i class="fas fa-cloud"></i> ${latest.cloudSyncStatus}</div>` : ''}
             </div>
           `;
         }).join('')}
       </div>
       ${inspections.length ? `
         <div style="display:grid;gap:7px">
-          ${inspections.slice(0, 5).map(item => `
-            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:9px;font-size:12px">
-              <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:4px">
-                <b>${fac_inspectionTypeLabel(fac_inspectionType(item))}｜${item.date || '-'}</b>
-                <span style="color:#64748b">${item.inspector || '-'}｜${item.priority || '未分級'}｜${item.status || '-'}</span>
+          ${inspections.slice(0, 5).map(item => {
+            const t = fac_inspectionType(item);
+            const g = groups.find(x => x.type === t) || groups[0];
+            return `
+            <div style="background:#fff;border:1px solid ${g.border};border-left:3px solid ${g.color};border-radius:8px;padding:10px 12px;font-size:12px">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+                <b style="color:${g.color}"><i class="fas ${g.icon}" style="margin-right:4px"></i>${fac_inspectionTypeLabel(t)}｜${item.date || '-'}</b>
+                <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
+                  ${item.pdfFormat ? `<span style="font-size:10px;background:#fff1f2;color:#b91c1c;border:1px solid #fecaca;border-radius:999px;padding:1px 6px;font-weight:700"><i class="fas fa-file-pdf"></i> PDF</span>` : ''}
+                  ${item.cloudSyncStatus ? `<span style="font-size:10px;background:#dcfce7;color:${syncColor(item.cloudSyncStatus)};border:1px solid #86efac;border-radius:999px;padding:1px 6px;font-weight:700"><i class="fas fa-cloud"></i> ${item.cloudSyncStatus}</span>` : ''}
+                  <span style="color:#64748b;font-size:11px">${item.inspector || '-'}｜${item.priority || '未分級'}</span>
+                  <button onclick="event.stopPropagation();fac_editInspection(${item.id},${f.id})" style="font-size:11px;color:#1565c0;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:2px 8px;cursor:pointer;font-weight:700"><i class="fas fa-edit"></i> 編輯</button>
+                </div>
               </div>
               <div style="color:#334155;line-height:1.55">${String(item.findings || item.note || '尚無發現事項摘要。').slice(0, 130)}</div>
               <div style="color:#475569;line-height:1.55;margin-top:3px"><b>建議處理：</b>${item.action || item.recommendation || '依現況持續追蹤，必要時建立維護案件。'}</div>
             </div>
-          `).join('')}
+          `}).join('')}
         </div>
       ` : '<div style="background:#fff;border:1px dashed #bfdbfe;border-radius:8px;padding:12px;font-size:12px;color:#64748b">尚無巡查資料，建議建立一般巡查紀錄並補齊現況照片。</div>'}
+      <div style="margin-top:10px;padding:8px 12px;background:#dcfce7;border-radius:8px;font-size:11px;color:#166534">
+        <i class="fas fa-cloud-upload-alt" style="margin-right:5px"></i>
+        資料儲存後自動同步至
+        <a href="${'https://drive.google.com/drive/folders/1k2s5HSd_R5GeCt05SOtJxn6UFSrbyoQ9'}" target="_blank" style="color:#166534;font-weight:700">Google Drive 巡查資料管理資料夾</a>，
+        並同步更新設施健康指數與狀態評估。
+      </div>
     </div>
   `;
 }
@@ -683,7 +1110,12 @@ function renderFacilityMaintenanceDataSection(f) {
           <div style="font-size:15px;font-weight:900;color:#9a3412"><i class="fas fa-screwdriver-wrench"></i> 維護管理資料</div>
           <div style="font-size:12px;color:#475569;margin-top:3px">重點為追蹤問題處理、改善成果、維修前後照片與後續管理狀態。</div>
         </div>
-        <span style="font-size:12px;color:#ea580c;background:#fff;border:1px solid #fed7aa;border-radius:999px;padding:5px 9px;font-weight:800">${cases.length} 件維護案件</span>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span style="font-size:12px;color:#ea580c;background:#fff;border:1px solid #fed7aa;border-radius:999px;padding:5px 9px;font-weight:800">${cases.length} 件維護案件</span>
+          <button onclick="fac_openNewInspection(${f.id})" style="font-size:12px;font-weight:700;color:#9a3412;background:#fff7ed;border:1px solid #fed7aa;border-radius:999px;padding:5px 12px;cursor:pointer;display:flex;align-items:center;gap:5px">
+            <i class="fas fa-plus"></i> 新增維護紀錄
+          </button>
+        </div>
       </div>
       ${cases.length ? `
         <div style="display:grid;gap:8px">
@@ -709,6 +1141,7 @@ function renderFacilityMaintenanceDataSection(f) {
         </div>
       `}
       <div style="margin-top:10px;background:#fff;border:1px solid #fed7aa;border-radius:8px;padding:10px;font-size:12px;color:#334155;line-height:1.6">
+        <i class="fas fa-link" style="color:#ea580c;margin-right:5px"></i><b>資料連動：</b>此處新增的巡查紀錄同步顯示於「維護管理資料 ＞ 巡查資料管理」，在該頁面建立的紀錄也會反映至此。DER&U 評等 U2 以上的巡查紀錄自動列為維護案件。<br>
         流程：巡查資料建立 → 異常判斷 → 建立維護管理案件 → 維護處理紀錄 → 維護後照片上傳 → 後續追蹤巡查 → 結案或持續列管。
       </div>
     </div>
@@ -849,6 +1282,7 @@ function renderPlatformRevetmentSummary() {
 
 function renderFacilities() {
   ensurePlatformRevetmentFacilities();
+  fac_syncAllLatestProfessionalAssessments();
   document.getElementById('contentArea').innerHTML = `
     <!-- 工程設施盤點基本資料標題 -->
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
@@ -952,7 +1386,7 @@ function loadFacilitiesTable() {
     );
   }
   if (facilityFilter.type)   data = data.filter(f => f.type === facilityFilter.type);
-  if (facilityFilter.status) data = data.filter(f => f.status === facilityFilter.status);
+  if (facilityFilter.status) data = data.filter(f => (fac_latestProfessionalAssessment(f).status || f.status) === facilityFilter.status);
   data = sortFacilitiesByTableOrder(data);
 
   const total = data.length;
@@ -991,7 +1425,7 @@ function loadFacilitiesTable() {
       </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
         ${['正常','需維護','損壞'].map(s => {
-          const cnt = data.filter(f => f.status === s).length;
+          const cnt = data.filter(f => (fac_latestProfessionalAssessment(f).status || f.status) === s).length;
           const c = statusColor[s] || '#475569';
           const bg = statusBg[s] || '#f5f5f5';
           return `<div style="background:${bg};border:1px solid ${c}44;border-radius:10px;padding:12px 16px;text-align:center;min-width:76px">
@@ -1006,10 +1440,14 @@ function loadFacilitiesTable() {
     <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
       ${pageData.map(f => {
         const stc = subTypeColor[f.subType] || '#455a64';
-        const hp  = fac_health(f);
-        const sc  = statusColor[f.status]  || '#555';
-        const sbg = statusBg[f.status]     || '#f5f5f5';
-        const bc  = barColor[f.status]     || '#1a6b3c';
+        const assessment = fac_latestProfessionalAssessment(f);
+        const hp  = assessment.health;
+        const displayStatus = assessment.status || f.status;
+        const displayDerLevel = assessment.derLevel || f.derLevel || '—';
+        const displayInspectDate = assessment.assessmentDate || f.lastInspect || '未巡查';
+        const sc  = statusColor[displayStatus]  || '#555';
+        const sbg = statusBg[displayStatus]     || '#f5f5f5';
+        const bc  = barColor[displayStatus]     || '#1a6b3c';
         const lat = f.lat  || (f.twd97x ? fac_twd97ToWgs84(f.twd97x, f.twd97y).lat : null);
         const lng = f.lng  || (f.twd97x ? fac_twd97ToWgs84(f.twd97x, f.twd97y).lng : null);
         const gmUrl = lat ? fac_gmapUrl(lat, lng) : null;
@@ -1048,11 +1486,12 @@ function loadFacilitiesTable() {
               <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:9px">
                 <span style="font-size:21px;font-weight:900;color:#0f172a">${f.name}</span>
                 <span style="background:${stc}18;color:${stc};border:1px solid ${stc}44;border-radius:999px;padding:4px 12px;font-size:14px;font-weight:700">${f.subType || f.type || '-'}</span>
-                <span style="background:${sbg};color:${sc};border:1px solid ${sc}44;border-radius:999px;padding:4px 12px;font-size:14px;font-weight:700">${f.status}</span>
+                <span style="background:${sbg};color:${sc};border:1px solid ${sc}44;border-radius:999px;padding:4px 12px;font-size:14px;font-weight:700">${displayStatus}</span>
+                ${assessment.hasProfessional ? `<span style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:999px;padding:4px 10px;font-size:12px;font-weight:800">最新專業巡查表徵</span>` : ''}
               </div>
               <div style="display:flex;gap:20px;flex-wrap:wrap;font-size:15px;color:#475569;align-items:center">
                 <span><i class="fas fa-route" style="color:${activeCategory.color};margin-right:6px"></i><b style="color:#1565c0;font-size:16px">${f.stationKm || '-'}</b></span>
-                <span><i class="fas fa-calendar" style="margin-right:6px"></i>${f.lastInspect || '未巡查'}</span>
+                <span><i class="fas fa-calendar" style="margin-right:6px"></i>${displayInspectDate}</span>
                 ${f.material ? `<span><i class="fas fa-cube" style="margin-right:6px"></i>${f.material}</span>` : ''}
                 ${link.openItems.length > 0
                   ? `<span style="color:#dc2626;font-weight:700"><i class="fas fa-exclamation-circle" style="margin-right:5px"></i>未結案件 ${link.openItems.length} 筆</span>`
@@ -1062,12 +1501,13 @@ function loadFacilitiesTable() {
 
             <!-- DER 評等 -->
             ${(() => {
-              const der = fac_derColor(f.derLevel);
-              const displayLevel = f.derLevel || '—';
+              const der = fac_derColor(displayDerLevel);
+              const displayLevel = displayDerLevel;
+              const levelFontSize = String(displayLevel).length > 7 ? '18px' : '28px';
               return `
               <div style="padding:14px 20px;display:flex;flex-direction:column;align-items:center;justify-content:center;border-left:1px solid #f1f5f9;min-width:110px;gap:6px">
                 <div style="background:${der.bg};border:2px solid ${der.border};border-radius:12px;padding:6px 14px;text-align:center">
-                  <div style="font-size:28px;font-weight:900;color:${der.text};line-height:1.1;letter-spacing:1px">${displayLevel}</div>
+                  <div style="font-size:${levelFontSize};font-weight:900;color:${der.text};line-height:1.1;letter-spacing:0">${displayLevel}</div>
                 </div>
                 <div style="font-size:12px;color:${der.text};font-weight:700">${der.label}</div>
                 <div style="font-size:11px;color:#94a3b8;font-weight:600">DER 評等</div>
@@ -1091,8 +1531,9 @@ function loadFacilitiesTable() {
                 ${facDetailRow('型式', f.subType || f.type)}
                 ${facDetailRow('建造年', f.year ? f.year + ' 年' : '-')}
                 ${facDetailRow('材料', f.material)}
-                ${facDetailRow('DER&U 等級', f.derLevel || '-')}
-                ${facDetailRow('評估日期', f.assessmentDate || '')}
+                ${facDetailRow('DER&U 等級', displayDerLevel)}
+                ${facDetailRow('評估日期', displayInspectDate)}
+                ${assessment.hasProfessional ? facDetailRow('代表來源', assessment.sourceLabel) : ''}
                 ${f.length ? facDetailRow('長度', f.length + ' m') : ''}
                 ${f.width  ? facDetailRow('寬度', f.width  + ' m') : ''}
               </div>
@@ -1103,8 +1544,9 @@ function loadFacilitiesTable() {
                 ${facDetailRow('TWD97 X', f.twd97x ? f.twd97x.toLocaleString() : '-')}
                 ${facDetailRow('TWD97 Y', f.twd97y ? f.twd97y.toLocaleString() : '-')}
                 ${lat ? facDetailRow('WGS84', `${lat.toFixed(5)}°N, ${lng.toFixed(5)}°E`) : ''}
-                ${facDetailRow('上次巡查', f.lastInspect || '-')}
+                ${facDetailRow('上次巡查', displayInspectDate)}
                 ${facDetailRow('巡查筆數', link.inspections.length + ' 筆')}
+                ${facDetailRow('專業巡查', (link.professionalRows?.length || 0) + ' 筆')}
                 ${facDetailRow('未結案件', link.openItems.length + ' 筆')}
                 ${lat ? `<a href="${gmUrl}" target="_blank" onclick="event.stopPropagation()"
                   style="display:inline-flex;align-items:center;gap:6px;margin-top:10px;background:#4285f4;color:#fff;
@@ -1115,7 +1557,7 @@ function loadFacilitiesTable() {
 
               <!-- 狀態評估 -->
               <div style="background:#f8fafc;border-radius:10px;padding:16px">
-                <div style="font-size:15px;font-weight:800;color:#0f172a;margin-bottom:12px"><i class="fas fa-chart-bar" style="color:${bc}"></i> 狀態評估</div>
+                <div style="font-size:15px;font-weight:800;color:#0f172a;margin-bottom:12px"><i class="fas fa-chart-bar" style="color:${bc}"></i> 狀態評估${assessment.hasProfessional ? '（最新專業巡查）' : ''}</div>
                 <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:10px">
                   <span style="font-size:36px;font-weight:900;color:${bc}">${hp}</span>
                   <span style="font-size:15px;color:#64748b">/ 100 分</span>
@@ -1124,8 +1566,8 @@ function loadFacilitiesTable() {
                   <div style="height:100%;width:${hp}%;background:${bc};border-radius:5px"></div>
                 </div>
                 ${facDetailRow('風險等級', link.riskLevel.label)}
-                ${facDetailRow('維護策略', f.maintenanceStrategy || '-')}
-                ${f.evaluationNotes ? `<div style="margin-top:10px;font-size:13px;color:#475569;border-left:3px solid ${stc};padding-left:9px;line-height:1.65">${f.evaluationNotes}</div>` : ''}
+                ${facDetailRow('維護策略', assessment.strategy || f.maintenanceStrategy || '-')}
+                <div style="margin-top:10px;font-size:13px;color:#475569;border-left:3px solid ${stc};padding-left:9px;line-height:1.65">${assessment.basis || f.evaluationNotes || ''}</div>
               </div>
             </div>
 
@@ -1138,8 +1580,8 @@ function loadFacilitiesTable() {
                 🤖 AI 分析
               </button>
               <button class="btn btn-outline" onclick="openDERUAssessmentForm(${f.id})"
-                style="font-size:15px;padding:10px 22px;background:${f.derLevel==='A1'?'#e8f5e9':f.derLevel==='B1-I'?'#fff3e0':'#ffebee'};
-                       border-color:${f.derLevel==='A1'?'#4caf50':f.derLevel==='B1-I'?'#ff9800':'#f44336'}">
+                style="font-size:15px;padding:10px 22px;background:${displayDerLevel==='A1'?'#e8f5e9':displayDerLevel==='B1-I'?'#fff3e0':'#ffebee'};
+                       border-color:${displayDerLevel==='A1'?'#4caf50':displayDerLevel==='B1-I'?'#ff9800':'#f44336'}">
                 📊 DER&U 評估
               </button>
               <button class="btn btn-outline" onclick="openFacilityForm(${f.id})" style="font-size:15px;padding:10px 18px">
@@ -1190,7 +1632,7 @@ function loadFacilitiesMap() {
     );
   }
   if (facilityFilter.type)   data = data.filter(f => f.type === facilityFilter.type);
-  if (facilityFilter.status) data = data.filter(f => f.status === facilityFilter.status);
+  if (facilityFilter.status) data = data.filter(f => (fac_latestProfessionalAssessment(f).status || f.status) === facilityFilter.status);
   data = sortFacilitiesByTableOrder(data);
   const activeCategory = fac_primaryCategoryInfo(facilityPrimaryCategory);
 
@@ -1268,10 +1710,12 @@ function initFacilityMap(facilities) {
 
     if (!lat || !lng) return;
 
+    const assessment = fac_latestProfessionalAssessment(f);
+    const displayStatus = assessment.status || f.status;
+    const hp = assessment.health;
     const profile = fac_mapProfile(f);
     const color = profile.color || subTypeColor[f.subType] || '#455a64';
-    const hp = fac_health(f);
-    const statusC = statusColor[f.status] || '#555';
+    const statusC = statusColor[displayStatus] || '#555';
 
     // 建立自訂標記圖示
     const icon = L.divIcon({
@@ -1301,15 +1745,16 @@ function initFacilityMap(facilities) {
         <div style="font-weight:700;font-size:13px;margin-bottom:4px;color:#1a1a1a">${f.name}</div>
         <div style="margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid #e8ecf0">
           <span style="background:${color};color:#fff;font-size:10px;padding:2px 6px;border-radius:4px">${profile.label || f.subType || f.type}</span>
-          <span style="background:${statusC};color:#fff;font-size:10px;padding:2px 6px;border-radius:4px;margin-left:4px">${f.status}</span>
+          <span style="background:${statusC};color:#fff;font-size:10px;padding:2px 6px;border-radius:4px;margin-left:4px">${displayStatus}</span>
         </div>
+        ${assessment.hasProfessional ? `<div style="font-size:11px;color:#1d4ed8;font-weight:700;margin-bottom:4px">採最新專業巡查：${assessment.assessmentDate || '-'}</div>` : ''}
         <div style="font-size:11px;color:#64748b;margin-bottom:2px">
           <span style="font-weight:600">里程:</span> ${f.stationKm || '-'}
         </div>
         <div style="font-size:11px;color:#64748b;margin-bottom:2px">
           <span style="font-weight:600">健康度:</span> ${hp}%
           <div style="height:3px;background:#e9ecef;border-radius:2px;margin-top:2px;overflow:hidden">
-            <div style="height:100%;width:${hp}%;background:${statusColor[f.status] || '#1a6b3c'};border-radius:2px"></div>
+            <div style="height:100%;width:${hp}%;background:${statusColor[displayStatus] || '#1a6b3c'};border-radius:2px"></div>
           </div>
         </div>
         <div style="font-size:10px;color:#94a3b8;margin-top:4px;font-family:monospace">
@@ -1683,15 +2128,21 @@ function saveHealthEval(facilityId) {
 }
 
 function viewFacility(id) {
-  const f = DB.getById('facilities', id);
+  let f = DB.getById('facilities', id);
   if (!f) return;
+  fac_syncLatestProfessionalAssessment(f);
+  f = DB.getById('facilities', id) || f;
   const stars    = n => `<span style="color:#f59e0b">${'★'.repeat(n)}${'☆'.repeat(5-n)}</span>`;
   const scMap    = { '正常':'success','需維護':'warning','損壞':'danger' };
-  const hp       = fac_health(f);
+  const assessment = fac_latestProfessionalAssessment(f);
+  const hp       = assessment.health;
+  const displayStatus = assessment.status || f.status;
+  const displayDerLevel = assessment.derLevel || f.derLevel || '—';
+  const displayInspectDate = assessment.assessmentDate || f.lastInspect || '-';
   const lat      = f.lat  || (f.twd97x ? fac_twd97ToWgs84(f.twd97x, f.twd97y).lat : null);
   const lng      = f.lng  || (f.twd97x ? fac_twd97ToWgs84(f.twd97x, f.twd97y).lng : null);
   const gmUrl    = lat ? fac_gmapUrl(lat, lng) : null;
-  const barColor = { '正常':'#1a6b3c','需維護':'#f57c00','損壞':'#d32f2f' }[f.status] || '#1a6b3c';
+  const barColor = { '正常':'#1a6b3c','需維護':'#f57c00','損壞':'#d32f2f' }[displayStatus] || '#1a6b3c';
   const activeCategory = fac_primaryCategoryInfo(fac_primaryCategoryOf(f));
 
   document.getElementById('modalTitle').textContent = `設施詳細資訊 — ${f.name}`;
@@ -1753,8 +2204,10 @@ function viewFacility(id) {
           ['建造年度',   f.year ? `民國 ${f.year} 年` : '-'],
           ['位置描述',   f.location || '-'],
           ['建造材料',   f.material || '-'],
-          ['狀況評分',   stars(f.condition || 0)],
-          ['最後巡查',   f.lastInspect || '-']
+          ['狀況評分',   stars(assessment.condition || f.condition || 0)],
+          ['最後巡查',   displayInspectDate],
+          ['代表來源',   assessment.sourceLabel || '-'],
+          ['DER&U 等級', displayDerLevel]
         ].map(([k,v]) => `
           <div>
             <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px">${k}</div>
@@ -1762,28 +2215,33 @@ function viewFacility(id) {
           </div>`).join('')}
         <div style="grid-column:1/-1">
           <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">設施狀態</div>
-          <span class="badge badge-${scMap[f.status]||'default'}" style="font-size:12px;padding:3px 10px">${f.status}</span>
+          <span class="badge badge-${scMap[displayStatus]||'default'}" style="font-size:12px;padding:3px 10px">${displayStatus}</span>
+          ${assessment.hasProfessional ? `<span class="badge badge-info" style="font-size:12px;padding:3px 10px;margin-left:6px">採最新專業巡查表徵</span>` : ''}
         </div>
       </div>
 
-      <!-- ③ 健康指數 + 判斷依據 -->
-      <div style="background:#f8fafc;border-radius:8px;padding:12px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-          <span style="font-size:12px;font-weight:600;color:#475569">健康指數</span>
-          <span style="font-size:16px;font-weight:700;color:${barColor}">${hp}%</span>
+      <!-- ③ 健康指數 + 判斷依據（折疊式） -->
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden">
+        <div onclick="facDetailToggle('fac_health_${id}')" style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;cursor:pointer;gap:10px">
+          <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">
+            <span style="font-size:12px;font-weight:600;color:#475569;white-space:nowrap">健康指數</span>
+            <span style="font-size:15px;font-weight:700;color:${barColor}">${hp}%</span>
+            <div style="flex:1;max-width:100px;height:6px;background:#e2e8f0;border-radius:3px;overflow:hidden">
+              <div style="height:100%;width:${hp}%;background:${barColor};border-radius:3px"></div>
+            </div>
+            <span style="font-size:10px;padding:2px 7px;border-radius:8px;background:${hp>=80?'#e8f5e9':hp>=60?'#e3f2fd':hp>=40?'#fff3e0':'#ffebee'};color:${barColor};border:1px solid ${barColor}44;white-space:nowrap">${hp>=80?'優良':hp>=60?'良好':hp>=40?'普通':'劣化'}</span>
+          </div>
+          <i id="fac_health_${id}_arrow" class="fas fa-chevron-down" style="font-size:11px;color:#94a3b8;flex-shrink:0;transition:transform .2s"></i>
         </div>
-        <div style="height:8px;background:#e2e8f0;border-radius:4px;overflow:hidden;margin-bottom:8px">
-          <div style="height:100%;width:${hp}%;background:${barColor};border-radius:4px"></div>
-        </div>
-        <!-- 等級標籤 -->
-        <div style="display:flex;gap:6px;margin-bottom:8px">
-          ${[['≥80 優良','#2e7d32','#e8f5e9'],['60~79 良好','#1565c0','#e3f2fd'],['40~59 普通','#e65100','#fff3e0'],['<40 劣化','#c62828','#ffebee']].map(([label,c,bg]) =>
-            `<span style="font-size:10px;padding:2px 7px;border-radius:8px;background:${bg};color:${c};font-weight:${hp>=(parseInt(label)||0)?700:400};border:1px solid ${c}${hp>=(parseInt(label)||0)?'':'44'}">${label}</span>`
-          ).join('')}
-        </div>
-        <!-- 判斷依據 -->
-        <div style="background:#fffde7;border-left:3px solid #f9a825;border-radius:0 6px 6px 0;padding:8px 10px;font-size:11.5px;line-height:1.7;color:#555">
-          <strong style="color:#f57c00">⚖ 判斷依據</strong><br>${fac_judgment(f)}
+        <div id="fac_health_${id}" style="display:none;border-top:1px solid #e2e8f0;padding:10px 12px">
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+            ${[['≥80 優良','#2e7d32','#e8f5e9'],['60~79 良好','#1565c0','#e3f2fd'],['40~59 普通','#e65100','#fff3e0'],['<40 劣化','#c62828','#ffebee']].map(([label,c,bg]) =>
+              `<span style="font-size:10px;padding:2px 7px;border-radius:8px;background:${bg};color:${c};font-weight:${hp>=(parseInt(label)||0)?700:400};border:1px solid ${c}${hp>=(parseInt(label)||0)?'':'44'}">${label}</span>`
+            ).join('')}
+          </div>
+          <div style="background:#fffde7;border-left:3px solid #f9a825;border-radius:0 6px 6px 0;padding:8px 10px;font-size:11.5px;line-height:1.7;color:#555">
+            <strong style="color:#f57c00">⚖ 判斷依據</strong><br>${fac_judgment(f)}
+          </div>
         </div>
       </div>
 
@@ -1837,10 +2295,12 @@ function viewFacility(id) {
 function analyzeFacility(id) {
   const f = DB.getById('facilities', id);
   if (!f) return;
+  const assessment = fac_latestProfessionalAssessment(f);
+  const displayStatus = assessment.status || f.status;
   const inspections = DB.getAll('inspections').filter(i => i.facilityId === id);
   const linkage = fac_inspectionLinkage(f);
   const statusColor = { '正常': 'success', '需維護': 'warning', '損壞': 'danger' };
-  const riskScore = f.status === '損壞' ? 91 : f.status === '需維護' ? (f.condition <= 2 ? 74 : 55) : (f.condition <= 3 ? 38 : 18);
+  const riskScore = Math.max(0, Math.min(100, 100 - assessment.health));
   const riskLevel = riskScore >= 80 ? { label: '高風險', color: '#c62828', bg: '#ffebee' }
     : riskScore >= 55 ? { label: '中風險', color: '#e65100', bg: '#fff3e0' }
     : { label: '低風險', color: '#2e7d32', bg: '#e8f5e9' };
@@ -1855,9 +2315,9 @@ function analyzeFacility(id) {
   };
   const sources = docSources[f.type] || ['107-108年成果報告'];
 
-  const suggestions = f.status === '損壞'
+  const suggestions = displayStatus === '損壞'
     ? ['🔴 立即停止使用，安排緊急搶修', '🔴 通報上級單位並拍照記錄', '🔴 評估是否影響棲地連通性']
-    : f.status === '需維護'
+    : displayStatus === '需維護'
     ? ['🟠 本年度優先編列維護預算', '🟠 下次巡查時進行詳細量測', '🟠 比對前後期照片確認惡化趨勢']
     : ['✅ 維持現行定期巡查頻率', '✅ 下次巡查依維管手冊執行', '✅ 持續記錄環境因子變化'];
 
@@ -1871,8 +2331,9 @@ function analyzeFacility(id) {
       </div>
       <div style="flex:2">
         <div style="font-size:13px;color:var(--text-muted);margin-bottom:6px">設施狀態</div>
-        <span class="badge badge-${statusColor[f.status]||'default'}" style="font-size:13px;padding:4px 12px">${f.status}</span>
-        <div style="margin-top:10px;font-size:13px"><b>最後巡查：</b>${f.lastInspect||'-'}</div>
+        <span class="badge badge-${statusColor[displayStatus]||'default'}" style="font-size:13px;padding:4px 12px">${displayStatus}</span>
+        <div style="margin-top:10px;font-size:13px"><b>最後巡查：</b>${assessment.assessmentDate || f.lastInspect || '-'}</div>
+        <div style="font-size:13px"><b>代表來源：</b>${assessment.sourceLabel || '-'}</div>
         <div style="font-size:13px"><b>巡查紀錄：</b>${inspections.length} 筆</div>
       </div>
     </div>

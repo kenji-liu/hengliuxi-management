@@ -14,7 +14,7 @@ const DB = {
   },
 
   // 資料版本（每次重大更新設施資料時遞增）
-  VERSION: '4.0',  // DER評等同步：溪構5-2/4/3/1-2更新為A1，巡查紀錄1&3更新為完成
+  VERSION: '5.6',  // 巡查三類重構：新增彈窗、設施詳情3群組、構造物/魚道表PDF下載、Drive同步連結
 
   // 讀取所有資料
   load() {
@@ -229,12 +229,42 @@ const DB = {
         { id: 3, species: '臺灣鬚鱲', scientificName: 'Candidia barbata', family: '鯉科', conservation: '一般', location: '橫流溪中游', count: 36, date: '2018-05-29', method: '電魚', recorder: '107-108成果報告', note: '107年調查36尾；102~108年累計141尾；偏好中流速礫石底質環境；報告書封溪護魚保護物種' },
         { id: 4, species: '臺灣石魚賓', scientificName: 'Acrossocheilus paradoxus', family: '鯉科', conservation: '近危', location: '橫流溪全流域（1K+225附近深潭及全段）', count: 30, date: '2018-05-29', method: '電魚', recorder: '107-108成果報告', note: '107年調查30尾；102~108年累計191尾；特有種，偏好底部緩流及礫石縫隙；報告書封溪護魚保護物種；與臺灣白甲魚為主要WUA分析物種' },
         { id: 5, species: '纓口臺鰍', scientificName: 'Formosania lacustre', family: '爬鰍科', conservation: '易危', location: '橫流溪上游至中游礫石急流', count: 28, date: '2018-05-29', method: '電魚', recorder: '107-108成果報告', note: '107年調查；特有種；底棲吸附型，偏好礫石急流底面；為AI影像辨識訓練物種之一；109~114年調查累計157尾' },
-        { id: 6, species: '明潭吻鰕虎', scientificName: 'Rhinogobius candidianus', family: '鰕虎科', conservation: '一般', location: '橫流溪中下游', count: 35, date: '2018-05-29', method: '電魚', recorder: '107-108成果報告', note: '107年調查35尾；102~108年累計57尾；底棲性，偏好卵石、礫石底質急流段；為AI影像辨識訓練物種' },
+        { id: 6, species: '明潭吻鰕虎', scientificName: 'Rhinogobius candidianus', family: '鰕虎科', conservation: '一般', location: '橫流溪中下游（St.1~St.6，St.1分布最多84尾）', count: 35, date: '2018-05-29', method: '電魚', recorder: '107-108成果報告', note: '107年調查35尾；102~108年累計57尾；109~114年累計317尾（6樣站，為數量最多物種）；體長37~75mm；偏好水深0.1~0.15m、流速0.9~1.0m/s、礫石底質急流段；St.1分布最多（84尾），梯度：St.1＞St.2＞St.4＞St.3＞St.5＞St.6；112年8次調查共41尾、113年5次調查共27尾、115年6次調查共33尾；潛越式（溪構5：13尾）及斜坡式（溪構3：12尾）為最適通行魚道，FPE指數最高；為AI影像辨識訓練物種' },
         { id: 7, species: '臺灣間爬岩鰍', scientificName: 'Hemimyzon formosanus', family: '爬鰍科', conservation: '近危', location: '橫流溪上游礫石底質', count: 26, date: '2018-05-29', method: '電魚', recorder: '107-108成果報告', note: '107年調查26尾；102~108年累計86尾；底棲吸附型，偏好礫石急流；為指標性特有種；為AI影像辨識訓練物種' },
-        { id: 8, species: '短臀瘋鱨', scientificName: 'Tachysurus brevianalis', family: '鱨科', conservation: '易危', location: '橫流溪深潭及岩石縫隙', count: 4, date: '2019-04-17', method: '電魚', recorder: '107-108成果報告', note: '108年調查4尾；102~108年累計6尾；夜行性，偏好深潭岩縫；特有種，族群數量稀少需持續監測' },
-        { id: 9, species: '短吻紅斑吻鰕虎', scientificName: 'Rhinogobius rubromaculatus', family: '鰕虎科', conservation: '近危', location: '橫流溪下游', count: 2, date: '2019-04-17', method: '電魚', recorder: '107-108成果報告', note: '108年新記錄2尾；特有種，分布侷限，族群稀少；上溯能力較明潭吻鰕虎差，最大可溯水位落差20cm；與明潭吻鰕虎共域分布' },
+        { id: 8, species: '短臀瘋鱨', scientificName: 'Tachysurus brevianalis', family: '鱨科', conservation: '易危', location: '橫流溪高流速淺瀨及礫石岩縫', count: 4, date: '2019-04-17', method: '電魚', recorder: '107-108成果報告', note: '108年調查4尾；102~108年累計6尾；109~114年累計4尾（場域生態資源保全表）；112年5尾（體長105~183mm）、114~115年6尾；廣體長範圍11~220mm；夜行性底棲，偏好流速>0.8m/s礫石急流段及深潭岩石縫隙；魚道建置後棲地適合度（WUA）小幅下降（流速減緩影響）；目前無魚道通行記錄，建議保護高流速淺瀨棲地並加強夜間電捕監測；臺灣特有種，第三級保育野生動物' },
+        { id: 9, species: '短吻紅斑吻鰕虎', scientificName: 'Rhinogobius rubromaculatus', family: '鰕虎科', conservation: '近危', location: '橫流溪全段（St.1~St.6均勻分布，St.2最多4尾）', count: 2, date: '2019-04-17', method: '電魚', recorder: '107-108成果報告', note: '108年新記錄2尾；109~114年累計14尾（6樣站）；112年3尾（5/30：2尾體長27~31mm，11/27：1尾46mm），113年1尾（6/27：41mm），115年1尾；成體體長27~46mm；St.2分布最多（4尾），各站均勻分布；IUCN近危（NT）；上溯能力受水位落差限制（每級魚道≤20cm），與明潭吻鰕虎比例約1:22.6（為族群稀少關注物種）；共域分布，未來魚道設計建議每水池落差≤20cm以利通行；臺灣特有種，需持續族群監測' },
         { id: 10, species: '臺灣白甲魚', scientificName: 'Onychostoma barbatulum', family: '鯉科', conservation: '易危', location: '橫流溪全流域', count: 30, date: '2025-03-10', method: '電魚', recorder: '115年生態調查', note: '115年春季調查30尾；溪構1-1、1-2魚道上下游均有記錄，魚道通行效果良好' },
-        { id: 11, species: '臺灣石魚賓', scientificName: 'Acrossocheilus paradoxus', family: '鯉科', conservation: '近危', location: '橫流溪全流域', count: 22, date: '2025-03-10', method: '電魚', recorder: '115年生態調查', note: '115年春季調查22尾；全流域均有分布，109~114年累計288尾，為橫流溪第二多族群魚種' }
+        { id: 11, species: '臺灣石魚賓', scientificName: 'Acrossocheilus paradoxus', family: '鯉科', conservation: '近危', location: '橫流溪全流域', count: 22, date: '2025-03-10', method: '電魚', recorder: '115年生態調查', note: '115年春季調查22尾；全流域均有分布，109~114年累計288尾，為橫流溪第二多族群魚種' },
+
+        /* ── 110年魚道電捕成效調查（農業部林業署東勢林區管理處，民國110年） ──────
+           資料來源：110年東勢林區管理處國有林魚道及生態廊道成效追蹤報告
+           調查方式：電捕法，9種魚道逐一調查，共捕獲74尾、10個物種
+           目的：評估107~108年魚道設施建置後通行效能，確認各魚道型式對目標物種的適性 ── */
+        { id: 12, species: '明潭吻鰕虎', scientificName: 'Rhinogobius candidianus', family: '鰕虎科', conservation: '一般', location: '橫流溪魚道群（溪構1-1粗石斜曲面4尾、溪構3斜坡式12尾、溪構4階段式1尾、溪構5潛越式13尾）', count: 30, date: '2021-04-10', method: '電魚', recorder: '110年魚道成效追蹤', note: '110年魚道電捕成效調查累計30尾，為捕獲量最多物種；潛越式(13)和斜坡式(12)最適合吻鰕虎通行，通行效能達86.7%；FPE指數最高' },
+        { id: 13, species: '臺灣白甲魚', scientificName: 'Onychostoma barbatulum', family: '鯉科', conservation: '易危', location: '橫流溪魚道群（溪構2階段式2尾、溪構3斜坡式1尾、溪構4階段式2尾、溪構5潛越式1尾、溪構7降壩8尾、溪構8梯狀11尾）', count: 25, date: '2021-04-10', method: '電魚', recorder: '110年魚道成效追蹤', note: '110年魚道電捕成效調查累計25尾；降壩式(8)和梯狀階段式(11)對白甲魚最有效；成功通行範圍達0K+460→1K+170（710m以上）；魚道建置後族群回升確認' },
+        { id: 14, species: '臺灣石魚賓', scientificName: 'Acrossocheilus paradoxus', family: '鯉科', conservation: '近危', location: '橫流溪魚道群（溪構2階段式3尾、溪構4階段式6尾、溪構5潛越式1尾、溪構6階段式4尾）', count: 14, date: '2021-04-10', method: '電魚', recorder: '110年魚道成效追蹤', note: '110年魚道電捕成效調查累計14尾；階段式魚道(溪構4：6尾)對石魚賓效果最佳；全流域均有記錄，偏好礫石底質緩流段' },
+        { id: 15, species: '纓口臺鰍', scientificName: 'Formosania lacustre', family: '爬鰍科', conservation: '易危', location: '橫流溪魚道群（溪構3斜坡式1尾、溪構5潛越式1尾）', count: 2, date: '2021-04-10', method: '電魚', recorder: '110年魚道成效追蹤', note: '110年魚道電捕成效調查累計2尾；族群稀少，斜坡式與潛越式對底棲吸附型魚類最友善；確認魚道建置後保育種有通行記錄' },
+        { id: 16, species: '臺灣間爬岩鰍', scientificName: 'Hemimyzon formosanus', family: '爬鰍科', conservation: '近危', location: '橫流溪魚道（溪構4階段式）', count: 2, date: '2021-04-10', method: '電魚', recorder: '110年魚道成效追蹤', note: '110年魚道電捕成效調查2尾；底棲吸附型，僅在溪構4階段式魚道有記錄；對高流速魚道適應較差，未來建置宜考慮低流速通道' },
+
+        /* ── 103年魚道建置前基線調查（民國103年，東勢林區管理處） ──────────────
+           資料來源：103年橫流溪(下游)溪流魚類監測調查記錄（104/105年東勢處報告附錄）
+           重要性：作為魚道建置前生態基準，對照110年後的族群變化，確認魚道成效 ── */
+        { id: 17, species: '臺灣石魚賓', scientificName: 'Acrossocheilus paradoxus', family: '鯉科', conservation: '近危', location: '橫流溪下游（豐林橋附近，下游監測點）', count: 22, date: '2014-12-10', method: '電魚', recorder: '103年東勢處溪流監測', note: '103年第4季調查，為魚道建置前（107年前）最後完整基準記錄；臺灣石魚賓為絕對優勢種（22尾），臺灣白甲魚數量極少；對照110年後多魚道通行記錄，顯示棲地連通性提升的顯著效果' },
+        { id: 18, species: '臺灣間爬岩鰍', scientificName: 'Hemimyzon formosanus', family: '爬鰍科', conservation: '近危', location: '橫流溪下游（豐林橋附近）', count: 8, date: '2014-03-10', method: '電魚', recorder: '103年東勢處溪流監測', note: '103年第1季調查，與臺灣石魚賓共域分布；為魚道建置前基準；建置後溪構4(1K+170)電捕仍有記錄（2尾），顯示上游族群有所延伸' },
+
+        /* ── 112年溪魚調查（民國112年，559筆調查記錄）──────────────────────────
+           資料來源：112年橫流溪溪流魚類及棲地調查報告
+           涵蓋8次現地調查（4/18、4/27、5/30、6/21、9/22、11/21、11/27、12/26）
+           重要物種：明潭吻鰕虎41尾、短臀瘋鱨5尾、短吻紅斑吻鰕虎3尾、粗首馬口鱲4尾 ── */
+        { id: 19, species: '明潭吻鰕虎', scientificName: 'Rhinogobius candidianus', family: '鰕虎科', conservation: '一般', location: '橫流溪全流域（6樣站）', count: 41, date: '2023-08-01', method: '電魚', recorder: '112年溪魚調查報告', note: '112年8次調查合計41尾；各次記錄：4/18(6)、4/27(4)、5/30(2)、6/21(5)、9/22(2)、11/21(10)、11/27(4)、12/26(8)；秋冬季族群活動較活躍；體長37~75mm；底棲型，偏好礫石卵石急流段；與短吻紅斑吻鰕虎共域，比例約22.6:1' },
+        { id: 20, species: '明潭吻鰕虎', scientificName: 'Rhinogobius candidianus', family: '鰕虎科', conservation: '一般', location: '橫流溪全流域（6樣站）', count: 27, date: '2024-07-01', method: '電魚', recorder: '113年溪魚調查報告', note: '113年5次調查合計27尾；各次記錄：3/25(3)、6/26(17)、6/27(3)、11/26(2)、12/13(2)；初夏6月份為族群活動高峰；數量較112年略降但屬正常波動' },
+        { id: 21, species: '短吻紅斑吻鰕虎', scientificName: 'Rhinogobius rubromaculatus', family: '鰕虎科', conservation: '近危', location: '橫流溪全段（St.2最多）', count: 3, date: '2023-06-01', method: '電魚', recorder: '112年溪魚調查報告', note: '112年記錄3尾；5/30：2尾（體長27mm、31mm），11/27：1尾（體長46mm）；小型底棲鰕虎，生長速度緩慢；體長範圍顯示不同齡級個體；IUCN近危，族群稀少' },
+        { id: 22, species: '短吻紅斑吻鰕虎', scientificName: 'Rhinogobius rubromaculatus', family: '鰕虎科', conservation: '近危', location: '橫流溪全段', count: 1, date: '2024-06-27', method: '電魚', recorder: '113年溪魚調查報告', note: '113年記錄1尾（6/27，體長41mm）；與112年合計4尾，各年均有零星記錄；族群維持低密度穩定存在；需持續監測以評估族群趨勢' },
+        { id: 23, species: '短臀瘋鱨', scientificName: 'Tachysurus brevianalis', family: '鱨科', conservation: '易危', location: '橫流溪高流速礫石段', count: 5, date: '2023-10-01', method: '電魚', recorder: '112年溪魚調查報告', note: '112年記錄5尾（體長105~183mm），為成體個體；偏好流速>0.8m/s礫石底質高流速段；夜行性，白天躲藏於岩石縫隙深處，標準電捕法不易捕獲；實際族群密度可能高於調查記錄；第三級保育野生動物，建議夜間監測補充調查' },
+
+        /* ── 113年溪魚調查（民國113年）── */
+        { id: 24, species: '粗首馬口鱲', scientificName: 'Zacco pachycephalus', family: '鯉科', conservation: '一般', location: '橫流溪中游礫石淺灘', count: 4, date: '2023-06-01', method: '電魚', recorder: '112年溪魚調查報告', note: '112年記錄4尾（體長73mm）；中游礫石淺灘主要棲息地（0K+460~1K+000）；不列入場域生態資源保全主表，但為場域確認物種；102~108年累計191尾，封溪護魚政策持續保護中' },
+        { id: 25, species: '粗首馬口鱲', scientificName: 'Zacco pachycephalus', family: '鯉科', conservation: '一般', location: '橫流溪中游礫石淺灘', count: 6, date: '2024-06-01', method: '電魚', recorder: '113年溪魚調查報告', note: '113年記錄6尾（體長68~105mm），體長範圍顯示多齡級個體；較112年（4尾）略有增加；中游族群穩定；偏好礫石急流淺灘，封溪護魚效果持續顯現' }
       ],
       habitats: [
         { id: 1, name: '樣站S1 107-108年魚類棲地調查', type: '淺灘', surveyMethod: '電魚', location: '橫流溪 0K+460附近', stationKm: '0K+460', lat: 24.2152, lng: 120.9082, twd97x: null, twd97y: null, area: 920, depth: 0.35, substrate: '礫石', vegetation: '低', quality: 4, date: '2018-05-29', source: '107-108成果報告', note: '107年電魚調查樣站1（0K+460~0K+560範圍）；底質礫石為主，流速0.4~0.8m/s；記錄臺灣白甲魚、粗首馬口鱲等物種' },

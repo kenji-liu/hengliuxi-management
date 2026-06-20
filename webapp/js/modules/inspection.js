@@ -2,6 +2,30 @@
 
 const INSPECTION_STATUS = ['待處理', '處理中', '完成'];
 const INSPECTION_PRIORITY = ['低', '中', '高', '緊急'];
+const INSPECTION_GDRIVE_FOLDER_URL = 'https://drive.google.com/drive/folders/1k2s5HSd_R5GeCt05SOtJxn6UFSrbyoQ9?usp=drive_link';
+const INSPECTION_FORM_SYNC_META = {
+  general_periodic: {
+    category: 'general',
+    label: '一般巡查',
+    sourceType: '一般巡查表單',
+    pdfTitle: '表3-1_一般性定期巡查表單.pdf',
+    cloudFolder: '巡查資料管理/一般巡查'
+  },
+  professional_structure: {
+    category: 'professional',
+    label: '專業巡查-構造物調查表單',
+    sourceType: '專業巡查-構造物調查表單',
+    pdfTitle: '表3-2_構造物調查表單.pdf',
+    cloudFolder: '巡查資料管理/專業巡查/構造物調查表單'
+  },
+  professional_fishway: {
+    category: 'fishway',
+    label: '魚道檢核表',
+    sourceType: '專業巡查-魚道檢核表',
+    pdfTitle: '表3-3_魚道檢核表.pdf',
+    cloudFolder: '巡查資料管理/專業巡查/魚道檢核表'
+  }
+};
 
 let currentInspectionAiImage = null;
 let currentInspectionAiAnalysis = null;
@@ -96,6 +120,126 @@ function getInspectionPriority(item) {
   return '低';
 }
 
+function inspectionFormSyncMeta(formType) {
+  return INSPECTION_FORM_SYNC_META[formType] || {
+    category: 'general',
+    label: '巡查紀錄',
+    sourceType: '巡查紀錄',
+    pdfTitle: '巡查紀錄表單.pdf',
+    cloudFolder: '巡查資料管理'
+  };
+}
+
+function inspectionSanitizeFileName(value) {
+  return String(value || '')
+    .replace(/[\\/:*?"<>|]/g, '_')
+    .replace(/\s+/g, '_')
+    .slice(0, 80) || '未命名';
+}
+
+function inspectionPdfFileName(item, meta) {
+  const date = inspectionSanitizeFileName(item.date || new Date().toISOString().slice(0, 10));
+  const facility = inspectionSanitizeFileName(item.facilityName || item.facility_name || '全區');
+  const label = inspectionSanitizeFileName(meta.label);
+  return `${date}_${facility}_${label}.pdf`;
+}
+
+function prepareInspectionRecordForSync(item, formType = item?.formType, refreshSyncAt = false) {
+  const meta = inspectionFormSyncMeta(formType);
+  const now = new Date().toISOString();
+  item.formType = formType || item.formType;
+  item.inspectionItem = meta.label;
+  item.inspectionCategory = meta.category;
+  item.sourceType = meta.sourceType;
+  item.pdfFormat = 'PDF';
+  item.pdfTemplate = meta.pdfTitle;
+  item.pdfFileName = item.pdfFileName || inspectionPdfFileName(item, meta);
+  item.cloudTarget = 'Google Drive';
+  item.cloudFolder = meta.cloudFolder;
+  item.cloudFolderUrl = INSPECTION_GDRIVE_FOLDER_URL;
+  item.cloudSyncStatus = item.cloudSyncStatus || '待上傳';
+  item.cloudQueuedAt = item.cloudQueuedAt || now;
+  item.syncedToInspectionManagement = true;
+  item.syncedToFacility = !!item.facilityId;
+  item.statusEvaluationSyncedAt = refreshSyncAt ? now : (item.statusEvaluationSyncedAt || now);
+  item.uiStatus = getInspectionStatus(item);
+  item.uiPriority = getInspectionPriority(item);
+  return item;
+}
+
+function syncInspectionRecordToFacility(item, refreshSyncAt = true) {
+  const facilityId = Number(item?.facilityId || item?.facility_id);
+  if (!facilityId) return;
+  const facility = DB.getById('facilities', facilityId);
+  if (!facility) return;
+  const now = new Date().toISOString();
+  const priority = getInspectionPriority(item);
+  const status = getInspectionStatus(item);
+  const isOpen = status !== '完成' || ['緊急', '高'].includes(priority) || (item.deru_u || 0) >= 2;
+  const conditionByU = item.deru_u >= 4 ? 1 : item.deru_u === 3 ? 2 : item.deru_u === 2 ? 3 : facility.condition;
+  const updates = {
+    lastInspect: item.date || facility.lastInspect || '',
+    assessmentDate: item.date || facility.assessmentDate || '',
+    maintenance_priority: priority,
+    status: isOpen ? '需維護' : (facility.status || '正常'),
+    condition: conditionByU || facility.condition || 4,
+    derLevel: item.deru_label || facility.derLevel || '',
+    evaluationNotes: `${item.inspectionItem || inspectionRecordTypeLabel(inspectionRecordType(item))}：${item.findings || '已完成巡查資料更新'}`,
+    maintenanceStrategy: item.action || facility.maintenanceStrategy || '依巡查結果持續追蹤',
+    inspectionSyncAt: refreshSyncAt ? now : (facility.inspectionSyncAt || now)
+  };
+  const needsUpdate = Object.keys(updates).some(key => facility[key] !== updates[key]);
+  if (needsUpdate) DB.update('facilities', facilityId, updates);
+}
+
+function ensureInspectionSyncMetadata() {
+  DB.getAll('inspections')
+    .sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')))
+    .forEach(row => {
+    if (!INSPECTION_FORM_SYNC_META[row.formType]) return;
+    const prepared = prepareInspectionRecordForSync({ ...row }, row.formType, false);
+    const updates = {};
+    [
+      'inspectionItem', 'inspectionCategory', 'sourceType', 'pdfFormat', 'pdfTemplate', 'pdfFileName',
+      'cloudTarget', 'cloudFolder', 'cloudFolderUrl', 'cloudSyncStatus', 'cloudQueuedAt',
+      'syncedToInspectionManagement', 'syncedToFacility', 'statusEvaluationSyncedAt'
+    ].forEach(key => {
+      if (row[key] !== prepared[key]) updates[key] = prepared[key];
+    });
+    if (Object.keys(updates).length) DB.update('inspections', row.id, updates);
+    syncInspectionRecordToFacility(prepared, false);
+  });
+}
+
+function inspectionCloudSyncColor(status) {
+  if (status === '已上傳') return { color: '#166534', bg: '#dcfce7', border: '#86efac' };
+  if (status === '同步中' || status === '已排程') return { color: '#d97706', bg: '#fef3c7', border: '#fcd34d' };
+  return { color: '#b91c1c', bg: '#fee2e2', border: '#fca5a5' };
+}
+
+function openInspectionDriveFolder() {
+  window.open(INSPECTION_GDRIVE_FOLDER_URL, '_blank', 'noopener,noreferrer');
+}
+
+function queueInspectionDriveSync(type = 'all') {
+  const rows = DB.getAll('inspections');
+  let count = 0;
+  rows.forEach(row => {
+    if (!INSPECTION_FORM_SYNC_META[row.formType]) return;
+    const category = inspectionFormSyncMeta(row.formType).category;
+    if (type !== 'all' && category !== type) return;
+    DB.update('inspections', row.id, {
+      cloudTarget: 'Google Drive',
+      cloudFolderUrl: INSPECTION_GDRIVE_FOLDER_URL,
+      cloudSyncStatus: '待上傳',
+      cloudQueuedAt: new Date().toISOString()
+    });
+    count += 1;
+  });
+  showToast(`已建立 ${count} 筆 Google Drive 待上傳同步項目`, 'success');
+  renderInspection();
+}
+
 function syncDeruHistoryIntoInspectionRecords() {
   const rows = DB.getAll('inspections');
   const facilities = DB.getAll('facilities');
@@ -148,7 +292,11 @@ function inspectionStatusClass(status) {
 }
 
 function inspectionRecordType(item = {}) {
+  if (item.formType === 'general_periodic') return 'general';
+  if (item.formType === 'professional_structure') return 'professional';
+  if (item.formType === 'professional_fishway') return 'fishway';
   const text = `${item.sourceType || ''} ${item.type || ''} ${item.inspector || ''} ${item.profession || ''}`;
+  if (text.includes('魚道檢核')) return 'fishway';
   if (text.includes('專業') || text.includes('技師') || text.includes('技士') || text.includes('DER&U') || text.includes('工程')) return 'professional';
   if (text.includes('護管') || text.includes('巡護') || text.includes('林班') || text.includes('日常')) return 'ranger';
   return 'general';
@@ -158,6 +306,7 @@ function inspectionRecordTypeLabel(type) {
   return {
     general: '一般巡查紀錄',
     professional: '專業巡查紀錄',
+    fishway: '魚道檢核表',
     ranger: '護管員巡查紀錄'
   }[type] || '一般巡查紀錄';
 }
@@ -168,6 +317,7 @@ function inspectionRecordTypeLabel(type) {
 
 function renderInspectionMgmtPage() {
   syncDeruHistoryIntoInspectionRecords();
+  ensureInspectionSyncMetadata();
   document.getElementById('contentArea').innerHTML =
     renderManualInspectionGuide() +
     renderInspectionDataManagement(true);
@@ -409,6 +559,24 @@ function renderManualInspectionGuide() {
                   <div style="font-size:16px;color:#475569;line-height:1.6;margin-top:3px">${item.desc}</div>
                 </div>
               </div>`).join('')}
+            </div>
+            <!-- 新增表單按鈕 -->
+            <div style="margin-top:16px;padding-top:14px;border-top:1px solid rgba(0,0,0,.08);display:flex;flex-direction:column;gap:8px">
+              ${t.key === 'general' ? `
+                <button onclick="openGeneralPeriodicForm()"
+                  style="width:100%;padding:11px 14px;background:${t.color};color:#fff;border:none;border-radius:10px;font-size:17px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
+                  <i class="fas fa-plus-circle"></i> 新增一般性巡查（附錄一）
+                </button>
+              ` : `
+                <button onclick="openStructureInspectionForm()"
+                  style="width:100%;padding:11px 14px;background:${t.color};color:#fff;border:none;border-radius:10px;font-size:17px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
+                  <i class="fas fa-building"></i> 構造物調查表（附錄二）
+                </button>
+                <button onclick="openFishwayForm()"
+                  style="width:100%;padding:11px 14px;background:#fff;color:${t.color};border:2px solid ${t.color};border-radius:10px;font-size:17px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
+                  <i class="fas fa-fish"></i> 魚道檢核表（附錄三）
+                </button>
+              `}
             </div>
           </div>`).join('')}
         </div>
@@ -663,7 +831,7 @@ function renderManualInspectionGuide() {
   `;
 }
 
-let inspDataTab = 'professional'; // 'all' | 'general' | 'professional' | 'ranger'
+let inspDataTab = 'professional'; // 'all' | 'general' | 'professional' | 'fishway' | 'ranger'
 
 /* ══════════════════════════════════════════════════════════════
    護管員巡查日誌（梁技正橫流溪巡查日誌，民國109-113年）
@@ -897,6 +1065,7 @@ function renderRangerInspRecords() {
 const INSP_TYPE_META = {
   general:      { label:'一般巡查',   color:'#1565c0', bg:'#eff6ff', border:'#bfdbfe', icon:'fa-clipboard-check' },
   professional: { label:'專業巡查',   color:'#9a3412', bg:'#fff7ed', border:'#fed7aa', icon:'fa-hard-hat' },
+  fishway:      { label:'魚道檢核表', color:'#0f766e', bg:'#f0fdfa', border:'#99f6e4', icon:'fa-fish' },
   ranger:       { label:'護管員巡查', color:'#166534', bg:'#f0fdf4', border:'#bbf7d0', icon:'fa-shield-halved' },
   forestry:     { label:'林業巡護',   color:'#0f766e', bg:'#f0fdfa', border:'#99f6e4', icon:'fa-tree' }
 };
@@ -1200,6 +1369,7 @@ function renderGeneralInspRecords() {
 }
 
 function renderInspectionDataManagement(standalone = false) {
+  ensureInspectionSyncMetadata();
   const allInsp = DB.getAll('inspections');
   const facilities = DB.getAll('facilities');
 
@@ -1213,6 +1383,7 @@ function renderInspectionDataManagement(standalone = false) {
   const byType = {
     general:      enriched.filter(i => i.uiType === 'general'),
     professional: enriched.filter(i => i.uiType === 'professional'),
+    fishway:      enriched.filter(i => i.uiType === 'fishway'),
     ranger:       enriched.filter(i => i.uiType === 'ranger')
   };
 
@@ -1233,6 +1404,7 @@ function renderInspectionDataManagement(standalone = false) {
   const all  = typeStats(enriched);
   const gs   = typeStats(byType.general);
   const ps   = typeStats(byType.professional);
+  const fs   = typeStats(byType.fishway);
   const rs   = typeStats(byType.ranger);
 
   // ── 趨勢（近 6 個月）──
@@ -1260,28 +1432,53 @@ function renderInspectionDataManagement(standalone = false) {
           <h2 style="margin:0;font-size:36px;font-weight:900;color:#0f172a">
             <i class="fas fa-clipboard-list" style="color:#1565c0;margin-right:10px"></i>巡查資料管理
           </h2>
-          <div style="font-size:20px;color:#475569;margin-top:8px">整合一般巡查、專業巡查與護管員巡查紀錄，依類型統整分析與清單管理。</div>
+          <div style="font-size:20px;color:#475569;margin-top:8px">整合一般巡查、專業巡查與魚道檢核表，並同步狀態評估成果、PDF表單與雲端待上傳資訊。</div>
         </div>
-        <button class="btn btn-primary" onclick="openInspectionForm()" style="font-size:20px;padding:14px 32px">
-          <i class="fas fa-plus"></i> 新增巡查紀錄
-        </button>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+          <button class="btn btn-primary" onclick="openGeneralPeriodicForm()" style="font-size:18px;padding:12px 24px">
+            <i class="fas fa-clipboard-check"></i> 一般性巡查
+          </button>
+          <button class="btn btn-outline" onclick="openStructureInspectionForm()" style="font-size:18px;padding:12px 24px;color:#9a3412;border-color:#fed7aa;background:#fff7ed">
+            <i class="fas fa-building"></i> 構造物調查
+          </button>
+          <button class="btn btn-outline" onclick="openFishwayForm()" style="font-size:18px;padding:12px 24px;color:#0f766e;border-color:#99f6e4;background:#f0fdfa">
+            <i class="fas fa-fish"></i> 魚道檢核
+          </button>
+          <button class="btn btn-outline" onclick="queueInspectionDriveSync('all')" style="font-size:18px;padding:12px 24px;color:#b91c1c;border-color:#fecaca;background:#fff1f2">
+            <i class="fas fa-cloud-upload-alt"></i> 建立雲端待上傳
+          </button>
+          <button class="btn btn-outline" onclick="openInspectionDriveFolder()" style="font-size:18px;padding:12px 24px;color:#1d4ed8;border-color:#bfdbfe;background:#eff6ff">
+            <i class="fas fa-folder-open"></i> Google Drive
+          </button>
+        </div>
       </div>` : `
       <div class="card-header" style="flex-wrap:wrap;gap:8px">
         <div>
           <div style="font-size:16px;color:#64748b;margin-bottom:4px">維護管理資料 ＞ 巡查資料管理</div>
           <span class="card-title" style="font-size:24px"><i class="fas fa-clipboard-list"></i> 巡查資料管理</span>
         </div>
-        <button class="btn btn-primary" onclick="openInspectionForm()" style="font-size:18px;padding:10px 22px">
-          <i class="fas fa-plus"></i> 新增巡查紀錄
-        </button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="openGeneralPeriodicForm()" style="font-size:15px;padding:8px 16px">
+            <i class="fas fa-clipboard-check"></i> 一般性
+          </button>
+          <button class="btn btn-outline" onclick="openStructureInspectionForm()" style="font-size:15px;padding:8px 16px;color:#9a3412;border-color:#fed7aa;background:#fff7ed">
+            <i class="fas fa-building"></i> 構造物
+          </button>
+          <button class="btn btn-outline" onclick="openFishwayForm()" style="font-size:15px;padding:8px 16px;color:#0f766e;border-color:#99f6e4;background:#f0fdfa">
+            <i class="fas fa-fish"></i> 魚道
+          </button>
+          <button class="btn btn-outline" onclick="openInspectionDriveFolder()" style="font-size:15px;padding:8px 16px;color:#1d4ed8;border-color:#bfdbfe;background:#eff6ff">
+            <i class="fas fa-folder-open"></i> 雲端
+          </button>
+        </div>
       </div>`}
     <div ${standalone?'':'class="card-body" style="padding:16px"'}>
 
       <!-- ── 四類巡查統計橫排 ── -->
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px">
-        ${['general','professional','ranger','forestry'].map(type => {
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:22px">
+        ${['general','professional','fishway','ranger','forestry'].map(type => {
           const m   = INSP_TYPE_META[type];
-          const s   = type==='general'?gs:type==='professional'?ps:rs;
+          const s   = type==='general'?gs:type==='professional'?ps:type==='fishway'?fs:rs;
           const active = inspDataTab === type;
 
           // 共用卡片樣式常數
@@ -1291,6 +1488,7 @@ function renderInspectionDataManagement(standalone = false) {
           // 一般巡查
           if (type === 'general') {
             const giSorted = [...GENERAL_INSP_RECORDS].sort((a,b)=>a.dateSort.localeCompare(b.dateSort));
+            const generalTotal = GENERAL_INSP_RECORDS.length + gs.total;
             const giStart  = giSorted[0]?.date || '-';
             const giEnd    = giSorted[giSorted.length-1]?.date || '-';
             return `
@@ -1303,20 +1501,20 @@ function renderInspectionDataManagement(standalone = false) {
                             display:flex;align-items:center;justify-content:center;font-size:${ICON_FS}">
                   <i class="fas ${m.icon}"></i>
                 </div>
-                <div style="font-size:${NUM_BIG};font-weight:900;color:${m.color};line-height:1">${GENERAL_INSP_RECORDS.length}</div>
+                <div style="font-size:${NUM_BIG};font-weight:900;color:${m.color};line-height:1">${generalTotal}</div>
               </div>
               <div style="font-size:${LBL};font-weight:900;color:#0f172a;margin-bottom:8px">${m.label}</div>
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">
                 <div style="text-align:center;background:#fff;border:1px solid #bfdbfe;border-radius:8px;padding:7px 4px">
-                  <div style="font-size:${SUB_NUM};font-weight:900;color:${m.color}">${GENERAL_INSP_RECORDS.length}</div>
-                  <div style="font-size:${SUB_LBL};color:#64748b;margin-top:2px">巡查次數</div>
+                  <div style="font-size:${SUB_NUM};font-weight:900;color:${m.color}">${generalTotal}</div>
+                  <div style="font-size:${SUB_LBL};color:#64748b;margin-top:2px">文件+表單</div>
                 </div>
                 <div style="text-align:center;background:#fff;border:1px solid #bfdbfe;border-radius:8px;padding:7px 4px">
                   <div style="font-size:11px;font-weight:800;color:${m.color};line-height:1.4">${giStart}<br>~ ${giEnd}</div>
                   <div style="font-size:${SUB_LBL};color:#64748b;margin-top:2px">巡查時間</div>
                 </div>
               </div>
-              <div style="font-size:${SRC};color:#64748b">來源：定期巡查表單 PDF</div>
+              <div style="font-size:${SRC};color:#64748b">來源：定期巡查PDF與平台填報表單</div>
               <div style="font-size:${BTN};font-weight:800;color:${m.color};margin-top:8px">
                 ${active ? '▶ 目前篩選中' : '展開此類清單'}
               </div>
@@ -1425,7 +1623,7 @@ function renderInspectionDataManagement(standalone = false) {
 
       <!-- ── 分頁籤 ── -->
       <div style="display:flex;gap:6px;margin-bottom:18px;border-bottom:3px solid #e5e7eb;padding-bottom:0;flex-wrap:wrap">
-        ${[['general','一般巡查','#1565c0'],['professional','專業巡查','#9a3412'],['ranger','護管員巡查','#166534'],['forestry','林業巡護','#0f766e']].map(([key,lbl,cl])=>`
+        ${[['general','一般巡查','#1565c0'],['professional','專業巡查','#9a3412'],['fishway','魚道檢核表','#0f766e'],['ranger','護管員巡查','#166534'],['forestry','林業巡護','#0f766e']].map(([key,lbl,cl])=>`
           <button onclick="inspSwitchTab('${key}')"
             style="padding:13px 22px;border:none;background:none;cursor:pointer;font-size:20px;font-weight:${inspDataTab===key?'800':'500'};
                    color:${inspDataTab===key?cl:'#64748b'};border-bottom:${inspDataTab===key?`4px solid ${cl}`:'4px solid transparent'};
@@ -1433,7 +1631,7 @@ function renderInspectionDataManagement(standalone = false) {
             ${lbl}
             <span style="background:${inspDataTab===key?cl+'22':'#f1f5f9'};color:${inspDataTab===key?cl:'#64748b'};
                          border-radius:999px;padding:2px 10px;font-size:17px;font-weight:700">
-              ${key==='all'?enriched.length:key==='general'?GENERAL_INSP_RECORDS.length:key==='ranger'?RANGER_INSP_RECORDS.length:key==='forestry'?FORESTRY_PATROL_DOCS.length:byType[key]?.length||0}
+              ${key==='all'?enriched.length:key==='general'?GENERAL_INSP_RECORDS.length + byType.general.length:key==='ranger'?RANGER_INSP_RECORDS.length:key==='forestry'?FORESTRY_PATROL_DOCS.length:byType[key]?.length||0}
             </span>
           </button>`).join('')}
         <div style="margin-left:auto;display:flex;gap:8px;align-items:center;padding-bottom:4px">
@@ -1469,8 +1667,8 @@ function renderInspectionDataManagement(standalone = false) {
         ${inspDataTab === 'forestry' ? renderForestryPatrolSection() : ''}
       </div>
 
-      <!-- 資料庫巡查清單（一般/護管員/林業巡護 tab 不顯示） -->
-      <div id="inspDbListWrapper" style="${(['general','ranger','forestry'].includes(inspDataTab)) ? 'display:none' : ''}">
+      <!-- 資料庫巡查清單（護管員/林業巡護 tab 不顯示） -->
+      <div id="inspDbListWrapper" style="${(['ranger','forestry'].includes(inspDataTab)) ? 'display:none' : ''}">
         <div id="inspDataMgmtList">
           ${renderInspDataList(tabData)}
         </div>
@@ -1500,7 +1698,7 @@ function inspSwitchTab(tab) {
   // 更新分頁籤高亮
   const card = document.getElementById('inspDataMgmtCard');
   if (!card) return;
-  const TYPE_COLOR = {general:'#1565c0',professional:'#9a3412',ranger:'#166534',forestry:'#0f766e'};
+  const TYPE_COLOR = {general:'#1565c0',professional:'#9a3412',fishway:'#0f766e',ranger:'#166534',forestry:'#0f766e'};
   card.querySelectorAll('[onclick^="inspSwitchTab"]').forEach(btn => {
     const btnKey = btn.getAttribute('onclick').match(/'([^']+)'/)?.[1];
     const cl = TYPE_COLOR[btnKey] || '#64748b';
@@ -1542,7 +1740,7 @@ function inspDataMgmtRender() {
     forestrySection.innerHTML = inspDataTab === 'forestry' ? renderForestryPatrolSection() : '';
   }
   if (dbWrapper) {
-    dbWrapper.style.display = ['general','ranger','forestry'].includes(inspDataTab) ? 'none' : '';
+    dbWrapper.style.display = ['ranger','forestry'].includes(inspDataTab) ? 'none' : '';
   }
 
   const listEl = document.getElementById('inspDataMgmtList');
@@ -1583,6 +1781,8 @@ function renderInspDataList(data) {
     const hasAi   = !!item.aiImageAnalysis;
     const name = item.facilityName || item.facility_name || '未指定設施';
     const findings = String(item.findings || item.notes || '').slice(0, 100);
+    const cloudStyle = inspectionCloudSyncColor(item.cloudSyncStatus || '待上傳');
+    const pdfLabel = item.pdfFileName || item.pdfTemplate || '';
 
     return `
     <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;margin-bottom:14px;
@@ -1604,6 +1804,8 @@ function renderInspDataList(data) {
             <span style="background:${pc}18;color:${pc};border:1px solid ${pc}44;border-radius:999px;padding:5px 14px;font-size:17px;font-weight:700">${item.uiPriority}</span>
             ${hasDeru ? `<span style="background:#fff7ed;color:#9a3412;border:1px solid #fed7aa;border-radius:999px;padding:5px 14px;font-size:17px;font-weight:700">DER&amp;U ${item.deru_label||'U'+item.deru_u}</span>` : ''}
             ${hasAi   ? `<span style="background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;border-radius:999px;padding:5px 14px;font-size:16px">🤖 AI分析</span>` : ''}
+            ${item.pdfFormat ? `<span style="background:#fff1f2;color:#b91c1c;border:1px solid #fecaca;border-radius:999px;padding:5px 14px;font-size:16px;font-weight:700"><i class="fas fa-file-pdf"></i> PDF</span>` : ''}
+            ${item.cloudTarget ? `<span style="background:${cloudStyle.bg};color:${cloudStyle.color};border:1px solid ${cloudStyle.border};border-radius:999px;padding:5px 14px;font-size:16px;font-weight:700"><i class="fas fa-cloud-upload-alt"></i> ${item.cloudSyncStatus || '待上傳'}</span>` : ''}
           </div>
           <div style="display:flex;gap:22px;flex-wrap:wrap;font-size:18px;color:#475569;align-items:center">
             <span><i class="fas fa-calendar" style="margin-right:6px"></i><b>${item.date || '-'}</b></span>
@@ -1658,8 +1860,18 @@ function renderInspDataList(data) {
               ${inspDetailRow('巡查員', item.inspector)}
               ${inspDetailRow('天氣', item.weather)}
               ${inspDetailRow('類型', m.label)}
+              ${item.inspectionItem ? inspDetailRow('巡查項目', item.inspectionItem) : ''}
+              ${pdfLabel ? inspDetailRow('PDF表單', pdfLabel) : ''}
+              ${item.cloudTarget ? inspDetailRow('雲端同步', `${item.cloudTarget}／${item.cloudSyncStatus || '待上傳'}`) : ''}
               ${inspDetailRow('狀態', item.uiStatus)}
               ${inspDetailRow('優先度', item.uiPriority)}
+              ${item.cloudFolderUrl ? `
+                <div style="margin-top:10px">
+                  <a href="${INSPECTION_GDRIVE_FOLDER_URL}" target="_blank" rel="noopener noreferrer"
+                    style="display:inline-flex;align-items:center;gap:6px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:8px;padding:8px 12px;text-decoration:none;font-size:15px;font-weight:800">
+                    <i class="fas fa-folder-open"></i> 開啟同步雲端資料夾
+                  </a>
+                </div>` : ''}
               <!-- 資料來源 -->
               <div style="margin-top:14px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:14px">
                 <div style="font-size:17px;font-weight:800;color:#1e3a8a;margin-bottom:7px">
@@ -1971,7 +2183,7 @@ function renderInspectionMaintenanceDataOverview() {
           <div style="border:1px solid #bfdbfe;border-left:4px solid #1565c0;background:#eff6ff;border-radius:10px;padding:12px">
             <div style="font-size:15px;font-weight:900;color:#1e3a8a;margin-bottom:8px"><i class="fas fa-clipboard-check"></i> 巡查資料</div>
             <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px">
-              ${['general','professional','ranger'].map(type => `
+              ${['general','professional','fishway'].map(type => `
                 <div style="background:#fff;border:1px solid #dbeafe;border-radius:8px;padding:8px;text-align:center">
                   <div style="font-size:20px;font-weight:900;color:#1565c0">${inspections.filter(item => inspectionRecordType(item) === type).length}</div>
                   <div style="font-size:11px;color:#475569;margin-top:2px">${inspectionRecordTypeLabel(type).replace('紀錄','')}</div>
@@ -2086,7 +2298,7 @@ function renderMaintenancePhotoArchiveSection() {
   return `
     <div class="card" style="margin-bottom:16px">
       <div class="card-header" style="flex-wrap:wrap;gap:8px">
-        <span class="card-title" style="font-size:18px"><i class="fas fa-images"></i> 歷年維護照片分層比對</span>
+        <span class="card-title" style="font-size:18px"><i class="fas fa-images"></i> 歷年維護照片</span>
         <span style="font-size:13px;color:#64748b">來源：01_工程設施維護與資料 ／ 維管計畫 ／ 歷年維護資料</span>
       </div>
       <div class="card-body" style="padding:16px">
@@ -2366,8 +2578,10 @@ function openMaintenancePhotoViewer(photos, index = 0) {
 
 function renderInspection() {
   document.getElementById('contentArea').innerHTML = `
+    ${renderContractStatsSection()}
     ${renderMaintenancePhotoArchiveSection()}
   `;
+  loadContractStats();
   loadMaintenancePhotoArchive();
 }
 
@@ -2784,9 +2998,13 @@ function loadInspectionTable() {
   ` : '<div class="empty-state"><i class="fas fa-clipboard"></i><p>查無巡查紀錄</p></div>';
 }
 
-function openInspectionForm(id = null) {
+function openInspectionForm(id = null, preFacilityId = null) {
   const ins = id ? DB.getById('inspections', id) : {};
+  if (id && ins?.formType === 'general_periodic') return openGeneralPeriodicForm(ins.facilityId || null, id);
+  if (id && ins?.formType === 'professional_structure') return openStructureInspectionForm(ins.facilityId || null, id);
+  if (id && ins?.formType === 'professional_fishway') return openFishwayForm(ins.facilityId || null, id);
   const facilities = DB.getAll('facilities');
+  const _preFacId = preFacilityId ? Number(preFacilityId) : null;
   currentInspectionAiImage = null;
   currentInspectionAiAnalysis = ins?.aiImageAnalysis || null;
   currentInspectionAiImageDataUrl = null;
@@ -2797,7 +3015,7 @@ function openInspectionForm(id = null) {
       <div class="form-group full-width"><label>設施名稱 *</label>
         <select id="ins_facility">
           <option value="">請選擇設施</option>
-          ${facilities.map(f => `<option value="${f.id}" data-name="${inspectionEscape(f.name)}" ${Number(ins.facilityId) === Number(f.id) ? 'selected' : ''}>${inspectionEscape(f.name)}</option>`).join('')}
+          ${facilities.map(f => `<option value="${f.id}" data-name="${inspectionEscape(f.name)}" ${(Number(ins.facilityId) || _preFacId) === Number(f.id) ? 'selected' : ''}>${inspectionEscape(f.name)}</option>`).join('')}
         </select>
       </div>
       <div class="form-group"><label>巡查日期 *</label><input id="ins_date" type="date" value="${ins.date || new Date().toISOString().split('T')[0]}"></div>
@@ -3933,7 +4151,13 @@ function saveInspection(id) {
     showToast('巡查紀錄已新增', 'success');
   }
   closeModal();
-  renderInspection();
+  if (window._facAfterInspectionSave) {
+    const cb = window._facAfterInspectionSave;
+    window._facAfterInspectionSave = null;
+    setTimeout(cb, 80);
+  } else {
+    renderInspection();
+  }
 }
 
 function renderInspectionLinkedPhotos(item) {
@@ -4061,4 +4285,1385 @@ function deleteInspection(id) {
   DB.delete('inspections', id);
   showToast('巡查紀錄已刪除', 'info');
   renderInspection();
+}
+
+/* ── 工程開口合約統計 ───────────────────────────────────────────── */
+
+function renderContractStatsSection() {
+  return `
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-header" style="flex-wrap:wrap;gap:8px">
+        <span class="card-title" style="font-size:18px"><i class="fas fa-file-contract"></i> 工程開口合約統計</span>
+        <span style="font-size:13px;color:#64748b">來源：01_工程設施維護與資料 ／ 工程維護開口 ／ 監工日報表</span>
+      </div>
+      <div class="card-body" style="padding:16px">
+        <div id="contractStatsArea">
+          <div style="padding:24px;text-align:center;color:#64748b;font-size:15px">
+            <i class="fas fa-spinner fa-spin" style="font-size:24px;margin-bottom:10px;display:block"></i>
+            正在載入合約統計資料…
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function _contractYearColor(yearAd) {
+  const palette = {
+    2021: { bg: '#eff6ff', border: '#bfdbfe', text: '#1e3a8a', badge: '#1565c0' },
+    2022: { bg: '#f0fdf4', border: '#bbf7d0', text: '#14532d', badge: '#16a34a' },
+    2023: { bg: '#fff7ed', border: '#fed7aa', text: '#7c2d12', badge: '#ea580c' },
+    2024: { bg: '#fdf4ff', border: '#e9d5ff', text: '#581c87', badge: '#7c3aed' },
+    2025: { bg: '#fefce8', border: '#fde68a', text: '#713f12', badge: '#d97706' },
+    2026: { bg: '#f0fdfa', border: '#99f6e4', text: '#134e4a', badge: '#0f766e' },
+  };
+  return palette[yearAd] || { bg: '#f8fafc', border: '#e2e8f0', text: '#1e293b', badge: '#475569' };
+}
+
+function _fmtAmount(n) {
+  if (n >= 1e4) return Math.round(n / 1e4).toLocaleString('zh-TW') + ' 萬';
+  return n.toLocaleString('zh-TW');
+}
+
+async function loadContractStats() {
+  const el = document.getElementById('contractStatsArea');
+  if (!el) return;
+  try {
+    const res = await fetch('/webapp/data/maintenance_contracts.json', { cache: 'no-store' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    el.innerHTML = _renderContractStats(data);
+  } catch (err) {
+    el.innerHTML = `<div style="padding:16px;color:#ef4444;font-size:14px"><i class="fas fa-exclamation-circle"></i> 無法載入合約統計：${inspectionEscape(err.message || err)}</div>`;
+  }
+}
+
+function contractCardToggle(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const open = el.style.display !== 'none';
+  el.style.display = open ? 'none' : 'block';
+  const arrow = document.getElementById(id + '_arrow');
+  if (arrow) arrow.style.transform = open ? '' : 'rotate(180deg)';
+}
+
+function _renderContractStats(data) {
+  const { projects, item_summary, total_contract_amount, total_projects, total_reports } = data;
+
+  // 摘要統計卡（大字）
+  const summaryCards = [
+    { icon: 'fa-folder-open', label: '工程件數',   value: total_projects + ' 件', color: '#1565c0' },
+    { icon: 'fa-file-alt',    label: '日報份數',   value: total_reports  + ' 份', color: '#16a34a' },
+    { icon: 'fa-coins',       label: '累計契約金額', value: (total_contract_amount / 1e4).toFixed(0) + ' 萬元', color: '#d97706' },
+  ].map(c => `
+    <div style="flex:1;min-width:160px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:24px 20px;text-align:center">
+      <i class="fas ${c.icon}" style="font-size:40px;color:${c.color};margin-bottom:12px;display:block"></i>
+      <div style="font-size:42px;font-weight:900;color:${c.color};line-height:1.1">${c.value}</div>
+      <div style="font-size:20px;color:#64748b;margin-top:8px">${c.label}</div>
+    </div>
+  `).join('');
+
+  // 各工程卡片（折疊式）
+  const projectCards = projects.map((p, idx) => {
+    const col = _contractYearColor(p.year_ad);
+    const detailId = 'contract_detail_' + idx;
+    const na = p.notes_analysis || {};
+    const wDays = na.work_days || 0;
+    const sDays = na.stop_days || 0;
+    const totalDays = wDays + sDays || 1;
+    const workPct = Math.round(wDays / totalDays * 100);
+
+    // 摘要標籤（折疊時可見）
+    const themes = (na.work_themes || []).filter(t => t.name !== '雨天停工').slice(0, 4);
+    const summaryPills = themes.map(t =>
+      `<span style="display:inline-flex;align-items:center;gap:5px;background:${t.color}18;color:${t.color};border:1px solid ${t.color}33;border-radius:6px;padding:4px 10px;font-size:15px;font-weight:700">
+        <i class="fas ${t.icon}"></i>${inspectionEscape(t.name)}</span>`
+    ).join('');
+
+    // 展開後的工作內容分類
+    const catRows = (p.work_categories || []).map(cat => `
+      <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid ${col.border}">
+        <span style="background:${cat.color}18;color:${cat.color};border-radius:8px;padding:5px 9px;font-size:18px;min-width:36px;text-align:center;flex-shrink:0">
+          <i class="fas ${cat.icon}"></i>
+        </span>
+        <div>
+          <div style="font-size:18px;font-weight:700;color:#1e293b;margin-bottom:2px">${inspectionEscape(cat.name)}</div>
+          <div style="font-size:16px;color:#475569">${inspectionEscape(cat.detail)}</div>
+        </div>
+      </div>`).join('');
+
+    // 施工日統計橫條
+    const dayBar = `
+      <div style="margin:14px 0">
+        <div style="display:flex;justify-content:space-between;font-size:16px;color:#64748b;margin-bottom:5px">
+          <span><i class="fas fa-calendar-check" style="color:#16a34a;margin-right:5px"></i>施工 <b style="color:#16a34a">${wDays}</b> 日</span>
+          <span><i class="fas fa-cloud-rain" style="color:#94a3b8;margin-right:5px"></i>停工 <b style="color:#94a3b8">${sDays}</b> 日</span>
+        </div>
+        <div style="height:8px;background:#e2e8f0;border-radius:4px;overflow:hidden">
+          <div style="height:100%;width:${workPct}%;background:#16a34a;border-radius:4px"></div>
+        </div>
+      </div>`;
+
+    // 重點施工紀錄
+    const keyNoteRows = (na.key_notes || []).slice(0, 3).map(n => `
+      <div style="display:flex;gap:8px;padding:7px 0;border-bottom:1px solid ${col.border}">
+        <span style="background:${col.badge}20;color:${col.badge};border-radius:5px;padding:2px 7px;font-size:13px;white-space:nowrap;flex-shrink:0">${n.date}</span>
+        <span style="font-size:15px;color:#334155;line-height:1.5">${inspectionEscape(n.text)}</span>
+      </div>`).join('');
+
+    // 機具明細
+    const itemRows = p.work_items.map(it => {
+      const pct = Math.min(100, it.completion_pct);
+      return `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid ${col.border}">
+          <span style="font-size:15px;color:#334155;font-weight:600">${inspectionEscape(it.name)}</span>
+          <span style="font-size:14px;color:#64748b;white-space:nowrap;margin-left:8px">${it.final_qty}／${it.contract_qty} ${inspectionEscape(it.unit)}</span>
+        </div>`;
+    }).join('');
+
+    return `
+      <div style="background:${col.bg};border:1px solid ${col.border};border-left:6px solid ${col.badge};border-radius:14px;overflow:hidden">
+        <!-- 標頭（點擊展開） -->
+        <div onclick="contractCardToggle('${detailId}')" style="padding:18px 20px;cursor:pointer;display:flex;align-items:flex-start;gap:12px">
+          <span style="background:${col.badge};color:#fff;border-radius:8px;padding:5px 14px;font-size:24px;font-weight:900;white-space:nowrap;flex-shrink:0">${p.year_roc}年</span>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:19px;font-weight:700;color:${col.text};line-height:1.4;margin-bottom:8px">${inspectionEscape(p.project_name)}</div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+              <span style="font-size:17px;color:#334155;font-weight:700"><i class="fas fa-coins" style="margin-right:5px;color:${col.badge}"></i>${_fmtAmount(p.contract_amount)} 元</span>
+              <span style="font-size:16px;color:#64748b"><i class="fas fa-calendar-alt" style="margin-right:5px;color:${col.badge}"></i>${p.date_start} ～ ${p.date_end}</span>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px">${summaryPills}</div>
+          </div>
+          <i id="${detailId}_arrow" class="fas fa-chevron-down" style="font-size:18px;color:${col.badge};flex-shrink:0;margin-top:4px;transition:transform .25s"></i>
+        </div>
+        <!-- 展開內容 -->
+        <div id="${detailId}" style="display:none;border-top:1px solid ${col.border};padding:16px 20px">
+          ${catRows}
+          ${dayBar}
+          <div style="font-size:16px;font-weight:700;color:#475569;margin:12px 0 6px"><i class="fas fa-clipboard-list" style="margin-right:6px"></i>重點施工紀錄</div>
+          ${keyNoteRows}
+          <div style="font-size:16px;font-weight:700;color:#475569;margin:14px 0 6px"><i class="fas fa-cog" style="margin-right:6px"></i>機具項目明細</div>
+          ${itemRows}
+        </div>
+      </div>`;
+  }).join('');
+
+  // 工作項目彙整表（大字）
+  const itemTableRows = item_summary.map((it, idx) => `
+    <tr style="border-bottom:1px solid #f1f5f9;${idx % 2 === 0 ? 'background:#f8fafc' : ''}">
+      <td style="padding:14px 16px;font-size:18px;font-weight:600;color:#1e293b">${inspectionEscape(it.name)}</td>
+      <td style="padding:14px 16px;font-size:17px;color:#475569;text-align:center">${it.unit}</td>
+      <td style="padding:14px 16px;text-align:center">
+        <span style="background:#dbeafe;color:#1e40af;border-radius:999px;padding:4px 14px;font-size:17px;font-weight:700">${it.projects}</span>
+      </td>
+      <td style="padding:14px 16px;font-size:17px;color:#64748b;text-align:right">${it.total_contract_qty}</td>
+      <td style="padding:14px 16px;font-size:17px;color:#16a34a;font-weight:700;text-align:right">${it.total_final_qty}</td>
+    </tr>
+  `).join('');
+
+  return `
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:24px">
+      ${summaryCards}
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(400px,1fr));gap:18px">
+      ${projectCards}
+    </div>
+  `;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   共用：多張現況照片上傳（最多 4 張，存為 DataURL）
+   用法：
+     HTML: ${renderMultiPhotoPanel('gf')}  ← 在表單裡插入
+     Save: const photos = _inspGetMultiPhotos('gf');
+   ════════════════════════════════════════════════════════════════ */
+if (!window._inspMultiPhotos) window._inspMultiPhotos = {};
+
+function renderMultiPhotoPanel(prefix, savedPhotos = [], max = 4) {
+  window._inspMultiPhotos[prefix] = [...(savedPhotos || [])];
+  return `
+    <div style="border:1px solid #e2e8f0;border-radius:8px;padding:12px;margin-top:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <span style="font-size:13px;font-weight:700;color:#0f172a">
+          <i class="fas fa-camera" style="color:#1565c0;margin-right:6px"></i>現況照片（最多 ${max} 張）
+        </span>
+        <label style="cursor:pointer;background:#eff6ff;color:#1565c0;border:1px solid #bfdbfe;
+                       border-radius:6px;padding:5px 12px;font-size:12px;font-weight:700;display:flex;align-items:center;gap:5px">
+          <i class="fas fa-plus"></i> 選擇照片
+          <input id="${prefix}_photo_input" type="file" accept="image/*" multiple style="display:none"
+            onchange="_inspAddPhotos('${prefix}',${max})">
+        </label>
+      </div>
+      <div id="${prefix}_photo_grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+        ${(savedPhotos||[]).map((src,i) => _inspPhotoThumb(prefix, src, i)).join('')}
+        ${(savedPhotos||[]).length === 0 ? `<div style="grid-column:span 4;text-align:center;color:#94a3b8;font-size:12px;padding:16px 0"><i class="fas fa-images" style="font-size:24px;display:block;margin-bottom:6px"></i>尚未上傳照片</div>` : ''}
+      </div>
+    </div>
+  `;
+}
+
+function _inspPhotoThumb(prefix, src, idx) {
+  return `
+    <div style="position:relative;aspect-ratio:1;border-radius:6px;overflow:hidden;border:1px solid #e2e8f0;background:#f1f5f9">
+      <img src="${src}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.style.display='none'">
+      <button onclick="_inspRemovePhoto('${prefix}',${idx})"
+        style="position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:50%;background:rgba(220,38,38,.85);
+               color:#fff;border:none;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;line-height:1">
+        ×
+      </button>
+      <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.4);color:#fff;font-size:10px;padding:2px 5px;text-align:center">
+        照片 ${idx+1}
+      </div>
+    </div>
+  `;
+}
+
+function _inspAddPhotos(prefix, max) {
+  const input = document.getElementById(`${prefix}_photo_input`);
+  if (!input?.files?.length) return;
+  const existing = window._inspMultiPhotos[prefix] || [];
+  const slots = max - existing.length;
+  if (slots <= 0) { showToast(`最多只能上傳 ${max} 張照片`, 'warning'); input.value=''; return; }
+  const files = Array.from(input.files).slice(0, slots);
+  let loaded = 0;
+  files.forEach(file => {
+    if (file.size > 5 * 1024 * 1024) { showToast(`${file.name} 超過 5MB，已略過`, 'warning'); loaded++; return; }
+    const reader = new FileReader();
+    reader.onload = () => {
+      // Resize to max 1200px for storage efficiency
+      const img = new Image();
+      img.onload = () => {
+        const maxW = 1200;
+        const scale = Math.min(1, maxW / Math.max(img.width, img.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+        (window._inspMultiPhotos[prefix] = window._inspMultiPhotos[prefix] || []).push(dataUrl);
+        _inspRefreshPhotoGrid(prefix, max);
+        loaded++;
+      };
+      img.src = String(reader.result);
+    };
+    reader.readAsDataURL(file);
+  });
+  input.value = '';
+}
+
+function _inspRemovePhoto(prefix, idx) {
+  const arr = window._inspMultiPhotos[prefix];
+  if (!arr) return;
+  arr.splice(idx, 1);
+  _inspRefreshPhotoGrid(prefix, 4);
+}
+
+function _inspRefreshPhotoGrid(prefix, max) {
+  const grid = document.getElementById(`${prefix}_photo_grid`);
+  if (!grid) return;
+  const arr = window._inspMultiPhotos[prefix] || [];
+  grid.innerHTML = arr.map((src,i) => _inspPhotoThumb(prefix, src, i)).join('') +
+    (arr.length === 0 ? `<div style="grid-column:span 4;text-align:center;color:#94a3b8;font-size:12px;padding:16px 0"><i class="fas fa-images" style="font-size:24px;display:block;margin-bottom:6px"></i>尚未上傳照片</div>` : '') +
+    (arr.length < max ? `<div style="aspect-ratio:1;border:2px dashed #cbd5e1;border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#94a3b8;font-size:11px" onclick="document.getElementById('${prefix}_photo_input').click()"><div style="text-align:center"><i class="fas fa-plus" style="font-size:18px;display:block;margin-bottom:4px"></i>新增</div></div>` : '');
+}
+
+function _inspGetMultiPhotos(prefix) {
+  return window._inspMultiPhotos[prefix] || [];
+}
+
+/* ════════════════════════════════════════════════════════════════
+   附錄一：各列單張照片（設施種類逐列）
+   ════════════════════════════════════════════════════════════════ */
+if (!window._inspRowPhotos) window._inspRowPhotos = {};
+
+function _gfRowPhotoCell(ri, savedPhoto) {
+  if (!window._inspRowPhotos) window._inspRowPhotos = {};
+  window._inspRowPhotos[`gf_${ri}`] = savedPhoto || null;
+  if (savedPhoto) {
+    return `<div id="gf_rowphoto_${ri}">
+      <div style="position:relative;margin-bottom:4px">
+        <img src="${savedPhoto}" style="width:100%;height:65px;object-fit:cover;border-radius:4px;border:1px solid #e2e8f0;display:block">
+        <button onclick="_gfClearRowPhoto(${ri})"
+          style="position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;
+                 background:rgba(220,38,38,.85);color:#fff;border:none;cursor:pointer;font-size:11px;line-height:1">×</button>
+      </div></div>`;
+  }
+  return `<div id="gf_rowphoto_${ri}">
+    <label style="display:flex;flex-direction:column;align-items:center;justify-content:center;
+        width:100%;height:58px;border:1.5px dashed #cbd5e1;border-radius:5px;cursor:pointer;
+        color:#94a3b8;font-size:10px;gap:2px;background:#f8fafc;margin-bottom:4px">
+      <i class="fas fa-camera" style="font-size:13px"></i>新增照片
+      <input type="file" accept="image/*" style="display:none" onchange="_gfAddRowPhoto(${ri},this)">
+    </label></div>`;
+}
+
+function _gfAddRowPhoto(ri, input) {
+  const file = input.files?.[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      const maxW = 900;
+      const scale = Math.min(1, maxW / Math.max(img.width, img.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+      if (!window._inspRowPhotos) window._inspRowPhotos = {};
+      window._inspRowPhotos[`gf_${ri}`] = dataUrl;
+      const container = document.getElementById(`gf_rowphoto_${ri}`);
+      if (container) container.innerHTML = `
+        <div style="position:relative;margin-bottom:4px">
+          <img src="${dataUrl}" style="width:100%;height:65px;object-fit:cover;border-radius:4px;border:1px solid #e2e8f0;display:block">
+          <button onclick="_gfClearRowPhoto(${ri})"
+            style="position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;
+                   background:rgba(220,38,38,.85);color:#fff;border:none;cursor:pointer;font-size:11px;line-height:1">×</button>
+        </div>`;
+    };
+    img.src = String(reader.result);
+  };
+  reader.readAsDataURL(file);
+  input.value = '';
+}
+
+function _gfClearRowPhoto(ri) {
+  if (!window._inspRowPhotos) window._inspRowPhotos = {};
+  window._inspRowPhotos[`gf_${ri}`] = null;
+  const container = document.getElementById(`gf_rowphoto_${ri}`);
+  if (container) container.innerHTML = `
+    <label style="display:flex;flex-direction:column;align-items:center;justify-content:center;
+        width:100%;height:58px;border:1.5px dashed #cbd5e1;border-radius:5px;cursor:pointer;
+        color:#94a3b8;font-size:10px;gap:2px;background:#f8fafc;margin-bottom:4px">
+      <i class="fas fa-camera" style="font-size:13px"></i>新增照片
+      <input type="file" accept="image/*" style="display:none" onchange="_gfAddRowPhoto(${ri},this)">
+    </label>`;
+}
+
+function downloadGFPdf() {
+  const date = document.getElementById('gf_date')?.value || '';
+  const inspector = document.getElementById('gf_inspector')?.value || '';
+  const facilityEl = document.getElementById('gf_facility');
+  const facilityName = facilityEl?.options[facilityEl?.selectedIndex]?.text || '─';
+  const remark = document.getElementById('gf_remark')?.value || '';
+  const rowsData = {};
+  GF_ROWS.forEach((row, ri) => {
+    const conds = [...row.items.map(item => {
+      const cb = document.getElementById(`gf_c_${ri}_${item.replace(/[^a-z0-9]/gi,'')}`);
+      return cb?.checked ? item : null;
+    }), document.getElementById(`gf_c_${ri}_other`)?.checked ? '其他' : null].filter(Boolean);
+    const treat = document.querySelector(`input[name="gf_treat_${ri}"]:checked`)?.value || '定期巡查';
+    rowsData[row.key] = {
+      location: document.getElementById(`gf_loc_${ri}`)?.value || '',
+      conditions: conds,
+      treatment: treat,
+      notes: document.getElementById(`gf_note_${ri}`)?.value || '',
+      photo: window._inspRowPhotos?.[`gf_${ri}`] || null,
+    };
+  });
+  const overallPhotos = _inspGetMultiPhotos('gf');
+  const rowsHtml = GF_ROWS.map(row => {
+    const rd = rowsData[row.key] || {};
+    const conds = rd.conditions || [];
+    const treat = rd.treatment || '定期巡查';
+    const treatColor = treat==='異常通報' ? '#dc2626' : treat==='自行處理' ? '#d97706' : '#166534';
+    return `<tr>
+      <td style="font-weight:700;text-align:center">${row.key}</td>
+      <td>${rd.location || ''}</td>
+      <td>${conds.length ? conds.map(c => `<span style="display:inline-block;background:${c==='正常'?'#dcfce7':'#fee2e2'};
+        border:1px solid ${c==='正常'?'#86efac':'#fca5a5'};border-radius:12px;
+        padding:1px 7px;margin:1px 2px;font-size:10px">${c}</span>`).join('') : '<span style="color:#aaa">─</span>'}</td>
+      <td style="text-align:center;font-weight:700;color:${treatColor}">${treat}</td>
+      <td style="padding:4px">${rd.photo
+        ? `<img src="${rd.photo}" style="width:100%;height:80px;object-fit:cover;border-radius:3px;border:1px solid #ddd;display:block">`
+        : `<div style="height:60px;border:1px dashed #ccc;display:flex;align-items:center;justify-content:center;color:#bbb;font-size:10px;border-radius:3px">無照片</div>`}</td>
+      <td style="font-size:10px">${rd.notes || ''}</td>
+    </tr>`;
+  }).join('');
+  const overallPhotosHtml = overallPhotos.length ? `
+    <div style="margin-top:14px">
+      <div style="font-weight:700;font-size:13px;margin-bottom:8px;border-bottom:1px solid #ccc;padding-bottom:4px">現況照片</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+        ${overallPhotos.map((src,i) => `<div>
+          <img src="${src}" style="width:100%;height:110px;object-fit:cover;border:1px solid #ddd;border-radius:3px;display:block">
+          <div style="text-align:center;font-size:10px;color:#666;margin-top:2px">照片 ${i+1}</div>
+        </div>`).join('')}
+      </div>
+    </div>` : '';
+  const html = `<!DOCTYPE html><html lang="zh-TW"><head><meta charset="utf-8">
+<title>一般性巡查表單（附錄一）</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Microsoft JhengHei','PingFang TC','Noto Sans TC',sans-serif;font-size:12px;color:#000;background:#fff;padding:18px 22px}
+  h1{font-size:16px;text-align:center;margin-bottom:3px;font-weight:900}
+  h2{font-size:13px;text-align:center;margin-bottom:14px;color:#333}
+  .info-row{display:flex;gap:0;border:1px solid #999;border-radius:4px;margin-bottom:12px}
+  .info-item{flex:1;padding:6px 10px;border-right:1px solid #ccc}
+  .info-item:last-child{border-right:none}
+  .info-item b{margin-right:4px}
+  table{width:100%;border-collapse:collapse;margin-bottom:12px;font-size:11px}
+  th,td{border:1px solid #aaa;padding:5px 7px;vertical-align:top}
+  thead th{background:#1e3a5f;color:#fff;text-align:center;font-size:11px}
+  tr:nth-child(even) td{background:#f8fafc}
+  .remark-box{border:1px solid #ccc;border-radius:4px;padding:8px;min-height:36px;margin:4px 0 14px;font-size:12px}
+  .sig-row{display:flex;gap:24px;margin-top:24px;page-break-inside:avoid}
+  .sig-item{flex:1;border-top:1.5px solid #000;text-align:center;padding-top:5px;font-size:11px}
+  @media print{@page{margin:1cm}body{padding:6px 10px}}
+</style></head><body>
+<h1>橫流溪重要設施維護管理計畫</h1>
+<h2>附錄一　一般性定期巡查表單</h2>
+<div class="info-row">
+  <div class="info-item"><b>巡查日期：</b>${date}</div>
+  <div class="info-item"><b>巡查人員：</b>${inspector || '　　　　'}</div>
+  <div class="info-item"><b>關聯設施：</b>${facilityName}</div>
+</div>
+<table>
+  <thead>
+    <tr>
+      <th style="width:68px">設施種類</th>
+      <th style="width:88px">設施位置</th>
+      <th>現況情形</th>
+      <th style="width:72px">處理情形</th>
+      <th style="width:100px">照片</th>
+      <th style="width:110px">說明</th>
+    </tr>
+  </thead>
+  <tbody>${rowsHtml}</tbody>
+</table>
+<div style="font-weight:700;margin-bottom:3px">備註：</div>
+<div class="remark-box">${remark || '　'}</div>
+${overallPhotosHtml}
+<div class="sig-row">
+  <div class="sig-item">巡查人員簽名</div>
+  <div class="sig-item">主管核閱</div>
+  <div class="sig-item">填表日期</div>
+</div>
+</body></html>`;
+  const win = window.open('', '_blank');
+  if (!win) { showToast('請允許彈出視窗以產生PDF', 'warning'); return; }
+  win.document.write(html);
+  win.document.close();
+  win.addEventListener('load', () => setTimeout(() => win.print(), 300));
+}
+
+/* ════════════════════════════════════════════════════════════════
+   附錄一  一般性巡查表單
+   ════════════════════════════════════════════════════════════════ */
+const GF_ROWS = [
+  { key:'步道',       items:['正常','伏倒木或落石','道路中斷','道路基礎淘空'] },
+  { key:'邊坡',       items:['正常','裸露/崩塌'] },
+  { key:'平臺/護欄',  items:['正常','斷裂或破損','表面耗損','本體歪斜'] },
+  { key:'護岸',       items:['正常','結構外觀破損','基礎淘空'] },
+  { key:'魚道/防砂設施', items:['正常','結構外觀破損','基礎淘空','土砂淤積'] },
+  { key:'告示牌/解說牌', items:['正常','基礎裸露','鋼材鏽蝕','結構外觀破損'] },
+  { key:'救生圈',     items:['正常','遺失'] },
+];
+const GF_TREATMENTS = ['定期巡查','自行處理','異常通報'];
+
+function openGeneralPeriodicForm(facilityId = null, id = null) {
+  const rec = id ? DB.getById('inspections', id) : null;
+  const rows = rec?.gf_rows || {};
+  const facilities = DB.getAll('facilities');
+
+  document.getElementById('modal').style.maxWidth = '960px';
+  document.getElementById('modalTitle').textContent = id ? '編輯一般性巡查紀錄（附錄一）' : '新增一般性巡查（附錄一）';
+  document.getElementById('modalBody').innerHTML = `
+    <div style="font-size:13px;color:#64748b;margin-bottom:14px">
+      <i class="fas fa-info-circle" style="color:#1565c0"></i>
+      依據橫流溪重要設施維護管理計畫 附錄一 一般性巡查表單
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">
+      <div class="form-group"><label>巡查日期 *</label>
+        <input id="gf_date" type="date" value="${rec?.date || new Date().toISOString().split('T')[0]}">
+      </div>
+      <div class="form-group"><label>巡查人員</label>
+        <input id="gf_inspector" type="text" value="${inspectionEscape(rec?.inspector || '')}" placeholder="姓名">
+      </div>
+      <div class="form-group"><label>關聯設施（選填）</label>
+        <select id="gf_facility">
+          <option value="">─ 不指定 ─</option>
+          ${facilities.map(f=>`<option value="${f.id}" ${(rec?.facilityId||facilityId)==f.id?'selected':''}>${inspectionEscape(f.name)}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div style="overflow-x:auto;border:1px solid #e2e8f0;border-radius:8px">
+      <table style="width:100%;border-collapse:collapse;min-width:800px">
+        <thead>
+          <tr style="background:#1e3a5f;color:#fff">
+            <th style="padding:10px 12px;text-align:left;font-size:13px;width:90px">設施種類</th>
+            <th style="padding:10px 12px;text-align:left;font-size:13px;width:110px">設施位置</th>
+            <th style="padding:10px 12px;text-align:left;font-size:13px">現況情形</th>
+            <th style="padding:10px 12px;text-align:left;font-size:13px;width:160px">處理情形</th>
+            <th style="padding:10px 12px;text-align:left;font-size:13px;width:155px">照片</th>
+            <th style="padding:10px 12px;text-align:left;font-size:13px;width:120px">說明</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${GF_ROWS.map((row, ri) => {
+            const saved = rows[row.key] || {};
+            const savedConditions = saved.conditions || [];
+            const savedTreatment = saved.treatment || '定期巡查';
+            return `
+          <tr style="border-bottom:1px solid #e2e8f0;${ri%2?'background:#f8fafc':'background:#fff'}">
+            <td style="padding:10px 12px;font-size:13px;font-weight:700;color:#0f172a;vertical-align:top">${row.key}</td>
+            <td style="padding:10px 12px;vertical-align:top">
+              <input style="width:100%;border:1px solid #e2e8f0;border-radius:4px;padding:4px 6px;font-size:12px"
+                id="gf_loc_${ri}" type="text" value="${inspectionEscape(saved.location||'')}" placeholder="填寫位置">
+            </td>
+            <td style="padding:10px 12px;vertical-align:top">
+              <div style="display:flex;flex-wrap:wrap;gap:4px">
+                ${row.items.map(item => `
+                  <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;
+                    background:${savedConditions.includes(item)?'#dbeafe':'#f8fafc'};
+                    border:1px solid ${savedConditions.includes(item)?'#3b82f6':'#e2e8f0'};
+                    border-radius:999px;padding:3px 9px;white-space:nowrap">
+                    <input type="checkbox" id="gf_c_${ri}_${item.replace(/[^a-z0-9]/gi,'')}"
+                      style="accent-color:#1565c0" ${savedConditions.includes(item)?'checked':''}>
+                    ${item}
+                  </label>`).join('')}
+                <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;
+                  background:#fefce8;border:1px solid #fde047;border-radius:999px;padding:3px 9px">
+                  <input type="checkbox" id="gf_c_${ri}_other" ${savedConditions.includes('其他')?'checked':''}>
+                  其他
+                </label>
+              </div>
+            </td>
+            <td style="padding:10px 12px;vertical-align:top">
+              <div style="display:flex;flex-direction:column;gap:4px">
+                ${GF_TREATMENTS.map(t=>`
+                  <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;
+                    color:${t==='異常通報'?'#dc2626':t==='自行處理'?'#d97706':'#166534'}">
+                    <input type="radio" name="gf_treat_${ri}" value="${t}" ${savedTreatment===t?'checked':''}>
+                    ${t}
+                  </label>`).join('')}
+              </div>
+            </td>
+            <td style="padding:8px 10px;vertical-align:top;width:155px">
+              ${_gfRowPhotoCell(ri, saved.photo||null)}
+            </td>
+            <td style="padding:10px 12px;vertical-align:top">
+              <input style="width:100%;border:1px solid #e2e8f0;border-radius:4px;padding:4px 6px;font-size:12px"
+                id="gf_note_${ri}" type="text" value="${inspectionEscape(saved.notes||'')}" placeholder="說明">
+            </td>
+          </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+    <div class="form-group" style="margin-top:12px">
+      <label>備註</label>
+      <textarea id="gf_remark" rows="2" style="font-size:13px">${inspectionEscape(rec?.remark||'')}</textarea>
+    </div>
+    ${renderMultiPhotoPanel('gf', rec?.photoDataUrls||[], 4)}
+    <div style="margin-top:10px;padding:8px 12px;background:#eff6ff;border-radius:6px;font-size:12px;color:#1565c0">
+      <i class="fas fa-cloud-upload-alt"></i> 儲存後自動同步至雲端資料庫，並連動工程設施管理。
+    </div>
+  `;
+  document.getElementById('modalFooter').innerHTML = `
+    <button class="btn btn-outline" onclick="closeModal();document.getElementById('modal').style.maxWidth=''">關閉</button>
+    <button class="btn btn-outline" onclick="downloadGFPdf()" style="color:#7c3aed;border-color:#7c3aed">
+      <i class="fas fa-file-pdf"></i> 下載 PDF
+    </button>
+    <button class="btn btn-primary" onclick="saveGeneralPeriodicForm(${id||'null'})">
+      <i class="fas fa-save"></i> 儲存紀錄
+    </button>
+  `;
+  openModal();
+}
+
+function saveGeneralPeriodicForm(id) {
+  const date = document.getElementById('gf_date')?.value;
+  if (!date) { showToast('請填寫巡查日期', 'error'); return; }
+  const facilityId = parseInt(document.getElementById('gf_facility')?.value) || null;
+  const facilityName = facilityId
+    ? (DB.getById('facilities', facilityId)?.name || '')
+    : '(全區一般巡查)';
+
+  const gf_rows = {};
+  GF_ROWS.forEach((row, ri) => {
+    const conditions = [...row.items.map(item => {
+      const cb = document.getElementById(`gf_c_${ri}_${item.replace(/[^a-z0-9]/gi,'')}`);
+      return cb?.checked ? item : null;
+    }), document.getElementById(`gf_c_${ri}_other`)?.checked ? '其他' : null].filter(Boolean);
+    const treatEl = document.querySelector(`input[name="gf_treat_${ri}"]:checked`);
+    gf_rows[row.key] = {
+      location: document.getElementById(`gf_loc_${ri}`)?.value.trim() || '',
+      conditions,
+      treatment: treatEl?.value || '定期巡查',
+      notes: document.getElementById(`gf_note_${ri}`)?.value.trim() || '',
+      photo: window._inspRowPhotos?.[`gf_${ri}`] || null,
+    };
+  });
+
+  const hasAbnormal = Object.values(gf_rows).some(r => r.conditions.some(c => c !== '正常'));
+  const item = {
+    formType: 'general_periodic',
+    facilityId,
+    facilityName,
+    date,
+    inspector: document.getElementById('gf_inspector')?.value.trim() || '',
+    gf_rows,
+    remark: document.getElementById('gf_remark')?.value.trim() || '',
+    status: hasAbnormal ? '待處理' : '完成',
+    priority: hasAbnormal ? '中' : '低',
+    findings: Object.entries(gf_rows).filter(([,v])=>v.conditions.some(c=>c!=='正常'))
+      .map(([k,v])=>`${k}：${v.conditions.filter(c=>c!=='正常').join('、')}`).join('；') || '各設施狀況正常',
+    action: Object.entries(gf_rows).filter(([,v])=>v.treatment!=='定期巡查')
+      .map(([k,v])=>`${k}→${v.treatment}`).join('；') || '定期巡查',
+    deru_d: 0, deru_e: 1, deru_r: 1, deru_u: 1,
+    photoDataUrls: _inspGetMultiPhotos('gf'),
+  };
+
+  prepareInspectionRecordForSync(item, 'general_periodic', true);
+  const savedItem = id
+    ? DB.update('inspections', id, item)
+    : DB.insert('inspections', item);
+  syncInspectionRecordToFacility(savedItem || item);
+  showToast(id ? '一般性巡查紀錄已更新，並同步巡查資料管理' : '一般性巡查紀錄已新增，並同步巡查資料管理', 'success');
+
+  syncInspFormToCloud('general_periodic', savedItem || item);
+  document.getElementById('modal').style.maxWidth = '';
+  closeModal();
+  if (window._facAfterInspectionSave) { const cb=window._facAfterInspectionSave; window._facAfterInspectionSave=null; setTimeout(cb,80); }
+  else { renderInspection(); }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   附錄二  專業性巡查表單 — 構造物調查表
+   ════════════════════════════════════════════════════════════════ */
+const SF_VISUAL = ['良好','裂縫','磨蝕','淘空','傾倒','沉陷','錯動變形','位移','填土(石)流失','腐朽','火害','外框斷裂','植生覆蓋不良'];
+const SF_DAMAGE_REASONS = ['設計因素','施工因素','材料因素','材料強度因素','水流因素','排水因素','土壓力因素','構造物銜接因素','地質因素','河溪因素','地形因素'];
+const SF_GRADES = ['A','B1','B2','B3','C1','C2','C3','C4','C5'];
+const SF_GRADE_DESC = {
+  A:'外觀良好，功能健全，例行維護',
+  B1:'重要工程，部分受損，DER&U進階定量',
+  B2:'一般工程，1~3年內維護',
+  B3:'一般工程，進入定期檢測',
+  C1:'重要工程，緊急重建',
+  C2:'重要工程，1年內重建',
+  C3:'一般工程，1年內重建（有保全）',
+  C4:'一般工程，緩建（無保全）',
+  C5:'維持現況'
+};
+const SF_ICS = ['I（ICS≥85，例行維護）','II（70≤ICS<85，三年內處理）','III（40≤ICS<70，一年內處理）','IV（ICS<40，緊急重建）'];
+
+function openStructureInspectionForm(facilityId = null, id = null) {
+  const rec = id ? DB.getById('inspections', id) : null;
+  const facs = DB.getAll('facilities');
+  const preFac = facilityId ? DB.getById('facilities', Number(facilityId)) : null;
+  const saved = rec || {};
+
+  document.getElementById('modal').style.maxWidth = '980px';
+  document.getElementById('modalTitle').textContent = id ? '編輯構造物調查表（附錄二）' : '新增構造物調查表（附錄二）';
+  document.getElementById('modalBody').innerHTML = `
+    <div style="font-size:13px;color:#9a3412;background:#fff7ed;border:1px solid #fed7aa;border-radius:6px;padding:8px 12px;margin-bottom:14px">
+      <i class="fas fa-hard-hat"></i> 依據橫流溪重要設施維護管理計畫 附錄二 專業性巡查表單—構造物調查表
+    </div>
+
+    <!-- ① 基本資料 -->
+    <div style="font-size:14px;font-weight:800;color:#9a3412;border-left:4px solid #ea580c;padding-left:8px;margin-bottom:10px">(1) 基本資料</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px">
+      <div class="form-group"><label>檢測時間 *</label>
+        <input id="sf_date" type="date" value="${saved.date||new Date().toISOString().split('T')[0]}">
+      </div>
+      <div class="form-group"><label>檢測人員</label>
+        <input id="sf_inspector" type="text" value="${inspectionEscape(saved.inspector||'')}">
+      </div>
+      <div class="form-group"><label>檢測單位</label>
+        <input id="sf_unit" type="text" value="${inspectionEscape(saved.sf_unit||'')}">
+      </div>
+      <div class="form-group"><label>檢測編號</label>
+        <input id="sf_no" type="text" value="${inspectionEscape(saved.sf_no||'')}">
+      </div>
+      <div class="form-group" style="grid-column:span 2"><label>關聯設施 *</label>
+        <select id="sf_facility">
+          <option value="">請選擇構造物</option>
+          ${facs.map(f=>`<option value="${f.id}" ${(saved.facilityId||Number(facilityId))==f.id?'selected':''}>${inspectionEscape(f.name)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group"><label>TWD97 X</label>
+        <input id="sf_x" type="number" value="${saved.sf_x||preFac?.twd97x||''}">
+      </div>
+      <div class="form-group"><label>TWD97 Y</label>
+        <input id="sf_y" type="number" value="${saved.sf_y||preFac?.twd97y||''}">
+      </div>
+      <div class="form-group"><label>管理單位</label>
+        <input id="sf_mgUnit" type="text" value="${inspectionEscape(saved.sf_mgUnit||'林業保育署臺中分署')}">
+      </div>
+      <div class="form-group"><label>縣市</label>
+        <input id="sf_county" type="text" value="${inspectionEscape(saved.sf_county||'臺中市')}">
+      </div>
+      <div class="form-group"><label>鄉鎮</label>
+        <input id="sf_township" type="text" value="${inspectionEscape(saved.sf_township||'和平區')}">
+      </div>
+      <div class="form-group"><label>事業林班區</label>
+        <input id="sf_forest" type="text" value="${inspectionEscape(saved.sf_forest||'')}">
+      </div>
+      <div class="form-group"><label>構造物種類</label>
+        <input id="sf_structType" type="text" value="${inspectionEscape(saved.sf_structType||preFac?.type||'')}">
+      </div>
+      <div class="form-group"><label>規格尺寸</label>
+        <input id="sf_dims" type="text" value="${inspectionEscape(saved.sf_dims||'')}">
+      </div>
+      <div class="form-group"><label>使用材質</label>
+        <input id="sf_mat" type="text" value="${inspectionEscape(saved.sf_mat||preFac?.material||'')}">
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+      <div class="form-group"><label>周遭環境—溪岸</label>
+        <select id="sf_riverBank">
+          ${['植被良好','植被稀疏','崩塌裸露','殘土堆積'].map(v=>`<option ${(saved.sf_env?.riverBank||'植被良好')===v?'selected':''}>${v}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group"><label>周遭環境—坡面</label>
+        <select id="sf_slope">
+          ${['植被良好','植被稀疏','崩塌裸露'].map(v=>`<option ${(saved.sf_env?.slope||'植被良好')===v?'selected':''}>${v}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group"><label>步道路面</label>
+        <select id="sf_trail">
+          ${['良好','部分破損','嚴重破損'].map(v=>`<option ${(saved.sf_env?.trail||'良好')===v?'selected':''}>${v}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group"><label>排水</label>
+        <select id="sf_drain">
+          ${['良好','部分阻塞','排水系統不足'].map(v=>`<option ${(saved.sf_env?.drainage||'良好')===v?'selected':''}>${v}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group"><label>交通標誌</label>
+        <select id="sf_trafficSign">
+          ${['良好','部分毀損','失去功能'].map(v=>`<option ${(saved.sf_env?.trafficSign||'良好')===v?'selected':''}>${v}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group"><label>安全標誌</label>
+        <select id="sf_safetySign">
+          ${['良好','部分毀損','失去功能'].map(v=>`<option ${(saved.sf_env?.safetySign||'良好')===v?'selected':''}>${v}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+
+    <!-- ② 檢測評估 -->
+    <div style="font-size:14px;font-weight:800;color:#9a3412;border-left:4px solid #ea580c;padding-left:8px;margin-bottom:10px">(2) 檢測評估</div>
+    <div class="form-group"><label>外觀檢視（可複選）</label>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px">
+        ${SF_VISUAL.map(v=>`
+          <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;
+            background:${(saved.sf_visual||[]).includes(v)?'#fee2e2':'#f8fafc'};
+            border:1px solid ${(saved.sf_visual||[]).includes(v)?'#dc2626':'#e2e8f0'};
+            border-radius:999px;padding:3px 10px">
+            <input type="checkbox" id="sf_vis_${v.replace(/[^a-z0-9]/gi,'')}"
+              ${(saved.sf_visual||[]).includes(v)?'checked':''}>
+            ${v}
+          </label>`).join('')}
+      </div>
+    </div>
+    <div class="form-group"><label>損壞原因研判（可複選）</label>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px">
+        ${SF_DAMAGE_REASONS.map(v=>`
+          <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;
+            background:${(saved.sf_dmgReasons||[]).includes(v)?'#fef3c7':'#f8fafc'};
+            border:1px solid ${(saved.sf_dmgReasons||[]).includes(v)?'#d97706':'#e2e8f0'};
+            border-radius:999px;padding:3px 10px">
+            <input type="checkbox" id="sf_dmg_${v.replace(/[^a-z0-9]/gi,'')}"
+              ${(saved.sf_dmgReasons||[]).includes(v)?'checked':''}>
+            ${v}
+          </label>`).join('')}
+        <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;
+          background:#f8fafc;border:1px solid #e2e8f0;border-radius:999px;padding:3px 10px">
+          <input type="checkbox" id="sf_dmg_other" ${(saved.sf_dmgReasons||[]).includes('其他')?'checked':''}>其他
+        </label>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+      <div class="form-group"><label>功能評估等級</label>
+        <select id="sf_grade">
+          ${SF_GRADES.map(g=>`<option value="${g}" ${(saved.sf_grade||'A')===g?'selected':''}>${g}級 — ${SF_GRADE_DESC[g]}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group"><label>縱向廊道影響</label>
+        <select id="sf_corridor">
+          ${['不影響','有影響（需填魚道檢核表）'].map(v=>`<option ${(saved.sf_corridor||'不影響')===v?'selected':''}>${v}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+
+    <!-- DER&U 三點檢查表 -->
+    <div style="font-size:13px;font-weight:700;color:#9a3412;margin-bottom:8px">B1 級進階定量檢測（DER&U）</div>
+    <div style="overflow-x:auto;border:1px solid #fed7aa;border-radius:8px;margin-bottom:12px">
+      <table style="width:100%;border-collapse:collapse;min-width:600px">
+        <thead>
+          <tr style="background:#fff7ed">
+            <th style="padding:8px 10px;text-align:center;font-size:12px;color:#9a3412;width:50px">編號</th>
+            <th style="padding:8px 10px;text-align:left;font-size:12px;color:#9a3412">劣化型態</th>
+            <th style="padding:8px 10px;text-align:center;font-size:12px;color:#9a3412;width:70px">D</th>
+            <th style="padding:8px 10px;text-align:center;font-size:12px;color:#9a3412;width:70px">E</th>
+            <th style="padding:8px 10px;text-align:center;font-size:12px;color:#9a3412;width:70px">R</th>
+            <th style="padding:8px 10px;text-align:left;font-size:12px;color:#9a3412">說明</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${[0,1,2].map(i => {
+            const drow = (saved.sf_deruItems||[])[i] || {};
+            return `
+          <tr style="border-top:1px solid #fed7aa">
+            <td style="padding:8px 10px;text-align:center;font-size:13px;font-weight:700;color:#9a3412">${i+1}</td>
+            <td style="padding:6px 8px">
+              <input type="text" id="sf_deru_type_${i}" value="${inspectionEscape(drow.defectType||'')}"
+                style="width:100%;border:1px solid #fed7aa;border-radius:4px;padding:4px 6px;font-size:12px">
+            </td>
+            <td style="padding:6px 8px">
+              <select id="sf_deru_d_${i}" style="width:100%;font-size:12px;border:1px solid #fed7aa;border-radius:4px;padding:4px">
+                ${[0,1,2,3,4].map(v=>`<option ${(drow.d||0)==v?'selected':''}>${v}</option>`).join('')}
+              </select>
+            </td>
+            <td style="padding:6px 8px">
+              <select id="sf_deru_e_${i}" style="width:100%;font-size:12px;border:1px solid #fed7aa;border-radius:4px;padding:4px">
+                ${[1,2,3,4].map(v=>`<option ${(drow.e||1)==v?'selected':''}>${v}</option>`).join('')}
+              </select>
+            </td>
+            <td style="padding:6px 8px">
+              <select id="sf_deru_r_${i}" style="width:100%;font-size:12px;border:1px solid #fed7aa;border-radius:4px;padding:4px">
+                ${[1,2,3,4].map(v=>`<option ${(drow.r||1)==v?'selected':''}>${v}</option>`).join('')}
+              </select>
+            </td>
+            <td style="padding:6px 8px">
+              <input type="text" id="sf_deru_note_${i}" value="${inspectionEscape(drow.note||'')}"
+                style="width:100%;border:1px solid #fed7aa;border-radius:4px;padding:4px 6px;font-size:12px">
+            </td>
+          </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+      <div class="form-group"><label>B1 級進階分級（ICS）</label>
+        <select id="sf_icsGrade">
+          ${SF_ICS.map(v=>`<option ${(saved.sf_icsGrade||SF_ICS[0])===v?'selected':''}>${v}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group"><label>處理維護建議</label>
+        <select id="sf_treatment">
+          ${['例行處理維護','三年內必須處理維護','一年內必須處理維護','緊急處理重建'].map(v=>`<option ${(saved.sf_treatment||'例行處理維護')===v?'selected':''}>${v}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px">
+      <div class="form-group" style="grid-column:span 2"><label>處理工法建議—工法</label>
+        <input id="sf_repair_method" type="text" value="${inspectionEscape(saved.sf_repairWork?.method||'')}" placeholder="如：混凝土補強、蛇籠護坡">
+      </div>
+      <div class="form-group"><label>規模尺寸或面積</label>
+        <input id="sf_repair_scale" type="text" value="${inspectionEscape(saved.sf_repairWork?.scale||'')}">
+      </div>
+      <div class="form-group"><label>預估經費（仟元）</label>
+        <input id="sf_repair_cost" type="number" value="${saved.sf_repairWork?.cost||''}">
+      </div>
+    </div>
+    <div class="form-group"><label>現況描述</label>
+      <textarea id="sf_description" rows="3">${inspectionEscape(saved.sf_description||saved.findings||'')}</textarea>
+    </div>
+    ${renderMultiPhotoPanel('sf', saved.photoDataUrls||[], 4)}
+    <div style="margin-top:8px;padding:8px 12px;background:#fff7ed;border-radius:6px;font-size:12px;color:#9a3412">
+      <i class="fas fa-cloud-upload-alt"></i> 儲存後自動同步至雲端資料庫，並連動工程設施管理。
+    </div>
+  `;
+  document.getElementById('modalFooter').innerHTML = `
+    <button class="btn btn-outline" onclick="closeModal();document.getElementById('modal').style.maxWidth=''">關閉</button>
+    <button class="btn btn-outline" onclick="downloadSFPdf()" style="color:#7c3aed;border-color:#7c3aed">
+      <i class="fas fa-file-pdf"></i> 下載 PDF
+    </button>
+    <button class="btn btn-primary" onclick="saveStructureInspectionForm(${id||'null'})" style="background:#9a3412;border-color:#9a3412">
+      <i class="fas fa-save"></i> 儲存調查表
+    </button>
+  `;
+  openModal();
+}
+
+function downloadSFPdf() {
+  const date = document.getElementById('sf_date')?.value || '';
+  const inspector = document.getElementById('sf_inspector')?.value || '';
+  const facilityEl = document.getElementById('sf_facility');
+  const facilityName = facilityEl?.options[facilityEl?.selectedIndex]?.text || '─';
+  const location = document.getElementById('sf_location')?.value || '';
+  const grade = document.querySelector('input[name="sf_grade"]:checked')?.value || '─';
+  const gradeDesc = { A:'外觀良好，功能健全', B1:'重要工程，部分受損', B2:'一般工程，1~3年內維護', B3:'一般工程，定期檢測', C1:'重要工程，緊急重建', C2:'重要工程，1年內重建', C3:'一般工程，1年內重建', C4:'一般工程，緩建', C5:'維持現況' };
+  const deruD = document.getElementById('sf_deru_d')?.value || '-';
+  const deruE = document.getElementById('sf_deru_e')?.value || '-';
+  const deruR = document.getElementById('sf_deru_r')?.value || '-';
+  const deruU = document.getElementById('sf_deru_u')?.value || '-';
+  const icsGrade = document.querySelector('input[name="sf_ics_grade"]:checked')?.value || '─';
+  const recommend = document.getElementById('sf_recommend')?.value || '';
+  const visChecked = SF_VISUAL.filter(v => document.getElementById(`sf_vis_${v.replace(/[^a-z0-9]/gi,'')}`)?.checked).join('、') || '─';
+  const dmgChecked = SF_DAMAGE_REASONS.filter(v => document.getElementById(`sf_dmg_${v.replace(/[^a-z0-9]/gi,'')}`)?.checked).join('、') || '─';
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+  <title>構造物調查表（附錄二）</title>
+  <style>
+    body { font-family:'微軟正黑體',Arial,sans-serif; font-size:12pt; margin:20mm; color:#1e293b; }
+    h2 { text-align:center; font-size:16pt; margin-bottom:6pt; }
+    .sub { text-align:center; font-size:10pt; color:#475569; margin-bottom:14pt; }
+    table { width:100%; border-collapse:collapse; margin-bottom:12pt; }
+    th,td { border:1px solid #94a3b8; padding:5pt 8pt; }
+    th { background:#f1f5f9; font-weight:700; width:130pt; }
+    .section { font-weight:700; color:#7c3aed; font-size:12pt; border-left:4pt solid #7c3aed; padding-left:8pt; margin:12pt 0 6pt; }
+    .grade { font-size:18pt; font-weight:900; color:#1565c0; text-align:center; padding:8pt; border:2px solid #bfdbfe; border-radius:6pt; display:inline-block; }
+    .sig { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10pt; margin-top:16pt; }
+    .sig-box { border:1px solid #94a3b8; padding:10pt; text-align:center; }
+    @media print { body { margin:12mm; } }
+  </style></head><body>
+  <h2>構造物調查表（附錄二）</h2>
+  <div class="sub">橫流溪動物通道及周邊設施檢查效能智慧評估系統</div>
+  <div class="section">基本資料</div>
+  <table>
+    <tr><th>調查日期</th><td>${date}</td><th>調查人員</th><td>${inspector}</td></tr>
+    <tr><th>調查構造物</th><td>${facilityName}</td><th>位置/里程</th><td>${location}</td></tr>
+  </table>
+  <div class="section">外觀檢視</div>
+  <table><tr><th>損壞狀況</th><td>${visChecked}</td></tr></table>
+  <div class="section">損壞原因</div>
+  <table><tr><th>判斷原因</th><td>${dmgChecked}</td></tr></table>
+  <div class="section">功能分級 &amp; DER&amp;U 評分</div>
+  <table>
+    <tr><th>功能分級</th><td><span class="grade">${grade}</span> ${gradeDesc[grade]||''}</td></tr>
+    <tr><th>D（損壞程度）</th><td>${deruD}</td></tr>
+    <tr><th>E（緊急性）</th><td>${deruE}</td></tr>
+    <tr><th>R（修復優先）</th><td>${deruR}</td></tr>
+    <tr><th>U（使用性）</th><td>${deruU}</td></tr>
+    <tr><th>ICS 整體分級</th><td>${icsGrade}</td></tr>
+  </table>
+  <div class="section">維護建議</div>
+  <table><tr><td style="white-space:pre-wrap;min-height:40pt">${recommend||'─'}</td></tr></table>
+  <div class="sig">
+    <div class="sig-box">調查人員簽名</div>
+    <div class="sig-box">主管核閱</div>
+    <div class="sig-box">填表日期：${date}</div>
+  </div>
+  </body></html>`;
+  const win = window.open('', '_blank');
+  if (!win) { showToast('請允許彈出視窗以產生PDF', 'warning'); return; }
+  win.document.write(html);
+  win.document.close();
+  win.addEventListener('load', () => setTimeout(() => win.print(), 300));
+}
+
+function saveStructureInspectionForm(id) {
+  const date = document.getElementById('sf_date')?.value;
+  const facilityId = parseInt(document.getElementById('sf_facility')?.value) || null;
+  if (!date || !facilityId) { showToast('請填寫檢測時間並選擇構造物', 'error'); return; }
+
+  const sf_visual = SF_VISUAL.filter(v => document.getElementById(`sf_vis_${v.replace(/[^a-z0-9]/gi,'')}`)?.checked);
+  const sf_dmgReasons = [...SF_DAMAGE_REASONS.filter(v => document.getElementById(`sf_dmg_${v.replace(/[^a-z0-9]/gi,'')}`)?.checked),
+    document.getElementById('sf_dmg_other')?.checked ? '其他' : null].filter(Boolean);
+  const sf_deruItems = [0,1,2].map(i => ({
+    defectType: document.getElementById(`sf_deru_type_${i}`)?.value.trim(),
+    d: parseInt(document.getElementById(`sf_deru_d_${i}`)?.value||0),
+    e: parseInt(document.getElementById(`sf_deru_e_${i}`)?.value||1),
+    r: parseInt(document.getElementById(`sf_deru_r_${i}`)?.value||1),
+    note: document.getElementById(`sf_deru_note_${i}`)?.value.trim()
+  }));
+  const maxD = Math.max(...sf_deruItems.map(r=>r.d));
+  const deru = DERU_MATRIX.urgency(maxD, sf_deruItems[0]?.e||1, sf_deruItems[0]?.r||1);
+  const grade = document.getElementById('sf_grade')?.value || 'A';
+  // A 級代表外觀良好、功能健全，DER&U 必須符合 D=0/E=1/R=1/U=1
+  const gradeAdjD = grade === 'A' ? 0 : maxD;
+  const gradeAdjE = grade === 'A' ? 1 : (sf_deruItems[0]?.e || 1);
+  const gradeAdjR = grade === 'A' ? 1 : (sf_deruItems[0]?.r || 1);
+  const gradeAdjU = grade === 'A' ? 1 : deru.u;
+  const facilityName = DB.getById('facilities', facilityId)?.name || '';
+
+  const item = {
+    formType: 'professional_structure',
+    facilityId, facilityName,
+    date,
+    inspector: document.getElementById('sf_inspector')?.value.trim(),
+    sf_unit: document.getElementById('sf_unit')?.value.trim(),
+    sf_no: document.getElementById('sf_no')?.value.trim(),
+    sf_x: document.getElementById('sf_x')?.value,
+    sf_y: document.getElementById('sf_y')?.value,
+    sf_mgUnit: document.getElementById('sf_mgUnit')?.value.trim(),
+    sf_county: document.getElementById('sf_county')?.value.trim(),
+    sf_township: document.getElementById('sf_township')?.value.trim(),
+    sf_forest: document.getElementById('sf_forest')?.value.trim(),
+    sf_structType: document.getElementById('sf_structType')?.value.trim(),
+    sf_dims: document.getElementById('sf_dims')?.value.trim(),
+    sf_mat: document.getElementById('sf_mat')?.value.trim(),
+    sf_env: {
+      riverBank: document.getElementById('sf_riverBank')?.value,
+      slope: document.getElementById('sf_slope')?.value,
+      trail: document.getElementById('sf_trail')?.value,
+      drainage: document.getElementById('sf_drain')?.value,
+      trafficSign: document.getElementById('sf_trafficSign')?.value,
+      safetySign: document.getElementById('sf_safetySign')?.value,
+    },
+    sf_visual,
+    sf_dmgReasons,
+    sf_grade: grade,
+    sf_deruItems,
+    sf_icsGrade: document.getElementById('sf_icsGrade')?.value,
+    sf_treatment: document.getElementById('sf_treatment')?.value,
+    sf_corridor: document.getElementById('sf_corridor')?.value,
+    sf_repairWork: {
+      method: document.getElementById('sf_repair_method')?.value.trim(),
+      scale: document.getElementById('sf_repair_scale')?.value.trim(),
+      cost: document.getElementById('sf_repair_cost')?.value,
+    },
+    sf_description: document.getElementById('sf_description')?.value.trim(),
+    findings: document.getElementById('sf_description')?.value.trim() || `構造物調查—${grade}級`,
+    action: document.getElementById('sf_treatment')?.value,
+    status: ['C1','C2','C3'].includes(grade) ? '待處理' : 'A'===grade ? '完成' : '處理中',
+    priority: ['C1','C2'].includes(grade) ? '緊急' : ['C3','B1'].includes(grade) ? '高' : '中',
+    deru_d: gradeAdjD, deru_e: gradeAdjE, deru_r: gradeAdjR, deru_u: gradeAdjU,
+    sourceType: '專業巡查',
+    photoDataUrls: _inspGetMultiPhotos('sf'),
+  };
+
+  prepareInspectionRecordForSync(item, 'professional_structure', true);
+  const savedItem = id
+    ? DB.update('inspections', id, item)
+    : DB.insert('inspections', item);
+  syncInspectionRecordToFacility(savedItem || item);
+  showToast(id ? '構造物調查表已更新，並同步巡查資料管理' : '構造物調查表已新增，並同步巡查資料管理', 'success');
+
+  syncInspFormToCloud('professional_structure', savedItem || item);
+  document.getElementById('modal').style.maxWidth = '';
+  closeModal();
+  if (window._facAfterInspectionSave) { const cb=window._facAfterInspectionSave; window._facAfterInspectionSave=null; setTimeout(cb,80); }
+  else { renderInspection(); }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   附錄三  專業性巡查表單 — 魚道檢核表
+   ════════════════════════════════════════════════════════════════ */
+const FW_ITEMS = [
+  '魚道本體結構破損',
+  '魚道本體或出入口土砂淤積',
+  '魚道本體或出入口水位差過大',
+  '魚道斷流、流速過小或過大',
+];
+const FW_GRADES = ['B1-I（例行維護）','B1-II（三年內處理）','B1-III（一年內處理）','B1-IV（緊急重建）'];
+
+function openFishwayForm(facilityId = null, id = null) {
+  const rec = id ? DB.getById('inspections', id) : null;
+  const facs = DB.getAll('facilities').filter(f => /魚道|防砂/.test(f.type||'') || !facilityId);
+  const allFacs = DB.getAll('facilities');
+  const preFac = facilityId ? DB.getById('facilities', Number(facilityId)) : null;
+  const saved = rec || {};
+
+  document.getElementById('modal').style.maxWidth = '860px';
+  document.getElementById('modalTitle').textContent = id ? '編輯魚道檢核表（附錄三）' : '新增魚道檢核表（附錄三）';
+  document.getElementById('modalBody').innerHTML = `
+    <div style="font-size:13px;color:#0f766e;background:#f0fdfa;border:1px solid #99f6e4;border-radius:6px;padding:8px 12px;margin-bottom:14px">
+      <i class="fas fa-fish"></i> 依據橫流溪重要設施維護管理計畫 附錄三 專業性巡查表單—魚道檢核表
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px">
+      <div class="form-group"><label>檢測時間 *</label>
+        <input id="fw_date" type="date" value="${saved.date||new Date().toISOString().split('T')[0]}">
+      </div>
+      <div class="form-group"><label>檢測人員</label>
+        <input id="fw_inspector" type="text" value="${inspectionEscape(saved.inspector||'')}">
+      </div>
+      <div class="form-group"><label>檢測單位</label>
+        <input id="fw_unit" type="text" value="${inspectionEscape(saved.fw_unit||'')}">
+      </div>
+      <div class="form-group"><label>檢測編號</label>
+        <input id="fw_no" type="text" value="${inspectionEscape(saved.fw_no||'')}">
+      </div>
+      <div class="form-group" style="grid-column:span 2"><label>關聯魚道設施 *</label>
+        <select id="fw_facility">
+          <option value="">請選擇魚道</option>
+          ${allFacs.map(f=>`<option value="${f.id}" ${(saved.facilityId||Number(facilityId))==f.id?'selected':''}>${inspectionEscape(f.name)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group"><label>魚道種類</label>
+        <input id="fw_type" type="text" value="${inspectionEscape(saved.fw_fishwayType||preFac?.subType||'')}">
+      </div>
+      <div class="form-group"><label>TWD97 X</label>
+        <input id="fw_x" type="number" value="${saved.fw_x||preFac?.twd97x||''}">
+      </div>
+      <div class="form-group"><label>TWD97 Y</label>
+        <input id="fw_y" type="number" value="${saved.fw_y||preFac?.twd97y||''}">
+      </div>
+    </div>
+
+    <!-- DER&U 四項目表 -->
+    <div style="font-size:13px;font-weight:700;color:#0f766e;margin-bottom:8px">魚道進階定量檢測 DER&U</div>
+    <div style="overflow-x:auto;border:1px solid #99f6e4;border-radius:8px;margin-bottom:12px">
+      <table style="width:100%;border-collapse:collapse;min-width:580px">
+        <thead>
+          <tr style="background:#f0fdfa">
+            <th style="padding:8px 10px;text-align:center;font-size:12px;color:#0f766e;width:40px">項目</th>
+            <th style="padding:8px 10px;text-align:left;font-size:12px;color:#0f766e">劣化型態</th>
+            <th style="padding:8px 10px;text-align:center;font-size:12px;color:#0f766e;width:70px">D</th>
+            <th style="padding:8px 10px;text-align:center;font-size:12px;color:#0f766e;width:70px">E</th>
+            <th style="padding:8px 10px;text-align:center;font-size:12px;color:#0f766e;width:70px">R</th>
+            <th style="padding:8px 10px;text-align:left;font-size:12px;color:#0f766e">說明</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${FW_ITEMS.map((name,i) => {
+            const drow = (saved.fw_deruItems||[])[i] || {};
+            return `
+          <tr style="border-top:1px solid #d1fae5">
+            <td style="padding:8px 10px;text-align:center;font-size:13px;font-weight:700;color:#0f766e">${i+1}</td>
+            <td style="padding:8px 10px;font-size:12px;color:#0f172a">${name}</td>
+            <td style="padding:6px 8px">
+              <select id="fw_d_${i}" style="width:100%;font-size:12px;border:1px solid #99f6e4;border-radius:4px;padding:4px">
+                ${[0,1,2,3,4].map(v=>`<option ${(drow.d||0)==v?'selected':''}>${v}</option>`).join('')}
+              </select>
+            </td>
+            <td style="padding:6px 8px">
+              <select id="fw_e_${i}" style="width:100%;font-size:12px;border:1px solid #99f6e4;border-radius:4px;padding:4px">
+                ${[1,2,3,4].map(v=>`<option ${(drow.e||1)==v?'selected':''}>${v}</option>`).join('')}
+              </select>
+            </td>
+            <td style="padding:6px 8px">
+              <select id="fw_r_${i}" style="width:100%;font-size:12px;border:1px solid #99f6e4;border-radius:4px;padding:4px">
+                ${[1,2,3,4].map(v=>`<option ${(drow.r||1)==v?'selected':''}>${v}</option>`).join('')}
+              </select>
+            </td>
+            <td style="padding:6px 8px">
+              <input type="text" id="fw_note_${i}" value="${inspectionEscape(drow.note||'')}"
+                style="width:100%;border:1px solid #99f6e4;border-radius:4px;padding:4px 6px;font-size:12px">
+            </td>
+          </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+      <div class="form-group"><label>魚道進階分級</label>
+        <select id="fw_grade">
+          ${FW_GRADES.map(v=>`<option ${(saved.fw_grade||FW_GRADES[0])===v?'selected':''}>${v}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group"><label>處理維護建議</label>
+        <select id="fw_treatment">
+          ${['例行處理維護','三年內必須處理維護','一年內必須處理維護','緊急處理重建'].map(v=>`<option ${(saved.fw_treatment||'例行處理維護')===v?'selected':''}>${v}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group"><label>處理工法—工法</label>
+        <input id="fw_repair_method" type="text" value="${inspectionEscape(saved.fw_repairWork?.method||'')}">
+      </div>
+      <div class="form-group"><label>預估經費（仟元）</label>
+        <input id="fw_repair_cost" type="number" value="${saved.fw_repairWork?.cost||''}">
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+      <div class="form-group"><label>魚道水中攝影</label>
+        <div style="display:flex;gap:12px;margin-top:6px">
+          ${['有魚','無魚','未攝影'].map(v=>`
+            <label style="display:flex;align-items:center;gap:5px;font-size:14px;cursor:pointer">
+              <input type="radio" name="fw_fish" value="${v}" ${(saved.fw_fishPresent||'未攝影')===v?'checked':''}> ${v}
+            </label>`).join('')}
+        </div>
+      </div>
+      <div class="form-group"><label>備註</label>
+        <input id="fw_remark" type="text" value="${inspectionEscape(saved.fw_remark||'')}">
+      </div>
+    </div>
+    <div class="form-group"><label>現況描述</label>
+      <textarea id="fw_description" rows="3">${inspectionEscape(saved.fw_description||saved.findings||'')}</textarea>
+    </div>
+    ${renderMultiPhotoPanel('fw', saved.photoDataUrls||[], 4)}
+    <div style="margin-top:8px;padding:8px 12px;background:#f0fdfa;border-radius:6px;font-size:12px;color:#0f766e">
+      <i class="fas fa-cloud-upload-alt"></i> 儲存後自動同步至雲端資料庫，並連動工程設施管理。
+    </div>
+  `;
+  document.getElementById('modalFooter').innerHTML = `
+    <button class="btn btn-outline" onclick="closeModal();document.getElementById('modal').style.maxWidth=''">關閉</button>
+    <button class="btn btn-outline" onclick="downloadFWPdf()" style="color:#7c3aed;border-color:#7c3aed">
+      <i class="fas fa-file-pdf"></i> 下載 PDF
+    </button>
+    <button class="btn btn-primary" onclick="saveFishwayForm(${id||'null'})" style="background:#0f766e;border-color:#0f766e">
+      <i class="fas fa-save"></i> 儲存檢核表
+    </button>
+  `;
+  openModal();
+}
+
+function downloadFWPdf() {
+  const date = document.getElementById('fw_date')?.value || '';
+  const inspector = document.getElementById('fw_inspector')?.value || '';
+  const facilityEl = document.getElementById('fw_facility');
+  const facilityName = facilityEl?.options[facilityEl?.selectedIndex]?.text || '─';
+  const grade = document.querySelector('input[name="fw_grade"]:checked')?.value || '─';
+  const fishPresent = document.querySelector('input[name="fw_fish"]:checked')?.value || '─';
+  const desc = document.getElementById('fw_description')?.value || '';
+  const FW_DERU_NAMES = ['結構破損','土砂淤積','水位差異','斷流'];
+  const deruRows = FW_DERU_NAMES.map((name, i) => {
+    const d = document.getElementById(`fw_d_${i}`)?.value || '-';
+    const e = document.getElementById(`fw_e_${i}`)?.value || '-';
+    const r = document.getElementById(`fw_r_${i}`)?.value || '-';
+    const note = document.getElementById(`fw_note_${i}`)?.value || '';
+    return `<tr><td style="font-weight:700">${name}</td><td>${d}</td><td>${e}</td><td>${r}</td><td>${note}</td></tr>`;
+  }).join('');
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+  <title>魚道檢核表（附錄三）</title>
+  <style>
+    body { font-family:'微軟正黑體',Arial,sans-serif; font-size:12pt; margin:20mm; color:#1e293b; }
+    h2 { text-align:center; font-size:16pt; margin-bottom:6pt; }
+    .sub { text-align:center; font-size:10pt; color:#475569; margin-bottom:14pt; }
+    table { width:100%; border-collapse:collapse; margin-bottom:12pt; }
+    th,td { border:1px solid #94a3b8; padding:5pt 8pt; }
+    th { background:#f0fdfa; font-weight:700; }
+    .section { font-weight:700; color:#0f766e; font-size:12pt; border-left:4pt solid #0f766e; padding-left:8pt; margin:12pt 0 6pt; }
+    .grade { font-size:18pt; font-weight:900; color:#0f766e; text-align:center; padding:8pt; border:2px solid #99f6e4; border-radius:6pt; display:inline-block; }
+    .sig { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10pt; margin-top:16pt; }
+    .sig-box { border:1px solid #94a3b8; padding:10pt; text-align:center; }
+    @media print { body { margin:12mm; } }
+  </style></head><body>
+  <h2>魚道檢核表（附錄三）</h2>
+  <div class="sub">橫流溪動物通道及周邊設施檢查效能智慧評估系統</div>
+  <div class="section">基本資料</div>
+  <table>
+    <tr><th style="width:130pt">檢核日期</th><td>${date}</td><th style="width:130pt">檢核人員</th><td>${inspector}</td></tr>
+    <tr><th>魚道設施</th><td colspan="3">${facilityName}</td></tr>
+  </table>
+  <div class="section">DER&amp;U 四項檢核評估</div>
+  <table>
+    <thead><tr><th>項目</th><th>D 損壞</th><th>E 緊急</th><th>R 修復</th><th>說明</th></tr></thead>
+    <tbody>${deruRows}</tbody>
+  </table>
+  <div class="section">整體評估</div>
+  <table>
+    <tr><th style="width:130pt">維護等級</th><td><span class="grade">${grade}</span></td></tr>
+    <tr><th>魚類通行觀察</th><td>${fishPresent}</td></tr>
+  </table>
+  <div class="section">現場描述</div>
+  <table><tr><td style="white-space:pre-wrap;min-height:50pt">${desc||'─'}</td></tr></table>
+  <div class="sig">
+    <div class="sig-box">檢核人員簽名</div>
+    <div class="sig-box">主管核閱</div>
+    <div class="sig-box">填表日期：${date}</div>
+  </div>
+  </body></html>`;
+  const win = window.open('', '_blank');
+  if (!win) { showToast('請允許彈出視窗以產生PDF', 'warning'); return; }
+  win.document.write(html);
+  win.document.close();
+  win.addEventListener('load', () => setTimeout(() => win.print(), 300));
+}
+
+function saveFishwayForm(id) {
+  const date = document.getElementById('fw_date')?.value;
+  const facilityId = parseInt(document.getElementById('fw_facility')?.value) || null;
+  if (!date || !facilityId) { showToast('請填寫檢測時間並選擇魚道設施', 'error'); return; }
+
+  const fw_deruItems = FW_ITEMS.map((name,i) => ({
+    name,
+    d: parseInt(document.getElementById(`fw_d_${i}`)?.value||0),
+    e: parseInt(document.getElementById(`fw_e_${i}`)?.value||1),
+    r: parseInt(document.getElementById(`fw_r_${i}`)?.value||1),
+    note: document.getElementById(`fw_note_${i}`)?.value.trim()
+  }));
+  const maxD = Math.max(...fw_deruItems.map(r=>r.d));
+  const maxE = Math.max(...fw_deruItems.map(r=>r.e));
+  const maxR = Math.max(...fw_deruItems.map(r=>r.r));
+  const deru = DERU_MATRIX.urgency(maxD, maxE, maxR);
+  const gradeStr = document.getElementById('fw_grade')?.value || FW_GRADES[0];
+  const facilityName = DB.getById('facilities', facilityId)?.name || '';
+
+  const item = {
+    formType: 'professional_fishway',
+    facilityId, facilityName,
+    date,
+    inspector: document.getElementById('fw_inspector')?.value.trim(),
+    fw_unit: document.getElementById('fw_unit')?.value.trim(),
+    fw_no: document.getElementById('fw_no')?.value.trim(),
+    fw_fishwayType: document.getElementById('fw_type')?.value.trim(),
+    fw_x: document.getElementById('fw_x')?.value,
+    fw_y: document.getElementById('fw_y')?.value,
+    fw_deruItems,
+    fw_grade: gradeStr,
+    fw_treatment: document.getElementById('fw_treatment')?.value,
+    fw_repairWork: {
+      method: document.getElementById('fw_repair_method')?.value.trim(),
+      cost: document.getElementById('fw_repair_cost')?.value,
+    },
+    fw_fishPresent: document.querySelector('input[name="fw_fish"]:checked')?.value || '未攝影',
+    fw_remark: document.getElementById('fw_remark')?.value.trim(),
+    fw_description: document.getElementById('fw_description')?.value.trim(),
+    findings: document.getElementById('fw_description')?.value.trim() || `魚道檢核—${gradeStr}`,
+    action: document.getElementById('fw_treatment')?.value,
+    status: gradeStr.includes('IV') ? '待處理' : gradeStr.includes('I（') ? '完成' : '處理中',
+    priority: gradeStr.includes('IV') ? '緊急' : gradeStr.includes('III') ? '高' : '中',
+    deru_d: maxD, deru_e: maxE, deru_r: maxR, deru_u: deru.u,
+    sourceType: '專業巡查',
+    photoDataUrls: _inspGetMultiPhotos('fw'),
+  };
+
+  prepareInspectionRecordForSync(item, 'professional_fishway', true);
+  const savedItem = id
+    ? DB.update('inspections', id, item)
+    : DB.insert('inspections', item);
+  syncInspectionRecordToFacility(savedItem || item);
+  showToast(id ? '魚道檢核表已更新，並同步巡查資料管理' : '魚道檢核表已新增，並同步巡查資料管理', 'success');
+
+  syncInspFormToCloud('professional_fishway', savedItem || item);
+  document.getElementById('modal').style.maxWidth = '';
+  closeModal();
+  if (window._facAfterInspectionSave) { const cb=window._facAfterInspectionSave; window._facAfterInspectionSave=null; setTimeout(cb,80); }
+  else { renderInspection(); }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   雲端同步（POST 至 Flask 後端）
+   ════════════════════════════════════════════════════════════════ */
+async function syncInspFormToCloud(formType, data) {
+  try {
+    const endpoint = formType === 'professional_structure'
+      ? '/api/v1/structure-inspection'
+      : '/api/v1/patrol-records';
+    const payload = formType === 'professional_structure'
+      ? {
+          inspection_id: `STR-${Date.now()}`,
+          structure_id: String(data.facilityId || ''),
+          inspection_date: data.date,
+          inspection_type: '專業性定期巡查',
+          inspector_name: data.inspector || '',
+          condition_grade: data.sf_grade || 'A',
+          deterioration_degree: data.deru_d || 0,
+          risk_influence: data.deru_r || 1,
+          overall_score: data.deru_u || 1,
+          findings: data.findings || '',
+          defect_description: (data.sf_visual||[]).join('、'),
+          repair_recommendation: data.action || '',
+          urgency_level: data.priority || '低',
+          repair_status: data.status || '完成',
+        }
+      : {
+          patrol_id: `PAT-${Date.now()}`,
+          segment_id: 'HL-MAIN',
+          patrol_date: data.date,
+          patrol_time_start: '',
+          patrol_time_end: '',
+          weather: '',
+          patrol_personnel: data.inspector || '',
+          patrol_method: formType === 'general_periodic' ? '一般性定期巡查' : '魚道專業巡查',
+          abnormality_found: data.status !== '完成',
+          summary: data.findings || '',
+          photos_count: 0,
+        };
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (data?.id) {
+      DB.update('inspections', data.id, {
+        localApiSyncStatus: '已同步',
+        localApiSyncedAt: new Date().toISOString()
+      });
+    }
+    console.log('[Cloud] 同步成功:', formType);
+  } catch (err) {
+    if (data?.id) {
+      DB.update('inspections', data.id, {
+        localApiSyncStatus: '本機暫存',
+        localApiSyncError: err.message,
+        localApiSyncedAt: new Date().toISOString()
+      });
+    }
+    console.warn('[Cloud] 同步失敗（本機資料已儲存）:', err.message);
+  }
 }

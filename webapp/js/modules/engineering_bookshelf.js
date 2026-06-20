@@ -376,7 +376,6 @@ function renderEngineeringBookshelf() {
   const worksBooks     = ENGINEERING_BOOKS.filter(b => shelfMainCatOf(b) === '歷年整治工程');
   const landslideBooks = ENGINEERING_BOOKS.filter(b => shelfMainCatOf(b) === '歷年崩塌及現地調查規劃');
   const activeMap      = { '整治規劃': planningBooks, '歷年整治工程': worksBooks, '歷年崩塌及現地調查規劃': landslideBooks };
-  const firstDoc       = activeMap[bookshelfActiveTab]?.[0] || ENGINEERING_BOOKS[0];
 
   document.getElementById('contentArea').innerHTML = `
     <!-- 標題列 -->
@@ -416,41 +415,12 @@ function renderEngineeringBookshelf() {
         style="width:200px;padding:8px 12px;border:1px solid #d5dde7;border-radius:10px;font-size:14px">
     </div>
 
-    <!-- ── 主體：左列表 + 右 PDF 預覽 ── -->
-    <div style="display:grid;grid-template-columns:400px 1fr;gap:16px;align-items:start">
-      <div id="engineeringBookshelfContent"
-           style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;max-height:860px;overflow-y:auto"></div>
-
-      <div style="position:sticky;top:16px">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;flex-wrap:wrap">
-          <div style="font-size:16px;font-weight:800;color:#0f172a;flex:1;min-width:0" id="shelfPdfTitle">
-            ${shelfEscape(firstDoc?.title || '請點選左側文件')}
-          </div>
-          <a id="shelfPdfLink" href="${firstDoc ? engineeringDocHref(firstDoc.path) : '#'}"
-            target="_blank" rel="noopener noreferrer"
-            style="display:inline-flex;align-items:center;gap:6px;background:#1565c0;color:#fff;
-                   padding:7px 16px;border-radius:8px;font-size:14px;font-weight:700;text-decoration:none;flex-shrink:0">
-            <i class="fas fa-up-right-from-square"></i> 新頁開啟
-          </a>
-        </div>
-        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden">
-          <iframe id="shelfPdfFrame"
-            src="${firstDoc ? engineeringDocHref(firstDoc.path) : 'about:blank'}"
-            style="width:100%;height:820px;border:none;display:${firstDoc?'block':'none'}"
-            title="文件預覽">
-          </iframe>
-          <div id="shelfNoPdf"
-            style="height:820px;display:${firstDoc?'none':'flex'};align-items:center;justify-content:center;
-                   flex-direction:column;gap:16px;color:#94a3b8">
-            <i class="fas fa-file-pdf" style="font-size:48px"></i>
-            <div style="font-size:16px">點選左側文件以預覽</div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <!-- ── 文件列表（全寬） ── -->
+    <div id="engineeringBookshelfContent"
+         style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden"></div>
   `;
 
-  _shelfSelectedDoc = firstDoc ? { path: firstDoc.path, title: firstDoc.title } : null;
+  _shelfSelectedDoc = null;
   updateEngineeringBookshelf();
 }
 
@@ -519,6 +489,13 @@ function bookshelfSwitchTab(tab) {
   updateEngineeringBookshelf();
 }
 
+function _shelfYearNum(y) {
+  if (!y || y === '歷年' || y === '早期') return 0;
+  if (y === '近年') return 9999;
+  const m = String(y).match(/\d+/);
+  return m ? parseInt(m[0]) : 0;
+}
+
 function updateEngineeringBookshelf() {
   const container = document.getElementById('engineeringBookshelfContent');
   if (!container) return;
@@ -532,7 +509,7 @@ function updateEngineeringBookshelf() {
     if (!keyword) return true;
     const haystack = [book.title, book.category, book.year, book.type, book.summary, ...(book.tags||[])].join(' ').toLowerCase();
     return haystack.includes(keyword);
-  });
+  }).sort((a, b) => _shelfYearNum(a.year) - _shelfYearNum(b.year));
 
   if (!books.length) {
     container.innerHTML = `<div style="padding:32px;text-align:center;color:#94a3b8;font-size:15px">
@@ -569,9 +546,6 @@ function updateEngineeringBookshelf() {
     container.innerHTML = books.map(book => renderEngineeringBook(book, mainColor)).join('');
   }
 
-  if (!_shelfSelectedDoc && books.length) {
-    shelfSelectDoc(books[0].path, books[0].title);
-  }
 }
 
 function renderEngineeringBook(book, catColor) {
@@ -581,52 +555,44 @@ function renderEngineeringBook(book, catColor) {
     : book.type === '維護工程' ? 'fa-screwdriver-wrench'
     : 'fa-file-contract';
   const lineColor  = isBudget ? '#8a5a00' : catColor;
-  const isSelected = _shelfSelectedDoc?.path === book.path;
-
   return `
   <div class="shelf-doc-card"
        data-path="${shelfEscape(book.path)}"
-       onclick="shelfSelectDoc('${shelfAttr(book.path)}','${shelfAttr(book.title)}')"
-       style="padding:18px 20px;cursor:pointer;border-bottom:2px solid #f1f5f9;
-              background:${isSelected ? lineColor+'12' : '#fff'};
-              border-left:${isSelected ? '7px' : '4px'} solid ${lineColor};
-              box-shadow:${isSelected ? 'inset 0 0 0 1px '+lineColor+'33' : 'none'};
-              transition:all .15s"
-       onmouseover="this.style.background='${lineColor}0d';this.style.borderLeftWidth='7px'"
-       onmouseout="this.style.background='${isSelected?lineColor+'12':'#fff'}';this.style.borderLeftWidth='${isSelected?'7':'4'}px'">
+       style="padding:16px 20px;border-bottom:2px solid #f1f5f9;
+              background:#fff;border-left:4px solid ${lineColor};transition:background .12s"
+       onmouseover="this.style.background='${lineColor}08'"
+       onmouseout="this.style.background='#fff'">
 
     <!-- 圖示 + 文件名稱 -->
-    <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:12px">
-      <div style="width:46px;height:46px;border-radius:11px;background:${lineColor}${isSelected?'28':'18'};color:${lineColor};
+    <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:10px">
+      <div style="width:44px;height:44px;border-radius:10px;background:${lineColor}18;color:${lineColor};
                   display:flex;align-items:center;justify-content:center;flex-shrink:0">
-        <i class="fas ${typeIcon}" style="font-size:20px"></i>
+        <i class="fas ${typeIcon}" style="font-size:19px"></i>
       </div>
       <div style="flex:1;min-width:0">
-        <div style="font-size:19px;font-weight:900;color:#0f172a;line-height:1.3;margin-bottom:6px">${shelfEscape(book.title)}</div>
+        <div style="font-size:17px;font-weight:900;color:#0f172a;line-height:1.3;margin-bottom:5px">${shelfEscape(book.title)}</div>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <span style="font-size:14px;font-weight:700;color:${lineColor};background:${lineColor}18;border:1px solid ${lineColor}44;border-radius:999px;padding:3px 11px">${shelfEscape(book.type)}</span>
-          <span style="font-size:14px;color:#64748b">${shelfEscape(book.year)}</span>
-          <span style="font-size:13px;font-weight:800;padding:3px 9px;border-radius:6px;background:${book.format==='PDF'?'#fee2e2':'#dbeafe'};color:${book.format==='PDF'?'#b91c1c':'#1e40af'}">${shelfEscape(book.format)}</span>
+          <span style="font-size:13px;font-weight:700;color:${lineColor};background:${lineColor}18;border:1px solid ${lineColor}44;border-radius:999px;padding:2px 10px">${shelfEscape(book.type)}</span>
+          <span style="font-size:13px;color:#64748b"><i class="fas fa-calendar-alt" style="margin-right:3px;opacity:.6"></i>${shelfEscape(book.year)}</span>
+          <span style="font-size:12px;font-weight:800;padding:2px 8px;border-radius:6px;background:${book.format==='PDF'?'#fee2e2':'#dbeafe'};color:${book.format==='PDF'?'#b91c1c':'#1e40af'}">${shelfEscape(book.format)}</span>
         </div>
       </div>
     </div>
 
-    <!-- 操作按鈕（點擊不冒泡） -->
-    <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px" onclick="event.stopPropagation()">
-      <button onclick="shelfSelectDoc('${shelfAttr(book.path)}','${shelfAttr(book.title)}')"
-        style="padding:10px;background:${lineColor};color:#fff;border:none;border-radius:9px;
-               font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px">
-        <i class="fas fa-eye"></i> 預覽
-      </button>
+    <!-- 摘要 -->
+    ${book.summary ? `<div style="font-size:13px;color:#475569;margin-bottom:10px;line-height:1.6;padding-left:56px">${shelfEscape(book.summary)}</div>` : ''}
+
+    <!-- 操作按鈕 -->
+    <div style="display:flex;gap:8px;padding-left:56px">
       <a href="${engineeringDocHref(book.path)}" target="_blank" rel="noopener noreferrer"
-        style="padding:10px;background:#fff;color:${lineColor};border:2px solid ${lineColor}66;border-radius:9px;
-               font-size:15px;font-weight:700;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:7px">
-        <i class="fas fa-up-right-from-square"></i> 開啟
+        style="padding:8px 18px;background:${lineColor};color:#fff;border-radius:8px;
+               font-size:14px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:6px">
+        <i class="fas fa-up-right-from-square"></i> 開啟文件
       </a>
       <button onclick="askEngineeringBookAI('${shelfAttr(book.title)}')"
         title="問 AI"
-        style="padding:10px 13px;background:#f1f5f9;color:#475569;border:none;border-radius:9px;font-size:15px;cursor:pointer">
-        <i class="fas fa-brain"></i>
+        style="padding:8px 14px;background:#f1f5f9;color:#475569;border:none;border-radius:8px;font-size:14px;cursor:pointer;display:inline-flex;align-items:center;gap:5px">
+        <i class="fas fa-brain"></i> 問 AI
       </button>
     </div>
   </div>
