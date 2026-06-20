@@ -1612,6 +1612,9 @@ function renderInspectionDataManagement(standalone = false) {
           <button class="btn btn-outline" onclick="openInspectionDriveFolder()" style="font-size:18px;padding:12px 24px;color:#1d4ed8;border-color:#bfdbfe;background:#eff6ff">
             <i class="fas fa-folder-open"></i> Google Drive
           </button>
+          <button class="btn btn-outline" onclick="_showGDriveClientIdSetup()" style="font-size:18px;padding:12px 24px;color:#166534;border-color:#86efac;background:#f0fdf4">
+            <i class="fas fa-key"></i> 設定 Google Drive
+          </button>
         </div>
       </div>` : `
       <div class="card-header" style="flex-wrap:wrap;gap:8px">
@@ -1631,6 +1634,9 @@ function renderInspectionDataManagement(standalone = false) {
           </button>
           <button class="btn btn-outline" onclick="openInspectionDriveFolder()" style="font-size:15px;padding:8px 16px;color:#1d4ed8;border-color:#bfdbfe;background:#eff6ff">
             <i class="fas fa-folder-open"></i> 雲端
+          </button>
+          <button class="btn btn-outline" onclick="_showGDriveClientIdSetup()" style="font-size:15px;padding:8px 16px;color:#166534;border-color:#86efac;background:#f0fdf4">
+            <i class="fas fa-key"></i> Drive設定
           </button>
         </div>
       </div>`}
