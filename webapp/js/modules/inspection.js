@@ -3,6 +3,7 @@
 const INSPECTION_STATUS = ['待處理', '處理中', '完成'];
 const INSPECTION_PRIORITY = ['低', '中', '高', '緊急'];
 const INSPECTION_GDRIVE_FOLDER_URL = 'https://drive.google.com/drive/folders/1k2s5HSd_R5GeCt05SOtJxn6UFSrbyoQ9?usp=drive_link';
+const GDRIVE_UPLOAD_FOLDER_ID      = '1k2s5HSd_R5GeCt05SOtJxn6UFSrbyoQ9';
 const INSPECTION_FORM_SYNC_META = {
   general_periodic: {
     category: 'general',
@@ -238,6 +239,167 @@ function queueInspectionDriveSync(type = 'all') {
   });
   showToast(`已建立 ${count} 筆 Google Drive 待上傳同步項目`, 'success');
   renderInspection();
+}
+
+/* ════════════════════════════════════════════════════════════════
+   Google Drive 上傳（OAuth2 GIS + Drive API v3 Multipart Upload）
+   使用方式：首次點擊上傳按鈕時輸入 OAuth2 Client ID，之後每次
+   session 會彈出 Google 授權視窗（或直接使用已登入帳號）。
+   ════════════════════════════════════════════════════════════════ */
+
+/** 取得 OAuth2 存取令牌（觸發 Google 登入彈窗，每次 session 一次） */
+function _gdriveGetToken() {
+  return new Promise((resolve, reject) => {
+    const clientId = localStorage.getItem('GDRIVE_CLIENT_ID');
+    if (!clientId) { reject(new Error('NO_CLIENT_ID')); return; }
+    if (!window.google?.accounts?.oauth2) {
+      // GIS 尚未載入，等候最多 3 秒
+      let waited = 0;
+      const t = setInterval(() => {
+        waited += 200;
+        if (window.google?.accounts?.oauth2) {
+          clearInterval(t);
+          _gdriveGetToken().then(resolve).catch(reject);
+        } else if (waited > 3000) {
+          clearInterval(t);
+          reject(new Error('GIS_NOT_LOADED'));
+        }
+      }, 200);
+      return;
+    }
+    google.accounts.oauth2.initTokenClient({
+      client_id: clientId,
+      scope: 'https://www.googleapis.com/auth/drive.file',
+      callback: resp => resp.error ? reject(new Error(resp.error)) : resolve(resp.access_token)
+    }).requestAccessToken({ prompt: '' });
+  });
+}
+
+/**
+ * 上傳一筆表單紀錄至 Google Drive（JSON 格式）
+ * @param {Object} item      已儲存的巡查紀錄（含 id）
+ * @param {string} formType  'professional_structure' | 'professional_fishway'
+ */
+async function uploadInspectionFileToDrive(item, formType) {
+  const meta = INSPECTION_FORM_SYNC_META[formType] || {};
+  const facilityName = (DB.getById('facilities', item.facilityId)?.name || '未知設施').replace(/[/\\:*?"<>|]/g, '-');
+  const dateStr = (item.date || new Date().toISOString().split('T')[0]);
+  const ts = new Date().toISOString().slice(0,16).replace('T','_').replace(':','-');
+  const fileName = `${meta.label || formType}_${facilityName}_${dateStr}_${ts}.json`;
+
+  // 立即更新狀態為上傳中
+  if (item.id) DB.update('inspections', item.id, {
+    cloudTarget: 'Google Drive',
+    cloudSyncStatus: '上傳中',
+    cloudFolderUrl: INSPECTION_GDRIVE_FOLDER_URL
+  });
+
+  let token;
+  try {
+    token = await _gdriveGetToken();
+  } catch (err) {
+    if (err.message === 'NO_CLIENT_ID') {
+      _showGDriveClientIdSetup(item, formType);
+    } else {
+      showToast(`Google 登入失敗：${err.message}`, 'error');
+      if (item.id) DB.update('inspections', item.id, { cloudSyncStatus: '待上傳' });
+    }
+    return;
+  }
+
+  try {
+    // 排除大型 base64 照片以節省 Drive 空間（照片另外管理）
+    const payload = { ...item };
+    delete payload.photoDataUrls;
+
+    const driveMetadata = {
+      name: fileName,
+      parents: [GDRIVE_UPLOAD_FOLDER_ID],
+      mimeType: 'application/json',
+      description: `橫流溪巡查 ${meta.label || ''} ｜ ${facilityName} ｜ ${dateStr}`
+    };
+
+    const body = new FormData();
+    body.append('metadata', new Blob([JSON.stringify(driveMetadata)], { type: 'application/json' }));
+    body.append('file',     new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }));
+
+    const res = await fetch(
+      'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink',
+      { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body }
+    );
+
+    if (!res.ok) {
+      const errBody = await res.json().catch(() => ({}));
+      throw new Error(errBody?.error?.message || `HTTP ${res.status}`);
+    }
+
+    const file = await res.json();
+    if (item.id) {
+      DB.update('inspections', item.id, {
+        cloudSyncStatus: '已上傳',
+        driveFileId:  file.id,
+        driveWebLink: file.webViewLink,
+        driveSyncedAt: new Date().toISOString()
+      });
+    }
+    showToast(`✅ 已上傳至 Google Drive：${fileName}`, 'success');
+    renderInspection();
+
+  } catch (err) {
+    showToast(`Drive 上傳失敗：${err.message}`, 'error');
+    if (item.id) DB.update('inspections', item.id, { cloudSyncStatus: '待上傳' });
+    console.error('[GDrive Upload]', err);
+  }
+}
+
+/** 首次設定：輸入 OAuth2 Client ID（與 API Key 是不同憑證） */
+function _showGDriveClientIdSetup(pendingItem, pendingFormType) {
+  const saved = localStorage.getItem('GDRIVE_CLIENT_ID') || '';
+  const origin = location.origin;
+  openModal('設定 Google Drive 授權', `
+    <div style="padding:4px 0 8px">
+      <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:14px;margin-bottom:16px;font-size:14px;color:#1e40af;line-height:1.7">
+        <b><i class="fas fa-key"></i> 一次性設定 — OAuth2 用戶端 ID</b><br>
+        1. 前往 <a href="https://console.cloud.google.com/apis/credentials" target="_blank"
+             style="color:#1d4ed8;font-weight:700">Google Cloud Console → 憑證</a><br>
+        2. 建立「<b>OAuth 2.0 用戶端 ID</b>」→ 類型選「<b>網頁應用程式</b>」<br>
+        3. 在「已授權的 JavaScript 來源」加入：<br>
+        &nbsp;&nbsp;<code style="background:#dbeafe;padding:2px 6px;border-radius:4px">${origin}</code>
+        ${origin.includes('localhost') ? '' : '<br>&nbsp;&nbsp;<code style="background:#dbeafe;padding:2px 6px;border-radius:4px">http://localhost:5000</code>'}
+        <br>4. 複製用戶端 ID 貼入下方
+      </div>
+      <div class="form-group">
+        <label>OAuth 2.0 用戶端 ID <span style="color:#ef4444">*</span></label>
+        <input id="gdrive_client_id_input" type="text"
+          placeholder="xxxxxxxxxx.apps.googleusercontent.com"
+          value="${inspectionEscape(saved)}"
+          style="font-size:13px;font-family:monospace">
+      </div>
+      <div style="font-size:12px;color:#64748b;margin-top:6px">
+        ⚠ 此 ID 與 API Key 不同，需另行建立。儲存後再次點擊「上傳至 Drive」即可授權。
+      </div>
+    </div>
+  `);
+  document.getElementById('modalFooter').innerHTML = `
+    <button class="btn btn-outline" onclick="closeModal()">取消</button>
+    <button class="btn btn-primary" style="background:#1565c0;border-color:#1565c0" onclick="
+      const v = document.getElementById('gdrive_client_id_input')?.value.trim();
+      if (!v) { showToast('請輸入用戶端 ID', 'error'); return; }
+      localStorage.setItem('GDRIVE_CLIENT_ID', v);
+      showToast('✅ 已儲存 Client ID，請再次點擊上傳按鈕', 'success');
+      closeModal();
+    "><i class="fas fa-save"></i> 儲存</button>
+  `;
+}
+
+/** 手動重新上傳特定紀錄（卡片上的「上傳」按鈕） */
+function reuploadInspectionToDrive(id) {
+  const item = DB.getById('inspections', id);
+  if (!item) { showToast('找不到紀錄', 'error'); return; }
+  if (!INSPECTION_FORM_SYNC_META[item.formType]) {
+    showToast('此類型不支援 Drive 上傳', 'warning'); return;
+  }
+  uploadInspectionFileToDrive(item, item.formType);
 }
 
 function syncDeruHistoryIntoInspectionRecords() {
@@ -1805,7 +1967,10 @@ function renderInspDataList(data) {
             ${hasDeru ? `<span style="background:#fff7ed;color:#9a3412;border:1px solid #fed7aa;border-radius:999px;padding:5px 14px;font-size:17px;font-weight:700">DER&amp;U ${item.deru_label||'U'+item.deru_u}</span>` : ''}
             ${hasAi   ? `<span style="background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;border-radius:999px;padding:5px 14px;font-size:16px">🤖 AI分析</span>` : ''}
             ${item.pdfFormat ? `<span style="background:#fff1f2;color:#b91c1c;border:1px solid #fecaca;border-radius:999px;padding:5px 14px;font-size:16px;font-weight:700"><i class="fas fa-file-pdf"></i> PDF</span>` : ''}
-            ${item.cloudTarget ? `<span style="background:${cloudStyle.bg};color:${cloudStyle.color};border:1px solid ${cloudStyle.border};border-radius:999px;padding:5px 14px;font-size:16px;font-weight:700"><i class="fas fa-cloud-upload-alt"></i> ${item.cloudSyncStatus || '待上傳'}</span>` : ''}
+            ${item.cloudTarget ? (item.driveWebLink
+              ? `<a href="${item.driveWebLink}" target="_blank" rel="noopener noreferrer" style="text-decoration:none"><span style="background:${cloudStyle.bg};color:${cloudStyle.color};border:1px solid ${cloudStyle.border};border-radius:999px;padding:5px 14px;font-size:16px;font-weight:700;cursor:pointer"><i class="fas fa-cloud-upload-alt"></i> ${item.cloudSyncStatus || '已上傳'}</span></a>`
+              : `<span style="background:${cloudStyle.bg};color:${cloudStyle.color};border:1px solid ${cloudStyle.border};border-radius:999px;padding:5px 14px;font-size:16px;font-weight:700"><i class="fas fa-cloud-upload-alt"></i> ${item.cloudSyncStatus || '待上傳'}</span>`)
+            : ''}
           </div>
           <div style="display:flex;gap:22px;flex-wrap:wrap;font-size:18px;color:#475569;align-items:center">
             <span><i class="fas fa-calendar" style="margin-right:6px"></i><b>${item.date || '-'}</b></span>
@@ -1863,15 +2028,27 @@ function renderInspDataList(data) {
               ${item.inspectionItem ? inspDetailRow('巡查項目', item.inspectionItem) : ''}
               ${pdfLabel ? inspDetailRow('PDF表單', pdfLabel) : ''}
               ${item.cloudTarget ? inspDetailRow('雲端同步', `${item.cloudTarget}／${item.cloudSyncStatus || '待上傳'}`) : ''}
+              ${item.driveSyncedAt ? inspDetailRow('Drive 同步時間', item.driveSyncedAt.slice(0,16).replace('T',' ')) : ''}
               ${inspDetailRow('狀態', item.uiStatus)}
               ${inspDetailRow('優先度', item.uiPriority)}
-              ${item.cloudFolderUrl ? `
-                <div style="margin-top:10px">
-                  <a href="${INSPECTION_GDRIVE_FOLDER_URL}" target="_blank" rel="noopener noreferrer"
-                    style="display:inline-flex;align-items:center;gap:6px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:8px;padding:8px 12px;text-decoration:none;font-size:15px;font-weight:800">
-                    <i class="fas fa-folder-open"></i> 開啟同步雲端資料夾
-                  </a>
-                </div>` : ''}
+              <!-- Drive 按鈕群 -->
+              <div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px">
+                ${item.driveWebLink ? `
+                  <a href="${item.driveWebLink}" target="_blank" rel="noopener noreferrer"
+                    style="display:inline-flex;align-items:center;gap:6px;background:#f0fdf4;color:#166534;border:1px solid #86efac;border-radius:8px;padding:8px 14px;text-decoration:none;font-size:14px;font-weight:700">
+                    <i class="fas fa-file-alt"></i> 開啟 Drive 檔案
+                  </a>` : ''}
+                ${INSPECTION_FORM_SYNC_META[item.formType] ? `
+                  <button onclick="reuploadInspectionToDrive(${item.id})"
+                    style="display:inline-flex;align-items:center;gap:6px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:8px;padding:8px 14px;font-size:14px;font-weight:700;cursor:pointer">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    ${item.driveWebLink ? '重新上傳' : '上傳至 Drive'}
+                  </button>` : ''}
+                <a href="${INSPECTION_GDRIVE_FOLDER_URL}" target="_blank" rel="noopener noreferrer"
+                  style="display:inline-flex;align-items:center;gap:6px;background:#fff;color:#475569;border:1px solid #e2e8f0;border-radius:8px;padding:8px 14px;text-decoration:none;font-size:14px;font-weight:600">
+                  <i class="fas fa-folder-open"></i> 開啟雲端資料夾
+                </a>
+              </div>
               <!-- 資料來源 -->
               <div style="margin-top:14px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:14px">
                 <div style="font-size:17px;font-weight:800;color:#1e3a8a;margin-bottom:7px">
@@ -5324,6 +5501,7 @@ function saveStructureInspectionForm(id) {
   showToast(id ? '構造物調查表已更新，並同步巡查資料管理' : '構造物調查表已新增，並同步巡查資料管理', 'success');
 
   syncInspFormToCloud('professional_structure', savedItem || item);
+  uploadInspectionFileToDrive(savedItem || item, 'professional_structure');
   document.getElementById('modal').style.maxWidth = '';
   closeModal();
   if (window._facAfterInspectionSave) { const cb=window._facAfterInspectionSave; window._facAfterInspectionSave=null; setTimeout(cb,80); }
@@ -5599,6 +5777,7 @@ function saveFishwayForm(id) {
   showToast(id ? '魚道檢核表已更新，並同步巡查資料管理' : '魚道檢核表已新增，並同步巡查資料管理', 'success');
 
   syncInspFormToCloud('professional_fishway', savedItem || item);
+  uploadInspectionFileToDrive(savedItem || item, 'professional_fishway');
   document.getElementById('modal').style.maxWidth = '';
   closeModal();
   if (window._facAfterInspectionSave) { const cb=window._facAfterInspectionSave; window._facAfterInspectionSave=null; setTimeout(cb,80); }
