@@ -284,66 +284,55 @@ async function uploadInspectionFileToDrive(item, formType) {
   const meta = INSPECTION_FORM_SYNC_META[formType] || {};
   const facilityName = (DB.getById('facilities', item.facilityId)?.name || '未知設施').replace(/[/\\:*?"<>|]/g, '-');
   const dateStr = (item.date || new Date().toISOString().split('T')[0]);
-  const ts = new Date().toISOString().slice(0,16).replace('T','_').replace(':','-');
-  const fileName = `${meta.label || formType}_${facilityName}_${dateStr}_${ts}.json`;
+  const fileName = `${meta.label || formType}_${facilityName}_${dateStr}.json`;
 
   // 立即更新狀態為上傳中
   if (item.id) DB.update('inspections', item.id, {
     cloudTarget: 'Google Drive',
     cloudSyncStatus: '上傳中',
-    cloudFolderUrl: INSPECTION_GDRIVE_FOLDER_URL
+    cloudFolderUrl: INSPECTION_GDRIVE_FOLDER_URL,
+    driveSyncFileName: fileName
   });
 
-  let token;
   try {
-    token = await _gdriveGetToken();
-  } catch (err) {
-    if (err.message === 'NO_CLIENT_ID') {
-      _showGDriveClientIdSetup(item, formType);
-    } else {
-      showToast(`Google 登入失敗：${err.message}`, 'error');
-      if (item.id) DB.update('inspections', item.id, { cloudSyncStatus: '待上傳' });
-    }
-    return;
-  }
-
-  try {
-    // 排除大型 base64 照片以節省 Drive 空間（照片另外管理）
     const payload = { ...item };
     delete payload.photoDataUrls;
 
-    const driveMetadata = {
-      name: fileName,
-      parents: [GDRIVE_UPLOAD_FOLDER_ID],
-      mimeType: 'application/json',
-      description: `橫流溪巡查 ${meta.label || ''} ｜ ${facilityName} ｜ ${dateStr}`
-    };
+    // 呼叫後端 Service Account 上傳 API
+    const res = await fetch('/api/drive/sync-inspection', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        data: payload,
+        formType,
+        cloudFolder: meta.cloudFolder || '巡查資料管理',
+        filename: fileName
+      })
+    });
 
-    const body = new FormData();
-    body.append('metadata', new Blob([JSON.stringify(driveMetadata)], { type: 'application/json' }));
-    body.append('file',     new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }));
+    const result = await res.json();
 
-    const res = await fetch(
-      'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink',
-      { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body }
-    );
-
-    if (!res.ok) {
-      const errBody = await res.json().catch(() => ({}));
-      throw new Error(errBody?.error?.message || `HTTP ${res.status}`);
+    if (!res.ok || !result.success) {
+      // 服務帳號未設定時，顯示設定引導
+      if (result.setup_needed) {
+        _showDriveSetupGuide(item, formType, fileName);
+        return;
+      }
+      throw new Error(result.error || `HTTP ${res.status}`);
     }
 
-    const file = await res.json();
+    const action = result.action === 'updated' ? '覆蓋更新' : '新建上傳';
     if (item.id) {
       DB.update('inspections', item.id, {
         cloudSyncStatus: '已上傳',
-        driveFileId:  file.id,
-        driveWebLink: file.webViewLink,
-        driveSyncedAt: new Date().toISOString()
+        driveFileId: result.driveFileId,
+        driveWebLink: result.driveWebLink,
+        driveSyncedAt: new Date().toISOString(),
+        driveSyncAction: action
       });
     }
-    showToast(`✅ 已上傳至 Google Drive：${fileName}`, 'success');
-    renderInspection();
+    showToast(`✅ Drive ${action}完成：${fileName}`, 'success');
+    if (typeof renderInspection === 'function') renderInspection();
 
   } catch (err) {
     showToast(`Drive 上傳失敗：${err.message}`, 'error');
@@ -352,44 +341,157 @@ async function uploadInspectionFileToDrive(item, formType) {
   }
 }
 
-/** 首次設定：輸入 OAuth2 Client ID（與 API Key 是不同憑證） */
-function _showGDriveClientIdSetup(pendingItem, pendingFormType) {
-  const saved = localStorage.getItem('GDRIVE_CLIENT_ID') || '';
-  const origin = location.origin;
-  openModal('設定 Google Drive 授權', `
+/** 服務帳號未設定時的引導彈窗 */
+function _showDriveSetupGuide(pendingItem, pendingFormType, pendingFileName) {
+  const driveFolder = INSPECTION_GDRIVE_FOLDER_URL;
+  const meta = INSPECTION_FORM_SYNC_META[pendingFormType] || {};
+  if (pendingItem) window._drivePendingItem = { item: pendingItem, formType: pendingFormType, meta, fileName: pendingFileName };
+
+  document.getElementById('modalTitle').textContent = '設定 Google Drive 自動上傳';
+  document.getElementById('modalBody').innerHTML = `
     <div style="padding:4px 0 8px">
-      <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:14px;margin-bottom:16px;font-size:14px;color:#1e40af;line-height:1.7">
-        <b><i class="fas fa-key"></i> 一次性設定 — OAuth2 用戶端 ID</b><br>
-        1. 前往 <a href="https://console.cloud.google.com/apis/credentials" target="_blank"
-             style="color:#1d4ed8;font-weight:700">Google Cloud Console → 憑證</a><br>
-        2. 建立「<b>OAuth 2.0 用戶端 ID</b>」→ 類型選「<b>網頁應用程式</b>」<br>
-        3. 在「已授權的 JavaScript 來源」加入：<br>
-        &nbsp;&nbsp;<code style="background:#dbeafe;padding:2px 6px;border-radius:4px">${origin}</code>
-        ${origin.includes('localhost') ? '' : '<br>&nbsp;&nbsp;<code style="background:#dbeafe;padding:2px 6px;border-radius:4px">http://localhost:5000</code>'}
-        <br>4. 複製用戶端 ID 貼入下方
+
+      <!-- 狀態：尚未設定 -->
+      <div style="background:#fff7ed;border:2px solid #fed7aa;border-left:4px solid #ea580c;border-radius:10px;padding:14px 16px;margin-bottom:16px">
+        <div style="font-size:15px;font-weight:800;color:#9a3412;margin-bottom:6px">
+          <i class="fas fa-key" style="margin-right:6px"></i>尚未設定服務帳號憑證
+        </div>
+        <div style="font-size:13px;color:#78350f;line-height:1.8">
+          系統使用 Google 服務帳號自動上傳，免除每次手動授權。<br>
+          設定完成後，儲存巡查資料時將<b>自動上傳並覆蓋更新至 Drive</b>。
+        </div>
       </div>
-      <div class="form-group">
-        <label>OAuth 2.0 用戶端 ID <span style="color:#ef4444">*</span></label>
-        <input id="gdrive_client_id_input" type="text"
-          placeholder="xxxxxxxxxx.apps.googleusercontent.com"
-          value="${inspectionEscape(saved)}"
-          style="font-size:13px;font-family:monospace">
+
+      <!-- 設定步驟 -->
+      <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:14px 16px;margin-bottom:16px">
+        <div style="font-size:14px;font-weight:800;color:#1e40af;margin-bottom:10px">
+          <i class="fas fa-list-ol" style="margin-right:6px"></i>一次性設定步驟（管理員執行）
+        </div>
+        <div style="font-size:13px;color:#1e3a8a;line-height:2">
+          <b>① </b><a href="https://console.cloud.google.com/apis/library/drive.googleapis.com" target="_blank" style="color:#1d4ed8;font-weight:700">Google Cloud Console</a> → 建立/選擇專案 → 啟用 <b>Google Drive API</b><br>
+          <b>② </b>IAM 與管理 → <b>服務帳號</b> → 建立服務帳號（任意名稱）<br>
+          <b>③ </b>建立 JSON 金鑰 → 下載後<b>重新命名為 <code style="background:#dbeafe;padding:1px 6px;border-radius:3px">gdrive_service_account.json</code></b><br>
+          <b>④ </b>將檔案放至：<code style="background:#dbeafe;padding:1px 6px;border-radius:3px">webapp/data/gdrive_service_account.json</code><br>
+          <b>⑤ </b>開啟下方 Drive 資料夾 → <b>共用</b> → 加入服務帳號 Email（<b>編輯者</b>）<br>
+          <b>⑥ </b>重新啟動後端伺服器
+        </div>
       </div>
-      <div style="font-size:12px;color:#64748b;margin-top:6px">
-        ⚠ 此 ID 與 API Key 不同，需另行建立。儲存後再次點擊「上傳至 Drive」即可授權。
+
+      <!-- 立即手動上傳（備用） -->
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px">
+        <div style="font-size:13px;font-weight:700;color:#475569;margin-bottom:8px">
+          <i class="fas fa-download" style="margin-right:5px"></i>設定前臨時方案：下載後手動上傳
+        </div>
+        ${pendingItem ? `
+        <button onclick="_driveDownloadAndOpen()" style="width:100%;padding:10px;background:#0f766e;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px">
+          <i class="fas fa-download" style="margin-right:6px"></i>下載此筆資料 並開啟 Drive 資料夾
+        </button>` : ''}
+        <a href="${inspectionEscape(driveFolder)}" target="_blank"
+          style="display:block;text-align:center;padding:8px;border:1px solid #bfdbfe;border-radius:7px;color:#1d4ed8;font-size:13px;text-decoration:none">
+          <i class="fas fa-folder-open" style="margin-right:5px"></i>開啟 Google Drive 巡查資料管理資料夾
+        </a>
       </div>
     </div>
-  `);
-  document.getElementById('modalFooter').innerHTML = `
-    <button class="btn btn-outline" onclick="closeModal()">取消</button>
-    <button class="btn btn-primary" style="background:#1565c0;border-color:#1565c0" onclick="
-      const v = document.getElementById('gdrive_client_id_input')?.value.trim();
-      if (!v) { showToast('請輸入用戶端 ID', 'error'); return; }
-      localStorage.setItem('GDRIVE_CLIENT_ID', v);
-      showToast('✅ 已儲存 Client ID，請再次點擊上傳按鈕', 'success');
-      closeModal();
-    "><i class="fas fa-save"></i> 儲存</button>
   `;
+  document.getElementById('modalFooter').innerHTML = `
+    <button class="btn btn-outline" onclick="closeModal()">關閉</button>
+  `;
+  openModal();
+}
+
+/** Drive 同步彈窗：提供手動下載上傳 + 進階 OAuth2 設定兩種路徑 */
+function _showGDriveClientIdSetup(pendingItem, pendingFormType) {
+  const saved = localStorage.getItem('GDRIVE_CLIENT_ID') || '';
+  const driveFolder = INSPECTION_GDRIVE_FOLDER_URL;
+  const hasPending = pendingItem && pendingFormType;
+  const meta = hasPending ? (INSPECTION_FORM_SYNC_META[pendingFormType] || {}) : {};
+
+  document.getElementById('modalTitle').textContent = '同步至 Google Drive';
+  document.getElementById('modalBody').innerHTML = `
+    <div style="padding:4px 0 8px">
+
+      <!-- 方法一：手動下載上傳（推薦・最簡單） -->
+      <div style="background:#f0fdf4;border:2px solid #86efac;border-left:4px solid #16a34a;border-radius:10px;padding:16px;margin-bottom:16px">
+        <div style="font-size:16px;font-weight:800;color:#15803d;margin-bottom:10px">
+          <i class="fas fa-download" style="margin-right:7px"></i>方法一（推薦）：下載後手動上傳
+        </div>
+        <div style="font-size:14px;color:#166534;line-height:1.8;margin-bottom:12px">
+          1. 點擊下方「<b>下載巡查資料</b>」取得 JSON 資料檔<br>
+          2. 開啟 <a href="${inspectionEscape(driveFolder)}" target="_blank" style="color:#1d4ed8;font-weight:700"><i class="fas fa-folder-open"></i> Google Drive 巡查資料管理資料夾</a><br>
+          3. 將下載的檔案上傳至對應子資料夾（${inspectionEscape(meta.cloudFolder || '巡查資料管理')}）
+        </div>
+        ${hasPending ? `
+        <button onclick="_driveDownloadAndOpen()" style="padding:10px 20px;background:#16a34a;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;width:100%">
+          <i class="fas fa-download" style="margin-right:6px"></i>下載巡查資料 並開啟 Drive 資料夾
+        </button>` : `
+        <a href="${inspectionEscape(driveFolder)}" target="_blank" style="display:block;text-align:center;padding:10px 20px;background:#16a34a;color:#fff;border-radius:8px;font-size:15px;font-weight:700;text-decoration:none">
+          <i class="fas fa-folder-open" style="margin-right:6px"></i>開啟 Google Drive 巡查資料管理資料夾
+        </a>`}
+      </div>
+
+      <!-- 方法二：OAuth2 自動上傳（進階） -->
+      <details style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden">
+        <summary style="padding:12px 16px;background:#f8fafc;cursor:pointer;font-size:14px;font-weight:700;color:#475569">
+          <i class="fas fa-cog" style="margin-right:6px;color:#64748b"></i>方法二（進階）：設定 OAuth2 自動上傳
+        </summary>
+        <div style="padding:14px 16px;font-size:13px;color:#64748b;line-height:1.7">
+          <div style="background:#fefce8;border:1px solid #fde68a;border-radius:6px;padding:10px;margin-bottom:12px;color:#92400e">
+            ⚠ 需要 Google Cloud Console 帳號及建立 OAuth2 憑證，適合系統管理員設定。
+          </div>
+          <div style="margin-bottom:10px">
+            1. 前往 <a href="https://console.cloud.google.com/apis/credentials" target="_blank" style="color:#1d4ed8;font-weight:700">Google Cloud Console → 憑證</a><br>
+            2. 建立「OAuth 2.0 用戶端 ID」→ 類型選「<b>網頁應用程式</b>」<br>
+            3. 已授權來源加入：<code style="background:#e0f2fe;padding:1px 5px;border-radius:3px">${location.origin}</code><br>
+            4. 複製用戶端 ID 貼入下方
+          </div>
+          <div class="form-group" style="margin-bottom:6px">
+            <label style="font-size:12px">OAuth 2.0 用戶端 ID</label>
+            <input id="gdrive_client_id_input" type="text"
+              placeholder="xxxxxxxxxx.apps.googleusercontent.com"
+              value="${inspectionEscape(saved)}"
+              style="font-size:12px;font-family:monospace">
+          </div>
+          <button onclick="
+            const v = document.getElementById('gdrive_client_id_input')?.value.trim();
+            if (!v) { showToast('請輸入用戶端 ID', 'error'); return; }
+            localStorage.setItem('GDRIVE_CLIENT_ID', v);
+            showToast('✅ 已儲存 Client ID，下次儲存時將自動上傳', 'success');
+            closeModal();
+          " style="padding:8px 16px;background:#1565c0;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer">
+            <i class="fas fa-save"></i> 儲存 Client ID
+          </button>
+          ${saved ? `<button onclick="localStorage.removeItem('GDRIVE_CLIENT_ID');showToast('已清除 Client ID','info');closeModal();" style="margin-left:8px;padding:8px 16px;background:#fff;color:#64748b;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;cursor:pointer">清除</button>` : ''}
+        </div>
+      </details>
+    </div>
+  `;
+  document.getElementById('modalFooter').innerHTML = `
+    <button class="btn btn-outline" onclick="closeModal()">關閉</button>
+  `;
+  openModal();
+
+  // 存 pending 資料供下載
+  if (hasPending) window._drivePendingItem = { item: pendingItem, formType: pendingFormType, meta };
+}
+
+function _driveDownloadAndOpen() {
+  const p = window._drivePendingItem;
+  if (!p) return;
+  const { item, formType, meta } = p;
+  const facilityName = (DB.getById('facilities', item.facilityId)?.name || '未知設施').replace(/[/\\:*?"<>|]/g, '-');
+  const dateStr = item.date || new Date().toISOString().split('T')[0];
+  const fileName = `${meta.label || formType}_${facilityName}_${dateStr}.json`;
+  const payload = { ...item };
+  delete payload.photoDataUrls;
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = fileName; a.click();
+  URL.revokeObjectURL(url);
+  setTimeout(() => window.open(INSPECTION_GDRIVE_FOLDER_URL, '_blank'), 500);
+  if (item.id) DB.update('inspections', item.id, { cloudSyncStatus: '手動上傳', cloudSyncNote: `已下載 ${fileName}，請手動上傳至 Drive` });
+  closeModal();
+  showToast(`✅ 已下載 ${fileName}，請上傳至 Google Drive`, 'success');
 }
 
 /** 手動重新上傳特定紀錄（卡片上的「上傳」按鈕） */
@@ -1612,8 +1714,8 @@ function renderInspectionDataManagement(standalone = false) {
           <button class="btn btn-outline" onclick="openInspectionDriveFolder()" style="font-size:18px;padding:12px 24px;color:#1d4ed8;border-color:#bfdbfe;background:#eff6ff">
             <i class="fas fa-folder-open"></i> Google Drive
           </button>
-          <button class="btn btn-outline" onclick="_showGDriveClientIdSetup()" style="font-size:18px;padding:12px 24px;color:#166534;border-color:#86efac;background:#f0fdf4">
-            <i class="fas fa-key"></i> 設定 Google Drive
+          <button id="driveCfgBtn" class="btn btn-outline" onclick="_showDriveSetupGuide()" style="font-size:18px;padding:12px 24px;color:#166534;border-color:#86efac;background:#f0fdf4">
+            <i class="fas fa-key"></i> 設定 Google Drive <span id="driveCfgBadge" style="font-size:13px;margin-left:4px"></span>
           </button>
         </div>
       </div>` : `
@@ -1635,8 +1737,8 @@ function renderInspectionDataManagement(standalone = false) {
           <button class="btn btn-outline" onclick="openInspectionDriveFolder()" style="font-size:15px;padding:8px 16px;color:#1d4ed8;border-color:#bfdbfe;background:#eff6ff">
             <i class="fas fa-folder-open"></i> 雲端
           </button>
-          <button class="btn btn-outline" onclick="_showGDriveClientIdSetup()" style="font-size:15px;padding:8px 16px;color:#166534;border-color:#86efac;background:#f0fdf4">
-            <i class="fas fa-key"></i> Drive設定
+          <button id="driveCfgBtn2" class="btn btn-outline" onclick="_showDriveSetupGuide()" style="font-size:15px;padding:8px 16px;color:#166534;border-color:#86efac;background:#f0fdf4">
+            <i class="fas fa-key"></i> Drive設定 <span id="driveCfgBadge2"></span>
           </button>
         </div>
       </div>`}
@@ -2766,6 +2868,29 @@ function renderInspection() {
   `;
   loadContractStats();
   loadMaintenancePhotoArchive();
+  // 非同步偵測 Drive 服務帳號狀態，更新設定按鈕徽章
+  _checkDriveStatus();
+}
+
+async function _checkDriveStatus() {
+  try {
+    const res = await fetch('/api/drive/status');
+    const data = await res.json();
+    const badge = document.getElementById('driveCfgBadge');
+    const btn   = document.getElementById('driveCfgBtn');
+    if (!badge || !btn) return;
+    const configured = !!data.configured;
+    const okBadge  = '<span style="background:#dcfce7;color:#166534;border-radius:999px;padding:1px 8px;font-size:12px;font-weight:700">✅ 已設定</span>';
+    const warnBadge = '<span style="background:#fee2e2;color:#b91c1c;border-radius:999px;padding:1px 8px;font-size:12px;font-weight:700">⚠ 未設定</span>';
+    if (badge) badge.innerHTML = configured ? okBadge : warnBadge;
+    const badge2 = document.getElementById('driveCfgBadge2');
+    if (badge2) badge2.innerHTML = configured ? okBadge : warnBadge;
+    if (btn && configured) {
+      btn.style.background = '#dcfce7';
+      btn.style.borderColor = '#86efac';
+      btn.style.color = '#15803d';
+    }
+  } catch (e) { /* 離線或後端不可用時靜默 */ }
 }
 
 /* ── 橫流溪林業巡護管理 ────────────────────────────────────────── */

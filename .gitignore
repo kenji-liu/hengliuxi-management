@@ -62,3 +62,9 @@ sticky_notes.py
 test_*.py
 run_*.py
 debug_*.py
+
+# Google Drive OAuth 憑證（含機密金鑰，絕不提交）
+webapp/data/gdrive_client_secret.json
+webapp/data/gdrive_oauth_token.json
+webapp/data/gdrive_service_account.json
+webapp/data/_gdrive_flow_state.pkl

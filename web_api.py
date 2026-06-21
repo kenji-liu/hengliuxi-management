@@ -21,14 +21,14 @@ from database_manager import HengliuxiDatabase
 try:
     from webapp.rag_backend import register_rag_blueprint
     RAG_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError) as _rag_err:
     RAG_AVAILABLE = False
-    print("[WARNING] RAG module not available. Some features may be disabled.")
+    print(f"[WARNING] RAG module not available ({type(_rag_err).__name__}: {_rag_err}). Some features may be disabled.")
 
 try:
     from webapp.nlp_rag_api import register_nlp_rag_blueprint
     NLP_RAG_AVAILABLE = True
-except ImportError as e:
+except (ImportError, OSError) as e:
     NLP_RAG_AVAILABLE = False
     print(f"[WARNING] NLP/RAG extension module not available: {e}")
 
@@ -155,6 +155,93 @@ if NLP_RAG_AVAILABLE:
         print("[INFO] /api/smart-ask route registered directly")
     except Exception as _e:
         print(f"[WARNING] Could not register /api/smart-ask directly: {_e}")
+
+# ── Google Drive OAuth2 自動上傳 ──────────────────────────────────────
+try:
+    from webapp.drive_service import (upload_inspection as _drive_upload,
+                                       is_configured as _drive_configured,
+                                       start_oauth_flow, finish_oauth_flow)
+    DRIVE_SERVICE_AVAILABLE = True
+    print(f"[INFO] Drive service 已載入，{'✅ Token 已授權' if _drive_configured() else '⚠ 尚未授權（請前往 /api/drive/authorize）'}")
+except (ImportError, OSError) as _drive_err:
+    DRIVE_SERVICE_AVAILABLE = False
+    print(f"[WARNING] Drive service 無法載入：{_drive_err}")
+
+def _drive_redirect_uri():
+    return 'http://localhost:5000/api/drive/oauth-callback'
+
+@app.route('/api/drive/authorize', methods=['GET'])
+def api_drive_authorize():
+    """產生 Google 授權頁面 URL 並重定向（一次性設定）"""
+    from flask import redirect as flask_redirect, jsonify
+    if not DRIVE_SERVICE_AVAILABLE:
+        return jsonify({'error': 'Drive 模組未載入'}), 503
+    import os
+    secret_path = os.path.join(PROJECT_ROOT, 'webapp', 'data', 'gdrive_client_secret.json')
+    if not os.path.exists(secret_path):
+        return jsonify({
+            'error': '找不到 gdrive_client_secret.json',
+            'hint': '請至 Google Cloud Console 建立「OAuth 2.0 用戶端 ID（桌面應用程式）」並下載 JSON 存為 webapp/data/gdrive_client_secret.json'
+        }), 400
+    try:
+        auth_url = start_oauth_flow(_drive_redirect_uri())
+        return flask_redirect(auth_url)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/drive/oauth-callback', methods=['GET'])
+def api_drive_oauth_callback():
+    """Google OAuth2 回呼，儲存 Token 後顯示成功頁"""
+    from flask import request, jsonify
+    code = request.args.get('code')
+    if not code:
+        return '授權失敗：沒有收到 code 參數', 400
+    try:
+        finish_oauth_flow(code, _drive_redirect_uri())
+        return '''<html><body style="font-family:sans-serif;text-align:center;padding:60px">
+            <h2 style="color:#16a34a">✅ Google Drive 授權成功！</h2>
+            <p>Token 已儲存，系統將自動上傳巡查資料至 Google Drive。</p>
+            <p>請回到應用程式重新整理頁面。</p>
+            <a href="http://localhost:5000/webapp/#" style="background:#1565c0;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:700">返回系統</a>
+        </body></html>'''
+    except Exception as e:
+        return f'授權失敗：{e}', 500
+
+@app.route('/api/drive/sync-inspection', methods=['POST'])
+def api_drive_sync_inspection():
+    """接收巡查資料並上傳/覆蓋至 Google Drive"""
+    from flask import request, jsonify
+    if not DRIVE_SERVICE_AVAILABLE:
+        return jsonify({'success': False, 'error': 'Drive service 未安裝'}), 503
+    try:
+        from webapp.drive_service import is_configured
+        if not is_configured():
+            return jsonify({'success': False, 'error': '尚未授權', 'setup_needed': True}), 400
+        body = request.get_json(force=True) or {}
+        result = _drive_upload(
+            body.get('data', {}),
+            body.get('formType', ''),
+            body.get('cloudFolder', '巡查資料管理'),
+            body.get('filename', f'inspection_{body.get("formType","")}_{body.get("data",{}).get("date","")}.json')
+        )
+        return jsonify(result)
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/drive/status', methods=['GET'])
+def api_drive_status():
+    """回傳 Drive 授權狀態"""
+    from flask import jsonify
+    if not DRIVE_SERVICE_AVAILABLE:
+        return jsonify({'available': False, 'configured': False, 'reason': 'module_unavailable'})
+    try:
+        configured = _drive_configured()
+        return jsonify({'available': True, 'configured': configured,
+                        'rootFolderId': '1k2s5HSd_R5GeCt05SOtJxn6UFSrbyoQ9',
+                        'authorizeUrl': '/api/drive/authorize' if not configured else None})
+    except Exception as e:
+        return jsonify({'available': False, 'configured': False, 'reason': str(e)})
 
 # 初始化資料庫（使用絕對路徑確保雲端部署正確）
 db = HengliuxiDatabase(DB_PATH)
