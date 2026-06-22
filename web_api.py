@@ -243,6 +243,103 @@ def api_drive_status():
     except Exception as e:
         return jsonify({'available': False, 'configured': False, 'reason': str(e)})
 
+# ── 雙向同步存儲（本機 ↔ 雲端）──────────────────────────────────────
+# 用 JSON 檔案儲存同步記錄，適合 Render.com 及本機兩用
+_SYNC_DATA_DIR  = os.path.join(PROJECT_ROOT, 'webapp', 'data')
+_SYNC_INSP_FILE = os.path.join(_SYNC_DATA_DIR, 'synced_inspections.json')
+_SYNC_FAC_FILE  = os.path.join(_SYNC_DATA_DIR, 'synced_facilities.json')
+
+def _sync_load(path):
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception:
+        return []
+
+def _sync_save(path, records):
+    os.makedirs(_SYNC_DATA_DIR, exist_ok=True)
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump(records, f, ensure_ascii=False, indent=2)
+
+def _sync_merge(existing: list, incoming: list, id_key='id') -> list:
+    """合併兩份記錄，相同 ID 以 updatedAt / syncedAt 較新者為準"""
+    merged = {str(r.get(id_key)): r for r in existing if r.get(id_key)}
+    for rec in incoming:
+        rid = str(rec.get(id_key, ''))
+        if not rid:
+            continue
+        ex = merged.get(rid)
+        if ex is None:
+            merged[rid] = rec
+        else:
+            t_new = rec.get('driveSyncedAt') or rec.get('syncedAt') or rec.get('date') or ''
+            t_old = ex.get('driveSyncedAt') or ex.get('syncedAt') or ex.get('date') or ''
+            if t_new >= t_old:
+                merged[rid] = rec
+    return list(merged.values())
+
+@app.route('/api/sync/inspections', methods=['GET', 'POST', 'OPTIONS'])
+def api_sync_inspections():
+    """雙向巡查資料同步端點（本機 ↔ 雲端）"""
+    if request.method == 'OPTIONS':
+        return '', 204
+    if request.method == 'GET':
+        since = request.args.get('since', '')
+        records = _sync_load(_SYNC_INSP_FILE)
+        if since:
+            records = [r for r in records
+                       if (r.get('driveSyncedAt') or r.get('date') or '') >= since]
+        return jsonify({
+            'success': True,
+            'count': len(records),
+            'records': records,
+            'serverTime': datetime.utcnow().isoformat() + 'Z'
+        })
+    # POST: 上傳並合併
+    body = request.get_json(force=True) or {}
+    incoming = body.get('records', [])
+    if not isinstance(incoming, list):
+        return jsonify({'success': False, 'error': 'records 必須為陣列'}), 400
+    existing = _sync_load(_SYNC_INSP_FILE)
+    merged   = _sync_merge(existing, incoming)
+    _sync_save(_SYNC_INSP_FILE, merged)
+    return jsonify({
+        'success': True,
+        'received': len(incoming),
+        'total': len(merged),
+        'serverTime': datetime.utcnow().isoformat() + 'Z'
+    })
+
+@app.route('/api/sync/facilities', methods=['GET', 'POST', 'OPTIONS'])
+def api_sync_facilities():
+    """雙向設施資料同步端點"""
+    if request.method == 'OPTIONS':
+        return '', 204
+    if request.method == 'GET':
+        records = _sync_load(_SYNC_FAC_FILE)
+        return jsonify({'success': True, 'count': len(records), 'records': records,
+                        'serverTime': datetime.utcnow().isoformat() + 'Z'})
+    body = request.get_json(force=True) or {}
+    incoming = body.get('records', [])
+    existing = _sync_load(_SYNC_FAC_FILE)
+    merged   = _sync_merge(existing, incoming)
+    _sync_save(_SYNC_FAC_FILE, merged)
+    return jsonify({'success': True, 'received': len(incoming), 'total': len(merged),
+                    'serverTime': datetime.utcnow().isoformat() + 'Z'})
+
+@app.route('/api/sync/status', methods=['GET'])
+def api_sync_status():
+    """回傳同步端點狀態"""
+    insp  = _sync_load(_SYNC_INSP_FILE)
+    fac   = _sync_load(_SYNC_FAC_FILE)
+    return jsonify({
+        'ok': True,
+        'inspections': len(insp),
+        'facilities': len(fac),
+        'serverTime': datetime.utcnow().isoformat() + 'Z',
+        'host': request.host
+    })
+
 # 初始化資料庫（使用絕對路徑確保雲端部署正確）
 db = HengliuxiDatabase(DB_PATH)
 

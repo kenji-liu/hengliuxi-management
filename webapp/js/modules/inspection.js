@@ -2,6 +2,104 @@
 
 const INSPECTION_STATUS = ['待處理', '處理中', '完成'];
 const INSPECTION_PRIORITY = ['低', '中', '高', '緊急'];
+
+// ── 雙向同步設定 ──────────────────────────────────────────────────────
+const CLOUD_SYNC_REMOTE_URL = 'https://hengliuxi-management.onrender.com';
+const CLOUD_SYNC_LOCAL_URL  = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+  ? `${location.protocol}//${location.host}`
+  : null;  // 雲端端本身不需要本機 URL
+
+// 判斷同步目標：本機→推送到雲端；雲端→推送到自己（本機同步）
+function _syncTargetUrl() {
+  const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+  return isLocal ? CLOUD_SYNC_REMOTE_URL : null;
+}
+
+/** 自動同步：儲存後推送到雲端 */
+async function cloudSyncPush(records) {
+  const target = _syncTargetUrl();
+  if (!target) return { skipped: true, reason: 'already_on_cloud' };
+  try {
+    const resp = await fetch(`${target}/api/sync/inspections`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ records: Array.isArray(records) ? records : [records] })
+    });
+    return await resp.json();
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+/** 從雲端拉取並合併至 localStorage */
+async function cloudSyncPull(sinceDate) {
+  const target = _syncTargetUrl() || CLOUD_SYNC_REMOTE_URL;
+  const url = sinceDate
+    ? `${target}/api/sync/inspections?since=${encodeURIComponent(sinceDate)}`
+    : `${target}/api/sync/inspections`;
+  const resp  = await fetch(url);
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  const data  = await resp.json();
+  if (!data.success) throw new Error(data.error || 'sync failed');
+  const remote = data.records || [];
+  // 合併至 localStorage
+  const local  = DB.getAll('inspections');
+  const mergedMap = {};
+  local.forEach(r => { mergedMap[r.id] = r; });
+  let added = 0, updated = 0;
+  remote.forEach(r => {
+    if (!r.id) return;
+    const ex = mergedMap[r.id];
+    if (!ex) { DB.insert('inspections', r); added++; }
+    else {
+      const tNew = r.driveSyncedAt || r.date || '';
+      const tOld = ex.driveSyncedAt || ex.date || '';
+      if (tNew >= tOld) { DB.update('inspections', r.id, r); updated++; }
+    }
+  });
+  return { remote: remote.length, added, updated };
+}
+
+/** 完整雙向同步 */
+async function cloudSyncBidirectional() {
+  const btn = document.getElementById('cloudSyncBtn');
+  const badge = document.getElementById('cloudSyncBadge');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 同步中…'; }
+  try {
+    // 1. 推送本機所有記錄到雲端
+    const localAll = DB.getAll('inspections');
+    const pushResult = await cloudSyncPush(localAll);
+    // 2. 從雲端拉取並合併
+    const pullResult = await cloudSyncPull();
+    const msg = `✅ 雲端同步完成｜推送${localAll.length}筆→雲端，從雲端合併${pullResult.added+pullResult.updated}筆`;
+    showToast(msg, 'success');
+    localStorage.setItem('lastCloudSync', new Date().toISOString());
+    if (badge) badge.innerHTML = `<span style="color:#16a34a;font-size:11px">✅ ${new Date().toLocaleTimeString('zh-TW')}</span>`;
+    if (typeof renderInspection === 'function') renderInspection();
+  } catch (e) {
+    showToast(`雲端同步失敗：${e.message}`, 'error');
+    if (badge) badge.innerHTML = `<span style="color:#b91c1c;font-size:11px">❌ 同步失敗</span>`;
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> 雲端同步'; }
+  }
+}
+
+/** 儲存巡查後自動推送到雲端（背景，不阻塞 UI） */
+function _autoCloudPush(item) {
+  const target = _syncTargetUrl();
+  if (!target || !item) return;
+  fetch(`${target}/api/sync/inspections`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ records: [item] })
+  }).then(r => r.json()).then(d => {
+    if (d.success) {
+      const badge = document.getElementById('cloudSyncBadge');
+      if (badge) badge.innerHTML = `<span style="color:#16a34a;font-size:11px">✅ 剛同步</span>`;
+      localStorage.setItem('lastCloudSync', new Date().toISOString());
+    }
+  }).catch(() => {}); // 離線時靜默
+}
 const INSPECTION_GDRIVE_FOLDER_URL = 'https://drive.google.com/drive/folders/1k2s5HSd_R5GeCt05SOtJxn6UFSrbyoQ9?usp=drive_link';
 const GDRIVE_UPLOAD_FOLDER_ID      = '1k2s5HSd_R5GeCt05SOtJxn6UFSrbyoQ9';
 const INSPECTION_FORM_SYNC_META = {
@@ -1708,6 +1806,10 @@ function renderInspectionDataManagement(standalone = false) {
           <button class="btn btn-outline" onclick="openFishwayForm()" style="font-size:18px;padding:12px 24px;color:#0f766e;border-color:#99f6e4;background:#f0fdfa">
             <i class="fas fa-fish"></i> 魚道檢核
           </button>
+          <button id="cloudSyncBtn" class="btn btn-outline" onclick="cloudSyncBidirectional()" style="font-size:18px;padding:12px 24px;color:#1d4ed8;border-color:#bfdbfe;background:#eff6ff;display:flex;align-items:center;gap:8px">
+            <i class="fas fa-cloud-upload-alt"></i> 雲端同步
+            <span id="cloudSyncBadge" style="font-size:12px;color:#64748b"></span>
+          </button>
           <button class="btn btn-outline" onclick="queueInspectionDriveSync('all')" style="font-size:18px;padding:12px 24px;color:#b91c1c;border-color:#fecaca;background:#fff1f2">
             <i class="fas fa-cloud-upload-alt"></i> 建立雲端待上傳
           </button>
@@ -2870,6 +2972,13 @@ function renderInspection() {
   loadMaintenancePhotoArchive();
   // 非同步偵測 Drive 服務帳號狀態，更新設定按鈕徽章
   _checkDriveStatus();
+  // 顯示上次同步時間
+  const lastSync = localStorage.getItem('lastCloudSync');
+  const badge = document.getElementById('cloudSyncBadge');
+  if (badge && lastSync) {
+    const t = new Date(lastSync).toLocaleString('zh-TW', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+    badge.innerHTML = `<span style="color:#64748b;font-size:11px">上次 ${t}</span>`;
+  }
 }
 
 async function _checkDriveStatus() {
@@ -5231,6 +5340,7 @@ function saveGeneralPeriodicForm(id) {
   showToast(id ? '一般性巡查紀錄已更新，並同步巡查資料管理' : '一般性巡查紀錄已新增，並同步巡查資料管理', 'success');
 
   syncInspFormToCloud('general_periodic', savedItem || item);
+  _autoCloudPush(savedItem || item);
   document.getElementById('modal').style.maxWidth = '';
   closeModal();
   if (window._facAfterInspectionSave) { const cb=window._facAfterInspectionSave; window._facAfterInspectionSave=null; setTimeout(cb,80); }
@@ -5633,6 +5743,7 @@ function saveStructureInspectionForm(id) {
 
   syncInspFormToCloud('professional_structure', savedItem || item);
   uploadInspectionFileToDrive(savedItem || item, 'professional_structure');
+  _autoCloudPush(savedItem || item);
   document.getElementById('modal').style.maxWidth = '';
   closeModal();
   if (window._facAfterInspectionSave) { const cb=window._facAfterInspectionSave; window._facAfterInspectionSave=null; setTimeout(cb,80); }
@@ -5909,6 +6020,7 @@ function saveFishwayForm(id) {
 
   syncInspFormToCloud('professional_fishway', savedItem || item);
   uploadInspectionFileToDrive(savedItem || item, 'professional_fishway');
+  _autoCloudPush(savedItem || item);
   document.getElementById('modal').style.maxWidth = '';
   closeModal();
   if (window._facAfterInspectionSave) { const cb=window._facAfterInspectionSave; window._facAfterInspectionSave=null; setTimeout(cb,80); }
