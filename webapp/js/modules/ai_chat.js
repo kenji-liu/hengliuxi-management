@@ -548,6 +548,53 @@ function buildDynamicContext(query) {
       ].filter(Boolean).join('\n  '));
     });
 
+    // ── C2. 魚道檢核表（附錄三）專項注入 ──────────────────────
+    const isFWCheckQuery = q.includes('魚道') || q.includes('通行') || q.includes('淤積') ||
+                           q.includes('斷流') || q.includes('水位差') || q.includes('檢核');
+    if (isFWCheckQuery) {
+      const fwInspections = inspections.filter(i => i.formType === 'professional_fishway')
+        .sort((a,b) => String(b.date||'').localeCompare(String(a.date||'')));
+
+      // 只取每座魚道最新一筆
+      const latestByFac = {};
+      fwInspections.forEach(i => {
+        const fid = String(i.facilityId);
+        if (!latestByFac[fid]) latestByFac[fid] = i;
+      });
+      const fwList = Object.values(latestByFac);
+
+      if (fwList.length > 0) {
+        // 通行狀況摘要
+        const blockaded = fwList.filter(i => i.fw_grade === 'C1' || i.deru_u >= 4);
+        const needAttn  = fwList.filter(i => i.deru_u >= 2 && i.deru_u < 4);
+        const normal    = fwList.filter(i => i.deru_u <= 1);
+        parts.push(
+          `【魚道檢核表整體現況（附錄三）】共 ${fwList.length} 座魚道有最新檢核記錄：` +
+          `✓正常 ${normal.length} 座、⚠需追蹤 ${needAttn.length} 座、★緊急 ${blockaded.length} 座。`
+        );
+
+        // 列出有問題的魚道
+        blockaded.forEach(i => {
+          const sediment = i.fw_deruItems?.find(d => d.name?.includes('淤積'));
+          parts.push(`★緊急【${i.facilityName}】${i.date}：${i.fw_grade}級，${i.fw_fishPresent || '通行未知'}，` +
+            (sediment?.d >= 3 ? `土砂淤積D${sediment.d}/E${sediment.e}/R${sediment.r}，` : '') +
+            `建議：${i.action || '-'}`);
+        });
+
+        // 若查詢特定魚道，列出完整4項DER&U
+        if (facMatches.length > 0) {
+          const facId = String(facMatches[0].id);
+          const specific = latestByFac[facId];
+          if (specific?.fw_deruItems?.length) {
+            const deruDetail = specific.fw_deruItems.map(d =>
+              `${d.name}：D${d.d}/E${d.e}/R${d.r}（${d.note||''}）`
+            ).join('；');
+            parts.push(`【${specific.facilityName}魚道檢核表 DER&U 四項詳細】${deruDetail}。魚類通行：${specific.fw_fishPresent||'未記錄'}`);
+          }
+        }
+      }
+    }
+
     // ── D. 魚類調查資料 ────────────────────────────────────
     const isFishQuery = q.includes('魚') || q.includes('生態') || q.includes('物種') ||
                         q.includes('保育') || q.includes('調查') || q.includes('尾數');
@@ -767,6 +814,8 @@ function queryLocalKB(query) {
 // ═══════════════════════════════════════════════════════
 function initAIChat() {
   if (document.getElementById("aiChatWidget")) return;
+  // 啟動時自動更新知識庫（從 DB 注入最新設施/魚道/魚類資料）
+  setTimeout(refreshKBFromDB, 800);
 
   const style = document.createElement("style");
   style.id = "aiChatStyle";
@@ -838,8 +887,22 @@ function initAIChat() {
       <div class="ai-messages" id="aiMessages">
         <div class="ai-msg bot" id="aiWelcomeMsg" style="white-space:pre-wrap">載入中…</div>
       </div>
+      <!-- 專業快速提問區 -->
+      <div id="aiQuickBtns" style="padding:6px 10px;border-top:1px solid #e2e8f0;background:#f8fafc;display:flex;gap:5px;flex-wrap:wrap">
+        <span style="font-size:10px;color:#94a3b8;align-self:center;white-space:nowrap">快速問：</span>
+        ${[
+          ['🏗 設施整體', '橫流溪所有設施目前狀態整體摘要，哪些需要緊急處理？'],
+          ['🐟 魚道通行', '各魚道魚類通行狀況如何？哪座最需維護？'],
+          ['⚠ 緊急事項', '目前有哪些設施或魚道需要緊急維護或處理？請依優先序列出'],
+          ['📊 DER&U', '所有設施的DER&U等級分布，高風險設施有哪些？'],
+          ['🌿 生態評估', '橫流溪魚類族群現況與魚道成效評估'],
+        ].map(([label, q]) =>
+          `<button onclick="document.getElementById('aiInput').value='${q.replace(/'/g,"\\'")}';aiSend()"
+            style="font-size:10px;padding:3px 7px;border:1px solid #bfdbfe;border-radius:999px;background:#eff6ff;color:#1e40af;cursor:pointer;white-space:nowrap">${label}</button>`
+        ).join('')}
+      </div>
       <div class="ai-input-row">
-        <input class="ai-input" id="aiInput" placeholder="例如：溪構11 目前狀況如何？" onkeydown="if(event.key==='Enter')aiSend()">
+        <input class="ai-input" id="aiInput" placeholder="輸入問題…如：溪構5-2 魚道現況？" onkeydown="if(event.key==='Enter')aiSend()">
         <button class="ai-send" onclick="aiSend()">送出</button>
       </div>
     </div>
@@ -865,23 +928,36 @@ function _buildWelcomeMessage() {
       .slice(0,2).map(f => f.name);
   } catch(e) {}
 
+  // 魚道檢核表狀況
+  let fwSummary = '';
+  try {
+    if (typeof DB !== 'undefined') {
+      const fwInsp = (DB.getAll('inspections') || []).filter(i => i.formType === 'professional_fishway');
+      const fwUrgent = fwInsp.filter(i => i.deru_u >= 3 || i.fw_grade === 'C1' || i.fw_grade === 'C2');
+      if (fwInsp.length > 0) {
+        fwSummary = `\n• 魚道檢核表 ${fwInsp.length} 筆（${fwUrgent.length > 0 ? `★${fwUrgent.length}座需緊急處理` : '✓各座功能正常'}）`;
+      }
+    }
+  } catch(e) {}
+
   const urgentLine = stats.urgentFac.length
-    ? `\n⚠️ 高風險設施：${stats.urgentFac.join('、')}` : '';
+    ? `，⚠高風險：${stats.urgentFac.join('、')}` : '';
 
-  return `您好！我是<b>橫流溪管理平台 AI 助理</b>，可直接查詢資料庫即時資料。
+  return `您好！我是<b>橫流溪管理平台 AI 助理</b>，已自動載入資料庫最新資料。
 
-📊 目前資料庫概況：
-• 工程設施 ${stats.fac} 座，需維護 ${stats.needMaint} 座${urgentLine}
-• 巡查紀錄 ${stats.insp} 筆，魚類記錄 ${stats.fish} 種（保育類 ${stats.fishProtected} 種）
+<b>📊 即時資料庫概況</b>
+• 工程設施 ${stats.fac} 座，需維護/損壞 ${stats.needMaint} 座${urgentLine}
+• 巡查紀錄 ${stats.insp} 筆，魚類記錄 ${stats.fish} 種（保育類 ${stats.fishProtected} 種）${fwSummary}
 
-💬 試試看以下問題：
-• 「溪構11 目前狀況與維護建議」
-• 「哪些設施風險最高需優先處理？」
-• 「平台近期有異常紀錄嗎？」
-• 「臺灣白甲魚調查數量與棲地需求」
-• 「魚道 DER&U 評估等級彙整」
-• 「巡查發現哪些異常問題？」
-• 「WUA 棲地適合度分析結果」`;
+<b>🔍 專業查詢建議（點下方快速鍵或直接輸入）</b>
+• <i>設施狀態</i>：「溪構5-2潛越式魚道目前狀況與緊急處理建議」
+• <i>魚道功能</i>：「各魚道通行狀況比較，哪座效能最差？」
+• <i>DER&U分析</i>：「所有設施DER&U等級，U3以上有哪些？」
+• <i>生態評估</i>：「臺灣白甲魚103～114年族群趨勢與魚道成效」
+• <i>維護規劃</i>：「本季應優先處理哪些異常？依急迫性排序」
+• <i>綜合風險</i>：「全流域設施健康指數最低的3座，建議作法」
+
+<span style="font-size:11px;color:#94a3b8">提示：問題越具體（含設施名稱/時間/指標）回答越精準</span>`;
 }
 
 function toggleAIChat() {
@@ -1083,26 +1159,126 @@ function composeAnswer(query, data) {
 }
 
 // ── 直接從瀏覽器呼叫 Groq API（免費、快速、不需後端）──────────────
-const AI_SYSTEM = `你是「橫流溪工程設施維護與資料管理作業」的專案資料分析助理，使用繁體中文回答，擅長工程維護、生態保育、設施管理、巡查資料分析。
+const AI_SYSTEM = `你是「橫流溪工程設施智慧評估平台」的專業 AI 助理，服務林業及自然保育署臺中分署橫流溪動物通道管理人員，使用繁體中文回答。
 
-【資料來源優先順序】
-1. ★最優先★ 若上下文中出現「【★ 設施現況 ★】」開頭的資料，代表資料庫確有該設施的完整最新記錄，必須直接引用其狀態、健康指數、DER&U等級、未結案件數等數值，不得說「沒有直接資料」、「沒有直接提到」或「資料庫無此紀錄」。
-2. 若上下文含有【即時資料庫查詢】或【巡查紀錄】，優先引用其數值，並說明「根據資料庫記錄…」。
-3. 若有【網路補充資料（維基百科）】，作為輔助說明，標示「（參考維基百科）」。
-4. 只有在以上三種資料均無相關內容時，才說明「目前資料不足」，並補充一般專業知識。
+【身分背景】
+本平台管理橫流溪 0K+460～1K+400 共 20 座工程構造物，含 9 座魚道（粗石斜曲面、改良型舟通式、階段式×4、斜坡式、降壩、潛越式、之字形）、防砂壩、固床工、護岸、步道。生態指標物種：臺灣白甲魚（保育二級）、纓口臺鰍（保育二級）、臺灣間爬岩鰍（保育二級）、明潭吻鰕虎、短吻紅斑吻鰕虎（IUCN近危）、短臀瘋鱨（易危）。
 
-【回答格式】遇到工程分析類問題，請依以下結構回答：
-【回答結論】一句話說明核心答案。
-【資料依據】引用資料庫具體數值（狀態、指數、筆數、日期等）。
-【詳細分析】2-4點分析，結合數據與現場知識。
-【建議作法】依急迫性排列的具體改善步驟。
-【不足與風險】資料缺口或需人工確認的事項。
+【資料優先順序（必須嚴格遵守）】
+1. 【★ 設施現況 ★】開頭→ 直接引用健康指數、DER&U等級、狀態、未結案件數，絕不說「資料不足」
+2. 【即時資料庫查詢】【巡查紀錄】→ 引用具體數值，說明「依資料庫記錄…」
+3. 【魚道檢核表】→ 引用 D/E/R 評分、通行狀況、維護等級
+4. 【網路補充資料（維基百科）】→ 輔助說明，標示「（參考：…）」
+5. 以上均無時 → 說明「現有資料不足」並提供專業判斷
 
-【其他規則】
-- 這是連續對話，請理解前後問題關聯，不必重複前述內容。
-- 回答清晰自然、適當分段，不使用 Markdown 標題符號（#、##）。
-- 回答長度 150～500 字，簡潔有據；純確認類問題可較短。
-- 不得憑空捏造數字，若資料庫數值與一般知識有出入，以資料庫為準。`;
+【DER&U 快速判讀標準】
+- D（損壞程度）：0=無損、1=輕微、2=中等、3=嚴重、4=極嚴重
+- E（緊急性）：1=可等待、2=3個月內、3=1個月內、4=立即處置
+- R（修復優先）：1=低、2=中、3=高、4=緊急重建
+- U等級：U1=定期巡查、U2=追蹤觀察、U3=優先維護、U4=緊急處置
+- 功能分級：A=良好例行維護、B=輕微缺失、C=顯著缺失需重建
+
+【魚道健康判讀】
+通行狀況優先級：有魚通行＞水流正常＞結構完整。
+DER&U U3以上=需優先維護；C1=緊急重建；土砂淤積D≥3=功能喪失。
+
+【回答格式（依問題類型自動調整）】
+・設施狀態查詢：結論句 → 關鍵數值（健康指數/DER&U/狀態）→ 建議作法（依急迫性排序）
+・生態查詢：種類與數量 → 棲地關聯 → 保育意義 → 監測建議
+・比較分析：用表格呈現（| 設施 | 指標 | 狀態 | 建議 |）
+・綜合統計：總體數字 → 異常佔比 → 優先處理順序
+
+【專業寫作規則】
+- 數值直接引用不加引號，如：健康指數 37%、DER&U D4/E4/R4・U4
+- 緊急事項加★標示；正常狀況加✓
+- 回答 120～450 字；表格或清單時可延長但需精簡
+- 連續對話中不重複已說過的背景資訊
+- 絕不捏造數字；資料庫數值優先於一般知識
+- 可主動建議查詢方向：「您也可以問我 XXX 的狀態」`;
+
+/** 自動從 DB 更新知識庫條目（每次 AI 啟動時呼叫） */
+function refreshKBFromDB() {
+  if (typeof DB === 'undefined') return;
+  try {
+    const facilities  = DB.getAll('facilities') || [];
+    const inspections = DB.getAll('inspections') || [];
+    const fishRecords = DB.getAll('fish') || [];
+
+    // 1. 設施整體統計
+    const needMaint = facilities.filter(f => f.status === '需維護' || f.status === '損壞');
+    const fishways  = facilities.filter(f => /魚道/.test(f.type || '') || /魚道/.test(f.name || ''));
+    const urgentFW  = inspections.filter(i => i.formType === 'professional_fishway' && (i.deru_u >= 3 || i.priority === '緊急'));
+
+    const statsEntry = {
+      id: 'auto_facility_stats',
+      title: '橫流溪設施現況統計（自動更新）',
+      content: `共 ${facilities.length} 座構造物，其中魚道設施 ${fishways.length} 座。` +
+        `需維護/損壞：${needMaint.length} 座（${needMaint.map(f=>f.name).join('、') || '無'}）。` +
+        `魚道檢核表 ${inspections.filter(i=>i.formType==='professional_fishway').length} 筆，` +
+        `其中 U3/U4 緊急項目 ${urgentFW.length} 件。` +
+        `巡查記錄合計 ${inspections.length} 筆。`,
+      keywords: ['設施','統計','現況','總覽','需維護','損壞','魚道','緊急'],
+      weight: 3
+    };
+
+    // 2. 各魚道功能狀態（魚道檢核表）
+    const fwInspMap = {};
+    inspections.filter(i => i.formType === 'professional_fishway').forEach(i => {
+      const fid = String(i.facilityId);
+      if (!fwInspMap[fid] || i.date > fwInspMap[fid].date) fwInspMap[fid] = i;
+    });
+    const fwStatusLines = [];
+    fishways.forEach(f => {
+      const ins = fwInspMap[String(f.id)];
+      if (ins) {
+        const grade = ins.fw_grade || '-';
+        const fish  = ins.fw_fishPresent || '未記錄';
+        const u     = ins.deru_u >= 4 ? '★緊急' : ins.deru_u >= 3 ? '⚠需維護' : ins.deru_u >= 2 ? '追蹤' : '正常';
+        fwStatusLines.push(`${f.name}：${grade}級 ${u}，${fish}，${ins.date}`);
+      }
+    });
+    if (fwStatusLines.length > 0) {
+      const fwEntry = {
+        id: 'auto_fishway_checklist',
+        title: '魚道檢核表最新狀態（自動更新）',
+        content: '各魚道最新魚道檢核表（附錄三）評估結果：\n' + fwStatusLines.join('\n'),
+        keywords: ['魚道','檢核表','通行','DER','淤積','斷流','水位差','功能','魚道功能'],
+        weight: 4
+      };
+      // 注入或更新 HLX_KB
+      const idx = HLX_KB.findIndex(e => e.id === 'auto_fishway_checklist');
+      if (idx >= 0) HLX_KB[idx] = fwEntry; else HLX_KB.push(fwEntry);
+    }
+
+    // 3. 魚類調查最新彙整
+    const fishSummary = fishRecords.slice(0, 200);
+    if (fishSummary.length > 0) {
+      const speciesCounts = {};
+      fishSummary.forEach(r => {
+        const sp = r.species || r.speciesName || r.name || '';
+        if (sp) speciesCounts[sp] = (speciesCounts[sp] || 0) + (r.count || r.totalCount || 1);
+      });
+      const topSp = Object.entries(speciesCounts).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([s,n])=>`${s}(${n}尾)`).join('、');
+      const fishEntry = {
+        id: 'auto_fish_survey',
+        title: '魚類調查記錄彙整（自動更新）',
+        content: `資料庫魚類調查記錄 ${fishSummary.length} 筆。主要物種累計尾數：${topSp}。`,
+        keywords: ['魚類','調查','捕獲','尾數','物種','白甲魚','石魚賓','鬚鱲','鰕虎','纓口臺鰍','間爬岩鰍'],
+        weight: 2
+      };
+      const idx2 = HLX_KB.findIndex(e => e.id === 'auto_fish_survey');
+      if (idx2 >= 0) HLX_KB[idx2] = fishEntry; else HLX_KB.push(fishEntry);
+    }
+
+    // 4. 設施統計條目注入
+    const idx3 = HLX_KB.findIndex(e => e.id === 'auto_facility_stats');
+    if (idx3 >= 0) HLX_KB[idx3] = statsEntry; else HLX_KB.push(statsEntry);
+
+    console.log(`[AI KB] 自動更新完成：知識庫共 ${HLX_KB.length} 條目（含 ${Object.keys(fwInspMap).length} 座魚道檢核表）`);
+  } catch (e) {
+    console.warn('[AI KB] 自動更新失敗：', e.message);
+  }
+}
 
 function getAIKey() {
   return localStorage.getItem("GROQ_API_KEY") || "";

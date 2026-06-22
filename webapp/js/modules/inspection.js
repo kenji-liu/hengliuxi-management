@@ -60,24 +60,73 @@ async function cloudSyncPull(sinceDate) {
   return { remote: remote.length, added, updated };
 }
 
-/** 完整雙向同步 */
+/** 從指定 URL 拉取同步記錄並合併至 localStorage */
+async function _pullFromUrl(syncUrl) {
+  const resp = await fetch(syncUrl);
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  const data = await resp.json();
+  if (!data.success) throw new Error(data.error || 'sync failed');
+  const remote = data.records || [];
+  const local = DB.getAll('inspections');
+  const mergedMap = {};
+  local.forEach(r => { mergedMap[String(r.id)] = r; });
+  let added = 0, updated = 0;
+  remote.forEach(r => {
+    if (!r.id) return;
+    const key = String(r.id);
+    const ex = mergedMap[key];
+    if (!ex) { DB.insert('inspections', r); added++; }
+    else {
+      const tNew = r.driveSyncedAt || r.date || '';
+      const tOld = ex.driveSyncedAt || ex.date || '';
+      if (tNew >= tOld) { DB.update('inspections', r.id, r); updated++; }
+    }
+  });
+  return { remote: remote.length, added, updated };
+}
+
+/** 完整雙向同步（本機伺服器 + 雲端遠端） */
 async function cloudSyncBidirectional() {
   const btn = document.getElementById('cloudSyncBtn');
   const badge = document.getElementById('cloudSyncBadge');
   if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 同步中…'; }
   try {
-    // 1. 推送本機所有記錄到雲端
     const localAll = DB.getAll('inspections');
-    const pushResult = await cloudSyncPush(localAll);
-    // 2. 從雲端拉取並合併
-    const pullResult = await cloudSyncPull();
-    const msg = `✅ 雲端同步完成｜推送${localAll.length}筆→雲端，從雲端合併${pullResult.added+pullResult.updated}筆`;
+    let totalAdded = 0, totalUpdated = 0, msg = '';
+
+    // 1. 先從本機伺服器同步存儲拉取（含 insert_fishway_inspections.py 寫入的資料）
+    const localServerUrl = `${location.protocol}//${location.host}/api/sync/inspections`;
+    try {
+      const localPull = await _pullFromUrl(localServerUrl);
+      totalAdded   += localPull.added;
+      totalUpdated += localPull.updated;
+    } catch (e) { /* 本機端點不可用時靜默 */ }
+
+    // 2. 推送本機所有記錄到遠端雲端（onrender.com）
+    const target = _syncTargetUrl();
+    if (target) {
+      await cloudSyncPush(DB.getAll('inspections'));
+      // 3. 從遠端雲端拉取
+      try {
+        const remotePull = await _pullFromUrl(`${target}/api/sync/inspections`);
+        totalAdded   += remotePull.added;
+        totalUpdated += remotePull.updated;
+      } catch (e) { /* 遠端離線時靜默 */ }
+      msg = `✅ 同步完成｜本機+雲端共合併 ${totalAdded+totalUpdated} 筆`;
+    } else {
+      msg = `✅ 本機同步完成｜合併 ${totalAdded+totalUpdated} 筆`;
+    }
+
     showToast(msg, 'success');
     localStorage.setItem('lastCloudSync', new Date().toISOString());
     if (badge) badge.innerHTML = `<span style="color:#16a34a;font-size:11px">✅ ${new Date().toLocaleTimeString('zh-TW')}</span>`;
+    // 同步完成後重算所有設施的 DER&U 評估，確保工程設施管理與巡查資料管理一致
+    if (typeof fac_syncAllLatestProfessionalAssessments === 'function') {
+      setTimeout(fac_syncAllLatestProfessionalAssessments, 200);
+    }
     if (typeof renderInspection === 'function') renderInspection();
   } catch (e) {
-    showToast(`雲端同步失敗：${e.message}`, 'error');
+    showToast(`同步失敗：${e.message}`, 'error');
     if (badge) badge.innerHTML = `<span style="color:#b91c1c;font-size:11px">❌ 同步失敗</span>`;
   } finally {
     if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> 雲端同步'; }

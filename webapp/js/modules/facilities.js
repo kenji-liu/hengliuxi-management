@@ -181,7 +181,25 @@ function fac_editInspection(inspectionId, facilityId) {
 /* DER 等級顏色對照 */
 function fac_derColor(level) {
   if (!level || level === '-') return { text: '#94a3b8', bg: '#f1f5f9', border: '#e2e8f0', label: '未評估' };
-  const l = level.toUpperCase();
+  const l = level.toUpperCase().trim();
+
+  // A1 / A 功能等級（良好）
+  if (l === 'A1' || l === 'A') return { text: '#166534', bg: '#dcfce7', border: '#86efac', label: '良好' };
+  // B/C ICS 功能分級（單一字母，舊格式）
+  if (/^B[1-9]?$/.test(l)) return { text: '#92400e', bg: '#fef3c7', border: '#fcd34d', label: '輕微缺失' };
+  if (/^C[1-9]?$/.test(l)) return { text: '#c2410c', bg: '#ffedd5', border: '#fdba74', label: '顯著缺失' };
+
+  // DER&U 複合格式（如 D1/E1/R1・U1、D4/E4/R4・U4）→ 以 U 等級為主判讀
+  const uMatch = level.match(/[Uu](\d)/);
+  if (uMatch) {
+    const u = parseInt(uMatch[1]);
+    if (u <= 1) return { text: '#166534', bg: '#dcfce7', border: '#86efac', label: '定期巡查・良好' };
+    if (u === 2) return { text: '#92400e', bg: '#fef3c7', border: '#fcd34d', label: '追蹤觀察・輕微缺失' };
+    if (u === 3) return { text: '#c2410c', bg: '#ffedd5', border: '#fdba74', label: '優先維護・顯著缺失' };
+    return { text: '#b91c1c', bg: '#fee2e2', border: '#fca5a5', label: '緊急處置・嚴重缺失' };
+  }
+
+  // 舊版單字母等級（向下相容）
   if (l.startsWith('A')) return { text: '#166534', bg: '#dcfce7', border: '#86efac', label: '良好' };
   if (l.startsWith('B')) return { text: '#92400e', bg: '#fef3c7', border: '#fcd34d', label: '輕微缺失' };
   if (l.startsWith('C')) return { text: '#c2410c', bg: '#ffedd5', border: '#fdba74', label: '顯著缺失' };
@@ -282,42 +300,68 @@ function fac_inferDeruFromInspection(item = {}) {
   const hasModerateText = /裂縫|破損|鏽蝕|淤積|阻塞|裸露|補強|修補|維護計畫/.test(text);
   const hasNormalText = /水流正常|結構完整|坡面完整|成功通行|符合通行標準|繼續監測|定期監測/.test(text);
 
-  // 構造物調查表功能分級（sf_grade）具最高語義優先權：
-  // A 級 = 外觀良好功能健全，不論 DER&U 欄位舊值為何，一律覆蓋為 D=0/E=1/R=1（良好基準）
-  // 但若文字明確描述嚴重異常（hasSevereText），仍以文字判讀為準。
-  if (item.sf_grade === 'A' && !hasSevereText) {
-    d = 0; e = Math.min(e, 1); r = Math.min(r, 1);
-    source = '構造物調查A級覆蓋';
-  } else if (item.sf_grade && item.sf_grade.startsWith('B') && !hasSevereText) {
-    d = Math.min(d, 2); // B 級最多 D=2
-    source = `構造物調查${item.sf_grade}級輔助`;
-  }
+  // ── 魚道檢核表（附錄三）：fw_deruItems 明確填寫時以表單值為最高優先權 ──
+  // 若有 fw_deruItems 明確 d/e/r 值，取各項目最大值作為標準，跳過文字推斷。
+  // 防止 fw_deruItems 備註中的描述性詞彙（如「淤積需監測」）被誤判為高損壞等級。
+  if (item.formType === 'professional_fishway' && Array.isArray(item.fw_deruItems) && item.fw_deruItems.length > 0) {
+    const explicitD = Math.max(...item.fw_deruItems.map(x => Number(x.d) || 0));
+    const explicitE = Math.max(...item.fw_deruItems.map(x => Number(x.e) || 1));
+    const explicitR = Math.max(...item.fw_deruItems.map(x => Number(x.r) || 1));
+    // 以表單填寫的 max D/E/R 為準（不讓備註文字覆蓋）
+    d = Math.max(d, explicitD);
+    e = Math.max(e, explicitE);
+    r = Math.max(r, explicitR);
+    // fw_grade 上限保護：A 級 → 最多 U1；B 級 → 最多 U2；C 級不限
+    if (item.fw_grade === 'A' && !hasSevereText) {
+      d = Math.min(d, 1); e = Math.min(e, 1); r = Math.min(r, 1);
+      source = '魚道檢核表A級（表單值）';
+    } else if (item.fw_grade && item.fw_grade.startsWith('B') && !hasSevereText) {
+      d = Math.min(d, 2);
+      source = `魚道檢核表${item.fw_grade}級（表單值）`;
+    } else {
+      source = `魚道檢核表${item.fw_grade || '-'}級（表單值）`;
+    }
+    // 只有在嚴重文字（入口堵塞、無法通行）時才讓文字覆蓋
+    if (hasSevereText) {
+      d = Math.max(d, 4); e = Math.max(e, 3); r = Math.max(r, 3);
+      source = '魚道檢核表（嚴重異常文字判讀）';
+    }
+  } else {
+    // 構造物調查表功能分級（sf_grade）具最高語義優先權：
+    // A 級 = 外觀良好功能健全，不論 DER&U 欄位舊值為何，一律覆蓋為 D=0/E=1/R=1
+    if (item.sf_grade === 'A' && !hasSevereText) {
+      d = 0; e = Math.min(e, 1); r = Math.min(r, 1);
+      source = '構造物調查A級覆蓋';
+    } else if (item.sf_grade && item.sf_grade.startsWith('B') && !hasSevereText) {
+      d = Math.min(d, 2);
+      source = `構造物調查${item.sf_grade}級輔助`;
+    }
 
-  // 早期匯入資料有時 DER&U 預設為 U1，但文字已描述明確異常；此處以專業巡查內容保守修正。
-  if (hasSevereText) {
-    d = Math.max(d, 4);
-    e = Math.max(e, /完全堵塞|喪失通行|崩塌|倒塌/.test(text) ? 4 : 3);
-    r = Math.max(r, 4);
-    source = item.deru_d !== undefined && item.deru_u > 1 ? source : '專業巡查文字判讀';
-  } else if (hasScourText) {
-    d = Math.max(d, 3);
-    e = Math.max(e, /偏移|裸露|基礎/.test(text) ? 3 : 2);
-    r = Math.max(r, 3);
-    source = item.deru_d !== undefined && item.deru_u > 1 ? source : '專業巡查文字判讀';
-  } else if (hasModerateText) {
-    d = Math.max(d, 2);
-    e = Math.max(e, 2);
-    r = Math.max(r, /通行|排洪|功能/.test(text) ? 3 : 2);
-    source = item.deru_d !== undefined && item.deru_u > 1 ? source : '專業巡查文字判讀';
-  } else if (hasNormalText && d <= 0) {
-    d = 0;
-    e = 1;
-    r = 1;
+    // 文字推斷（僅在沒有明確表單值時適用）
+    if (hasSevereText) {
+      d = Math.max(d, 4);
+      e = Math.max(e, /完全堵塞|喪失通行|崩塌|倒塌/.test(text) ? 4 : 3);
+      r = Math.max(r, 4);
+      source = item.deru_d !== undefined && item.deru_u > 1 ? source : '專業巡查文字判讀';
+    } else if (hasScourText) {
+      d = Math.max(d, 3);
+      e = Math.max(e, /偏移|裸露|基礎/.test(text) ? 3 : 2);
+      r = Math.max(r, 3);
+      source = item.deru_d !== undefined && item.deru_u > 1 ? source : '專業巡查文字判讀';
+    } else if (hasModerateText) {
+      d = Math.max(d, 2);
+      e = Math.max(e, 2);
+      r = Math.max(r, /通行|排洪|功能/.test(text) ? 3 : 2);
+      source = item.deru_d !== undefined && item.deru_u > 1 ? source : '專業巡查文字判讀';
+    } else if (hasNormalText && d <= 0) {
+      d = 0; e = 1; r = 1;
+    }
   }
 
   const deru = fac_deriveUrgency(d, e, r);
-  // A 級覆蓋：deru_u 取計算值（不讓舊的高 U 值反壓）；其他情況保守取 max
-  const u = (item.sf_grade === 'A' && !hasSevereText)
+  // 等級保護：A/B級魚道檢核表 → 不讓舊的高 U 值反壓；其他情況保守取 max
+  const isGradeProtected = (item.sf_grade === 'A' || item.fw_grade === 'A') && !hasSevereText;
+  const u = isGradeProtected
     ? deru.u
     : Math.max(Number(item.deru_u || 0), deru.u);
   const label = u === deru.u ? deru.label : (item.deru_label || fac_deriveUrgency(d, e, r).label);

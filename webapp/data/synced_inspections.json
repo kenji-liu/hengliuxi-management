@@ -1,0 +1,573 @@
+[
+  {
+    "id": 1,
+    "facilityId": 9,
+    "date": "2026-06-20",
+    "inspector": "???",
+    "formType": "professional_structure",
+    "sf_grade": "A",
+    "findings": "?????-A?",
+    "status": "??",
+    "driveSyncedAt": "2026-06-20T10:00:00Z"
+  },
+  {
+    "id": 1782163248936,
+    "facilityId": 13,
+    "facilityName": "溪構1-1 粗石斜曲面式魚道",
+    "date": "2021-09-07",
+    "inspector": "110年成果報告調查團隊（陷阱法+電捕法）",
+    "fw_grade": "A",
+    "fw_fishPresent": "有－明潭吻鰕虎6尾確認通行",
+    "findings": "明潭吻鰕虎成功通行，結構良好，輕微淤積，魚道電捕11尾",
+    "action": "定期巡查維護，注意入口淤積情形",
+    "fw_description": "粗石斜曲面魚道陷阱法評估，110年9月回收陷阱發現明潭吻鰕虎6隻及粗糙沼蝦1隻，確認魚類可成功上溯通行。電捕法於魚道內段確認11尾魚類。（來源：110年成果報告第6章）",
+    "deru_d": 0,
+    "deru_e": 1,
+    "deru_r": 1,
+    "deru_u": 1,
+    "deru_label": "U1 定期巡查",
+    "status": "完成",
+    "priority": "低",
+    "fw_deruItems": [
+      {
+        "d": 0,
+        "e": 1,
+        "r": 1,
+        "note": "外觀完整，無明顯破損"
+      },
+      {
+        "d": 1,
+        "e": 1,
+        "r": 1,
+        "note": "輕微淤積，不影響通行"
+      },
+      {
+        "d": 0,
+        "e": 1,
+        "r": 1,
+        "note": "水位差在容許值內"
+      },
+      {
+        "d": 0,
+        "e": 1,
+        "r": 1,
+        "note": "水流正常"
+      }
+    ],
+    "formType": "professional_fishway",
+    "inspectionCategory": "fishway",
+    "sourceType": "專業巡查-魚道檢核表",
+    "pdfFormat": "PDF",
+    "cloudTarget": "Google Drive",
+    "cloudFolder": "巡查資料管理/專業巡查/魚道檢核表",
+    "cloudFolderUrl": "https://drive.google.com/drive/folders/1k2s5HSd_R5GeCt05SOtJxn6UFSrbyoQ9?usp=drive_link",
+    "cloudSyncStatus": "待上傳",
+    "syncedToInspectionManagement": true,
+    "syncedToFacility": true,
+    "inspectionItem": "魚道檢核表"
+  },
+  {
+    "id": 1782163248937,
+    "facilityId": 14,
+    "facilityName": "溪構1-2 改良型舟通式魚道",
+    "date": "2021-07-06",
+    "inspector": "110年成果報告調查團隊（陷阱法）",
+    "fw_grade": "A",
+    "fw_fishPresent": "有－臺灣鬚鱲、明潭吻鰕虎等52尾通行",
+    "findings": "魚道內52尾捕獲量為9座最多，臺灣鬚鱲、明潭吻鰕虎等多種魚類通行",
+    "action": "定期監測維護，維持入口水深與落差，注意下游淤積潛勢",
+    "fw_description": "改良型舟通式魚道陷阱法評估，109年7月捕獲臺灣鬚鱲及明潭吻鰕虎。電捕確認魚道內52尾魚類（9座中最多）。（來源：110年成果報告表5-19、第6章）",
+    "deru_d": 1,
+    "deru_e": 2,
+    "deru_r": 1,
+    "deru_u": 1,
+    "deru_label": "U1 定期巡查",
+    "status": "完成",
+    "priority": "低",
+    "fw_deruItems": [
+      {
+        "d": 0,
+        "e": 1,
+        "r": 1,
+        "note": "結構良好"
+      },
+      {
+        "d": 1,
+        "e": 2,
+        "r": 1,
+        "note": "下游端有淤積潛勢，需監測"
+      },
+      {
+        "d": 0,
+        "e": 1,
+        "r": 1,
+        "note": "水位差適中"
+      },
+      {
+        "d": 0,
+        "e": 1,
+        "r": 1,
+        "note": "水流正常"
+      }
+    ],
+    "formType": "professional_fishway",
+    "inspectionCategory": "fishway",
+    "sourceType": "專業巡查-魚道檢核表",
+    "pdfFormat": "PDF",
+    "cloudTarget": "Google Drive",
+    "cloudFolder": "巡查資料管理/專業巡查/魚道檢核表",
+    "cloudFolderUrl": "https://drive.google.com/drive/folders/1k2s5HSd_R5GeCt05SOtJxn6UFSrbyoQ9?usp=drive_link",
+    "cloudSyncStatus": "待上傳",
+    "syncedToInspectionManagement": true,
+    "syncedToFacility": true,
+    "inspectionItem": "魚道檢核表"
+  },
+  {
+    "id": 1782163248938,
+    "facilityId": 14,
+    "facilityName": "溪構1-2 改良型舟通式魚道",
+    "date": "2026-01-29",
+    "inspector": "張森源、汪竣泰",
+    "fw_grade": "B2",
+    "fw_fishPresent": "待確認－有水流但需確認通行狀況",
+    "findings": "結構外觀破損（一般巡查記錄），需進一步評估損傷程度與修復優先序",
+    "action": "安排專業巡查確認裂縫/破損範圍，評估是否影響魚道功能",
+    "fw_description": "115年1月一般性定期巡查記錄魚道/防砂設施有結構外觀破損（坐標24.186274,120.909574，對應1K+400）。（來源：一般性定期巡查表單11501.pdf）",
+    "deru_d": 2,
+    "deru_e": 2,
+    "deru_r": 2,
+    "deru_u": 2,
+    "deru_label": "U2 追蹤觀察",
+    "status": "處理中",
+    "priority": "中",
+    "fw_deruItems": [
+      {
+        "d": 2,
+        "e": 2,
+        "r": 2,
+        "note": "一般巡查發現結構外觀破損，程度待專業評估"
+      },
+      {
+        "d": 1,
+        "e": 1,
+        "r": 1,
+        "note": "輕微淤積"
+      },
+      {
+        "d": 0,
+        "e": 1,
+        "r": 1,
+        "note": "水流正常"
+      },
+      {
+        "d": 0,
+        "e": 1,
+        "r": 1,
+        "note": "無斷流"
+      }
+    ],
+    "formType": "professional_fishway",
+    "inspectionCategory": "fishway",
+    "sourceType": "專業巡查-魚道檢核表",
+    "pdfFormat": "PDF",
+    "cloudTarget": "Google Drive",
+    "cloudFolder": "巡查資料管理/專業巡查/魚道檢核表",
+    "cloudFolderUrl": "https://drive.google.com/drive/folders/1k2s5HSd_R5GeCt05SOtJxn6UFSrbyoQ9?usp=drive_link",
+    "cloudSyncStatus": "待上傳",
+    "syncedToInspectionManagement": true,
+    "syncedToFacility": true,
+    "inspectionItem": "魚道檢核表"
+  },
+  {
+    "id": 1782163248939,
+    "facilityId": 12,
+    "facilityName": "溪構2 階段式魚道",
+    "date": "2021-09-07",
+    "inspector": "110年成果報告調查團隊",
+    "fw_grade": "A",
+    "fw_fishPresent": "有－臺灣白甲魚32尾等37尾通行",
+    "findings": "臺灣白甲魚為優勢種，確認上溯通行。結構整體良好。",
+    "action": "定期巡查，維持魚階落差不超過30cm",
+    "fw_description": "電捕法確認魚道內37尾（白甲魚32尾），陷阱法捕獲石魚賓2尾及明潭吻鰕虎3尾。（來源：110年成果報告表5-19、第6章）",
+    "deru_d": 0,
+    "deru_e": 1,
+    "deru_r": 1,
+    "deru_u": 1,
+    "deru_label": "U1 定期巡查",
+    "status": "完成",
+    "priority": "低",
+    "fw_deruItems": [
+      {
+        "d": 0,
+        "e": 1,
+        "r": 1,
+        "note": "外觀完整"
+      },
+      {
+        "d": 1,
+        "e": 1,
+        "r": 1,
+        "note": "輕微淤積"
+      },
+      {
+        "d": 0,
+        "e": 1,
+        "r": 1,
+        "note": "水位差正常"
+      },
+      {
+        "d": 0,
+        "e": 1,
+        "r": 1,
+        "note": "水流正常"
+      }
+    ],
+    "formType": "professional_fishway",
+    "inspectionCategory": "fishway",
+    "sourceType": "專業巡查-魚道檢核表",
+    "pdfFormat": "PDF",
+    "cloudTarget": "Google Drive",
+    "cloudFolder": "巡查資料管理/專業巡查/魚道檢核表",
+    "cloudFolderUrl": "https://drive.google.com/drive/folders/1k2s5HSd_R5GeCt05SOtJxn6UFSrbyoQ9?usp=drive_link",
+    "cloudSyncStatus": "待上傳",
+    "syncedToInspectionManagement": true,
+    "syncedToFacility": true,
+    "inspectionItem": "魚道檢核表"
+  },
+  {
+    "id": 1782163248940,
+    "facilityId": 10,
+    "facilityName": "溪構3 斜坡式魚道",
+    "date": "2021-09-07",
+    "inspector": "110年成果報告調查團隊",
+    "fw_grade": "A",
+    "fw_fishPresent": "有－臺灣白甲魚13尾、石魚賓16尾等42尾通行",
+    "findings": "多種魚類通行，功能正常。斜坡面需定期檢查是否積成局部乾段",
+    "action": "維持坡面粗糙度與水膜連續，避免淤積成局部高速流",
+    "fw_description": "電捕法確認魚道內42尾（白甲魚13尾、石魚賓16尾）。斜坡面維持連續水流有利通行。（來源：110年成果報告表5-19）",
+    "deru_d": 1,
+    "deru_e": 2,
+    "deru_r": 1,
+    "deru_u": 1,
+    "deru_label": "U1 定期巡查",
+    "status": "完成",
+    "priority": "低",
+    "fw_deruItems": [
+      {
+        "d": 0,
+        "e": 1,
+        "r": 1,
+        "note": "結構完整"
+      },
+      {
+        "d": 1,
+        "e": 2,
+        "r": 1,
+        "note": "斜坡式較易淤積，需監測"
+      },
+      {
+        "d": 1,
+        "e": 1,
+        "r": 1,
+        "note": "坡面水流可能受水量影響"
+      },
+      {
+        "d": 0,
+        "e": 1,
+        "r": 1,
+        "note": "正常水流"
+      }
+    ],
+    "formType": "professional_fishway",
+    "inspectionCategory": "fishway",
+    "sourceType": "專業巡查-魚道檢核表",
+    "pdfFormat": "PDF",
+    "cloudTarget": "Google Drive",
+    "cloudFolder": "巡查資料管理/專業巡查/魚道檢核表",
+    "cloudFolderUrl": "https://drive.google.com/drive/folders/1k2s5HSd_R5GeCt05SOtJxn6UFSrbyoQ9?usp=drive_link",
+    "cloudSyncStatus": "待上傳",
+    "syncedToInspectionManagement": true,
+    "syncedToFacility": true,
+    "inspectionItem": "魚道檢核表"
+  },
+  {
+    "id": 1782163248941,
+    "facilityId": 9,
+    "facilityName": "溪構4 階段式魚道",
+    "date": "2026-06-20",
+    "inspector": "劉益誌",
+    "fw_grade": "A",
+    "fw_fishPresent": "有－白甲魚通行正常（對應114年電捕紀錄）",
+    "findings": "魚道功能正常，各項檢核合格",
+    "action": "例行定期巡查維護",
+    "fw_description": "魚道檢核表現場檢查，對應構造物調查A級。魚道各階落差正常，無明顯淤積、無斷流，魚類通行正常。",
+    "deru_d": 0,
+    "deru_e": 1,
+    "deru_r": 1,
+    "deru_u": 1,
+    "deru_label": "U1 定期巡查",
+    "status": "完成",
+    "priority": "低",
+    "fw_deruItems": [
+      {
+        "d": 0,
+        "e": 1,
+        "r": 1,
+        "note": "外觀良好，無破損"
+      },
+      {
+        "d": 0,
+        "e": 1,
+        "r": 1,
+        "note": "無明顯淤積"
+      },
+      {
+        "d": 0,
+        "e": 1,
+        "r": 1,
+        "note": "各魚階水位差正常"
+      },
+      {
+        "d": 0,
+        "e": 1,
+        "r": 1,
+        "note": "水流連續"
+      }
+    ],
+    "formType": "professional_fishway",
+    "inspectionCategory": "fishway",
+    "sourceType": "專業巡查-魚道檢核表",
+    "pdfFormat": "PDF",
+    "cloudTarget": "Google Drive",
+    "cloudFolder": "巡查資料管理/專業巡查/魚道檢核表",
+    "cloudFolderUrl": "https://drive.google.com/drive/folders/1k2s5HSd_R5GeCt05SOtJxn6UFSrbyoQ9?usp=drive_link",
+    "cloudSyncStatus": "待上傳",
+    "syncedToInspectionManagement": true,
+    "syncedToFacility": true,
+    "inspectionItem": "魚道檢核表"
+  },
+  {
+    "id": 1782163248942,
+    "facilityId": 7,
+    "facilityName": "溪構5-2 潛越式魚道",
+    "date": "2025-01-10",
+    "inspector": "張技士",
+    "fw_grade": "C1",
+    "fw_fishPresent": "無－入口完全堵塞，魚類無法通行",
+    "findings": "入口完全堵塞，魚類無法通行，結構破損（裂縫20cm），屬高優先度緊急處理案件",
+    "action": "提報緊急維護計畫，申請預算清除堵塞土石；裂縫處進行結構補強評估",
+    "fw_description": "入口遭颱風帶來土石完全堵塞，魚無法通行，池塾左側出現縱向裂縫約20cm。（來源：2025-01-10現場巡查記錄）",
+    "deru_d": 4,
+    "deru_e": 4,
+    "deru_r": 4,
+    "deru_u": 4,
+    "deru_label": "U4 緊急處置",
+    "status": "待處理",
+    "priority": "緊急",
+    "fw_deruItems": [
+      {
+        "d": 3,
+        "e": 3,
+        "r": 3,
+        "note": "池塾左側縱向裂縫約20cm，需補強評估"
+      },
+      {
+        "d": 4,
+        "e": 4,
+        "r": 4,
+        "note": "入口完全堵塞，魚類完全無法通行（緊急）"
+      },
+      {
+        "d": 2,
+        "e": 3,
+        "r": 3,
+        "note": "堵塞導致進水口水位異常，功能喪失"
+      },
+      {
+        "d": 0,
+        "e": 1,
+        "r": 1,
+        "note": "上游水流存在但無法進入魚道"
+      }
+    ],
+    "formType": "professional_fishway",
+    "inspectionCategory": "fishway",
+    "sourceType": "專業巡查-魚道檢核表",
+    "pdfFormat": "PDF",
+    "cloudTarget": "Google Drive",
+    "cloudFolder": "巡查資料管理/專業巡查/魚道檢核表",
+    "cloudFolderUrl": "https://drive.google.com/drive/folders/1k2s5HSd_R5GeCt05SOtJxn6UFSrbyoQ9?usp=drive_link",
+    "cloudSyncStatus": "待上傳",
+    "syncedToInspectionManagement": true,
+    "syncedToFacility": true,
+    "inspectionItem": "魚道檢核表"
+  },
+  {
+    "id": 1782163248943,
+    "facilityId": 5,
+    "facilityName": "溪構6 階段式魚道",
+    "date": "2021-09-07",
+    "inspector": "110年成果報告調查團隊",
+    "fw_grade": "A",
+    "fw_fishPresent": "有－白甲魚13尾、間爬岩鰍5尾等26尾通行",
+    "findings": "多種魚類通行，間爬岩鰍在此魚道出現，顯示縫隙棲地良好",
+    "action": "維持魚池水深與落差，定期清淤",
+    "fw_description": "電捕法確認魚道內26尾（白甲魚13尾、間爬岩鰍5尾），間爬岩鰍現蹤顯示縫隙棲地良好。（來源：110年成果報告表5-19）",
+    "deru_d": 0,
+    "deru_e": 1,
+    "deru_r": 1,
+    "deru_u": 1,
+    "deru_label": "U1 定期巡查",
+    "status": "完成",
+    "priority": "低",
+    "fw_deruItems": [
+      {
+        "d": 0,
+        "e": 1,
+        "r": 1,
+        "note": "結構完整"
+      },
+      {
+        "d": 1,
+        "e": 1,
+        "r": 1,
+        "note": "輕微淤積"
+      },
+      {
+        "d": 0,
+        "e": 1,
+        "r": 1,
+        "note": "水位差正常"
+      },
+      {
+        "d": 0,
+        "e": 1,
+        "r": 1,
+        "note": "水流正常"
+      }
+    ],
+    "formType": "professional_fishway",
+    "inspectionCategory": "fishway",
+    "sourceType": "專業巡查-魚道檢核表",
+    "pdfFormat": "PDF",
+    "cloudTarget": "Google Drive",
+    "cloudFolder": "巡查資料管理/專業巡查/魚道檢核表",
+    "cloudFolderUrl": "https://drive.google.com/drive/folders/1k2s5HSd_R5GeCt05SOtJxn6UFSrbyoQ9?usp=drive_link",
+    "cloudSyncStatus": "待上傳",
+    "syncedToInspectionManagement": true,
+    "syncedToFacility": true,
+    "inspectionItem": "魚道檢核表"
+  },
+  {
+    "id": 1782163248944,
+    "facilityId": 4,
+    "facilityName": "溪構7 降壩魚道",
+    "date": "2021-09-07",
+    "inspector": "110年成果報告調查團隊（電捕+陷阱法）",
+    "fw_grade": "A",
+    "fw_fishPresent": "有－76尾7種，魚道功能9座中最佳",
+    "findings": "9座魚道中功能最佳，76尾捕獲、7種魚類，成效顯著",
+    "action": "維持水池蓄水功能，注意降壩上下游沖淤",
+    "fw_description": "電捕法確認魚道內76尾魚類，為9座魚道中最多，魚種數7種亦為最多。最大水池體積17.7m³，吸引魚類停駐效果最佳。（來源：110年成果報告表5-19）",
+    "deru_d": 1,
+    "deru_e": 2,
+    "deru_r": 1,
+    "deru_u": 1,
+    "deru_label": "U1 定期巡查",
+    "status": "完成",
+    "priority": "低",
+    "fw_deruItems": [
+      {
+        "d": 0,
+        "e": 1,
+        "r": 1,
+        "note": "結構完整"
+      },
+      {
+        "d": 1,
+        "e": 2,
+        "r": 1,
+        "note": "降壩型易淤積，需定期監測"
+      },
+      {
+        "d": 1,
+        "e": 1,
+        "r": 1,
+        "note": "水位差在30cm容許值內"
+      },
+      {
+        "d": 0,
+        "e": 1,
+        "r": 1,
+        "note": "水流豐沛"
+      }
+    ],
+    "formType": "professional_fishway",
+    "inspectionCategory": "fishway",
+    "sourceType": "專業巡查-魚道檢核表",
+    "pdfFormat": "PDF",
+    "cloudTarget": "Google Drive",
+    "cloudFolder": "巡查資料管理/專業巡查/魚道檢核表",
+    "cloudFolderUrl": "https://drive.google.com/drive/folders/1k2s5HSd_R5GeCt05SOtJxn6UFSrbyoQ9?usp=drive_link",
+    "cloudSyncStatus": "待上傳",
+    "syncedToInspectionManagement": true,
+    "syncedToFacility": true,
+    "inspectionItem": "魚道檢核表"
+  },
+  {
+    "id": 1782163248945,
+    "facilityId": 1,
+    "facilityName": "溪構8-2 之字形魚道",
+    "date": "2021-09-07",
+    "inspector": "110年成果報告調查團隊（電捕+陷阱法）",
+    "fw_grade": "A",
+    "fw_fishPresent": "有－石魚賓18尾、鬚鱲12尾等35尾通行",
+    "findings": "臺灣石魚賓18尾、臺灣鬚鱲12尾確認通行，魚道結構良好",
+    "action": "維持魚骨區溪石與緩流避難帶，保留石孔隙與緩流避難帶",
+    "fw_description": "電捕法確認魚道內35尾（石魚賓18尾、鬚鱲12尾）。陷阱法評估確認魚類上溯。（來源：110年成果報告表5-19、第6章）",
+    "deru_d": 0,
+    "deru_e": 1,
+    "deru_r": 1,
+    "deru_u": 1,
+    "deru_label": "U1 定期巡查",
+    "status": "完成",
+    "priority": "低",
+    "fw_deruItems": [
+      {
+        "d": 0,
+        "e": 1,
+        "r": 1,
+        "note": "外觀完整"
+      },
+      {
+        "d": 1,
+        "e": 1,
+        "r": 1,
+        "note": "輕微淤積"
+      },
+      {
+        "d": 0,
+        "e": 1,
+        "r": 1,
+        "note": "水位差正常"
+      },
+      {
+        "d": 0,
+        "e": 1,
+        "r": 1,
+        "note": "水流正常"
+      }
+    ],
+    "formType": "professional_fishway",
+    "inspectionCategory": "fishway",
+    "sourceType": "專業巡查-魚道檢核表",
+    "pdfFormat": "PDF",
+    "cloudTarget": "Google Drive",
+    "cloudFolder": "巡查資料管理/專業巡查/魚道檢核表",
+    "cloudFolderUrl": "https://drive.google.com/drive/folders/1k2s5HSd_R5GeCt05SOtJxn6UFSrbyoQ9?usp=drive_link",
+    "cloudSyncStatus": "待上傳",
+    "syncedToInspectionManagement": true,
+    "syncedToFacility": true,
+    "inspectionItem": "魚道檢核表"
+  }
+]

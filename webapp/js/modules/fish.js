@@ -2202,10 +2202,12 @@ function renderFishTrend() {
     // ── 108年：4站電捕調查，數據完整（來源：成果報告 表4-16）──
     { label:'108年 S3\n(4月)',  year:2019, m:4,  bai:169,shi:101,xu:113,ying:40, jian:24, min:133,kou:0, feng:3, hong:6, note:'108年度第三季春季(4/17~18)，4站電捕合計；8種，589尾；短臀瘋鱨3尾、短吻紅斑吻鰕虎6尾；來源：成果報告表4-16' },
     { label:'108年 S4\n(10月)', year:2019, m:10, bai:92, shi:63, xu:72, ying:23, jian:5,  min:45, kou:0, feng:3, hong:1, note:'108年度第四季秋季(10/8~9)，4站電捕合計；8種，304尾；短臀瘋鱨3尾、短吻紅斑吻鰕虎1尾；來源：成果報告表4-16' },
-    { label:'109年 S1\n(7月)',  year:2020, m:7,  bai:10, shi:9,  xu:8,  ying:3,  jian:0,  min:0, kou:0, feng:0, hong:0, note:'電捕法，橫流溪6站均值（成果報告）',  est:true },
-    { label:'109年 S2\n(10月)', year:2020, m:10, bai:10, shi:9,  xu:10, ying:3,  jian:0,  min:0, kou:0, feng:0, hong:0, note:'電捕法，橫流溪6站均值（成果報告）', est:true },
-    { label:'110年 S3\n(4月)',  year:2021, m:4,  bai:25, shi:18, xu:13, ying:5,  jian:5,  min:30, kou:0, feng:0, hong:0, note:'電捕法，橫流溪6站均值（成果報告）；魚道電捕確認明潭吻鰕虎30尾通行', est:true },
-    { label:'110年 S4\n(9月)',  year:2021, m:9,  bai:3,  shi:7,  xu:15, ying:3,  jian:0,  min:0, kou:0, feng:0, hong:0, note:'電捕法，橫流溪6站均值（成果報告）', est:true },
+    // ── 109~110年：6站電捕合計（來源：110年東勢林區管理處魚道生態廊道成效追蹤 表5-3）──
+    // 調查時段：109年魚道建設施工期，因施工擾動魚類族群偏低；110年完工後回升
+    { label:'109年 S1\n(7月)',  year:2020, m:7,  bai:52,  shi:55, xu:47, ying:46, jian:0,  min:54, kou:0, feng:0, hong:1, note:'109年7月(7/13-7/22)，橫流溪6站電捕合計；8種255尾；施工期魚道建設擾動，族群偏低；來源：成果報告表5-3' },
+    { label:'109年 S2\n(9月)',  year:2020, m:9,  bai:53,  shi:55, xu:39, ying:43, jian:0,  min:70, kou:0, feng:1, hong:1, note:'109年9月(9/28-9/29)，橫流溪6站電捕合計；8種262尾；明潭吻鰕虎70尾為次要物種高峰；來源：成果報告表5-3' },
+    { label:'110年 S3\n(4月)',  year:2021, m:4,  bai:158, shi:98, xu:92, ying:31, jian:23, min:81, kou:0, feng:0, hong:3, note:'110年4月(4/28-5/5)，橫流溪6站電捕合計；8種486尾；魚道完工後春季族群大幅回升，白甲魚158尾，間爬岩鰍23尾（首次大量出現）；來源：成果報告表5-3' },
+    { label:'110年 S4\n(9月)',  year:2021, m:9,  bai:27,  shi:49, xu:94, ying:5,  jian:9,  min:49, kou:0, feng:2, hong:0, note:'110年9月(8/31-9/2)，橫流溪6站電捕合計；8種235尾；鬚鱲94尾為夏秋優勢；短臀瘋鱨2尾；來源：成果報告表5-3' },
     { label:'112年 4月',        year:2023, m:4,  bai:99, shi:27, xu:13, ying:4,  jian:1,  min:10, kou:0, feng:0, hong:0, note:'電捕法，橫流溪(下游)；112年4月明潭吻鰕虎10尾(4/18:6+4/27:4)' },
     { label:'112年 6月',        year:2023, m:6,  bai:26, shi:17, xu:3,  ying:0,  jian:0,  min:7,  kou:4, feng:0, hong:2, note:'電捕法，橫流溪(下游)；明潭吻鰕虎7尾(5/30:2+6/21:5)、粗首馬口鱲4尾、短吻紅斑吻鰕虎2尾' },
     { label:'112年 9月',        year:2023, m:9,  bai:44, shi:17, xu:2,  ying:3,  jian:0,  min:2,  kou:0, feng:0, hong:0, note:'電捕法，橫流溪(下游)；明潭吻鰕虎9/22調查2尾' },
@@ -2417,7 +2419,7 @@ function renderFishTrend() {
             <i class="fas fa-chart-bar" style="color:#0e7490;margin-right:10px"></i>各次調查物種捕獲數量
           </div>
           <div style="font-size:16px;color:#64748b;margin-top:6px">
-            橫流溪樣站 ‧ 電捕法單次捕獲尾數（109～110年為成果報告6站均值）
+            橫流溪樣站 ‧ 電捕法單次捕獲尾數（109～110年為成果報告6站電捕合計；施工期影響見說明）
           </div>
         </div>
         <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:10px 18px;font-size:15px;color:#166534;font-weight:700;white-space:nowrap">
@@ -2429,9 +2431,9 @@ function renderFishTrend() {
       </div>
       <div style="background:#f8fafc;border-radius:10px;padding:16px 20px;margin-top:16px;font-size:16px;color:#334155;line-height:1.8;border-left:4px solid #0e7490">
         <strong>📊 圖表解讀：</strong>
-        103～104年（2014–2015）魚道建置前，調查以臺灣石魚賓（橘色）為優勢種，臺灣白甲魚幾乎不見；
-        107~108年完成9種魚道建置後，106年已轉為白甲魚（藍色）優勢；進入112～114年後捕獲量大幅提升（最高146尾），
-        且多物種比例趨於均衡，<strong>物種多樣性顯著改善，確認魚道成效</strong>。
+        103～104年（魚道建置前）以臺灣石魚賓為優勢種；107～108年魚道建置後，白甲魚躍升為優勢種，108年4月達589尾高峰。
+        109年數量下降（255尾）係因魚道<strong>施工期機具擾動</strong>所致，並非族群真正衰退；110年4月施工完畢後迅速回升至486尾。
+        112～114年捕獲量持續成長（最高146尾/次，多站合計更高），<strong>物種多樣性顯著改善，魚道成效確認</strong>。
       </div>
     </div>
 
@@ -2657,7 +2659,7 @@ function renderFishTrend() {
         </table>
       </div>
       <div style="font-size:13px;color:#94a3b8;margin-top:10px">
-        ＊ 109～110年資料引自《東勢林區管理處國有林魚道及生態廊道委託技術服務成果報告》，為橫流溪6個樣站均值；H' = Shannon–Wiener 生物多樣性指數
+        ＊ 109～110年資料引自《東勢林區管理處國有林魚道及生態廊道委託技術服務成果報告（110年）》表5-3，為橫流溪6站電捕合計（非均值）；109年數量偏低係施工期擾動所致，110年4月魚道完工後回升至486尾；H' = Shannon–Wiener 生物多樣性指數
       </div>
     </div>
 
