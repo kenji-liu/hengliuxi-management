@@ -677,6 +677,51 @@ async function batchUploadPendingToDrive() {
   renderInspection();
 }
 
+/**
+ * 清除重複巡查紀錄：同一設施 + 同一 formType 只保留最新一筆
+ * 無 formType 的舊記錄不受影響
+ */
+function cleanupDuplicateInspections() {
+  const rows = DB.getAll('inspections');
+
+  // 只針對有 formType 的專業巡查記錄去重
+  const formRows = rows.filter(r => r.formType && INSPECTION_FORM_SYNC_META[r.formType]);
+  const otherRows = rows.filter(r => !r.formType || !INSPECTION_FORM_SYNC_META[r.formType]);
+
+  // 按 (facilityId, formType) 分組，每組保留 updatedAt 或 date 最新的
+  const groups = {};
+  formRows.forEach(r => {
+    const key = `${r.facilityId}_${r.formType}`;
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(r);
+  });
+
+  const toDelete = [];
+  const toKeep = [];
+  Object.values(groups).forEach(group => {
+    if (group.length <= 1) { toKeep.push(...group); return; }
+    // 排序：最新的排前面
+    group.sort((a, b) => {
+      const ta = a.updatedAt || a.driveSyncedAt || a.date || '';
+      const tb = b.updatedAt || b.driveSyncedAt || b.date || '';
+      return tb.localeCompare(ta);
+    });
+    toKeep.push(group[0]);
+    toDelete.push(...group.slice(1));
+  });
+
+  if (!toDelete.length) {
+    showToast('沒有重複記錄需要清除', 'info');
+    return;
+  }
+
+  if (!confirm(`找到 ${toDelete.length} 筆重複記錄（每個設施各保留最新一筆），確定刪除？`)) return;
+
+  toDelete.forEach(r => DB.delete('inspections', r.id));
+  showToast(`已清除 ${toDelete.length} 筆重複記錄，保留 ${toKeep.length} 筆最新記錄`, 'success');
+  renderInspection();
+}
+
 function syncDeruHistoryIntoInspectionRecords() {
   const rows = DB.getAll('inspections');
   const facilities = DB.getAll('facilities');
@@ -1888,6 +1933,9 @@ function renderInspectionDataManagement(standalone = false) {
           <button class="btn btn-primary" onclick="batchUploadPendingToDrive()" style="font-size:18px;padding:12px 24px;background:#0f766e;border-color:#0f766e">
             <i class="fas fa-cloud-upload-alt"></i> 批量上傳至 Drive
           </button>
+          <button class="btn btn-outline" onclick="cleanupDuplicateInspections()" style="font-size:18px;padding:12px 24px;color:#7c3aed;border-color:#c4b5fd;background:#f5f3ff">
+            <i class="fas fa-broom"></i> 清除重複記錄
+          </button>
           <button class="btn btn-outline" onclick="openInspectionDriveFolder()" style="font-size:18px;padding:12px 24px;color:#1d4ed8;border-color:#bfdbfe;background:#eff6ff">
             <i class="fas fa-folder-open"></i> Google Drive
           </button>
@@ -2252,7 +2300,7 @@ function renderInspDataList(data) {
             ${hasDeru ? `<span style="background:#fff7ed;color:#9a3412;border:1px solid #fed7aa;border-radius:999px;padding:5px 14px;font-size:17px;font-weight:700">DER&amp;U ${item.deru_label||'U'+item.deru_u}</span>` : ''}
             ${hasAi   ? `<span style="background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;border-radius:999px;padding:5px 14px;font-size:16px">🤖 AI分析</span>` : ''}
             ${item.pdfFormat ? `<span style="background:#fff1f2;color:#b91c1c;border:1px solid #fecaca;border-radius:999px;padding:5px 14px;font-size:16px;font-weight:700"><i class="fas fa-file-pdf"></i> PDF</span>` : ''}
-            ${item.cloudTarget ? (item.driveWebLink
+            ${(item.cloudTarget && INSPECTION_FORM_SYNC_META[item.formType]) ? (item.driveWebLink
               ? `<a href="${item.driveWebLink}" target="_blank" rel="noopener noreferrer" style="text-decoration:none"><span style="background:${cloudStyle.bg};color:${cloudStyle.color};border:1px solid ${cloudStyle.border};border-radius:999px;padding:5px 14px;font-size:16px;font-weight:700;cursor:pointer"><i class="fas fa-cloud-upload-alt"></i> ${item.cloudSyncStatus || '已上傳'}</span></a>`
               : `<span style="background:${cloudStyle.bg};color:${cloudStyle.color};border:1px solid ${cloudStyle.border};border-radius:999px;padding:5px 14px;font-size:16px;font-weight:700"><i class="fas fa-cloud-upload-alt"></i> ${item.cloudSyncStatus || '待上傳'}</span>`)
             : ''}
@@ -2312,7 +2360,7 @@ function renderInspDataList(data) {
               ${inspDetailRow('類型', m.label)}
               ${item.inspectionItem ? inspDetailRow('巡查項目', item.inspectionItem) : ''}
               ${pdfLabel ? inspDetailRow('PDF表單', pdfLabel) : ''}
-              ${item.cloudTarget ? inspDetailRow('雲端同步', `${item.cloudTarget}／${item.cloudSyncStatus || '待上傳'}`) : ''}
+              ${(item.cloudTarget && INSPECTION_FORM_SYNC_META[item.formType]) ? inspDetailRow('雲端同步', `${item.cloudTarget}／${item.cloudSyncStatus || '待上傳'}`) : ''}
               ${item.driveSyncedAt ? inspDetailRow('Drive 同步時間', item.driveSyncedAt.slice(0,16).replace('T',' ')) : ''}
               ${inspDetailRow('狀態', item.uiStatus)}
               ${inspDetailRow('優先度', item.uiPriority)}
