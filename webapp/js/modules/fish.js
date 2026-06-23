@@ -4391,11 +4391,11 @@ function initBioGISMap(fishSpecies, facilities) {
     { code:'溪構3',   typeName:'斜坡式魚道',   km:'1K+225', lat:24.185158, lng:120.910163, typeColor:'#8b5cf6', status:'正常',   count114:142, delta:'+142',
       species:[{name:'臺灣白甲魚',shape:'carp', cons:'易危',color:'#d97706',count110:1},{name:'纓口臺鰍',shape:'loach',cons:'易危',color:'#7c3aed',count110:1}]},
     { code:'溪構2',   typeName:'階段式魚道',   km:'1K+315', lat:24.185835, lng:120.909631, typeColor:'#22c55e', status:'正常',   count114:155, delta:'+147',
-      species:[{name:'臺灣白甲魚',shape:'carp', cons:'易危',color:'#d97706',count110:2},{name:'纓口臺鰍',shape:'loach',cons:'易危',color:'#7c3aed',count110:0},{name:'臺灣間爬岩鰍',shape:'loach',cons:'近危',color:'#0284c7',count110:0}]},
+      species:[{name:'臺灣白甲魚',shape:'carp', cons:'易危',color:'#d97706',count110:2, latlng:[24.186198,120.909397]},{name:'纓口臺鰍',shape:'loach',cons:'易危',color:'#7c3aed',count110:0},{name:'臺灣間爬岩鰍',shape:'loach',cons:'近危',color:'#0284c7',count110:0}]},
     { code:'溪構1-1', typeName:'粗石斜曲面魚道', km:'1K+400', lat:24.186629, lng:120.909306, typeColor:'#14b8a6', status:'正常',   count114:155, delta:'+147',
-      species:[{name:'臺灣白甲魚',shape:'carp', cons:'易危',color:'#d97706',count110:5},{name:'纓口臺鰍',shape:'loach',cons:'易危',color:'#7c3aed',count110:0},{name:'臺灣間爬岩鰍',shape:'loach',cons:'近危',color:'#0284c7',count110:0}]},
-    { code:'溪構1-2', typeName:'舟通式魚道',   km:'1K+400', lat:24.186420, lng:120.909050, typeColor:'#6366f1', status:'正常',   count114:142, delta:'+142',
-      species:[{name:'臺灣白甲魚',shape:'carp', cons:'易危',color:'#d97706',count110:0},{name:'纓口臺鰍',shape:'loach',cons:'易危',color:'#7c3aed',count110:0}]}
+      species:[{name:'臺灣白甲魚',shape:'carp', cons:'易危',color:'#d97706',count110:5},{name:'纓口臺鰍',shape:'loach',cons:'易危',color:'#7c3aed',count110:0, latlng:[24.186565,120.909179]},{name:'臺灣間爬岩鰍',shape:'loach',cons:'近危',color:'#0284c7',count110:0}]},
+    { code:'溪構1-2', typeName:'舟通式魚道',   km:'1K+400', lat:24.186452, lng:120.909207, typeColor:'#6366f1', status:'正常',   count114:142, delta:'+142',
+      species:[{name:'臺灣白甲魚',shape:'carp', cons:'易危',color:'#d97706',count110:0, latlng:[24.186647,120.909169]},{name:'纓口臺鰍',shape:'loach',cons:'易危',color:'#7c3aed',count110:0}]}
   ];
 
   // 物種偏移量（以魚道為中心向外散開，避免重疊）
@@ -4518,7 +4518,9 @@ function initBioGISMap(fishSpecies, facilities) {
           </div>
         </div>`;
 
-      L.marker([fw.lat + dLat, fw.lng + dLng], { icon: spIcon, zIndexOffset: 100 })
+      // 物種標記座標：優先使用 sp.latlng 精確指定，否則使用偏移量計算
+      const spLatLng = sp.latlng || [fw.lat + dLat, fw.lng + dLng];
+      L.marker(spLatLng, { icon: spIcon, zIndexOffset: 100 })
         .bindPopup(spPopup, { maxWidth: 240 })
         .addTo(bioLayerGroups.fishwayDist);
     });
