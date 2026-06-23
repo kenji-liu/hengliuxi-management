@@ -20,7 +20,9 @@ _TOKEN_PATH  = os.path.join(_DATA_DIR, 'gdrive_oauth_token.json')
 _SECRET_PATH = os.path.join(_DATA_DIR, 'gdrive_client_secret.json')
 _SA_PATH     = os.path.join(_DATA_DIR, 'gdrive_service_account.json')
 # Render Secret Files 掛載路徑（/etc/secrets/<filename>）
-_SA_SECRET_FILE = '/etc/secrets/gdrive_service_account.json'
+_SA_SECRET_FILE     = '/etc/secrets/gdrive_service_account.json'
+_TOKEN_SECRET_FILE  = '/etc/secrets/gdrive_oauth_token.json'
+_CLIENT_SECRET_FILE = '/etc/secrets/gdrive_client_secret.json'
 
 GDRIVE_ROOT_FOLDER_ID = '1k2s5HSd_R5GeCt05SOtJxn6UFSrbyoQ9'
 _SCOPES = ['https://www.googleapis.com/auth/drive']
@@ -45,8 +47,24 @@ def _load_sa_info() -> dict:
     raise RuntimeError('SA_NOT_FOUND')
 
 
+def _resolve_path(secret_file: str, local_file: str) -> str | None:
+    """優先 Render Secret Files，其次本機路徑"""
+    if os.path.exists(secret_file):
+        return secret_file
+    if os.path.exists(local_file):
+        return local_file
+    return None
+
+
 def _auth_mode() -> str:
-    """回傳目前可用的認證模式：'service_account' | 'oauth2' | 'none'"""
+    """回傳目前可用的認證模式：'oauth2' | 'service_account' | 'none'
+    優先使用 OAuth2（個人 Drive），服務帳號作為備用"""
+    # OAuth2（個人 Google 帳號，有儲存空間）
+    token  = _resolve_path(_TOKEN_SECRET_FILE, _TOKEN_PATH)
+    secret = _resolve_path(_CLIENT_SECRET_FILE, _SECRET_PATH)
+    if token and secret:
+        return 'oauth2'
+    # 服務帳號（限 Shared Drive，個人 Drive 無配額）
     env_val = os.environ.get('GOOGLE_SERVICE_ACCOUNT_JSON', '').strip()
     if env_val and env_val.startswith('{'):
         return 'service_account'
@@ -86,11 +104,14 @@ def _get_service():
         from google.auth.transport.requests import Request
         from googleapiclient.discovery import build
 
-        creds = Credentials.from_authorized_user_file(_TOKEN_PATH, _SCOPES)
+        token_path = _resolve_path(_TOKEN_SECRET_FILE, _TOKEN_PATH)
+        creds = Credentials.from_authorized_user_file(token_path, _SCOPES)
         if creds.expired and creds.refresh_token:
             creds.refresh(Request())
-            with open(_TOKEN_PATH, 'w', encoding='utf-8') as f:
-                f.write(creds.to_json())
+            # 刷新後只寫入本機檔案（Render Secret Files 為唯讀）
+            if os.path.exists(_TOKEN_PATH):
+                with open(_TOKEN_PATH, 'w', encoding='utf-8') as f:
+                    f.write(creds.to_json())
             logger.info('[Drive] OAuth2 Token 已自動刷新')
 
         _drive_service = build('drive', 'v3', credentials=creds)
@@ -179,7 +200,10 @@ _AUTH_URL  = 'https://accounts.google.com/o/oauth2/v2/auth'
 
 
 def _load_client_secrets():
-    with open(_SECRET_PATH, encoding='utf-8') as f:
+    path = _resolve_path(_CLIENT_SECRET_FILE, _SECRET_PATH)
+    if not path:
+        raise RuntimeError('找不到 gdrive_client_secret.json')
+    with open(path, encoding='utf-8') as f:
         data = json.load(f)
     return data.get('web') or data.get('installed') or {}
 
