@@ -75,6 +75,12 @@
       </div>
       <div class="top-bar-right">
         <span class="date-display" id="dateDisplay"></span>
+        <!-- 即時同步狀態 -->
+        <button class="btn btn-sm btn-outline" onclick="CloudSync.showSetupDialog()"
+          title="即時同步設定" style="padding:5px 10px;gap:5px">
+          <i class="fas fa-sync-alt" style="font-size:12px"></i>
+          <span id="cloudSyncStatus" style="font-size:12px;color:#94a3b8">⚫ 未連線</span>
+        </button>
         <button class="btn btn-sm btn-outline" id="fontSizeBtn" onclick="cycleFontSize()" title="調整字體大小" style="min-width:56px;letter-spacing:0.5px">
           <i class="fas fa-text-height"></i> <span id="fontSizeLabel">A</span>
         </button>
@@ -105,12 +111,16 @@
   <div class="toast-container" id="toastContainer"></div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Firebase SDK（即時多裝置同步） -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
   <!-- Google Identity Services（Drive 上傳 OAuth2） -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <!-- Google Maps API key loaded via /api/config endpoint -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="js/lib/twd97-transform.js"></script>
   <script src="js/lib/coordinate-audit.js"></script>
+  <script src="js/lib/firebase-sync.js"></script>
   <script src="js/db.js"></script>
   <script src="js/modules/dashboard.js"></script>
   <script src="js/modules/facilities.js"></script>
@@ -164,6 +174,16 @@
       applySize(next.key);
     };
   })();
+
+  /* ===== 即時同步初始化（頁面完全載入後啟動） ===== */
+  window.addEventListener('load', () => {
+    // 稍延遲確保 DB 和所有模組已就緒
+    setTimeout(() => {
+      CloudSync.init().then(ok => {
+        if (ok) console.log('[App] 即時同步已啟動');
+      });
+    }, 1500);
+  });
   </script>
 </body>
 </html>

@@ -308,11 +308,12 @@ const DB = {
   // 儲存資料
   save(data) {
     data.settings = data.settings || {};
-    data.settings.lastUpdate = new Date().toISOString();
-    data.settings.version = data.settings.version || this.VERSION;
+    data.settings.lastUpdate    = new Date().toISOString();
+    data.settings.version       = data.settings.version || this.VERSION;
+    data.settings.syncTimestamp = Date.now(); // 供 CloudSync 比較新舊
     localStorage.setItem(this.KEY, JSON.stringify(data));
-    data.settings.version = data.settings.version || this.VERSION;  // 確保版本信息被保留
-    localStorage.setItem(this.KEY, JSON.stringify(data));
+    // 即時推送到 Firebase（若已設定）
+    if (window.CloudSync?.isOnline) CloudSync.push(data);
   },
 
   // CRUD 操作
