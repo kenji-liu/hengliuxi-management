@@ -1212,12 +1212,12 @@ function refreshKBFromDB() {
     const statsEntry = {
       id: 'auto_facility_stats',
       title: '橫流溪設施現況統計（自動更新）',
-      content: `共 ${facilities.length} 座構造物，其中魚道設施 ${fishways.length} 座。` +
+      body: `共 ${facilities.length} 座構造物，其中魚道設施 ${fishways.length} 座。` +
         `需維護/損壞：${needMaint.length} 座（${needMaint.map(f=>f.name).join('、') || '無'}）。` +
         `魚道檢核表 ${inspections.filter(i=>i.formType==='professional_fishway').length} 筆，` +
         `其中 U3/U4 緊急項目 ${urgentFW.length} 件。` +
         `巡查記錄合計 ${inspections.length} 筆。`,
-      keywords: ['設施','統計','現況','總覽','需維護','損壞','魚道','緊急'],
+      kw: ['設施','統計','現況','總覽','需維護','損壞','魚道','緊急'],
       weight: 3
     };
 
@@ -1241,8 +1241,8 @@ function refreshKBFromDB() {
       const fwEntry = {
         id: 'auto_fishway_checklist',
         title: '魚道檢核表最新狀態（自動更新）',
-        content: '各魚道最新魚道檢核表（附錄三）評估結果：\n' + fwStatusLines.join('\n'),
-        keywords: ['魚道','檢核表','通行','DER','淤積','斷流','水位差','功能','魚道功能'],
+        body: '各魚道最新魚道檢核表（附錄三）評估結果：\n' + fwStatusLines.join('\n'),
+        kw: ['魚道','檢核表','通行','DER','淤積','斷流','水位差','功能','魚道功能'],
         weight: 4
       };
       // 注入或更新 HLX_KB
@@ -1262,8 +1262,8 @@ function refreshKBFromDB() {
       const fishEntry = {
         id: 'auto_fish_survey',
         title: '魚類調查記錄彙整（自動更新）',
-        content: `資料庫魚類調查記錄 ${fishSummary.length} 筆。主要物種累計尾數：${topSp}。`,
-        keywords: ['魚類','調查','捕獲','尾數','物種','白甲魚','石魚賓','鬚鱲','鰕虎','纓口臺鰍','間爬岩鰍'],
+        body: `資料庫魚類調查記錄 ${fishSummary.length} 筆。主要物種累計尾數：${topSp}。`,
+        kw: ['魚類','調查','捕獲','尾數','物種','白甲魚','石魚賓','鬚鱲','鰕虎','纓口臺鰍','間爬岩鰍','粗首馬口鱲','短臀瘋鱨','短吻紅斑吻鰕虎','明潭吻鰕虎'],
         weight: 2
       };
       const idx2 = HLX_KB.findIndex(e => e.id === 'auto_fish_survey');
