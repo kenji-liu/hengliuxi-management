@@ -1,10 +1,11 @@
 """
-Google Drive 自動同步模組（OAuth2 + Refresh Token）
-- 一次授權後永久自動上傳，無需每次登入
-- 上傳至使用者自己的 Google Drive（個人帳號適用）
-- 自動建立資料夾結構 / 覆蓋更新已存在的檔案
-- Token 存放：webapp/data/gdrive_oauth_token.json
-- Client Secret：webapp/data/gdrive_client_secret.json
+Google Drive 自動同步模組
+支援兩種認證方式（優先順序）：
+  1. 服務帳號（Service Account）— 適合 Render 雲端部署
+     - 環境變數 GOOGLE_SERVICE_ACCOUNT_JSON（JSON 字串）
+     - 或檔案 webapp/data/gdrive_service_account.json
+  2. OAuth2 Refresh Token — 適合本機開發
+     - webapp/data/gdrive_client_secret.json + gdrive_oauth_token.json
 """
 
 import os
@@ -17,6 +18,7 @@ logger = logging.getLogger(__name__)
 _DATA_DIR    = os.path.join(os.path.dirname(__file__), 'data')
 _TOKEN_PATH  = os.path.join(_DATA_DIR, 'gdrive_oauth_token.json')
 _SECRET_PATH = os.path.join(_DATA_DIR, 'gdrive_client_secret.json')
+_SA_PATH     = os.path.join(_DATA_DIR, 'gdrive_service_account.json')
 
 GDRIVE_ROOT_FOLDER_ID = '1k2s5HSd_R5GeCt05SOtJxn6UFSrbyoQ9'
 _SCOPES = ['https://www.googleapis.com/auth/drive']
@@ -24,49 +26,76 @@ _SCOPES = ['https://www.googleapis.com/auth/drive']
 _drive_service = None
 
 
+def _auth_mode() -> str:
+    """回傳目前可用的認證模式：'service_account' | 'oauth2' | 'none'"""
+    if os.environ.get('GOOGLE_SERVICE_ACCOUNT_JSON'):
+        return 'service_account'
+    if os.path.exists(_SA_PATH):
+        return 'service_account'
+    if os.path.exists(_TOKEN_PATH) and os.path.exists(_SECRET_PATH):
+        return 'oauth2'
+    return 'none'
+
+
 def is_configured() -> bool:
-    """Token 已取得且 client_secret 存在"""
-    return os.path.exists(_TOKEN_PATH) and os.path.exists(_SECRET_PATH)
+    return _auth_mode() != 'none'
 
 
 def _get_service():
     global _drive_service
     if _drive_service is not None:
         return _drive_service
-    try:
+
+    mode = _auth_mode()
+
+    if mode == 'service_account':
+        from google.oauth2 import service_account
+        from googleapiclient.discovery import build
+
+        sa_json_str = os.environ.get('GOOGLE_SERVICE_ACCOUNT_JSON')
+        if sa_json_str:
+            sa_info = json.loads(sa_json_str)
+        else:
+            with open(_SA_PATH, encoding='utf-8') as f:
+                sa_info = json.load(f)
+
+        creds = service_account.Credentials.from_service_account_info(
+            sa_info, scopes=_SCOPES)
+        _drive_service = build('drive', 'v3', credentials=creds)
+        logger.info('[Drive] 服務帳號認證成功')
+        return _drive_service
+
+    elif mode == 'oauth2':
         from google.oauth2.credentials import Credentials
         from google.auth.transport.requests import Request
         from googleapiclient.discovery import build
 
-        if not os.path.exists(_TOKEN_PATH):
-            raise RuntimeError('TOKEN_MISSING')
-        if not os.path.exists(_SECRET_PATH):
-            raise RuntimeError('SECRET_MISSING')
-
         creds = Credentials.from_authorized_user_file(_TOKEN_PATH, _SCOPES)
-
-        # 若 Token 過期，用 refresh_token 自動刷新
         if creds.expired and creds.refresh_token:
             creds.refresh(Request())
             with open(_TOKEN_PATH, 'w', encoding='utf-8') as f:
                 f.write(creds.to_json())
-            logger.info('[Drive] Token 已自動刷新')
+            logger.info('[Drive] OAuth2 Token 已自動刷新')
 
         _drive_service = build('drive', 'v3', credentials=creds)
+        logger.info('[Drive] OAuth2 認證成功')
         return _drive_service
-    except Exception as e:
-        _drive_service = None
-        raise
+
+    else:
+        raise RuntimeError('DRIVE_NOT_CONFIGURED')
 
 
 def _find_or_create_folder(service, name: str, parent_id: str) -> str:
-    query = (f"name='{name}' and '{parent_id}' in parents and "
+    safe = name.replace("'", "\\'")
+    query = (f"name='{safe}' and '{parent_id}' in parents and "
              "mimeType='application/vnd.google-apps.folder' and trashed=false")
     results = service.files().list(q=query, fields='files(id)', pageSize=5).execute()
     files = results.get('files', [])
     if files:
         return files[0]['id']
-    meta = {'name': name, 'mimeType': 'application/vnd.google-apps.folder', 'parents': [parent_id]}
+    meta = {'name': name,
+            'mimeType': 'application/vnd.google-apps.folder',
+            'parents': [parent_id]}
     folder = service.files().create(body=meta, fields='id').execute()
     logger.info(f'[Drive] 建立資料夾：{name}')
     return folder['id']
@@ -82,7 +111,8 @@ def _resolve_folder_path(service, path: str) -> str:
 
 
 def _find_existing_file(service, filename: str, folder_id: str):
-    query = f"name='{filename}' and '{folder_id}' in parents and trashed=false"
+    safe = filename.replace("'", "\\'")
+    query = f"name='{safe}' and '{folder_id}' in parents and trashed=false"
     results = service.files().list(q=query, fields='files(id,webViewLink)', pageSize=5).execute()
     files = results.get('files', [])
     if files:
@@ -90,35 +120,44 @@ def _find_existing_file(service, filename: str, folder_id: str):
     return None, None
 
 
-def upload_inspection(data: dict, form_type: str, cloud_folder_path: str, filename: str) -> dict:
+def upload_inspection(data: dict, form_type: str,
+                      cloud_folder_path: str, filename: str) -> dict:
     from googleapiclient.http import MediaIoBaseUpload
+    from datetime import datetime
+
     service = _get_service()
     folder_id = _resolve_folder_path(service, cloud_folder_path)
 
     payload = {k: v for k, v in data.items() if k != 'photoDataUrls'}
-    from datetime import datetime
     payload['_syncedAt'] = datetime.utcnow().isoformat() + 'Z'
     payload['_formType'] = form_type
-    content  = json.dumps(payload, ensure_ascii=False, indent=2)
-    media    = MediaIoBaseUpload(io.BytesIO(content.encode('utf-8')),
-                                 mimetype='application/json', resumable=False)
+
+    content = json.dumps(payload, ensure_ascii=False, indent=2)
+    media   = MediaIoBaseUpload(
+        io.BytesIO(content.encode('utf-8')),
+        mimetype='application/json', resumable=False)
+
     existing_id, existing_link = _find_existing_file(service, filename, folder_id)
 
     if existing_id:
         updated = service.files().update(
-            fileId=existing_id, media_body=media, fields='id,webViewLink'
-        ).execute()
-        return {'success': True, 'driveFileId': updated['id'],
-                'driveWebLink': updated.get('webViewLink', existing_link), 'action': 'updated'}
+            fileId=existing_id, media_body=media,
+            fields='id,webViewLink').execute()
+        return {'success': True,
+                'driveFileId':  updated['id'],
+                'driveWebLink': updated.get('webViewLink', existing_link),
+                'action': 'updated'}
     else:
         created = service.files().create(
             body={'name': filename, 'parents': [folder_id]},
-            media_body=media, fields='id,webViewLink'
-        ).execute()
-        return {'success': True, 'driveFileId': created['id'],
-                'driveWebLink': created.get('webViewLink', ''), 'action': 'created'}
+            media_body=media, fields='id,webViewLink').execute()
+        return {'success': True,
+                'driveFileId':  created['id'],
+                'driveWebLink': created.get('webViewLink', ''),
+                'action': 'created'}
 
 
+# ── OAuth2 流程（本機備用）─────────────────────────────────────────────
 _TOKEN_URL = 'https://oauth2.googleapis.com/token'
 _AUTH_URL  = 'https://accounts.google.com/o/oauth2/v2/auth'
 
@@ -130,7 +169,6 @@ def _load_client_secrets():
 
 
 def start_oauth_flow(redirect_uri: str) -> str:
-    """產生 Google 授權 URL（純 HTTP，不使用 PKCE）"""
     from urllib.parse import urlencode
     secrets = _load_client_secrets()
     params = {
@@ -145,7 +183,6 @@ def start_oauth_flow(redirect_uri: str) -> str:
 
 
 def finish_oauth_flow(code: str, redirect_uri: str):
-    """用授權碼直接換 Token（純 HTTP POST，無 PKCE）"""
     import requests
     secrets = _load_client_secrets()
     resp = requests.post(_TOKEN_URL, data={
@@ -174,4 +211,4 @@ def finish_oauth_flow(code: str, redirect_uri: str):
         f.write(creds.to_json())
     global _drive_service
     _drive_service = None
-    logger.info('[Drive] OAuth Token 已儲存')
+    logger.info('[Drive] OAuth2 Token 已儲存')
