@@ -651,6 +651,32 @@ function reuploadInspectionToDrive(id) {
   uploadInspectionFileToDrive(item, item.formType);
 }
 
+/** 批量上傳所有「待上傳」或「上傳失敗」的專業巡查記錄 */
+async function batchUploadPendingToDrive() {
+  const rows = DB.getAll('inspections');
+  const pending = rows.filter(r =>
+    INSPECTION_FORM_SYNC_META[r.formType] &&
+    (!r.cloudSyncStatus || r.cloudSyncStatus === '待上傳' || r.cloudSyncStatus === '上傳失敗')
+  );
+  if (!pending.length) {
+    showToast('沒有待上傳的記錄', 'info'); return;
+  }
+  showToast(`開始批量上傳 ${pending.length} 筆記錄…`, 'info');
+  let ok = 0, fail = 0;
+  for (const item of pending) {
+    try {
+      await uploadInspectionFileToDrive(item, item.formType);
+      ok++;
+    } catch (e) {
+      fail++;
+    }
+    // 每筆間隔 500ms 避免 API 速率限制
+    await new Promise(r => setTimeout(r, 500));
+  }
+  showToast(`批量上傳完成：✅ ${ok} 筆成功${fail ? `　❌ ${fail} 筆失敗` : ''}`, fail ? 'warning' : 'success');
+  renderInspection();
+}
+
 function syncDeruHistoryIntoInspectionRecords() {
   const rows = DB.getAll('inspections');
   const facilities = DB.getAll('facilities');
@@ -1859,8 +1885,8 @@ function renderInspectionDataManagement(standalone = false) {
             <i class="fas fa-cloud-upload-alt"></i> 雲端同步
             <span id="cloudSyncBadge" style="font-size:12px;color:#64748b"></span>
           </button>
-          <button class="btn btn-outline" onclick="queueInspectionDriveSync('all')" style="font-size:18px;padding:12px 24px;color:#b91c1c;border-color:#fecaca;background:#fff1f2">
-            <i class="fas fa-cloud-upload-alt"></i> 建立雲端待上傳
+          <button class="btn btn-primary" onclick="batchUploadPendingToDrive()" style="font-size:18px;padding:12px 24px;background:#0f766e;border-color:#0f766e">
+            <i class="fas fa-cloud-upload-alt"></i> 批量上傳至 Drive
           </button>
           <button class="btn btn-outline" onclick="openInspectionDriveFolder()" style="font-size:18px;padding:12px 24px;color:#1d4ed8;border-color:#bfdbfe;background:#eff6ff">
             <i class="fas fa-folder-open"></i> Google Drive
