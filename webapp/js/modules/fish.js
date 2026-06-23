@@ -1121,7 +1121,7 @@ function fish_jumpToTrend(speciesName) {
 
 let biogisMap = null;
 let bioLayerGroups = {};
-let bioLayerVisible = { facilities: true, landanimals: true, fishspecies: true };
+let bioLayerVisible = { facilities: true, landanimals: true, fishspecies: false, fishwayDist: true };
 
 const BIO_LAND_DATA = [
   {
@@ -3427,8 +3427,9 @@ function renderFishBioMap() {
             </select>
             <span style="font-size:14px;font-weight:700;color:#0369a1;margin-left:8px">圖層：</span>
             ${biogisLayerToggle('facilities','hard-hat','#1565c0','工程設施')}
-            ${biogisLayerToggle('landanimals','mountain-sun','#166534','陸域動物')}
-            ${biogisLayerToggle('fishspecies','fish','#0284c7','魚種標記')}
+            ${biogisLayerToggle('landanimals','mountain-sun','#166634','陸域動物')}
+            ${biogisLayerToggle('fishwayDist','fish','#0e7490','魚道魚種分布')}
+            ${biogisLayerToggle('fishspecies','circle-dot','#94a3b8','舊版魚種')}
           </div>
         </div>
         <div style="display:flex;align-items:stretch;border-radius:0 0 8px 8px;overflow:hidden;border-top:1px solid #e2e8f0">
@@ -4216,10 +4217,10 @@ function initBioGISMap(fishSpecies, facilities) {
 
   // ── 圖層群組 ──
   bioLayerGroups = {
-    landanimals: L.layerGroup().addTo(biogisMap),
-    landanimals: L.layerGroup().addTo(biogisMap),
-    fishspecies: L.layerGroup().addTo(biogisMap),
-    facilities:  L.layerGroup().addTo(biogisMap)
+    landanimals:  L.layerGroup().addTo(biogisMap),
+    fishspecies:  L.layerGroup(),           // 舊版區域魚種（預設隱藏）
+    fishwayDist:  L.layerGroup().addTo(biogisMap), // 魚道關聯魚種分布（精確定位）
+    facilities:   L.layerGroup().addTo(biogisMap)
   };
 
   // 陸域濱溪帶多邊形已移除（改以動物標記點表示）
@@ -4374,6 +4375,154 @@ function initBioGISMap(fishSpecies, facilities) {
       .addTo(bioLayerGroups.facilities);
   });
 
+
+  // ── 5. 魚道關聯魚種分布（精確定位至各魚道設施座標）──
+  const _FWDIST = [
+    { code:'溪構8-2', typeName:'之字形魚道',   km:'0K+460', lat:24.180055, lng:120.908622, typeColor:'#0ea5e9', status:'正常',   count114:142, delta:'+142',
+      species:[{name:'臺灣白甲魚',shape:'carp', cons:'易危',color:'#d97706',count110:11},{name:'纓口臺鰍',shape:'loach',cons:'易危',color:'#7c3aed',count110:2}]},
+    { code:'溪構7',   typeName:'降壩魚道',     km:'0K+560', lat:24.180922, lng:120.908503, typeColor:'#f59e0b', status:'正常',   count114:187, delta:'+161',
+      species:[{name:'臺灣白甲魚',shape:'carp', cons:'易危',color:'#d97706',count110:8},{name:'臺灣石魚賓',shape:'carp',cons:'近危',color:'#2563eb',count110:6},{name:'纓口臺鰍',shape:'loach',cons:'易危',color:'#7c3aed',count110:1}]},
+    { code:'溪構6',   typeName:'階段式魚道',   km:'0K+740', lat:24.181672, lng:120.909300, typeColor:'#22c55e', status:'正常',   count114:155, delta:'+147',
+      species:[{name:'臺灣白甲魚',shape:'carp', cons:'易危',color:'#d97706',count110:4},{name:'纓口臺鰍',shape:'loach',cons:'易危',color:'#7c3aed',count110:0},{name:'臺灣間爬岩鰍',shape:'loach',cons:'近危',color:'#0284c7',count110:2}]},
+    { code:'溪構5-2', typeName:'潛越式魚道',   km:'1K+000', lat:24.183541, lng:120.909564, typeColor:'#ef4444', status:'堵塞列管', count114:194, delta:'+160',
+      species:[{name:'臺灣白甲魚',shape:'carp', cons:'易危',color:'#d97706',count110:1},{name:'臺灣石魚賓',shape:'carp',cons:'近危',color:'#2563eb',count110:1},{name:'臺灣間爬岩鰍',shape:'loach',cons:'近危',color:'#0284c7',count110:0}]},
+    { code:'溪構4',   typeName:'階段式魚道',   km:'1K+170', lat:24.184805, lng:120.909760, typeColor:'#22c55e', status:'需維護', count114:155, delta:'+147',
+      species:[{name:'臺灣白甲魚',shape:'carp', cons:'易危',color:'#d97706',count110:2},{name:'纓口臺鰍',shape:'loach',cons:'易危',color:'#7c3aed',count110:0},{name:'臺灣間爬岩鰍',shape:'loach',cons:'近危',color:'#0284c7',count110:6}]},
+    { code:'溪構3',   typeName:'斜坡式魚道',   km:'1K+225', lat:24.185158, lng:120.910163, typeColor:'#8b5cf6', status:'正常',   count114:142, delta:'+142',
+      species:[{name:'臺灣白甲魚',shape:'carp', cons:'易危',color:'#d97706',count110:1},{name:'纓口臺鰍',shape:'loach',cons:'易危',color:'#7c3aed',count110:1}]},
+    { code:'溪構2',   typeName:'階段式魚道',   km:'1K+315', lat:24.185835, lng:120.909631, typeColor:'#22c55e', status:'正常',   count114:155, delta:'+147',
+      species:[{name:'臺灣白甲魚',shape:'carp', cons:'易危',color:'#d97706',count110:2},{name:'纓口臺鰍',shape:'loach',cons:'易危',color:'#7c3aed',count110:0},{name:'臺灣間爬岩鰍',shape:'loach',cons:'近危',color:'#0284c7',count110:0}]},
+    { code:'溪構1-1', typeName:'粗石斜曲面魚道', km:'1K+400', lat:24.186629, lng:120.909306, typeColor:'#14b8a6', status:'正常',   count114:155, delta:'+147',
+      species:[{name:'臺灣白甲魚',shape:'carp', cons:'易危',color:'#d97706',count110:5},{name:'纓口臺鰍',shape:'loach',cons:'易危',color:'#7c3aed',count110:0},{name:'臺灣間爬岩鰍',shape:'loach',cons:'近危',color:'#0284c7',count110:0}]},
+    { code:'溪構1-2', typeName:'舟通式魚道',   km:'1K+400', lat:24.186420, lng:120.909050, typeColor:'#6366f1', status:'正常',   count114:142, delta:'+142',
+      species:[{name:'臺灣白甲魚',shape:'carp', cons:'易危',color:'#d97706',count110:0},{name:'纓口臺鰍',shape:'loach',cons:'易危',color:'#7c3aed',count110:0}]}
+  ];
+
+  // 物種偏移量（以魚道為中心向外散開，避免重疊）
+  const _spOffsets = n => {
+    if (n === 1) return [[0.00028, 0]];
+    if (n === 2) return [[0.00028,-0.00020],[0.00028,0.00020]];
+    return          [[0.00034, 0],[-0.00006,-0.00024],[-0.00006,0.00024]];
+  };
+  const _consColor = c => ({瀕危:'#dc2626',易危:'#d97706',近危:'#2563eb',一般:'#16a34a'}[c]||'#64748b');
+  const _statusBadge = s => s==='堵塞列管'?'🔴':s==='需維護'?'🟡':'🟢';
+
+  _FWDIST.forEach(fw => {
+    const n = fw.species.length;
+    const offsets = _spOffsets(n);
+
+    // ① 中心：魚道主標記（大型複合徽章）
+    const spIconsHtml = fw.species.map(sp =>
+      `<div style="width:32px;height:20px">${fish_speciesSvg(sp.shape)}</div>`
+    ).join('');
+    const centerIcon = L.divIcon({
+      className: '',
+      html: `<div style="display:flex;flex-direction:column;align-items:center;cursor:pointer;
+               filter:drop-shadow(0 4px 10px rgba(0,0,0,.55));position:relative">
+               <!-- 魚道型式圓徽 -->
+               <div style="width:52px;height:52px;border-radius:50%;background:${fw.typeColor};
+                 border:3px solid #fff;display:flex;align-items:center;justify-content:center;
+                 box-shadow:0 4px 12px rgba(0,0,0,.40)">
+                 <i class="fas fa-fish" style="color:#fff;font-size:22px"></i>
+               </div>
+               <!-- 魚道代碼標籤 -->
+               <div style="font-size:13px;font-weight:900;color:#0f172a;white-space:nowrap;
+                 background:rgba(255,255,255,.97);border-radius:7px;padding:3px 10px;margin-top:3px;
+                 border:2px solid ${fw.typeColor};box-shadow:0 2px 8px rgba(0,0,0,.22);line-height:1.5">
+                 ${fw.code}
+               </div>
+               <!-- 物種小圖示列 -->
+               <div style="display:flex;gap:2px;background:rgba(255,255,255,.93);
+                 border-radius:6px;padding:3px 5px;margin-top:2px;border:1.5px solid ${fw.typeColor}">
+                 ${spIconsHtml}
+               </div>
+             </div>`,
+      iconSize: [52, 100], iconAnchor: [26, 26]
+    });
+
+    const popupHtml = `
+      <div style="min-width:240px;font-size:13px">
+        <div style="font-weight:900;font-size:16px;color:${fw.typeColor};margin-bottom:6px;border-bottom:2px solid ${fw.typeColor};padding-bottom:5px">
+          ${_statusBadge(fw.status)} ${fw.code}　${fw.typeName}
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px;font-size:12px">
+          <span><b>樁號：</b>${fw.km}</span>
+          <span><b>狀態：</b><span style="color:${fw.status==='堵塞列管'?'#dc2626':fw.status==='需維護'?'#d97706':'#16a34a'};font-weight:700">${fw.status}</span></span>
+        </div>
+        <div style="font-size:13px;font-weight:700;color:#0f172a;margin-bottom:6px">114年聯關尾數：
+          <span style="color:${fw.typeColor};font-size:15px;font-weight:900">${fw.count114}</span>
+          <span style="font-size:12px;color:#16a34a;font-weight:700">&nbsp;${fw.delta} 較106年</span>
+        </div>
+        <div style="font-weight:700;font-size:12px;color:#475569;margin-bottom:5px">🐟 關聯保育魚種（110年電捕調查）：</div>
+        ${fw.species.map(sp=>`
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;
+            background:#f8fafc;border-radius:6px;padding:5px 8px;border-left:3px solid ${sp.color}">
+            <div style="width:38px;height:24px;flex-shrink:0">${fish_speciesSvg(sp.shape)}</div>
+            <div>
+              <div style="font-weight:700;font-size:13px;color:#0f172a">${sp.name}</div>
+              <div style="font-size:11px;color:${_consColor(sp.cons)}">● ${sp.cons}&nbsp;&nbsp;110年電捕：${sp.count110>0?sp.count110+'尾':'微量'}</div>
+            </div>
+          </div>`).join('')}
+        <div style="font-size:11px;color:#94a3b8;margin-top:6px;border-top:1px solid #e2e8f0;padding-top:5px">
+          資料來源：110年東勢處魚道成效追蹤報告（電捕法）‧ 歷年巡查記錄
+        </div>
+      </div>`;
+
+    L.marker([fw.lat, fw.lng], { icon: centerIcon, zIndexOffset: 200 })
+      .bindPopup(popupHtml, { maxWidth: 300 })
+      .addTo(bioLayerGroups.fishwayDist);
+
+    // ② 周圍：各物種精確偏移標記
+    fw.species.forEach((sp, idx) => {
+      const [dLat, dLng] = offsets[idx];
+      const spIcon = L.divIcon({
+        className: '',
+        html: `<div style="display:flex;flex-direction:column;align-items:center;cursor:pointer;
+                 filter:drop-shadow(0 3px 7px rgba(0,0,0,.45))">
+                 <!-- 連接線提示 -->
+                 <div style="width:2px;height:12px;background:${sp.color};opacity:.7"></div>
+                 <!-- 魚形圖示 -->
+                 <div style="width:52px;height:32px;border-radius:6px;background:rgba(255,255,255,.95);
+                   border:2px solid ${sp.color};padding:2px;box-shadow:0 2px 8px rgba(0,0,0,.25)">
+                   ${fish_speciesSvg(sp.shape)}
+                 </div>
+                 <!-- 物種名稱 -->
+                 <div style="font-size:11.5px;font-weight:800;color:#0f172a;white-space:nowrap;
+                   background:rgba(255,255,255,.96);border-radius:5px;padding:2px 7px;margin-top:2px;
+                   border:1.5px solid ${sp.color};line-height:1.4;box-shadow:0 1px 4px rgba(0,0,0,.18)">
+                   ${sp.name}
+                 </div>
+                 <!-- 保育等級 -->
+                 <div style="font-size:10px;font-weight:700;color:${_consColor(sp.cons)};
+                   background:rgba(255,255,255,.88);border-radius:4px;padding:1px 5px;margin-top:1px">
+                   ${sp.cons}
+                 </div>
+               </div>`,
+        iconSize: [52, 80], iconAnchor: [26, 12]
+      });
+
+      const spPopup = `
+        <div style="min-width:190px;font-size:13px">
+          <div style="font-weight:900;font-size:14px;color:${sp.color};margin-bottom:4px">
+            ${sp.name}</div>
+          <div style="color:#64748b;font-style:italic;font-size:11px;margin-bottom:6px">
+            保育等級：<span style="color:${_consColor(sp.cons)};font-weight:700">${sp.cons}</span>
+          </div>
+          <div style="background:#f0fdfa;border-left:3px solid ${fw.typeColor};
+            border-radius:0 5px 5px 0;padding:6px 8px;font-size:12px;margin-bottom:6px">
+            <b>分布魚道：</b>${fw.code} ${fw.typeName}<br>
+            <b>樁號：</b>${fw.km}
+          </div>
+          <div style="font-size:12px">
+            <b>110年電捕記錄：</b>${sp.count110>0?'<span style="color:#16a34a;font-weight:700">'+sp.count110+'尾</span>':'<span style="color:#94a3b8">微量記錄</span>'}
+          </div>
+        </div>`;
+
+      L.marker([fw.lat + dLat, fw.lng + dLng], { icon: spIcon, zIndexOffset: 100 })
+        .bindPopup(spPopup, { maxWidth: 240 })
+        .addTo(bioLayerGroups.fishwayDist);
+    });
+  });
 
   // ── 點擊座標顯示（方便校正魚類標記位置）──
   const coordCtrl = L.control({ position: 'bottomleft' });
