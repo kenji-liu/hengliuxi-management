@@ -1936,12 +1936,6 @@ function renderInspectionDataManagement(standalone = false) {
           <button class="btn btn-outline" onclick="cleanupDuplicateInspections()" style="font-size:18px;padding:12px 24px;color:#7c3aed;border-color:#c4b5fd;background:#f5f3ff">
             <i class="fas fa-broom"></i> 清除重複記錄
           </button>
-          <button class="btn btn-outline" onclick="openInspectionDriveFolder()" style="font-size:18px;padding:12px 24px;color:#1d4ed8;border-color:#bfdbfe;background:#eff6ff">
-            <i class="fas fa-folder-open"></i> Google Drive
-          </button>
-          <button id="driveCfgBtn" class="btn btn-outline" onclick="_showDriveSetupGuide()" style="font-size:18px;padding:12px 24px;color:#166534;border-color:#86efac;background:#f0fdf4">
-            <i class="fas fa-key"></i> 設定 Google Drive <span id="driveCfgBadge" style="font-size:13px;margin-left:4px"></span>
-          </button>
         </div>
       </div>` : `
       <div class="card-header" style="flex-wrap:wrap;gap:8px">
@@ -1959,11 +1953,8 @@ function renderInspectionDataManagement(standalone = false) {
           <button class="btn btn-outline" onclick="openFishwayForm()" style="font-size:15px;padding:8px 16px;color:#0f766e;border-color:#99f6e4;background:#f0fdfa">
             <i class="fas fa-fish"></i> 魚道
           </button>
-          <button class="btn btn-outline" onclick="openInspectionDriveFolder()" style="font-size:15px;padding:8px 16px;color:#1d4ed8;border-color:#bfdbfe;background:#eff6ff">
-            <i class="fas fa-folder-open"></i> 雲端
-          </button>
-          <button id="driveCfgBtn2" class="btn btn-outline" onclick="_showDriveSetupGuide()" style="font-size:15px;padding:8px 16px;color:#166534;border-color:#86efac;background:#f0fdf4">
-            <i class="fas fa-key"></i> Drive設定 <span id="driveCfgBadge2"></span>
+          <button class="btn btn-outline" onclick="cleanupDuplicateInspections()" style="font-size:15px;padding:8px 16px;color:#7c3aed;border-color:#c4b5fd;background:#f5f3ff">
+            <i class="fas fa-broom"></i> 清除重複
           </button>
         </div>
       </div>`}
