@@ -19,6 +19,8 @@ _DATA_DIR    = os.path.join(os.path.dirname(__file__), 'data')
 _TOKEN_PATH  = os.path.join(_DATA_DIR, 'gdrive_oauth_token.json')
 _SECRET_PATH = os.path.join(_DATA_DIR, 'gdrive_client_secret.json')
 _SA_PATH     = os.path.join(_DATA_DIR, 'gdrive_service_account.json')
+# Render Secret Files 掛載路徑（/etc/secrets/<filename>）
+_SA_SECRET_FILE = '/etc/secrets/gdrive_service_account.json'
 
 GDRIVE_ROOT_FOLDER_ID = '1k2s5HSd_R5GeCt05SOtJxn6UFSrbyoQ9'
 _SCOPES = ['https://www.googleapis.com/auth/drive']
@@ -26,9 +28,29 @@ _SCOPES = ['https://www.googleapis.com/auth/drive']
 _drive_service = None
 
 
+def _load_sa_info() -> dict:
+    """讀取服務帳號 JSON（優先順序：env var → Secret File → 本機檔案）"""
+    # 1. 環境變數（需為有效 JSON 字串）
+    env_val = os.environ.get('GOOGLE_SERVICE_ACCOUNT_JSON', '').strip()
+    if env_val and env_val.startswith('{'):
+        return json.loads(env_val)
+    # 2. Render Secret Files（/etc/secrets/gdrive_service_account.json）
+    if os.path.exists(_SA_SECRET_FILE):
+        with open(_SA_SECRET_FILE, encoding='utf-8') as f:
+            return json.load(f)
+    # 3. 本機開發檔案
+    if os.path.exists(_SA_PATH):
+        with open(_SA_PATH, encoding='utf-8') as f:
+            return json.load(f)
+    raise RuntimeError('SA_NOT_FOUND')
+
+
 def _auth_mode() -> str:
     """回傳目前可用的認證模式：'service_account' | 'oauth2' | 'none'"""
-    if os.environ.get('GOOGLE_SERVICE_ACCOUNT_JSON'):
+    env_val = os.environ.get('GOOGLE_SERVICE_ACCOUNT_JSON', '').strip()
+    if env_val and env_val.startswith('{'):
+        return 'service_account'
+    if os.path.exists(_SA_SECRET_FILE):
         return 'service_account'
     if os.path.exists(_SA_PATH):
         return 'service_account'
@@ -52,13 +74,7 @@ def _get_service():
         from google.oauth2 import service_account
         from googleapiclient.discovery import build
 
-        sa_json_str = os.environ.get('GOOGLE_SERVICE_ACCOUNT_JSON')
-        if sa_json_str:
-            sa_info = json.loads(sa_json_str)
-        else:
-            with open(_SA_PATH, encoding='utf-8') as f:
-                sa_info = json.load(f)
-
+        sa_info = _load_sa_info()
         creds = service_account.Credentials.from_service_account_info(
             sa_info, scopes=_SCOPES)
         _drive_service = build('drive', 'v3', credentials=creds)
