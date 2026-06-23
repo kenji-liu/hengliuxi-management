@@ -57,28 +57,38 @@ def _resolve_path(secret_file: str, local_file: str) -> str | None:
 
 
 def _auth_mode() -> str:
-    """回傳目前可用的認證模式：'oauth2' | 'service_account' | 'none'
-    優先使用 OAuth2（個人 Drive），服務帳號作為備用"""
-    # OAuth2（個人 Google 帳號，有儲存空間）
+    """回傳目前可用的認證模式（優先順序）：
+      1. oauth2_env  — Render 環境變數（GDRIVE_REFRESH_TOKEN 等）
+      2. oauth2_file — 本機 / Secret Files 的 token JSON
+      3. service_account — 服務帳號（個人 Drive 無儲存配額，僅限 Shared Drive）
+      4. none
+    """
+    # 1. 環境變數 OAuth2（最適合 Render）
+    if os.environ.get('GDRIVE_REFRESH_TOKEN') and os.environ.get('GDRIVE_CLIENT_ID'):
+        return 'oauth2_env'
+    # 2. 檔案 OAuth2
     token  = _resolve_path(_TOKEN_SECRET_FILE, _TOKEN_PATH)
     secret = _resolve_path(_CLIENT_SECRET_FILE, _SECRET_PATH)
     if token and secret:
-        return 'oauth2'
-    # 服務帳號（限 Shared Drive，個人 Drive 無配額）
-    env_val = os.environ.get('GOOGLE_SERVICE_ACCOUNT_JSON', '').strip()
-    if env_val and env_val.startswith('{'):
-        return 'service_account'
+        return 'oauth2_file'
+    # 3. 服務帳號（限 Shared Drive）
+    env_sa = os.environ.get('GOOGLE_SERVICE_ACCOUNT_JSON', '').strip()
+    if env_sa and env_sa.startswith('{'):
+        try:
+            info = json.loads(env_sa)
+            if info.get('client_email'):  # 確認是服務帳號格式
+                return 'service_account'
+        except Exception:
+            pass
     if os.path.exists(_SA_SECRET_FILE):
         return 'service_account'
     if os.path.exists(_SA_PATH):
         return 'service_account'
-    if os.path.exists(_TOKEN_PATH) and os.path.exists(_SECRET_PATH):
-        return 'oauth2'
     return 'none'
 
 
 def is_configured() -> bool:
-    return _auth_mode() != 'none'
+    return _auth_mode() not in ('none',)
 
 
 def _get_service():
@@ -88,7 +98,44 @@ def _get_service():
 
     mode = _auth_mode()
 
-    if mode == 'service_account':
+    if mode == 'oauth2_env':
+        # 從環境變數直接建立 OAuth2 credentials（最適合 Render）
+        from google.oauth2.credentials import Credentials
+        from google.auth.transport.requests import Request
+        from googleapiclient.discovery import build
+
+        creds = Credentials(
+            token=None,
+            refresh_token=os.environ['GDRIVE_REFRESH_TOKEN'],
+            token_uri=os.environ.get('GDRIVE_TOKEN_URI', 'https://oauth2.googleapis.com/token'),
+            client_id=os.environ['GDRIVE_CLIENT_ID'],
+            client_secret=os.environ['GDRIVE_CLIENT_SECRET'],
+            scopes=_SCOPES,
+        )
+        creds.refresh(Request())
+        _drive_service = build('drive', 'v3', credentials=creds)
+        logger.info('[Drive] OAuth2（env vars）認證成功')
+        return _drive_service
+
+    elif mode in ('oauth2_file', 'oauth2'):
+        from google.oauth2.credentials import Credentials
+        from google.auth.transport.requests import Request
+        from googleapiclient.discovery import build
+
+        token_path = _resolve_path(_TOKEN_SECRET_FILE, _TOKEN_PATH) or _TOKEN_PATH
+        creds = Credentials.from_authorized_user_file(token_path, _SCOPES)
+        if creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+            if os.path.exists(_TOKEN_PATH):
+                with open(_TOKEN_PATH, 'w', encoding='utf-8') as f:
+                    f.write(creds.to_json())
+            logger.info('[Drive] OAuth2 Token 已自動刷新')
+
+        _drive_service = build('drive', 'v3', credentials=creds)
+        logger.info('[Drive] OAuth2（file）認證成功')
+        return _drive_service
+
+    elif mode == 'service_account':
         from google.oauth2 import service_account
         from googleapiclient.discovery import build
 
@@ -97,25 +144,6 @@ def _get_service():
             sa_info, scopes=_SCOPES)
         _drive_service = build('drive', 'v3', credentials=creds)
         logger.info('[Drive] 服務帳號認證成功')
-        return _drive_service
-
-    elif mode == 'oauth2':
-        from google.oauth2.credentials import Credentials
-        from google.auth.transport.requests import Request
-        from googleapiclient.discovery import build
-
-        token_path = _resolve_path(_TOKEN_SECRET_FILE, _TOKEN_PATH)
-        creds = Credentials.from_authorized_user_file(token_path, _SCOPES)
-        if creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-            # 刷新後只寫入本機檔案（Render Secret Files 為唯讀）
-            if os.path.exists(_TOKEN_PATH):
-                with open(_TOKEN_PATH, 'w', encoding='utf-8') as f:
-                    f.write(creds.to_json())
-            logger.info('[Drive] OAuth2 Token 已自動刷新')
-
-        _drive_service = build('drive', 'v3', credentials=creds)
-        logger.info('[Drive] OAuth2 認證成功')
         return _drive_service
 
     else:
