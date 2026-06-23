@@ -4384,7 +4384,7 @@ function initBioGISMap(fishSpecies, facilities) {
       species:[{name:'臺灣白甲魚',shape:'carp', cons:'易危',color:'#d97706',count110:8},{name:'臺灣石魚賓',shape:'carp',cons:'近危',color:'#2563eb',count110:6},{name:'纓口臺鰍',shape:'loach',cons:'易危',color:'#7c3aed',count110:1}]},
     { code:'溪構6',   typeName:'階段式魚道',   km:'0K+740', lat:24.181672, lng:120.909300, typeColor:'#22c55e', status:'正常',   count114:155, delta:'+147',
       species:[{name:'臺灣白甲魚',shape:'carp', cons:'易危',color:'#d97706',count110:4},{name:'纓口臺鰍',shape:'loach',cons:'易危',color:'#7c3aed',count110:0},{name:'臺灣間爬岩鰍',shape:'loach',cons:'近危',color:'#0284c7',count110:2}]},
-    { code:'溪構5-2', typeName:'潛越式魚道',   km:'1K+000', lat:24.183541, lng:120.909564, typeColor:'#ef4444', status:'堵塞列管', count114:194, delta:'+160',
+    { code:'溪構5-2', typeName:'潛越式魚道',   km:'1K+000', lat:24.183541, lng:120.909564, typeColor:'#0ea5e9', status:'正常',     count114:194, delta:'+160',
       species:[{name:'臺灣白甲魚',shape:'carp', cons:'易危',color:'#d97706',count110:1},{name:'臺灣石魚賓',shape:'carp',cons:'近危',color:'#2563eb',count110:1},{name:'臺灣間爬岩鰍',shape:'loach',cons:'近危',color:'#0284c7',count110:0}]},
     { code:'溪構4',   typeName:'階段式魚道',   km:'1K+170', lat:24.184805, lng:120.909760, typeColor:'#22c55e', status:'需維護', count114:155, delta:'+147',
       species:[{name:'臺灣白甲魚',shape:'carp', cons:'易危',color:'#d97706',count110:2},{name:'纓口臺鰍',shape:'loach',cons:'易危',color:'#7c3aed',count110:0},{name:'臺灣間爬岩鰍',shape:'loach',cons:'近危',color:'#0284c7',count110:6}]},
