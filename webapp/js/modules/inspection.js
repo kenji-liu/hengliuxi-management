@@ -340,6 +340,37 @@ function syncInspectionRecordToFacility(item, refreshSyncAt = true) {
   if (needsUpdate) DB.update('facilities', facilityId, updates);
 }
 
+/**
+ * 反向同步：設施盤點「正常/A1」→ 關聯巡查記錄更新為「完成」
+ * 確保魚道檢核表/構造物調查表狀態與工程設施盤點一致
+ */
+function syncFacilityStatusToInspections(silent = false) {
+  const facilities  = DB.getAll('facilities');
+  const inspections = DB.getAll('inspections');
+  let updated = 0;
+
+  facilities.forEach(fac => {
+    if (fac.status !== '正常' || fac.derLevel !== 'A1') return;
+    const linked = inspections.filter(ins =>
+      Number(ins.facilityId) === Number(fac.id) &&
+      ['professional_fishway', 'professional_structure'].includes(ins.formType) &&
+      (ins.status === '待處理' || ins.status === '處理中')
+    );
+    linked.forEach(ins => {
+      DB.update('inspections', ins.id, {
+        status:   '完成',
+        priority: '低',
+        facilityStatusSyncedAt: new Date().toISOString()
+      });
+      updated++;
+    });
+  });
+
+  if (!silent && updated > 0)
+    showToast(`✅ 已依設施狀態同步 ${updated} 筆巡查記錄為「完成」`, 'success');
+  return updated;
+}
+
 function ensureInspectionSyncMetadata() {
   DB.getAll('inspections')
     .sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')))
@@ -800,10 +831,11 @@ function inspectionRecordTypeLabel(type) {
 function renderInspectionMgmtPage() {
   syncDeruHistoryIntoInspectionRecords();
   ensureInspectionSyncMetadata();
+  // 反向同步：設施「正常/A1」→ 巡查記錄自動標記為完成
+  syncFacilityStatusToInspections(true);
   document.getElementById('contentArea').innerHTML =
     renderManualInspectionGuide() +
     renderInspectionDataManagement(true);
-  // 初始化篩選監聽（已在 renderInspectionDataManagement 內 setTimeout 處理）
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1852,6 +1884,7 @@ function renderGeneralInspRecords() {
 
 function renderInspectionDataManagement(standalone = false) {
   ensureInspectionSyncMetadata();
+  syncFacilityStatusToInspections(true); // 靜默反向同步
   const allInsp = DB.getAll('inspections');
   const facilities = DB.getAll('facilities');
 
@@ -1935,6 +1968,9 @@ function renderInspectionDataManagement(standalone = false) {
           </button>
           <button class="btn btn-outline" onclick="cleanupDuplicateInspections()" style="font-size:18px;padding:12px 24px;color:#7c3aed;border-color:#c4b5fd;background:#f5f3ff">
             <i class="fas fa-broom"></i> 清除重複記錄
+          </button>
+          <button class="btn btn-outline" onclick="syncFacilityStatusToInspections();renderInspection()" style="font-size:18px;padding:12px 24px;color:#0369a1;border-color:#bae6fd;background:#e0f2fe">
+            <i class="fas fa-sync-alt"></i> 依設施狀態同步
           </button>
         </div>
       </div>` : `
