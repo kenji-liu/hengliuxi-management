@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>橫流溪管理平台 — 即時同步設定</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Microsoft JhengHei', 'Segoe UI', sans-serif;
+      background: #f0f4f8; min-height: 100vh;
+      display: flex; align-items: center; justify-content: center; padding: 20px;
+    }
+    .card {
+      background: #fff; border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0,0,0,.12);
+      padding: 32px 28px; width: 100%; max-width: 560px;
+    }
+    .logo { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+    .logo-icon {
+      width: 48px; height: 48px; background: #1a6b3c; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 26px; color: #fff;
+    }
+    h1 { font-size: 20px; font-weight: 800; color: #0f172a; }
+    .sub { font-size: 13px; color: #64748b; }
+    h2 { font-size: 18px; font-weight: 800; color: #0f172a; margin-bottom: 6px; }
+    .desc { font-size: 14px; color: #64748b; margin-bottom: 20px; line-height: 1.6; }
+    .info-box {
+      background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 10px;
+      padding: 14px 16px; margin-bottom: 18px; font-size: 13px; color: #166534; line-height: 1.7;
+    }
+    .config-pre {
+      background: #fff; border: 1px solid #bbf7d0; border-radius: 8px;
+      padding: 10px 12px; margin-top: 8px; font-size: 11.5px; font-family: monospace;
+      white-space: pre-wrap; word-break: break-all; color: #0f172a; line-height: 1.5;
+    }
+    label { display: block; font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 8px; }
+    textarea {
+      width: 100%; border: 1.5px solid #d1d5db; border-radius: 8px;
+      padding: 12px; font-family: monospace; font-size: 12px;
+      line-height: 1.5; resize: vertical; color: #1e293b; outline: none;
+    }
+    textarea:focus { border-color: #1a6b3c; }
+    .btn {
+      display: block; width: 100%; padding: 14px; border-radius: 10px;
+      font-size: 16px; font-weight: 700; cursor: pointer; border: none;
+      margin-top: 12px; transition: opacity .15s;
+    }
+    .btn-primary { background: #1a6b3c; color: #fff; }
+    .btn-fill    { background: #e0f2fe; color: #0369a1; border: 1.5px solid #bae6fd; }
+    .btn-back    { background: #f1f5f9; color: #334155; border: 1.5px solid #e2e8f0; }
+    .result { display: none; text-align: center; padding: 10px 0; }
+    .result-icon { font-size: 56px; margin-bottom: 10px; }
+    .result-title { font-size: 22px; font-weight: 800; color: #14532d; margin-bottom: 6px; }
+    .result-sub { font-size: 14px; color: #64748b; margin-bottom: 20px; line-height: 1.6; }
+    .error-box {
+      background: #fee2e2; border: 1.5px solid #fca5a5; border-radius: 8px;
+      padding: 12px; font-size: 13px; color: #7f1d1d; margin-top: 12px; display: none;
+    }
+    .already-box {
+      background: #dcfce7; border: 2px solid #4ade80; border-radius: 12px;
+      padding: 14px 16px; text-align: center; margin-bottom: 16px; display: none;
+    }
+    .steps { margin-top: 20px; padding-top: 16px; border-top: 1px solid #e2e8f0; }
+    .step { display: flex; gap: 10px; margin-bottom: 10px; align-items: flex-start; }
+    .step-n {
+      width: 24px; height: 24px; border-radius: 50%; background: #1a6b3c; color: #fff;
+      font-size: 12px; font-weight: 800; display: flex; align-items: center;
+      justify-content: center; flex-shrink: 0; margin-top: 1px;
+    }
+    .step-t { font-size: 13px; color: #374151; line-height: 1.6; }
+    .device-id { font-size: 11px; color: #94a3b8; margin-top: 8px; }
+  </style>
+</head>
+<body>
+<div class="card">
+
+  <div class="logo">
+    <div class="logo-icon">🌊</div>
+    <div>
+      <h1>橫流溪管理平台</h1>
+      <div class="sub">即時多裝置同步設定</div>
+    </div>
+  </div>
+
+  <!-- 已連線提示 -->
+  <div class="already-box" id="alreadyBox">
+    <div style="font-size:28px">🟢</div>
+    <div style="font-size:16px;font-weight:800;color:#14532d;margin:4px 0">此裝置已啟用即時同步</div>
+    <div style="font-size:13px;color:#166534">資料將自動與其他裝置同步。可重新設定或直接返回平台。</div>
+  </div>
+
+  <!-- 主設定區 -->
+  <div id="mainForm">
+    <h2>📡 啟動即時同步</h2>
+    <p class="desc">設定完成後，所有平板和電腦儲存資料時，<b>3 秒內</b>自動同步至其他裝置。</p>
+
+    <div class="info-box">
+      <b>Firebase Config（已內建）</b><br>
+      點下方「自動填入」按鈕，或手動複製貼上：
+      <pre class="config-pre">{
+  "apiKey": "AIzaSyCbEAj791hYpx_fOIKOSkmDfLvcP-szNS0",
+  "authDomain": "hengliuxi-828fc.firebaseapp.com",
+  "projectId": "hengliuxi-828fc",
+  "storageBucket": "hengliuxi-828fc.firebasestorage.app",
+  "messagingSenderId": "144353176042",
+  "appId": "1:144353176042:web:ecb478a3ac37d044ceea93"
+}</pre>
+    </div>
+
+    <label>Firebase Config JSON</label>
+    <textarea id="cfgInput" rows="7"
+      placeholder='{"apiKey":"...","projectId":"hengliuxi-828fc",...}'></textarea>
+    <div class="device-id" id="devBox"></div>
+
+    <button class="btn btn-fill" onclick="autoFill()">📋 自動填入 Config</button>
+    <button class="btn btn-primary" onclick="doSetup()">✅ 儲存並啟動即時同步</button>
+  </div>
+
+  <!-- 錯誤訊息 -->
+  <div class="error-box" id="errBox"></div>
+
+  <!-- 成功結果 -->
+  <div class="result" id="resultBox">
+    <div class="result-icon">🟢</div>
+    <div class="result-title">即時同步已啟動！</div>
+    <div class="result-sub" id="resultSub"></div>
+    <button class="btn btn-primary" onclick="window.location.href='./'">← 返回管理平台</button>
+  </div>
+
+  <!-- 其他裝置說明 -->
+  <div class="steps">
+    <div style="font-size:12px;color:#94a3b8;margin-bottom:10px">
+      📱 其他 iPad / 電腦的設定方式：
+    </div>
+    <div class="step">
+      <div class="step-n">1</div>
+      <div class="step-t">
+        開啟此頁面網址：<br>
+        <b style="color:#1a6b3c;word-break:break-all" id="thisUrl"></b>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-n">2</div>
+      <div class="step-t">點「自動填入 Config」→ 點「儲存並啟動即時同步」</div>
+    </div>
+    <div class="step">
+      <div class="step-n">3</div>
+      <div class="step-t">返回管理平台，頂端顯示 🟢 即時同步 即完成</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const BUILTIN_CFG = {
+    apiKey: "AIzaSyCbEAj791hYpx_fOIKOSkmDfLvcP-szNS0",
+    authDomain: "hengliuxi-828fc.firebaseapp.com",
+    projectId: "hengliuxi-828fc",
+    storageBucket: "hengliuxi-828fc.firebasestorage.app",
+    messagingSenderId: "144353176042",
+    appId: "1:144353176042:web:ecb478a3ac37d044ceea93",
+    measurementId: "G-7LY2M0GVPX"
+  };
+
+  // 初始化
+  document.getElementById('thisUrl').textContent = location.href;
+
+  var did = localStorage.getItem('DEVICE_ID');
+  if (!did) {
+    did = 'dev_' + Math.random().toString(36).slice(2,10) + '_' + Date.now();
+    localStorage.setItem('DEVICE_ID', did);
+  }
+  document.getElementById('devBox').textContent = '此裝置 ID：' + did.slice(0, 18) + '…';
+
+  // 是否已設定
+  var existing = localStorage.getItem('FIREBASE_CONFIG');
+  if (existing) {
+    try {
+      var ex = JSON.parse(existing);
+      document.getElementById('alreadyBox').style.display = 'block';
+      document.getElementById('cfgInput').value = JSON.stringify(ex, null, 2);
+    } catch(e) {}
+  }
+
+  function autoFill() {
+    document.getElementById('cfgInput').value = JSON.stringify(BUILTIN_CFG, null, 2);
+    document.getElementById('errBox').style.display = 'none';
+  }
+
+  function showErr(msg) {
+    var el = document.getElementById('errBox');
+    el.style.display = 'block';
+    el.textContent = '❌ ' + msg;
+  }
+
+  function doSetup() {
+    var raw = document.getElementById('cfgInput').value.trim();
+    var cfg;
+    if (!raw) {
+      cfg = BUILTIN_CFG;
+    } else {
+      try { cfg = JSON.parse(raw); }
+      catch(e) { showErr('JSON 格式有誤：' + e.message); return; }
+    }
+    if (!cfg.apiKey || !cfg.projectId) {
+      showErr('缺少 apiKey 或 projectId，請確認 Config 格式'); return;
+    }
+    localStorage.setItem('FIREBASE_CONFIG', JSON.stringify(cfg));
+    document.getElementById('mainForm').style.display = 'none';
+    document.getElementById('alreadyBox').style.display = 'none';
+    document.getElementById('errBox').style.display = 'none';
+    document.getElementById('resultBox').style.display = 'block';
+    document.getElementById('resultSub').textContent =
+      '專案：' + cfg.projectId + '\n返回管理平台後，頂端會顯示 🟢 即時同步。';
+  }
+</script>
+</body>
+</html>
