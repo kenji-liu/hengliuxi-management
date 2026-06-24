@@ -99,6 +99,20 @@ const CloudSync = (() => {
         delete data._deviceId;
         localStorage.setItem(DB.KEY, JSON.stringify(data));
         console.log('[CloudSync] 初始化：雲端資料較新，已拉取 ts:', new Date(remoteTs).toLocaleTimeString());
+        // 拉取後立即執行設施狀態反向同步，確保巡查記錄與設施盤點一致
+        if (typeof window.syncFacilityStatusToInspections === 'function') {
+          const n = window.syncFacilityStatusToInspections(true);
+          if (n > 0) {
+            // 若有更新，也把修正後的資料推送至 Firestore
+            const corrected = JSON.parse(localStorage.getItem(DB.KEY) || '{}');
+            corrected.settings = corrected.settings || {};
+            corrected.settings.syncTimestamp = Date.now();
+            localStorage.setItem(DB.KEY, JSON.stringify(corrected));
+            if (_docRef) _docRef.set({ ...corrected, _ts: Date.now(), _deviceId: _deviceId })
+              .then(() => console.log('[CloudSync] 反向同步修正已推送至 Firestore'))
+              .catch(e => console.warn('[CloudSync] 修正推送失敗', e));
+          }
+        }
         _showSyncToast('雲端初始化', remoteTs);
         _refreshCurrentPage();
       } else if (localTs > remoteTs + 5000) {
@@ -142,6 +156,10 @@ const CloudSync = (() => {
         localStorage.setItem(DB.KEY, JSON.stringify(data));
         console.log('[CloudSync] 收到遠端更新 ts:', new Date(remoteTs).toLocaleTimeString());
 
+        // 收到遠端資料後也執行反向同步，確保巡查記錄與設施狀態一致
+        if (typeof window.syncFacilityStatusToInspections === 'function') {
+          window.syncFacilityStatusToInspections(true);
+        }
         _showSyncToast(remoteDev, remoteTs);
         _refreshCurrentPage();
       }
