@@ -5579,12 +5579,12 @@ function openStructureInspectionForm(facilityId = null, id = null) {
     <div style="font-size:14px;font-weight:800;color:#9a3412;border-left:4px solid #ea580c;padding-left:8px;margin-bottom:10px">(2) 檢測評估</div>
     <div class="form-group"><label>外觀檢視（可複選）</label>
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px">
-        ${SF_VISUAL.map(v=>`
+        ${SF_VISUAL.map((v,i)=>`
           <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;
             background:${(saved.sf_visual||[]).includes(v)?'#fee2e2':'#f8fafc'};
             border:1px solid ${(saved.sf_visual||[]).includes(v)?'#dc2626':'#e2e8f0'};
             border-radius:999px;padding:3px 10px">
-            <input type="checkbox" id="sf_vis_${v.replace(/[^a-z0-9]/gi,'')}"
+            <input type="checkbox" id="sf_vis_${i}"
               ${(saved.sf_visual||[]).includes(v)?'checked':''}>
             ${v}
           </label>`).join('')}
@@ -5725,7 +5725,7 @@ function downloadSFPdf() {
   const deruU = document.getElementById('sf_deru_u')?.value || '-';
   const icsGrade = document.querySelector('input[name="sf_ics_grade"]:checked')?.value || '─';
   const recommend = document.getElementById('sf_recommend')?.value || '';
-  const visChecked = SF_VISUAL.filter(v => document.getElementById(`sf_vis_${v.replace(/[^a-z0-9]/gi,'')}`)?.checked).join('、') || '─';
+  const visChecked = SF_VISUAL.filter((v,i) => document.getElementById(`sf_vis_${i}`)?.checked).join('、') || '─';
   const dmgChecked = SF_DAMAGE_REASONS.filter(v => document.getElementById(`sf_dmg_${v.replace(/[^a-z0-9]/gi,'')}`)?.checked).join('、') || '─';
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
   <title>構造物調查表（附錄二）</title>
@@ -5782,7 +5782,7 @@ function saveStructureInspectionForm(id) {
   const facilityId = parseInt(document.getElementById('sf_facility')?.value) || null;
   if (!date || !facilityId) { showToast('請填寫檢測時間並選擇構造物', 'error'); return; }
 
-  const sf_visual = SF_VISUAL.filter(v => document.getElementById(`sf_vis_${v.replace(/[^a-z0-9]/gi,'')}`)?.checked);
+  const sf_visual = SF_VISUAL.filter((v, i) => document.getElementById(`sf_vis_${i}`)?.checked);
   const sf_dmgReasons = [...SF_DAMAGE_REASONS.filter(v => document.getElementById(`sf_dmg_${v.replace(/[^a-z0-9]/gi,'')}`)?.checked),
     document.getElementById('sf_dmg_other')?.checked ? '其他' : null].filter(Boolean);
   const sf_deruItems = [0,1,2].map(i => ({
