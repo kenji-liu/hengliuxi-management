@@ -236,65 +236,77 @@ const CloudSync = (() => {
 
     /** 顯示設定對話框 */
     showSetupDialog() {
-      const existing = this.getConfig();
+      const existing    = this.getConfig();
       const existingStr = existing ? JSON.stringify(existing, null, 2) : '';
-      const deviceInfo = `目前裝置 ID：${_deviceId?.slice(0, 12)}…`;
+      const deviceId    = _deviceId ? _deviceId.slice(0, 14) + '…' : '未知';
+      const isOnline    = (_status === 'online');
 
-      if (typeof openModal !== 'function') { alert('請從平台介面操作'); return; }
+      // 直接操作 DOM（避免 openModal body 渲染問題）
+      const overlay = document.getElementById('modalOverlay');
+      const titleEl = document.getElementById('modalTitle');
+      const bodyEl  = document.getElementById('modalBody');
+      const footEl  = document.getElementById('modalFooter');
+      const modal   = document.getElementById('modal');
+      if (!overlay || !bodyEl) { alert('請在平台頁面操作'); return; }
 
-      openModal('設定即時同步（Firebase Firestore）', `
-        <div style="padding:4px 0 8px">
-          <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:14px;margin-bottom:14px;font-size:13px;color:#166534;line-height:1.7">
-            <b><i class="fas fa-sync-alt"></i> 即時同步說明</b><br>
-            設定後，所有裝置（iPad、電腦）儲存資料時，會自動同步至其他裝置。<br>
-            <b>免費使用</b>，每天最多 50,000 次讀取 / 20,000 次寫入。
-          </div>
-          <div style="font-size:12px;color:#64748b;margin-bottom:10px">
-            <b>步驟：</b>
-            1. 前往 <a href="https://console.firebase.google.com" target="_blank" style="color:#1d4ed8">console.firebase.google.com</a> 建立專案<br>
-            2. 新增 Web 應用程式 → 複製 firebaseConfig 物件<br>
-            3. Firestore Database → 建立資料庫（測試模式）<br>
-            4. 將 config 貼入下方並儲存
-          </div>
-          <div class="form-group">
-            <label>Firebase Config JSON <span style="color:#ef4444">*</span>
-              <span style="font-weight:400;color:#94a3b8;font-size:11px">（貼上完整 { apiKey: "...", ... } 物件）</span>
-            </label>
-            <textarea id="fbConfigInput" rows="8" placeholder='{\n  "apiKey": "AIzaSy...",\n  "authDomain": "xxx.firebaseapp.com",\n  "projectId": "xxx",\n  "storageBucket": "xxx.appspot.com",\n  "messagingSenderId": "123456",\n  "appId": "1:123456:web:abcdef"\n}'
-              style="font-family:monospace;font-size:12px;resize:vertical">${escapeHtml(existingStr)}</textarea>
-          </div>
-          <div style="font-size:12px;color:#64748b;margin-top:4px">${deviceInfo}　狀態：${_status}</div>
-          ${_status === 'online' ? `
-          <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
-            <button class="btn btn-outline" onclick="CloudSync.pull();closeModal()" style="font-size:13px">
-              <i class="fas fa-download"></i> 從雲端拉取最新資料
-            </button>
-            <button class="btn btn-outline" onclick="CloudSync.disconnect();closeModal();renderSyncStatus()" style="font-size:13px;color:#dc2626;border-color:#fca5a5">
-              <i class="fas fa-plug"></i> 中斷同步
-            </button>
-          </div>` : ''}
-        </div>
-      `);
+      if (modal) modal.style.maxWidth = '580px';
+      if (titleEl) titleEl.textContent = '設定即時多裝置同步';
 
-      document.getElementById('modalFooter').innerHTML = `
-        <button class="btn btn-outline" onclick="closeModal()">取消</button>
-        <button class="btn btn-primary" style="background:#166534;border-color:#166534"
-          onclick="
-            const raw = document.getElementById('fbConfigInput').value.trim();
-            if (!raw) { showToast('請輸入 Firebase Config', 'error'); return; }
-            let cfg;
-            try { cfg = JSON.parse(raw); } catch(e) { showToast('JSON 格式錯誤：' + e.message, 'error'); return; }
-            if (!cfg.apiKey || !cfg.projectId) { showToast('缺少必要欄位（apiKey / projectId）', 'error'); return; }
-            CloudSync.saveConfig(cfg).then(ok => {
-              if (ok) { showToast('✅ 即時同步已啟動！', 'success'); closeModal(); }
-              else    { showToast('連線失敗，請確認 Config 是否正確', 'error'); }
-            });
-          ">
-          <i class="fas fa-sync-alt"></i> 儲存並啟動同步
-        </button>
-      `;
+      bodyEl.innerHTML = [
+        '<div style="padding:2px 0 6px">',
+        '<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;',
+        'padding:12px 14px;margin-bottom:12px;font-size:13px;color:#166534;line-height:1.7">',
+        '<b><i class="fas fa-sync-alt"></i> 即時同步說明</b><br>',
+        '設定後所有裝置（iPad、電腦）儲存時，自動同步至其他裝置（延遲 &lt;3秒）。<br>',
+        '<b>免費使用</b>：50,000 讀取 / 20,000 寫入 per day。',
+        '</div>',
+        '<div class="form-group">',
+        '<label style="font-size:13px;font-weight:600;margin-bottom:6px;display:block">',
+        'Firebase Config JSON <span style="color:#ef4444">*</span></label>',
+        '<textarea id="fbConfigInput" rows="9" ',
+        'style="width:100%;font-family:monospace;font-size:12px;resize:vertical;',
+        'padding:8px;border:1.5px solid #d1d5db;border-radius:6px;line-height:1.5;',
+        'box-sizing:border-box" ',
+        'placeholder=\'{"apiKey":"AIzaSy...","projectId":"xxx",...}\'></textarea>',
+        '</div>',
+        '<div style="font-size:11px;color:#94a3b8;margin-top:6px">',
+        '裝置 ID：' + deviceId + '　狀態：' + _status,
+        '</div>',
+        isOnline ? [
+          '<div style="margin-top:10px;display:flex;gap:8px">',
+          '<button class="btn btn-outline" style="font-size:13px" ',
+          'onclick="CloudSync.pull();closeModal()">',
+          '<i class="fas fa-download"></i> 從雲端拉取最新資料</button>',
+          '</div>'
+        ].join('') : '',
+        '</div>'
+      ].join('');
 
-      function escapeHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+      // 設定已儲存的 config
+      if (existingStr) {
+        const ta = document.getElementById('fbConfigInput');
+        if (ta) ta.value = existingStr;
+      }
+
+      footEl.innerHTML = [
+        '<button class="btn btn-outline" onclick="closeModal()">取消</button>',
+        '<button class="btn btn-primary" style="background:#166534;border-color:#166534" ',
+        'onclick="(function(){',
+        'var el=document.getElementById(\'fbConfigInput\');',
+        'if(!el){showToast(\'找不到輸入框\',\'error\');return;}',
+        'var raw=el.value.trim();',
+        'if(!raw){showToast(\'請輸入 Firebase Config\',\'error\');return;}',
+        'var cfg;try{cfg=JSON.parse(raw);}catch(e){showToast(\'JSON格式錯誤：\'+e.message,\'error\');return;}',
+        'if(!cfg.apiKey||!cfg.projectId){showToast(\'缺少 apiKey 或 projectId\',\'error\');return;}',
+        'CloudSync.saveConfig(cfg).then(function(ok){',
+        'if(ok){showToast(\'✅ 即時同步已啟動！\',\'success\');closeModal();}',
+        'else{showToast(\'連線失敗，請確認 Config\',\'error\');}',
+        '});',
+        '})()">',
+        '<i class="fas fa-sync-alt"></i> 儲存並啟動同步</button>'
+      ].join('');
+
+      overlay.style.display = 'flex';
     }
   };
 })();
