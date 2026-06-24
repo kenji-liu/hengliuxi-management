@@ -325,11 +325,13 @@ function syncInspectionRecordToFacility(item, refreshSyncAt = true) {
   const status = getInspectionStatus(item);
   const isOpen = status !== '完成' || ['緊急', '高'].includes(priority) || (item.deru_u || 0) >= 2;
   const conditionByU = item.deru_u >= 4 ? 1 : item.deru_u === 3 ? 2 : item.deru_u === 2 ? 3 : facility.condition;
+  // 若設施盤點明確為 A1（正常），不讓舊巡查紀錄將狀態覆寫為「需維護」
+  const protectedA1 = facility.derLevel === 'A1' && facility.status === '正常';
   const updates = {
     lastInspect: item.date || facility.lastInspect || '',
     assessmentDate: item.date || facility.assessmentDate || '',
     maintenance_priority: priority,
-    status: isOpen ? '需維護' : (facility.status || '正常'),
+    status: (isOpen && !protectedA1) ? '需維護' : (facility.status || '正常'),
     condition: conditionByU || facility.condition || 4,
     derLevel: item.deru_label || facility.derLevel || '',
     evaluationNotes: `${item.inspectionItem || inspectionRecordTypeLabel(inspectionRecordType(item))}：${item.findings || '已完成巡查資料更新'}`,
@@ -344,22 +346,33 @@ function syncInspectionRecordToFacility(item, refreshSyncAt = true) {
  * 反向同步：設施盤點「正常/A1」→ 關聯巡查記錄更新為「完成」
  * 確保魚道檢核表/構造物調查表狀態與工程設施盤點一致
  */
+/**
+ * 反向同步：設施盤點「正常/A1」→ 關聯所有巡查記錄更新為「完成」
+ * 不限 formType（含無 formType 的舊記錄），同時重置 deru 欄位
+ * 避免高 deru_u 值再觸發設施狀態被改回「需維護」
+ */
 function syncFacilityStatusToInspections(silent = false) {
   const facilities  = DB.getAll('facilities');
   const inspections = DB.getAll('inspections');
   let updated = 0;
 
   facilities.forEach(fac => {
+    // 設施盤點明確為「正常」且 DER 評等 A1 才執行
     if (fac.status !== '正常' || fac.derLevel !== 'A1') return;
+
     const linked = inspections.filter(ins =>
       Number(ins.facilityId) === Number(fac.id) &&
-      ['professional_fishway', 'professional_structure'].includes(ins.formType) &&
       (ins.status === '待處理' || ins.status === '處理中')
     );
+
     linked.forEach(ins => {
       DB.update('inspections', ins.id, {
         status:   '完成',
         priority: '低',
+        // 同步重置 DER 值為 A1 對應（D0/E1/R1/U1），
+        // 防止高 deru_u 再觸發 syncInspectionRecordToFacility 把設施改為「需維護」
+        deru_d: 0, deru_e: 1, deru_r: 1, deru_u: 1,
+        deru_label: 'U1 定期巡查', deru_score: 0,
         facilityStatusSyncedAt: new Date().toISOString()
       });
       updated++;
@@ -368,6 +381,8 @@ function syncFacilityStatusToInspections(silent = false) {
 
   if (!silent && updated > 0)
     showToast(`✅ 已依設施狀態同步 ${updated} 筆巡查記錄為「完成」`, 'success');
+  else if (!silent)
+    showToast('巡查記錄狀態已與設施盤點一致', 'info');
   return updated;
 }
 
