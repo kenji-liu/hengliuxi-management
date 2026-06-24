@@ -209,9 +209,8 @@ const CloudSync = (() => {
         _db     = firebase.firestore();
         _docRef = _db.doc(DOC_PATH);
 
-        // 啟用離線持久化（可選，有助於弱網路環境）
-        try { await _db.enablePersistence({ synchronizeTabs: true }); }
-        catch(_) {}
+        // 停用離線持久化（避免 offline 快取干擾即時拉取）
+        // try { await _db.enablePersistence({ synchronizeTabs: true }); } catch(_) {}
 
         // ── 連線後立即比對雲端與本機版本，確保所有裝置資料一致 ──
         await _initSync();
@@ -254,12 +253,13 @@ const CloudSync = (() => {
       }, PUSH_DEBOUNCE);
     },
 
-    /** 強制從 Firestore 拉取最新資料並覆蓋本機 */
+    /** 強制從 Firestore 拉取最新資料並覆蓋本機（強制伺服器讀取，忽略快取） */
     async pull() {
       if (!_docRef) { showToast?.('尚未設定 Firebase，無法拉取', 'error'); return; }
+      showToast?.('正在從雲端拉取…', 'info');
       try {
-        const snap = await _docRef.get();
-        if (!snap.exists) { showToast?.('雲端尚無資料', 'warning'); return; }
+        const snap = await _docRef.get({ source: 'server' });
+        if (!snap.exists) { showToast?.('雲端尚無資料，請先從主裝置點「↑ 推送」', 'warning'); return; }
         const data = snap.data();
         delete data._ts;
         delete data._deviceId;
