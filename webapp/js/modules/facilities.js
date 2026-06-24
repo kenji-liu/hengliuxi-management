@@ -2437,8 +2437,46 @@ function openDERUAssessmentForm(id = null) {
         </select>
       </div>
 
-      <div class="form-group"><label>風險評分（0-100）*</label>
-        <input id="der_riskScore" type="number" min="0" max="100" value="${f.riskScore || 50}" placeholder="0">
+      <div class="form-group">
+        <label>風險評分（0-100）
+          <span id="deruScoreSource" style="font-size:11px;font-weight:400;color:#64748b;margin-left:6px"></span>
+        </label>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input id="der_riskScore" type="number" min="0" max="100"
+            value="${(() => {
+              // 自動從最新構造物巡查的 D/E/R 計算風險評分
+              const inspections = (typeof DB !== 'undefined') ? DB.getAll('inspections') : [];
+              const linked = inspections
+                .filter(i => Number(i.facilityId) === Number(f.id) && i.formType === 'professional_structure' && i.deru_d !== undefined)
+                .sort((a,b) => (b.updatedAt||b.date||'').localeCompare(a.updatedAt||a.date||''));
+              if (linked.length) {
+                const ins = linked[0];
+                const d = ins.deru_d || 0, e = ins.deru_e || 1, r = ins.deru_r || 1;
+                const deruScore = d * 0.4 + e * 0.25 + r * 0.35;
+                let u = 1;
+                if (d === 0) u = 1;
+                else if (deruScore <= 1.5) u = 1;
+                else if (deruScore <= 2.5) u = 2;
+                else if (deruScore <= 3.2) u = 3;
+                else u = 4;
+                const ranges = {1:[0,25],2:[26,50],3:[51,75],4:[76,100]};
+                const uMins = {1:0,2:1.5,3:2.5,4:3.2}, uMaxs = {1:1.5,2:2.5,3:3.2,4:4.0};
+                const frac = Math.min(1,Math.max(0,(deruScore-uMins[u])/(uMaxs[u]-uMins[u])));
+                const [lo,hi] = ranges[u];
+                return Math.round(lo + frac*(hi-lo));
+              }
+              return f.riskScore || 0;
+            })()} placeholder="0" style="flex:1">
+          <button type="button" onclick="deruAutoCalcScore(${f.id})"
+            style="flex-shrink:0;padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;
+                   background:#f8fafc;font-size:12px;cursor:pointer;color:#475569"
+            title="依最新構造物巡查 D/E/R 重新計算">
+            🔄 自動計算
+          </button>
+        </div>
+        <div style="font-size:11px;color:#94a3b8;margin-top:4px">
+          依公式：D×0.4 + E×0.25 + R×0.35 → 換算 0-100（來源：最新構造物調查表單）
+        </div>
       </div>
 
       <div class="form-group"><label>維護策略 *</label>
@@ -2475,21 +2513,78 @@ function openDERUAssessmentForm(id = null) {
   openModal();
 }
 
-function saveDERUAssessment(id) {
-  const derLevel = document.getElementById('der_level').value.trim();
-  const riskScore = document.getElementById('der_riskScore').value.trim();
-  const strategy = document.getElementById('der_strategy').value.trim();
-  const date = document.getElementById('der_date').value;
-  const notes = document.getElementById('der_notes').value.trim();
+/** 依最新構造物巡查 D/E/R 自動計算風險評分並填入欄位 */
+function deruAutoCalcScore(facilityId) {
+  const inspections = DB.getAll('inspections');
+  const linked = inspections
+    .filter(i => Number(i.facilityId) === Number(facilityId) &&
+                 i.formType === 'professional_structure' && i.deru_d !== undefined)
+    .sort((a, b) => (b.updatedAt || b.date || '').localeCompare(a.updatedAt || a.date || ''));
 
-  if (!derLevel || !riskScore || !strategy || !notes) {
-    showToast('請完整填寫所有必填欄位', 'error');
+  if (!linked.length) {
+    showToast('找不到此設施的構造物調查表單，請先填寫巡查', 'warning');
+    return;
+  }
+  const ins = linked[0];
+  const d = ins.deru_d || 0, e = ins.deru_e || 1, r = ins.deru_r || 1;
+  const deruScore = d * 0.4 + e * 0.25 + r * 0.35;
+  let u = 1;
+  if (d === 0) u = 1;
+  else if (deruScore <= 1.5) u = 1;
+  else if (deruScore <= 2.5) u = 2;
+  else if (deruScore <= 3.2) u = 3;
+  else u = 4;
+  const ranges = {1:[0,25], 2:[26,50], 3:[51,75], 4:[76,100]};
+  const uMins  = {1:0, 2:1.5, 3:2.5, 4:3.2};
+  const uMaxs  = {1:1.5, 2:2.5, 3:3.2, 4:4.0};
+  const frac   = Math.min(1, Math.max(0, (deruScore - uMins[u]) / (uMaxs[u] - uMins[u])));
+  const [lo, hi] = ranges[u];
+  const score = Math.round(lo + frac * (hi - lo));
+
+  const el = document.getElementById('der_riskScore');
+  if (el) { el.value = score; el.style.background = '#e8f5e9'; }
+  const src = document.getElementById('deruScoreSource');
+  if (src) src.textContent = `（依 D${d}/E${e}/R${r} 計算 = ${score}，來自 ${ins.date} 巡查）`;
+  showToast(`✅ 風險評分已自動計算：${score}（D${d}/E${e}/R${r}）`, 'success');
+}
+
+function saveDERUAssessment(id) {
+  const derLevel  = document.getElementById('der_level').value.trim();
+  let riskScore   = document.getElementById('der_riskScore').value.trim();
+  const strategy  = document.getElementById('der_strategy').value.trim();
+  const date      = document.getElementById('der_date').value;
+  const notes     = document.getElementById('der_notes').value.trim();
+
+  // 若風險評分未填，嘗試自動計算
+  if (!riskScore && id) {
+    const inspections = DB.getAll('inspections');
+    const linked = inspections
+      .filter(i => Number(i.facilityId) === Number(id) &&
+                   i.formType === 'professional_structure' && i.deru_d !== undefined)
+      .sort((a, b) => (b.updatedAt || b.date || '').localeCompare(a.updatedAt || a.date || ''));
+    if (linked.length) {
+      const ins = linked[0];
+      const d = ins.deru_d || 0, e = ins.deru_e || 1, r = ins.deru_r || 1;
+      const ds = d * 0.4 + e * 0.25 + r * 0.35;
+      let u = d === 0 ? 1 : ds <= 1.5 ? 1 : ds <= 2.5 ? 2 : ds <= 3.2 ? 3 : 4;
+      const ranges = {1:[0,25],2:[26,50],3:[51,75],4:[76,100]};
+      const uMins = {1:0,2:1.5,3:2.5,4:3.2}, uMaxs = {1:1.5,2:2.5,3:3.2,4:4.0};
+      const frac = Math.min(1,Math.max(0,(ds-uMins[u])/(uMaxs[u]-uMins[u])));
+      const [lo,hi] = ranges[u];
+      riskScore = String(Math.round(lo + frac*(hi-lo)));
+      const el = document.getElementById('der_riskScore');
+      if (el) el.value = riskScore;
+    }
+  }
+
+  if (!derLevel || !strategy || !notes) {
+    showToast('請完整填寫 DER 評等、維護策略與評估說明', 'error');
     return;
   }
 
   const updates = {
     derLevel: derLevel,
-    riskScore: parseInt(riskScore),
+    riskScore: parseInt(riskScore) || 0,
     maintenanceStrategy: strategy,
     assessmentDate: date,
     retirementEligible: document.getElementById('der_retirement').checked,
