@@ -476,10 +476,10 @@ function fac_historicalInspectionSummary(f) {
 
 function fac_inspectionLinkage(f) {
   const inspections = fac_linkedInspections(f);
-  const openItems = inspections.filter(item => {
-    const deru = fac_inferDeruFromInspection(item);
-    return item.status !== '完成' || (deru.u || 0) >= 2 || ['緊急', '高'].includes(item.priority);
-  });
+  // 只有明確「待處理」或「處理中」才算未結案件
+  const openItems = inspections.filter(item =>
+    item.status === '待處理' || item.status === '處理中'
+  );
   const aiItems = inspections.filter(item => item.aiImageAnalysis);
   const finalAssessment = fac_latestProfessionalAssessment(f);
   const professionalRows = finalAssessment.professionalRows || [];
@@ -1537,7 +1537,7 @@ function loadFacilitiesTable() {
                 <span><i class="fas fa-route" style="color:${activeCategory.color};margin-right:6px"></i><b style="color:#1565c0;font-size:16px">${f.stationKm || '-'}</b></span>
                 <span><i class="fas fa-calendar" style="margin-right:6px"></i>${displayInspectDate}</span>
                 ${f.material ? `<span><i class="fas fa-cube" style="margin-right:6px"></i>${f.material}</span>` : ''}
-                ${link.openItems.length > 0
+                ${(link.openItems.length > 0 && f.derLevel !== 'A1')
                   ? `<span style="color:#dc2626;font-weight:700"><i class="fas fa-exclamation-circle" style="margin-right:5px"></i>未結案件 ${link.openItems.length} 筆</span>`
                   : ''}
               </div>
