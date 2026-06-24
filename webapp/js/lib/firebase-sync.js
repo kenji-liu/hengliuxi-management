@@ -45,15 +45,22 @@ const CloudSync = (() => {
   }
 
   function _updateStatusUI(s) {
-    const el = document.getElementById('cloudSyncStatus');
+    const el      = document.getElementById('cloudSyncStatus');
+    const pullBtn = document.getElementById('syncPullBtn');
+    const pushBtn = document.getElementById('syncPushBtn');
     if (!el) return;
     const map = {
-      offline:     { icon: '⚫', text: '未連線',  color: '#94a3b8' },
-      connecting:  { icon: '🔄', text: '連線中…', color: '#d97706' },
-      online:      { icon: '🟢', text: '即時同步', color: '#16a34a' },
-      error:       { icon: '🔴', text: '同步錯誤', color: '#dc2626' },
+      offline:    { icon: '⚫', text: '未連線',  color: '#94a3b8' },
+      connecting: { icon: '🔄', text: '連線中…', color: '#d97706' },
+      online:     { icon: '🟢', text: '即時同步', color: '#16a34a' },
+      error:      { icon: '🔴', text: '同步錯誤', color: '#dc2626' },
     }[s] || { icon: '⚫', text: s, color: '#94a3b8' };
-    el.innerHTML = `<span style="color:${map.color};font-weight:700;font-size:13px">${map.icon} ${map.text}</span>`;
+    el.textContent = map.icon + ' ' + map.text;
+    el.style.color = map.color;
+    // 連線後才顯示拉取/推送按鈕
+    const show = s === 'online' ? 'inline-block' : 'none';
+    if (pullBtn) pullBtn.style.display = show;
+    if (pushBtn) pushBtn.style.display = show;
   }
 
   /** 啟動 Firestore 即時監聽 */
@@ -261,6 +268,25 @@ const CloudSync = (() => {
         _refreshCurrentPage();
       } catch(e) {
         showToast?.(`拉取失敗：${e.message}`, 'error');
+      }
+    },
+
+    /** 立即推送本機資料至 Firestore（頂端「↑ 推送」按鈕） */
+    async pushNow() {
+      if (_status !== 'online' || !_docRef) {
+        showToast?.('尚未連線，無法推送', 'error'); return;
+      }
+      try {
+        const data = JSON.parse(localStorage.getItem(DB.KEY) || '{}');
+        if (!data.settings) { showToast?.('本機無資料', 'warning'); return; }
+        const now = Date.now();
+        data.settings.syncTimestamp = now;
+        localStorage.setItem(DB.KEY, JSON.stringify(data));
+        await _docRef.set({ ...data, _ts: now, _deviceId: _deviceId });
+        _lastPushAt = now;
+        showToast?.('✅ 本機資料已推送至雲端，其他裝置將自動同步', 'success');
+      } catch(e) {
+        showToast?.(`推送失敗：${e.message}`, 'error');
       }
     },
 
