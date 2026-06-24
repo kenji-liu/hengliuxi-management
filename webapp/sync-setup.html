@@ -118,15 +118,32 @@
     <button class="btn btn-primary" onclick="doSetup()">✅ 儲存並啟動即時同步</button>
   </div>
 
+  <!-- 已連線後的同步操作 -->
+  <div id="syncActions" style="display:none;margin-top:16px">
+    <div style="background:#fef3c7;border:1.5px solid #fcd34d;border-radius:10px;padding:14px 16px;margin-bottom:12px;font-size:14px;color:#78350f;line-height:1.6">
+      <b>⚠ 資料不一致？</b><br>
+      點下方按鈕，強制從雲端拉取最新資料覆蓋本機，確保與其他裝置完全同步。
+    </div>
+    <button class="btn btn-primary" style="background:#0369a1" onclick="forcePull()">
+      ☁️ 強制從雲端拉取最新資料（覆蓋本機）
+    </button>
+    <button class="btn btn-back" style="background:#f0fdf4;color:#166534;border:1.5px solid #86efac;margin-top:10px" onclick="forcePush()">
+      📤 將本機資料推送至雲端（讓其他裝置同步）
+    </button>
+  </div>
+
   <!-- 錯誤訊息 -->
   <div class="error-box" id="errBox"></div>
 
   <!-- 成功結果 -->
   <div class="result" id="resultBox">
     <div class="result-icon">🟢</div>
-    <div class="result-title">即時同步已啟動！</div>
+    <div class="result-title" id="resultTitle">即時同步已啟動！</div>
     <div class="result-sub" id="resultSub"></div>
     <button class="btn btn-primary" onclick="window.location.href='./'">← 返回管理平台</button>
+    <button class="btn btn-back" style="margin-top:8px;background:#e0f2fe;color:#0369a1;border:1.5px solid #bae6fd" onclick="showSyncActions()">
+      ⚙ 同步操作（拉取 / 推送）
+    </button>
   </div>
 
   <!-- 其他裝置說明 -->
@@ -213,7 +230,106 @@
     document.getElementById('errBox').style.display = 'none';
     document.getElementById('resultBox').style.display = 'block';
     document.getElementById('resultSub').textContent =
-      '專案：' + cfg.projectId + '\n返回管理平台後，頂端會顯示 🟢 即時同步。';
+      '專案：' + cfg.projectId + '　返回管理平台後頂端會顯示 🟢 即時同步。\n若資料仍不一致，請點下方「同步操作」。';
+  }
+
+  function showSyncActions() {
+    document.getElementById('resultBox').style.display = 'none';
+    document.getElementById('syncActions').style.display = 'block';
+  }
+
+  // 強制從 Firestore 拉取最新資料覆蓋本機
+  function forcePull() {
+    var cfg = BUILTIN_CFG;
+    var stored = localStorage.getItem('FIREBASE_CONFIG');
+    if (stored) { try { cfg = JSON.parse(stored); } catch(e) {} }
+
+    if (typeof firebase === 'undefined') {
+      // 動態載入 Firebase SDK
+      var s1 = document.createElement('script');
+      s1.src = 'https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js';
+      s1.onload = function() {
+        var s2 = document.createElement('script');
+        s2.src = 'https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js';
+        s2.onload = function() { _doForcePull(cfg); };
+        document.head.appendChild(s2);
+      };
+      document.head.appendChild(s1);
+    } else {
+      _doForcePull(cfg);
+    }
+  }
+
+  function _doForcePull(cfg) {
+    try {
+      if (!firebase.apps.length) firebase.initializeApp(cfg);
+      var db = firebase.firestore();
+      db.doc('hengliuxi/main').get().then(function(snap) {
+        if (!snap.exists) {
+          alert('⚠ 雲端尚無資料，請先從主裝置（電腦）推送資料至雲端。'); return;
+        }
+        var data = snap.data();
+        delete data._ts; delete data._deviceId;
+        localStorage.setItem('FIREBASE_CONFIG', JSON.stringify(cfg));
+        // 找到 DB_KEY
+        var dbKey = 'hengliuxi_db';
+        localStorage.setItem(dbKey, JSON.stringify(data));
+        document.getElementById('syncActions').style.display = 'none';
+        document.getElementById('resultBox').style.display = 'block';
+        document.getElementById('resultTitle').textContent = '✅ 雲端資料已拉取！';
+        document.getElementById('resultSub').textContent =
+          '資料已更新為雲端最新版本（syncTimestamp: ' +
+          new Date(data.settings && data.settings.syncTimestamp || 0).toLocaleString('zh-TW') +
+          '）\n點「返回管理平台」即可看到最新資料。';
+      }).catch(function(e) {
+        alert('❌ 拉取失敗：' + e.message);
+      });
+    } catch(e) { alert('❌ 初始化失敗：' + e.message); }
+  }
+
+  // 強制推送本機資料至 Firestore（讓其他裝置同步）
+  function forcePush() {
+    var cfg = BUILTIN_CFG;
+    var stored = localStorage.getItem('FIREBASE_CONFIG');
+    if (stored) { try { cfg = JSON.parse(stored); } catch(e) {} }
+
+    var dbKey = 'hengliuxi_db';
+    var localRaw = localStorage.getItem(dbKey);
+    if (!localRaw) { alert('本機無資料可推送'); return; }
+    var localData;
+    try { localData = JSON.parse(localRaw); } catch(e) { alert('本機資料格式錯誤'); return; }
+
+    if (typeof firebase === 'undefined') {
+      var s1 = document.createElement('script');
+      s1.src = 'https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js';
+      s1.onload = function() {
+        var s2 = document.createElement('script');
+        s2.src = 'https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js';
+        s2.onload = function() { _doForcePush(cfg, localData); };
+        document.head.appendChild(s2);
+      };
+      document.head.appendChild(s1);
+    } else {
+      _doForcePush(cfg, localData);
+    }
+  }
+
+  function _doForcePush(cfg, localData) {
+    try {
+      if (!firebase.apps.length) firebase.initializeApp(cfg);
+      var db = firebase.firestore();
+      var now = Date.now();
+      localData.settings = localData.settings || {};
+      localData.settings.syncTimestamp = now;
+      var payload = Object.assign({}, localData, { _ts: now, _deviceId: 'manual-push' });
+      db.doc('hengliuxi/main').set(payload).then(function() {
+        document.getElementById('syncActions').style.display = 'none';
+        document.getElementById('resultBox').style.display = 'block';
+        document.getElementById('resultTitle').textContent = '✅ 本機資料已推送！';
+        document.getElementById('resultSub').textContent =
+          '本機資料已推送至雲端。\n其他裝置開啟管理平台後將自動接收最新資料。';
+      }).catch(function(e) { alert('❌ 推送失敗：' + e.message); });
+    } catch(e) { alert('❌ 初始化失敗：' + e.message); }
   }
 </script>
 </body>

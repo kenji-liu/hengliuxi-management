@@ -57,6 +57,56 @@ const CloudSync = (() => {
   }
 
   /** 啟動 Firestore 即時監聽 */
+  /**
+   * 連線後立即比對：雲端有資料且比本機新 → 自動拉取並刷新頁面
+   * 雲端為空 → 推送本機資料作為初始版本
+   */
+  async function _initSync() {
+    try {
+      const snap = await _docRef.get();
+
+      if (!snap.exists) {
+        // Firestore 尚無資料 → 推送本機資料（第一台裝置建立雲端版本）
+        const local = JSON.parse(localStorage.getItem(DB.KEY) || '{}');
+        if (local && local.settings) {
+          local.settings.syncTimestamp = Date.now();
+          await _docRef.set({ ...local, _ts: Date.now(), _deviceId: _deviceId });
+          console.log('[CloudSync] 初次推送本機資料至 Firestore');
+        }
+        return;
+      }
+
+      // Firestore 有資料 → 比較時間戳
+      const remote = snap.data();
+      const remoteTs = remote._ts || 0;
+      let localTs = 0;
+      try {
+        const local = JSON.parse(localStorage.getItem(DB.KEY) || '{}');
+        localTs = local?.settings?.syncTimestamp || 0;
+      } catch(_) {}
+
+      if (remoteTs > localTs) {
+        // 雲端更新 → 拉取覆蓋本機（無論差距多少毫秒）
+        const data = { ...remote };
+        delete data._ts;
+        delete data._deviceId;
+        localStorage.setItem(DB.KEY, JSON.stringify(data));
+        console.log('[CloudSync] 初始化：雲端資料較新，已拉取 ts:', new Date(remoteTs).toLocaleTimeString());
+        _showSyncToast('雲端初始化', remoteTs);
+        _refreshCurrentPage();
+      } else if (localTs > remoteTs + 5000) {
+        // 本機更新且差距超過 5 秒 → 推送本機至雲端
+        const local = JSON.parse(localStorage.getItem(DB.KEY) || '{}');
+        local.settings.syncTimestamp = Date.now();
+        await _docRef.set({ ...local, _ts: Date.now(), _deviceId: _deviceId });
+        console.log('[CloudSync] 初始化：本機資料較新，已推送至 Firestore');
+      }
+      // 若時間戳差距 < 5 秒，視為相同版本，不做處理
+    } catch(e) {
+      console.warn('[CloudSync] 初始化同步失敗', e);
+    }
+  }
+
   function _startListener() {
     if (_unsubscribe) { _unsubscribe(); _unsubscribe = null; }
 
@@ -154,7 +204,10 @@ const CloudSync = (() => {
 
         // 啟用離線持久化（可選，有助於弱網路環境）
         try { await _db.enablePersistence({ synchronizeTabs: true }); }
-        catch(_) {} // 可能因重複呼叫或瀏覽器不支援而失敗，忽略
+        catch(_) {}
+
+        // ── 連線後立即比對雲端與本機版本，確保所有裝置資料一致 ──
+        await _initSync();
 
         _startListener();
         console.log('[CloudSync] 已連線，裝置 ID:', _deviceId);
