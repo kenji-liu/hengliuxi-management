@@ -328,33 +328,40 @@ function fac_inferDeruFromInspection(item = {}) {
     }
   } else {
     // 構造物調查表功能分級（sf_grade）具最高語義優先權：
-    // A 級 = 外觀良好功能健全，不論 DER&U 欄位舊值為何，一律覆蓋為 D=0/E=1/R=1
-    if (item.sf_grade === 'A' && !hasSevereText) {
-      d = 0; e = Math.min(e, 1); r = Math.min(r, 1);
+    // A 級 = 外觀良好功能健全，一律覆蓋為 D=0/E=1/R=1，且完全跳過文字推斷
+    // 避免舊巡查文字（如「裂縫」「鏽蝕」）誤覆蓋 A 級分數
+    const sfGradeProtectedA = item.sf_grade === 'A' && !hasSevereText;
+    const sfGradeProtectedB = item.sf_grade && item.sf_grade.startsWith('B') && !hasSevereText;
+
+    if (sfGradeProtectedA) {
+      d = 0; e = 1; r = 1;
       source = '構造物調查A級覆蓋';
-    } else if (item.sf_grade && item.sf_grade.startsWith('B') && !hasSevereText) {
+    } else if (sfGradeProtectedB) {
       d = Math.min(d, 2);
       source = `構造物調查${item.sf_grade}級輔助`;
     }
 
-    // 文字推斷（僅在沒有明確表單值時適用）
-    if (hasSevereText) {
-      d = Math.max(d, 4);
-      e = Math.max(e, /完全堵塞|喪失通行|崩塌|倒塌/.test(text) ? 4 : 3);
-      r = Math.max(r, 4);
-      source = item.deru_d !== undefined && item.deru_u > 1 ? source : '專業巡查文字判讀';
-    } else if (hasScourText) {
-      d = Math.max(d, 3);
-      e = Math.max(e, /偏移|裸露|基礎/.test(text) ? 3 : 2);
-      r = Math.max(r, 3);
-      source = item.deru_d !== undefined && item.deru_u > 1 ? source : '專業巡查文字判讀';
-    } else if (hasModerateText) {
-      d = Math.max(d, 2);
-      e = Math.max(e, 2);
-      r = Math.max(r, /通行|排洪|功能/.test(text) ? 3 : 2);
-      source = item.deru_d !== undefined && item.deru_u > 1 ? source : '專業巡查文字判讀';
-    } else if (hasNormalText && d <= 0) {
-      d = 0; e = 1; r = 1;
+    // 文字推斷（A 級有效時完全跳過，防止舊文字關鍵字誤覆蓋等級分數）
+    if (!sfGradeProtectedA) {
+      if (hasSevereText) {
+        d = Math.max(d, 4);
+        e = Math.max(e, /完全堵塞|喪失通行|崩塌|倒塌/.test(text) ? 4 : 3);
+        r = Math.max(r, 4);
+        source = item.deru_d !== undefined && item.deru_u > 1 ? source : '專業巡查文字判讀';
+      } else if (hasScourText) {
+        d = Math.max(d, 3);
+        e = Math.max(e, /偏移|裸露|基礎/.test(text) ? 3 : 2);
+        r = Math.max(r, 3);
+        source = item.deru_d !== undefined && item.deru_u > 1 ? source : '專業巡查文字判讀';
+      } else if (hasModerateText && !sfGradeProtectedB) {
+        // B 級也保護：不讓文字推斷超過 B 級上限 d=2
+        d = Math.max(d, 2);
+        e = Math.max(e, 2);
+        r = Math.max(r, /通行|排洪|功能/.test(text) ? 3 : 2);
+        source = item.deru_d !== undefined && item.deru_u > 1 ? source : '專業巡查文字判讀';
+      } else if (hasNormalText && d <= 0) {
+        d = 0; e = 1; r = 1;
+      }
     }
   }
 
