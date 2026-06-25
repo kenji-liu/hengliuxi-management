@@ -290,10 +290,26 @@ const CloudSync = (() => {
     },
 
     /** 立即推送本機資料至 Firestore（頂端「↑ 推送」按鈕） */
+    /** 推送前需輸入密碼（防止非授權裝置覆蓋雲端資料） */
     async pushNow() {
       if (_status !== 'online' || !_docRef) {
         showToast?.('尚未連線，無法推送', 'error'); return;
       }
+      // ── 密碼驗證 ──────────────────────────────────────────
+      const storedPwd = localStorage.getItem('SYNC_PUSH_PASSWORD') || '';
+      if (storedPwd) {
+        const entered = window.prompt('請輸入同步推送密碼：');
+        if (entered === null) return; // 使用者取消
+        if (entered.trim() !== storedPwd) {
+          showToast?.('❌ 密碼錯誤，無法推送', 'error');
+          return;
+        }
+      } else {
+        // 尚未設定密碼：提示管理員先設定
+        const confirmMsg = '尚未設定推送密碼，任何裝置均可推送資料。\n是否繼續推送？（建議到「⚙ 同步設定」設定密碼）';
+        if (!window.confirm(confirmMsg)) return;
+      }
+      // ── 執行推送 ──────────────────────────────────────────
       try {
         const data = JSON.parse(localStorage.getItem(DB.KEY) || '{}');
         if (!data.settings) { showToast?.('本機無資料', 'warning'); return; }
@@ -365,6 +381,24 @@ const CloudSync = (() => {
         'padding:8px;border:1.5px solid #d1d5db;border-radius:6px;line-height:1.5;',
         'box-sizing:border-box" ',
         'placeholder=\'{"apiKey":"AIzaSy...","projectId":"xxx",...}\'></textarea>',
+        '</div>',
+        '<div class="form-group" style="margin-top:10px">',
+        '<label style="font-size:13px;font-weight:600;margin-bottom:6px;display:block">',
+        '🔒 推送密碼（選填）',
+        '<span style="font-weight:400;color:#94a3b8;font-size:11px;margin-left:6px">',
+        '設定後，點「↑ 推送」需先輸入密碼才能覆蓋雲端資料</span></label>',
+        '<div style="display:flex;gap:8px">',
+        '<input id="fbPushPwdInput" type="password" ',
+        'value="' + (localStorage.getItem('SYNC_PUSH_PASSWORD') || '') + '" ',
+        'placeholder="留空 = 不設密碼" ',
+        'style="flex:1;padding:8px;border:1.5px solid #d1d5db;border-radius:6px;font-size:13px">',
+        '<button class="btn btn-outline" style="font-size:12px;padding:6px 10px;flex-shrink:0" ',
+        'onclick="(function(){',
+        'var p=document.getElementById(\'fbPushPwdInput\').value.trim();',
+        'localStorage.setItem(\'SYNC_PUSH_PASSWORD\',p);',
+        'showToast(p?\'✅ 推送密碼已儲存\':\'推送密碼已清除\',\'success\');',
+        '})()">儲存密碼</button>',
+        '</div>',
         '</div>',
         '<div style="font-size:11px;color:#94a3b8;margin-top:6px">',
         '裝置 ID：' + deviceId + '　狀態：' + _status,
