@@ -3429,7 +3429,6 @@ function renderFishBioMap() {
             ${biogisLayerToggle('facilities','hard-hat','#1565c0','工程設施')}
             ${biogisLayerToggle('landanimals','mountain-sun','#166634','陸域動物')}
             ${biogisLayerToggle('fishwayDist','fish','#0e7490','魚道魚種分布')}
-            ${biogisLayerToggle('fishspecies','circle-dot','#94a3b8','舊版魚種')}
           </div>
         </div>
         <div style="display:flex;align-items:stretch;border-radius:0 0 8px 8px;overflow:hidden;border-top:1px solid #e2e8f0">
