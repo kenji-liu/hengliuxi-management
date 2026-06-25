@@ -203,7 +203,10 @@ function loadFishTable() {
               <img src="${photo.image}" alt="${fish_escape(s.species)}"
                 style="width:100%;height:100%;object-fit:cover;object-position:${fish_escape(photo.position||'center center')};transition:transform .3s"
                 onerror="this.src='${fallback}'"
-                onmouseover="this.style.transform='scale(1.04)'" onmouseout="this.style.transform='scale(1)'">
+                onmouseover="this.style.transform='scale(1.04)'" onmouseout="this.style.transform='scale(1)'"
+                onclick="event.stopPropagation();fishPhotoLightbox('${photo.image}','${fish_escape(s.species)}','${fish_escape(photo.caption||'')}')"
+                title="點擊放大">
+              <div style="position:absolute;bottom:8px;left:8px;background:rgba(0,0,0,.5);color:#fff;font-size:11px;border-radius:4px;padding:2px 7px;pointer-events:none">🔍 點擊放大</div>
               <div style="position:absolute;top:12px;right:12px">
                 <span style="background:${ccl};color:#fff;font-size:15px;font-weight:800;padding:5px 14px;border-radius:999px;box-shadow:0 2px 8px rgba(0,0,0,.25)">${s.conservation||'一般'}</span>
               </div>
@@ -354,8 +357,10 @@ function renderFishSpecies() {
         const photo = fish_photoFor(s);
         return `
           <div class="card" style="margin:0;border-left:4px solid ${color}">
-            <div class="fish-card-photo" style="background-image:url('${photo.image}');background-position:${fish_escape(photo.position || 'center center')}" data-photo-src="${photo.image}">
+            <div class="fish-card-photo" style="background-image:url('${photo.image}');background-position:${fish_escape(photo.position || 'center center')};cursor:pointer" data-photo-src="${photo.image}"
+              onclick="fishPhotoLightbox('${photo.image}','${fish_escape(s.species)}','${fish_escape(photo.caption||'')}')" title="點擊放大">
               <div class="fish-card-photo-caption">${fish_escape(photo.caption)}</div>
+              <div style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,.45);color:#fff;font-size:11px;border-radius:4px;padding:2px 7px">🔍</div>
             </div>
             <div class="card-body">
               <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
@@ -4880,4 +4885,53 @@ function injectBioMapStyles() {
     .bio-legend-side::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px}
   `;
   document.head.appendChild(s);
+}
+
+/* ── 魚類照片 Lightbox 放大檢視 ── */
+function fishPhotoLightbox(src, name, caption) {
+  // 移除已存在的 lightbox
+  const existing = document.getElementById('fishLightboxOverlay');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'fishLightboxOverlay';
+  overlay.style.cssText = [
+    'position:fixed;inset:0;z-index:9999',
+    'background:rgba(0,0,0,.88)',
+    'display:flex;flex-direction:column;align-items:center;justify-content:center',
+    'cursor:zoom-out;padding:20px;box-sizing:border-box',
+    'animation:fishLbFadeIn .2s ease'
+  ].join(';');
+
+  overlay.innerHTML = `
+    <style>
+      @keyframes fishLbFadeIn { from { opacity:0 } to { opacity:1 } }
+      @keyframes fishLbSlideUp { from { transform:scale(.92);opacity:0 } to { transform:scale(1);opacity:1 } }
+    </style>
+    <div style="position:relative;max-width:90vw;max-height:80vh;animation:fishLbSlideUp .25s ease">
+      <img src="${src}" alt="${name}"
+        style="max-width:90vw;max-height:80vh;object-fit:contain;border-radius:10px;
+               box-shadow:0 24px 64px rgba(0,0,0,.7);display:block"
+        onerror="this.src='/webapp/assets/fish-photos/field-measurement.jpg'">
+      <button onclick="document.getElementById('fishLightboxOverlay').remove()"
+        style="position:absolute;top:-14px;right:-14px;width:36px;height:36px;border-radius:50%;
+               background:#fff;border:none;font-size:18px;cursor:pointer;
+               box-shadow:0 3px 12px rgba(0,0,0,.4);line-height:1;display:flex;
+               align-items:center;justify-content:center">✕</button>
+    </div>
+    <div style="margin-top:14px;text-align:center;color:#fff">
+      <div style="font-size:20px;font-weight:800;margin-bottom:4px">${name}</div>
+      ${caption ? `<div style="font-size:13px;color:#cbd5e1;max-width:500px;line-height:1.5">${caption}</div>` : ''}
+      <div style="font-size:12px;color:#64748b;margin-top:8px">點擊任意處關閉</div>
+    </div>
+  `;
+
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) overlay.remove();
+  });
+  document.addEventListener('keydown', function esc(e) {
+    if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', esc); }
+  });
+
+  document.body.appendChild(overlay);
 }
