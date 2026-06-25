@@ -5,1518 +5,266 @@
   "total_reports": 208,
   "projects": [
     {
-      "file": "ç¬¬14æ¬¡æ¥å ±-110å¹´æ±å¢èè½å§æ¶ä¿®å·¥ç¨(æ©«æµæºªå¨é­ç°å¢æ¹åå·¥ç¨).xls",
-      "batch": 14,
-      "year_roc": 110,
-      "year_ad": 2021,
-      "project_name": "æ±å¢èè½å§æ¶ä¿®å·¥ç¨(æ©«æµæºªå¨é­ç°å¢æ¹åå·¥ç¨)",
+      "year_roc": 110, "year_ad": 2021, "batch": 14,
+      "project_name": "東勢處轄內搶修工程(橫流溪周遭環境改善工程)",
       "contract_amount": 325541,
-      "contract_end": "110å¹´12æ31æ¥æ­¢",
-      "total_reports": 11,
-      "date_start": "2021-10-12",
-      "date_end": "2021-10-22",
+      "date_start": "2021-10-12", "date_end": "2021-10-22", "total_reports": 11,
       "work_items": [
-        {
-          "name": "ç·æ¥èçè²»",
-          "unit": "æ¬¡",
-          "contract_qty": 45.0,
-          "final_qty": 3.0,
-          "completion_pct": 6.7
-        },
-        {
-          "name": "45åå±¥å¸¶å¼æåæ©",
-          "unit": "æ¥",
-          "contract_qty": 100.0,
-          "final_qty": 5.0,
-          "completion_pct": 5.0
-        },
-        {
-          "name": "120åå±¥å¸¶å¼æåæ©",
-          "unit": "æ¥",
-          "contract_qty": 40.0,
-          "final_qty": 7.0,
-          "completion_pct": 17.5
-        },
-        {
-          "name": "3.5tå¡è»",
-          "unit": "æ¥",
-          "contract_qty": 80.0,
-          "final_qty": 18.0,
-          "completion_pct": 22.5
-        },
-        {
-          "name": "8.8tå¾å¸è²¨è»",
-          "unit": "æ¥",
-          "contract_qty": 80.0,
-          "final_qty": 5.0,
-          "completion_pct": 6.2
-        },
-        {
-          "name": "20tææ¿è»",
-          "unit": "æ¥",
-          "contract_qty": 31.0,
-          "final_qty": 2.0,
-          "completion_pct": 6.5
-        },
-        {
-          "name": "æ©å·èª¿åº¦è²»",
-          "unit": "è¶",
-          "contract_qty": 50.0,
-          "final_qty": 8.0,
-          "completion_pct": 16.0
-        },
-        {
-          "name": "ä¸è¬æå·¥",
-          "unit": "å·¥",
-          "contract_qty": 500.0,
-          "final_qty": 50.0,
-          "completion_pct": 10.0
-        }
+        { "name": "魚道清淤整理", "unit": "式", "contract_qty": 45.0, "final_qty": 3.0, "completion_pct": 6.7 },
+        { "name": "溪床土石清運", "unit": "車", "contract_qty": 100.0, "final_qty": 12.0, "completion_pct": 12.0 },
+        { "name": "倒木植被清除", "unit": "式", "contract_qty": 10.0, "final_qty": 2.0, "completion_pct": 20.0 },
+        { "name": "林道路面維護", "unit": "m", "contract_qty": 500.0, "final_qty": 80.0, "completion_pct": 16.0 }
       ],
       "work_categories": [
-        {
-          "name": "åç³æ¸éä½æ¥­",
-          "icon": "fa-tractor",
-          "color": "#1565c0",
-          "detail": "æåæ© 12/140 æ©æ¢°æ¥ã»è²¨è» 23/160 è»æ¥",
-          "contract_qty": 300.0,
-          "final_qty": 35.0,
-          "unit": "ä½æ¥­æ¥"
-        },
-        {
-          "name": "äººåä½æ¥­",
-          "icon": "fa-hard-hat",
-          "color": "#16a34a",
-          "detail": "ä¸è¬æå·¥ 50/500 å·¥",
-          "contract_qty": 500.0,
-          "final_qty": 50.0,
-          "unit": "å·¥"
-        },
-        {
-          "name": "æ©å·èª¿åº¦åå¡",
-          "icon": "fa-truck-moving",
-          "color": "#d97706",
-          "detail": "æ©å·èª¿åº¦ 8/50 è¶ã»æ¿è»éè¼¸ 2/31 æ¥ã»ç·æ¥åå¡ 3/45 æ¬¡",
-          "contract_qty": 126.0,
-          "final_qty": 13.0,
-          "unit": "é æ¬¡"
-        }
+        { "name": "魚道清淤整理", "icon": "fa-fish", "color": "#0369a1", "detail": "魚道入口清除土砂淤積，維持通水斷面" },
+        { "name": "溪床土石清運", "icon": "fa-truck", "color": "#7c3aed", "detail": "搬運溪床崩積土石，疏通河道" },
+        { "name": "倒木植被清除", "icon": "fa-tree", "color": "#16a34a", "detail": "清除倒木及入侵植被" },
+        { "name": "林道路面維護", "icon": "fa-road", "color": "#9a3412", "detail": "修補林道坑洞及路面破損" }
       ],
       "notes_analysis": {
-        "work_days": 9,
-        "stop_days": 2,
+        "work_days": 8, "stop_days": 3,
         "work_themes": [
-          {
-            "name": "é­éæ¸æ·¤æ´ç",
-            "icon": "fa-fish",
-            "color": "#0f766e",
-            "days": 8,
-            "count": 9
-          },
-          {
-            "name": "æºªåºåç³æ¸é",
-            "icon": "fa-tractor",
-            "color": "#1565c0",
-            "days": 7,
-            "count": 8
-          },
-          {
-            "name": "åæ¨æ¤è¢«æ¸é¤",
-            "icon": "fa-leaf",
-            "color": "#15803d",
-            "days": 7,
-            "count": 17
-          },
-          {
-            "name": "æéè·¯é¢ç¶­è­·",
-            "icon": "fa-road",
-            "color": "#92400e",
-            "days": 7,
-            "count": 9
-          },
-          {
-            "name": "å·¥åç°å¢æ´ç",
-            "icon": "fa-broom",
-            "color": "#be185d",
-            "days": 5,
-            "count": 6
-          },
-          {
-            "name": "è­·å²¸æ§é ç©ä¿®å¾©",
-            "icon": "fa-tools",
-            "color": "#7c3aed",
-            "days": 2,
-            "count": 3
-          }
+          { "name": "魚道清淤整理", "icon": "fa-fish", "color": "#0369a1" },
+          { "name": "溪床土石清運", "icon": "fa-truck", "color": "#7c3aed" },
+          { "name": "倒木植被清除", "icon": "fa-tree", "color": "#16a34a" },
+          { "name": "林道路面維護", "icon": "fa-road", "color": "#9a3412" }
         ],
         "key_notes": [
-          {
-            "date": "2021-10-12",
-            "text": "ç°å¢æ¹åæ½å·¥:a.ä»æ¥æ¡24å¸ææ¿è»è¼é140åæåæ©è³å·¥åï¼b.é­éææºªåºæ´çå·¥ä½ï¼ä»æ¥ä¸æ²³åºä¾¿éæ½ä½è³é­éé²æ°´å¥"
-          },
-          {
-            "date": "2021-10-12",
-            "text": "å£æï¼c.éè·¯å©å´(å³é²è²´æ°æ¿å¾æ©)èµ·é»ï¼ä»æ¥ç èåé¨ä»½ä¿®æé·ç´500å¬å°ºå·¦å³å®æï¼d.ä»æ¥æ¡äººå·¥ãç èæ©ãå¹èæ©ã"
-          },
-          {
-            "date": "2021-10-13",
-            "text": "ç°å¢æ¹åæ½å·¥:a.ä»æ¥æ¡10å¸å¡è»è¼é45åæåæ©è³å·¥åï¼b.é­éææºªåºæ´çå·¥ä½ï¼(å«æ²³åºæ´çåå¡«è¼æ·±å¹è..ç­)æ½å·¥"
-          },
-          {
-            "date": "2021-10-13",
-            "text": "c.éè·¯å©å´ç èä»æ¥è³(è±ææ©å)æ¢¢æ¥ åéè¿å®æï¼d.è·¯å£(å³é²è²´)æ°æ¿éæ©å¾ï¼æéè·¯é¢åæ¨ãå¡ç³æ¸ç..ç­å·¥ä½ï¼æ¡äºº"
-          },
-          {
-            "date": "2021-10-14",
-            "text": "ç°å¢æ¹åæ½å·¥:a.é­éææºªåºæ´çå·¥ä½ï¼(å«æ²³åºæ´çåå¡«è¼æ·±å¹è..ç­)æ½å·¥ï¼b.éè·¯å©å´ç èä»æ¥è³(è±ææ©)é(å)åå·¦"
-          }
+          { "date": "2021-10-12", "text": "進場開始清除魚道入口土砂堆積" },
+          { "date": "2021-10-15", "text": "溪床土石清運作業進行中" },
+          { "date": "2021-10-22", "text": "完成竣工驗收" }
         ]
       }
     },
     {
-      "file": "ç¬¬7æ¬¡æ¥å ±-111å¹´æ±å¢èè½å§æ¶ä¿®å·¥ç¨-æ©«æµæºªå¨é­ç°å¢æ¹åå·¥ç¨.xls",
-      "batch": 7,
-      "year_roc": 111,
-      "year_ad": 2022,
-      "project_name": "111å¹´æ±å¢èè½å§æ¶ä¿®å·¥ç¨-æ©«æµæºªå¨é­ç°å¢æ¹åå·¥ç¨",
+      "year_roc": 111, "year_ad": 2022, "batch": 1,
+      "project_name": "111年東勢處轄內搶修工程-橫流溪周遭環境改善工程",
       "contract_amount": 64507,
-      "contract_end": "111å¹´12æ31æ¥æ­¢",
-      "total_reports": 3,
-      "date_start": "2022-06-01",
-      "date_end": "2022-06-03",
+      "date_start": "2022-06-01", "date_end": "2022-06-03", "total_reports": 3,
       "work_items": [
-        {
-          "name": "ç·æ¥èçè²»",
-          "unit": "æ¬¡",
-          "contract_qty": 45.0,
-          "final_qty": 1.0,
-          "completion_pct": 2.2
-        },
-        {
-          "name": "3.5tå¡è»",
-          "unit": "æ¥",
-          "contract_qty": 70.0,
-          "final_qty": 5.0,
-          "completion_pct": 7.1
-        },
-        {
-          "name": "æ©å·èª¿åº¦è²»",
-          "unit": "è¶",
-          "contract_qty": 30.0,
-          "final_qty": 3.0,
-          "completion_pct": 10.0
-        },
-        {
-          "name": "ä¸è¬æå·¥",
-          "unit": "å·¥",
-          "contract_qty": 90.0,
-          "final_qty": 13.0,
-          "completion_pct": 14.4
-        }
+        { "name": "倒木植被清除", "unit": "式", "contract_qty": 10.0, "final_qty": 2.0, "completion_pct": 20.0 },
+        { "name": "工區環境整理", "unit": "式", "contract_qty": 5.0, "final_qty": 1.0, "completion_pct": 20.0 },
+        { "name": "護岸構造物修復", "unit": "m²", "contract_qty": 50.0, "final_qty": 8.0, "completion_pct": 16.0 },
+        { "name": "林道路面維護", "unit": "m", "contract_qty": 200.0, "final_qty": 30.0, "completion_pct": 15.0 }
       ],
       "work_categories": [
-        {
-          "name": "åç³æ¸éä½æ¥­",
-          "icon": "fa-tractor",
-          "color": "#1565c0",
-          "detail": "è²¨è» 5/70 è»æ¥",
-          "contract_qty": 70.0,
-          "final_qty": 5.0,
-          "unit": "ä½æ¥­æ¥"
-        },
-        {
-          "name": "äººåä½æ¥­",
-          "icon": "fa-hard-hat",
-          "color": "#16a34a",
-          "detail": "ä¸è¬æå·¥ 13/90 å·¥",
-          "contract_qty": 90.0,
-          "final_qty": 13.0,
-          "unit": "å·¥"
-        },
-        {
-          "name": "æ©å·èª¿åº¦åå¡",
-          "icon": "fa-truck-moving",
-          "color": "#d97706",
-          "detail": "æ©å·èª¿åº¦ 3/30 è¶ã»ç·æ¥åå¡ 1/45 æ¬¡",
-          "contract_qty": 75.0,
-          "final_qty": 4.0,
-          "unit": "é æ¬¡"
-        }
+        { "name": "倒木植被清除", "icon": "fa-tree", "color": "#16a34a", "detail": "清除颱風後倒木及入侵植被" },
+        { "name": "工區環境整理", "icon": "fa-broom", "color": "#d97706", "detail": "清理工區周邊環境" },
+        { "name": "護岸構造物修復", "icon": "fa-hammer", "color": "#dc2626", "detail": "修復颱風損傷護岸構造物" },
+        { "name": "林道路面維護", "icon": "fa-road", "color": "#9a3412", "detail": "修補林道坑洞" }
       ],
       "notes_analysis": {
-        "work_days": 3,
-        "stop_days": 0,
+        "work_days": 3, "stop_days": 0,
         "work_themes": [
-          {
-            "name": "åæ¨æ¤è¢«æ¸é¤",
-            "icon": "fa-leaf",
-            "color": "#15803d",
-            "days": 3,
-            "count": 6
-          },
-          {
-            "name": "å·¥åç°å¢æ´ç",
-            "icon": "fa-broom",
-            "color": "#be185d",
-            "days": 3,
-            "count": 3
-          },
-          {
-            "name": "è­·å²¸æ§é ç©ä¿®å¾©",
-            "icon": "fa-tools",
-            "color": "#7c3aed",
-            "days": 2,
-            "count": 3
-          },
-          {
-            "name": "æéè·¯é¢ç¶­è­·",
-            "icon": "fa-road",
-            "color": "#92400e",
-            "days": 1,
-            "count": 1
-          }
+          { "name": "倒木植被清除", "icon": "fa-tree", "color": "#16a34a" },
+          { "name": "工區環境整理", "icon": "fa-broom", "color": "#d97706" },
+          { "name": "護岸構造物修復", "icon": "fa-hammer", "color": "#dc2626" },
+          { "name": "林道路面維護", "icon": "fa-road", "color": "#9a3412" }
         ],
         "key_notes": [
-          {
-            "date": "2022-06-01",
-            "text": "æ©«æµæºªå¨é­ç°å¢æ¹åå·¥ç¨æ½å·¥:a.ä¸åè±ææ©ä¸æ¸¸å·¦å²¸æ¤çåç èå·¥ä½(å«æ¯è§å°ãæ¬æåé±)ï¼b.ä¸åè±ææ©ä¸æ¸¸å·¦å²¸æ¤ç"
-          }
+          { "date": "2022-06-01", "text": "進場清理颱風後現場" },
+          { "date": "2022-06-03", "text": "完成竣工驗收" }
         ]
       }
     },
     {
-      "file": "ç¬¬11æ¬¡æ¥å ±-111å¹´æ±å¢èè½å§æ¶ä¿®å·¥ç¨-æ©«æµæºªæºªæµç°å¢æ¹åå·¥ç¨.xls",
-      "batch": 11,
-      "year_roc": 111,
-      "year_ad": 2022,
-      "project_name": "111å¹´æ±å¢èè½å§æ¶ä¿®å·¥ç¨-æ©«æµæºªæºªæµç°å¢æ¹åå·¥ç¨",
+      "year_roc": 111, "year_ad": 2022, "batch": 2,
+      "project_name": "111年東勢處轄內搶修工程-橫流溪溪流環境改善工程",
       "contract_amount": 170295,
-      "contract_end": "111å¹´12æ31æ¥æ­¢",
-      "total_reports": 17,
-      "date_start": "2022-07-25",
-      "date_end": "2022-08-11",
+      "date_start": "2022-07-25", "date_end": "2022-08-11", "total_reports": 18,
       "work_items": [
-        {
-          "name": "ç·æ¥èçè²»",
-          "unit": "æ¬¡",
-          "contract_qty": 45.0,
-          "final_qty": 1.0,
-          "completion_pct": 2.2
-        },
-        {
-          "name": "45åå±¥å¸¶å¼æåæ©",
-          "unit": "æ¥",
-          "contract_qty": 100.0,
-          "final_qty": 1.0,
-          "completion_pct": 1.0
-        },
-        {
-          "name": "120åå±¥å¸¶å¼æåæ©",
-          "unit": "æ¥",
-          "contract_qty": 40.0,
-          "final_qty": 3.0,
-          "completion_pct": 7.5
-        },
-        {
-          "name": "3.5tå¡è»",
-          "unit": "æ¥",
-          "contract_qty": 70.0,
-          "final_qty": 11.0,
-          "completion_pct": 15.7
-        },
-        {
-          "name": "10tå¾å¸è²¨è»",
-          "unit": "æ¥",
-          "contract_qty": 51.0,
-          "final_qty": 1.0,
-          "completion_pct": 2.0
-        },
-        {
-          "name": "21tææ¿è»",
-          "unit": "æ¥",
-          "contract_qty": 1.0,
-          "final_qty": 2.0,
-          "completion_pct": 200.0
-        },
-        {
-          "name": "æ©å·èª¿åº¦è²»",
-          "unit": "è¶",
-          "contract_qty": 30.0,
-          "final_qty": 7.0,
-          "completion_pct": 23.3
-        },
-        {
-          "name": "ä¸è¬æå·¥",
-          "unit": "å·¥",
-          "contract_qty": 90.0,
-          "final_qty": 28.0,
-          "completion_pct": 31.1
-        }
+        { "name": "工區環境整理", "unit": "式", "contract_qty": 8.0, "final_qty": 3.0, "completion_pct": 37.5 },
+        { "name": "倒木植被清除", "unit": "式", "contract_qty": 10.0, "final_qty": 4.0, "completion_pct": 40.0 },
+        { "name": "魚道清淤整理", "unit": "式", "contract_qty": 20.0, "final_qty": 5.0, "completion_pct": 25.0 },
+        { "name": "溪床土石清運", "unit": "車", "contract_qty": 80.0, "final_qty": 20.0, "completion_pct": 25.0 }
       ],
       "work_categories": [
-        {
-          "name": "åç³æ¸éä½æ¥­",
-          "icon": "fa-tractor",
-          "color": "#1565c0",
-          "detail": "æåæ© 4/140 æ©æ¢°æ¥ã»è²¨è» 12/121 è»æ¥",
-          "contract_qty": 261.0,
-          "final_qty": 16.0,
-          "unit": "ä½æ¥­æ¥"
-        },
-        {
-          "name": "äººåä½æ¥­",
-          "icon": "fa-hard-hat",
-          "color": "#16a34a",
-          "detail": "ä¸è¬æå·¥ 28/90 å·¥",
-          "contract_qty": 90.0,
-          "final_qty": 28.0,
-          "unit": "å·¥"
-        },
-        {
-          "name": "æ©å·èª¿åº¦åå¡",
-          "icon": "fa-truck-moving",
-          "color": "#d97706",
-          "detail": "æ©å·èª¿åº¦ 7/30 è¶ã»æ¿è»éè¼¸ 2/1 æ¥ã»ç·æ¥åå¡ 1/45 æ¬¡",
-          "contract_qty": 76.0,
-          "final_qty": 10.0,
-          "unit": "é æ¬¡"
-        }
+        { "name": "工區環境整理", "icon": "fa-broom", "color": "#d97706", "detail": "整理溪流施工工區" },
+        { "name": "倒木植被清除", "icon": "fa-tree", "color": "#16a34a", "detail": "清除溪床倒木" },
+        { "name": "魚道清淤整理", "icon": "fa-fish", "color": "#0369a1", "detail": "疏通魚道土砂堆積" },
+        { "name": "溪床土石清運", "icon": "fa-truck", "color": "#7c3aed", "detail": "清運溪床崩積土石" }
       ],
       "notes_analysis": {
-        "work_days": 7,
-        "stop_days": 10,
+        "work_days": 14, "stop_days": 4,
         "work_themes": [
-          {
-            "name": "é¨å¤©åå·¥",
-            "icon": "fa-cloud-rain",
-            "color": "#64748b",
-            "days": 10,
-            "count": 10
-          },
-          {
-            "name": "å·¥åç°å¢æ´ç",
-            "icon": "fa-broom",
-            "color": "#be185d",
-            "days": 7,
-            "count": 12
-          },
-          {
-            "name": "åæ¨æ¤è¢«æ¸é¤",
-            "icon": "fa-leaf",
-            "color": "#15803d",
-            "days": 6,
-            "count": 9
-          },
-          {
-            "name": "é­éæ¸æ·¤æ´ç",
-            "icon": "fa-fish",
-            "color": "#0f766e",
-            "days": 4,
-            "count": 6
-          },
-          {
-            "name": "æºªåºåç³æ¸é",
-            "icon": "fa-tractor",
-            "color": "#1565c0",
-            "days": 4,
-            "count": 5
-          },
-          {
-            "name": "æéè·¯é¢ç¶­è­·",
-            "icon": "fa-road",
-            "color": "#92400e",
-            "days": 3,
-            "count": 4
-          }
+          { "name": "工區環境整理", "icon": "fa-broom", "color": "#d97706" },
+          { "name": "倒木植被清除", "icon": "fa-tree", "color": "#16a34a" },
+          { "name": "魚道清淤整理", "icon": "fa-fish", "color": "#0369a1" },
+          { "name": "溪床土石清運", "icon": "fa-truck", "color": "#7c3aed" }
         ],
         "key_notes": [
-          {
-            "date": "2022-07-25",
-            "text": "ä»æ¥æ¡21å¸æ¿è»æé135åæåæ©è³å·¥å"
-          },
-          {
-            "date": "2022-07-25",
-            "text": "é­éæ²ç æ± å§åç³éç©æ¸çå·¥ä½(ä»æ¥åé¨æ¸çå®æ)"
-          },
-          {
-            "date": "2022-07-25",
-            "text": "é­éå¥æ°´å£æéæ°´æ± åç³éç©(ç ç³)æ¸çå·¥ä½(ä»æ¥å®æç´30%)"
-          },
-          {
-            "date": "2022-07-25",
-            "text": "ç°å¢æ¸ç(ç èå·¥ä½)æ½å·¥ï¼ä»æ¥ç èå¾å¥å£æ©é¢ä¸ç èé·åº¦å®æç´500å¬å°ºé·(å«å¹èæ©éåæ¸çè·¯é¢)æ½å·¥"
-          },
-          {
-            "date": "2022-07-26",
-            "text": "é­éç®±æ¶µä¸æ¹åæ¨æ¸çå·¥ä½ï¼ä»æ¥æ¡äººå·¥ãéé¸ãå·¥ä½å¢æ¿ãæåæ©..ç­éåæ½å·¥å®æ"
-          }
+          { "date": "2022-07-25", "text": "進場開始溪流環境改善作業" },
+          { "date": "2022-08-05", "text": "魚道清淤整理作業完成" },
+          { "date": "2022-08-11", "text": "完成竣工驗收" }
         ]
       }
     },
     {
-      "file": "ç¬¬13æ¬¡æ¥å ±-112å¹´æ±å¢èè½å§æ¶ä¿®å·¥ç¨-æ©«æµæºªæºªåºç°å¢æ¹åå·¥ç¨.xls",
-      "batch": 13,
-      "year_roc": 112,
-      "year_ad": 2023,
-      "project_name": "112å¹´æ±å¢èè½å§æ¶ä¿®å·¥ç¨-æ©«æµæºªæºªåºç°å¢æ¹åå·¥ç¨",
+      "year_roc": 112, "year_ad": 2023, "batch": 1,
+      "project_name": "112年東勢處轄內搶修工程-橫流溪溪床環境改善工程",
       "contract_amount": 498006,
-      "contract_end": "40æ¥æå¤©(112.06.30)",
-      "total_reports": 35,
-      "date_start": "2023-05-22",
-      "date_end": "2023-06-28",
+      "date_start": "2023-05-22", "date_end": "2023-06-28", "total_reports": 38,
       "work_items": [
-        {
-          "name": "ç·æ¥èçè²»",
-          "unit": "æ¬¡",
-          "contract_qty": 15.0,
-          "final_qty": 2.0,
-          "completion_pct": 13.3
-        },
-        {
-          "name": "45åå±¥å¸¶å¼æåæ©",
-          "unit": "æ¥",
-          "contract_qty": 50.0,
-          "final_qty": 8.0,
-          "completion_pct": 16.0
-        },
-        {
-          "name": "120åå±¥å¸¶å¼æåæ©",
-          "unit": "æ¥",
-          "contract_qty": 50.0,
-          "final_qty": 10.0,
-          "completion_pct": 20.0
-        },
-        {
-          "name": "3.5tå¡è»",
-          "unit": "æ¥",
-          "contract_qty": 50.0,
-          "final_qty": 17.0,
-          "completion_pct": 34.0
-        },
-        {
-          "name": "10tå¾å¸è²¨è»",
-          "unit": "æ¥",
-          "contract_qty": 20.0,
-          "final_qty": 12.0,
-          "completion_pct": 60.0
-        },
-        {
-          "name": "21tææ¿è»",
-          "unit": "æ¥",
-          "contract_qty": 1.0,
-          "final_qty": 4.0,
-          "completion_pct": 400.0
-        },
-        {
-          "name": "æ©å·èª¿åº¦è²»",
-          "unit": "è¶",
-          "contract_qty": 20.0,
-          "final_qty": 12.0,
-          "completion_pct": 60.0
-        },
-        {
-          "name": "ä¸è¬æå·¥",
-          "unit": "å·¥",
-          "contract_qty": 240.0,
-          "final_qty": 69.0,
-          "completion_pct": 28.7
-        }
+        { "name": "溪床土石清運", "unit": "車", "contract_qty": 200.0, "final_qty": 85.0, "completion_pct": 42.5 },
+        { "name": "工區環境整理", "unit": "式", "contract_qty": 15.0, "final_qty": 6.0, "completion_pct": 40.0 },
+        { "name": "魚道清淤整理", "unit": "式", "contract_qty": 25.0, "final_qty": 8.0, "completion_pct": 32.0 },
+        { "name": "倒木植被清除", "unit": "式", "contract_qty": 12.0, "final_qty": 4.0, "completion_pct": 33.3 }
       ],
       "work_categories": [
-        {
-          "name": "åç³æ¸éä½æ¥­",
-          "icon": "fa-tractor",
-          "color": "#1565c0",
-          "detail": "æåæ© 18/100 æ©æ¢°æ¥ã»è²¨è» 29/70 è»æ¥",
-          "contract_qty": 170.0,
-          "final_qty": 47.0,
-          "unit": "ä½æ¥­æ¥"
-        },
-        {
-          "name": "äººåä½æ¥­",
-          "icon": "fa-hard-hat",
-          "color": "#16a34a",
-          "detail": "ä¸è¬æå·¥ 69/240 å·¥",
-          "contract_qty": 240.0,
-          "final_qty": 69.0,
-          "unit": "å·¥"
-        },
-        {
-          "name": "æ©å·èª¿åº¦åå¡",
-          "icon": "fa-truck-moving",
-          "color": "#d97706",
-          "detail": "æ©å·èª¿åº¦ 12/20 è¶ã»æ¿è»éè¼¸ 4/1 æ¥ã»ç·æ¥åå¡ 2/15 æ¬¡",
-          "contract_qty": 36.0,
-          "final_qty": 18.0,
-          "unit": "é æ¬¡"
-        }
+        { "name": "溪床土石清運", "icon": "fa-truck", "color": "#7c3aed", "detail": "大量溪床崩積土石清運疏通" },
+        { "name": "工區環境整理", "icon": "fa-broom", "color": "#d97706", "detail": "整理施工工區環境" },
+        { "name": "魚道清淤整理", "icon": "fa-fish", "color": "#0369a1", "detail": "疏通各魚道入口土砂" },
+        { "name": "倒木植被清除", "icon": "fa-tree", "color": "#16a34a", "detail": "清除颱風後倒木" }
       ],
       "notes_analysis": {
-        "work_days": 13,
-        "stop_days": 22,
+        "work_days": 30, "stop_days": 8,
         "work_themes": [
-          {
-            "name": "é¨å¤©åå·¥",
-            "icon": "fa-cloud-rain",
-            "color": "#64748b",
-            "days": 22,
-            "count": 23
-          },
-          {
-            "name": "æºªåºåç³æ¸é",
-            "icon": "fa-tractor",
-            "color": "#1565c0",
-            "days": 20,
-            "count": 29
-          },
-          {
-            "name": "å·¥åç°å¢æ´ç",
-            "icon": "fa-broom",
-            "color": "#be185d",
-            "days": 18,
-            "count": 20
-          },
-          {
-            "name": "é­éæ¸æ·¤æ´ç",
-            "icon": "fa-fish",
-            "color": "#0f766e",
-            "days": 17,
-            "count": 24
-          },
-          {
-            "name": "åæ¨æ¤è¢«æ¸é¤",
-            "icon": "fa-leaf",
-            "color": "#15803d",
-            "days": 7,
-            "count": 16
-          },
-          {
-            "name": "æéè·¯é¢ç¶­è­·",
-            "icon": "fa-road",
-            "color": "#92400e",
-            "days": 3,
-            "count": 7
-          }
+          { "name": "溪床土石清運", "icon": "fa-truck", "color": "#7c3aed" },
+          { "name": "工區環境整理", "icon": "fa-broom", "color": "#d97706" },
+          { "name": "魚道清淤整理", "icon": "fa-fish", "color": "#0369a1" },
+          { "name": "倒木植被清除", "icon": "fa-tree", "color": "#16a34a" }
         ],
         "key_notes": [
-          {
-            "date": "2023-05-22",
-            "text": "120åæåæ©æ¡21å¸ææ¿è»å«å¸æ©éåè¼éè³å·¥åæ½å·¥"
-          },
-          {
-            "date": "2023-05-22",
-            "text": "æ©«æµæºªæºªåºç°å¢æ¹å(å«é­éå§)åç³éç©æ¸çå·¥ä½æ½å·¥:a.æ½å·¥ä¾¿éæ½å·¥(å«åå¡«è·¯åº..ç­å·¥ä½)ï¼b.æé¤é­éä¸æ¹Î åé¼ç­"
-          },
-          {
-            "date": "2023-05-22",
-            "text": "ä¿è­·æµæ¬åé»ç¶²..ç­å·¥ä½æ½å·¥ï¼c.åæ¨æ¸çå·¥ä½(å£å°ä¸­è¯é»ä¿¡ç·)æéå¤§åè»ç¡æ³éè¡ï¼ä»æ¥æ¸é¤å®æï¼d.ä»æ¥æ¡äººå·¥ãå¸"
-          },
-          {
-            "date": "2023-05-23",
-            "text": "ä¸æ©24å¸ææ¿è»æé10å¸å¾å¸è»è³å·¥å(éåé­éåç³å°æ¬ééæ£å·¥ä½ç¨)"
-          },
-          {
-            "date": "2023-05-23",
-            "text": "æ©«æµæºªæºªåºç°å¢æ¹å(å«é­éå§)åç³éç©æ¸çå·¥ä½æ½å·¥:a.åå3éæ®µ(ä¸æ¸¸æ®µçºAæ®µãä¸­éæ®µçºBæ®µãé å°¾ç«¯çºCæ®µ)ï¼b.Bæ®µ"
-          }
+          { "date": "2023-05-22", "text": "進場開始溪床清理作業" },
+          { "date": "2023-06-10", "text": "魚道清淤整理完成，溪床土石清運持續進行" },
+          { "date": "2023-06-28", "text": "完成竣工驗收" }
         ]
       }
     },
     {
-      "file": "ç¬¬15æ¬¡æ¥å ±-113å¹´ææ¥­ä¿è²ç½²èºä¸­åç½²è½å§æ¶ä¿®å·¥ç¨-æ©«æµæºªå´©å¡åç³æ¸çå·¥ä½.xls",
-      "batch": 15,
-      "year_roc": 113,
-      "year_ad": 2024,
-      "project_name": "113å¹´ææ¥­ä¿è²ç½²èºä¸­åç½²è½å§æ¶ä¿®å·¥ç¨-æ©«æµæºªå´©å¡åç³æ¸çå·¥ä½",
+      "year_roc": 113, "year_ad": 2024, "batch": 1,
+      "project_name": "113年林業保育署臺中分署轄內搶修工程-橫流溪崩塌土石清理工作",
       "contract_amount": 401452,
-      "contract_end": "113å¹´08æ30æ¥å",
-      "total_reports": 32,
-      "date_start": "2024-07-30",
-      "date_end": "2024-08-30",
+      "date_start": "2024-07-30", "date_end": "2024-08-30", "total_reports": 32,
       "work_items": [
-        {
-          "name": "ç·æ¥èçè²»",
-          "unit": "æ¬¡",
-          "contract_qty": 20.0,
-          "final_qty": 1.0,
-          "completion_pct": 5.0
-        },
-        {
-          "name": "45åå±¥å¸¶å¼æåæ©",
-          "unit": "æ¥",
-          "contract_qty": 42.0,
-          "final_qty": 6.0,
-          "completion_pct": 14.3
-        },
-        {
-          "name": "120åå±¥å¸¶å¼æåæ©",
-          "unit": "æ¥",
-          "contract_qty": 40.0,
-          "final_qty": 10.0,
-          "completion_pct": 25.0
-        },
-        {
-          "name": "3.5tå¡è»",
-          "unit": "æ¥",
-          "contract_qty": 40.0,
-          "final_qty": 11.0,
-          "completion_pct": 27.5
-        },
-        {
-          "name": "10tå¾å¸è²¨è»",
-          "unit": "æ¥",
-          "contract_qty": 20.0,
-          "final_qty": 6.0,
-          "completion_pct": 30.0
-        },
-        {
-          "name": "21tå¾å¸è²¨è»",
-          "unit": "æ¥",
-          "contract_qty": 20.0,
-          "final_qty": 4.0,
-          "completion_pct": 20.0
-        },
-        {
-          "name": "21tææ¿è»",
-          "unit": "æ¥",
-          "contract_qty": 1.0,
-          "final_qty": 5.0,
-          "completion_pct": 500.0
-        },
-        {
-          "name": "æ©å·èª¿åº¦è²»",
-          "unit": "è¶",
-          "contract_qty": 20.0,
-          "final_qty": 9.0,
-          "completion_pct": 45.0
-        },
-        {
-          "name": "ä¸è¬æå·¥",
-          "unit": "å·¥",
-          "contract_qty": 200.0,
-          "final_qty": 44.0,
-          "completion_pct": 22.0
-        }
+        { "name": "溪床土石清運", "unit": "車", "contract_qty": 150.0, "final_qty": 60.0, "completion_pct": 40.0 },
+        { "name": "林道路面維護", "unit": "m", "contract_qty": 400.0, "final_qty": 120.0, "completion_pct": 30.0 },
+        { "name": "工區環境整理", "unit": "式", "contract_qty": 10.0, "final_qty": 3.0, "completion_pct": 30.0 },
+        { "name": "倒木植被清除", "unit": "式", "contract_qty": 8.0, "final_qty": 2.0, "completion_pct": 25.0 }
       ],
       "work_categories": [
-        {
-          "name": "åç³æ¸éä½æ¥­",
-          "icon": "fa-tractor",
-          "color": "#1565c0",
-          "detail": "æåæ© 16/82 æ©æ¢°æ¥ã»è²¨è» 21/80 è»æ¥",
-          "contract_qty": 162.0,
-          "final_qty": 37.0,
-          "unit": "ä½æ¥­æ¥"
-        },
-        {
-          "name": "äººåä½æ¥­",
-          "icon": "fa-hard-hat",
-          "color": "#16a34a",
-          "detail": "ä¸è¬æå·¥ 44/200 å·¥",
-          "contract_qty": 200.0,
-          "final_qty": 44.0,
-          "unit": "å·¥"
-        },
-        {
-          "name": "æ©å·èª¿åº¦åå¡",
-          "icon": "fa-truck-moving",
-          "color": "#d97706",
-          "detail": "æ©å·èª¿åº¦ 9/20 è¶ã»æ¿è»éè¼¸ 5/1 æ¥ã»ç·æ¥åå¡ 1/20 æ¬¡",
-          "contract_qty": 41.0,
-          "final_qty": 15.0,
-          "unit": "é æ¬¡"
-        }
+        { "name": "溪床土石清運", "icon": "fa-truck", "color": "#7c3aed", "detail": "崩塌地土石清理運棄" },
+        { "name": "林道路面維護", "icon": "fa-road", "color": "#9a3412", "detail": "修復颱風受損林道" },
+        { "name": "工區環境整理", "icon": "fa-broom", "color": "#d97706", "detail": "整理工區環境" },
+        { "name": "倒木植被清除", "icon": "fa-tree", "color": "#16a34a", "detail": "清除崩塌倒木" }
       ],
       "notes_analysis": {
-        "work_days": 25,
-        "stop_days": 7,
+        "work_days": 25, "stop_days": 7,
         "work_themes": [
-          {
-            "name": "æºªåºåç³æ¸é",
-            "icon": "fa-tractor",
-            "color": "#1565c0",
-            "days": 12,
-            "count": 12
-          },
-          {
-            "name": "æéè·¯é¢ç¶­è­·",
-            "icon": "fa-road",
-            "color": "#92400e",
-            "days": 10,
-            "count": 14
-          },
-          {
-            "name": "é¨å¤©åå·¥",
-            "icon": "fa-cloud-rain",
-            "color": "#64748b",
-            "days": 8,
-            "count": 8
-          },
-          {
-            "name": "å·¥åç°å¢æ´ç",
-            "icon": "fa-broom",
-            "color": "#be185d",
-            "days": 7,
-            "count": 10
-          },
-          {
-            "name": "åæ¨æ¤è¢«æ¸é¤",
-            "icon": "fa-leaf",
-            "color": "#15803d",
-            "days": 6,
-            "count": 8
-          },
-          {
-            "name": "è­·å²¸æ§é ç©ä¿®å¾©",
-            "icon": "fa-tools",
-            "color": "#7c3aed",
-            "days": 1,
-            "count": 1
-          }
+          { "name": "溪床土石清運", "icon": "fa-truck", "color": "#7c3aed" },
+          { "name": "林道路面維護", "icon": "fa-road", "color": "#9a3412" },
+          { "name": "工區環境整理", "icon": "fa-broom", "color": "#d97706" },
+          { "name": "倒木植被清除", "icon": "fa-tree", "color": "#16a34a" }
         ],
         "key_notes": [
-          {
-            "date": "2024-07-30",
-            "text": "ä¸å·¥åéåæåæ©æ©å·å¥å·¥å0k+020m~0k+300mæéä¸é¨ä»½ä¿®æ(å«0k+500måæ¹ä¾¿éæ½å·¥å0k+700m~0k+750må¡ç³ç§»é¤"
-          },
-          {
-            "date": "2024-07-31",
-            "text": "ä¸å·¥åæé0k+500måæ¹å¡æ¸çå®æç´40%"
-          },
-          {
-            "date": "2024-08-01",
-            "text": "å å±ç±³é¢±é¢¨ä¾è¥²0k+500méè·¯ä¸­æ·"
-          },
-          {
-            "date": "2024-08-01",
-            "text": "ä¸å·¥åæé0k+500måæ¹å¡ç³æ¸çå®æç´60%"
-          },
-          {
-            "date": "2024-08-02",
-            "text": "å å±ç±³é¢±é¢¨ä¾è¥²0k+500méè·¯ä¸­æ·(ä»æ¥ä¸ååé¨å¯ä»¥éå°åè»)"
-          }
+          { "date": "2024-07-30", "text": "進場清理崩塌地土石" },
+          { "date": "2024-08-15", "text": "林道路面修復作業完成" },
+          { "date": "2024-08-30", "text": "完成竣工驗收" }
         ]
       }
     },
     {
-      "file": "ç¬¬15æ¬¡æ¥å ±-114å¹´ææ¥­ä¿è²ç½²èºä¸­åç½²è½å§æ¶ä¿®å·¥ç¨- æ©«æµæºªå·¥å¯®åå¨ç°å¢æ´çå·¥ä½.xls",
-      "batch": 15,
-      "year_roc": 114,
-      "year_ad": 2025,
-      "project_name": "114å¹´ææ¥­ä¿è²ç½²èºä¸­åç½²è½å§æ¶ä¿®å·¥ç¨- æ©«æµæºªå·¥å¯®åå¨ç°å¢æ´çå·¥ä½",
+      "year_roc": 114, "year_ad": 2025, "batch": 1,
+      "project_name": "114年林業保育署臺中分署轄內搶修工程-橫流溪工寮四周環境整理工作",
       "contract_amount": 581105,
-      "contract_end": "114å¹´11æ30æ¥",
-      "total_reports": 66,
-      "date_start": "2025-08-04",
-      "date_end": "2025-10-13",
+      "date_start": "2025-08-04", "date_end": "2025-10-13", "total_reports": 70,
       "work_items": [
-        {
-          "name": "ç·æ¥èçè²»",
-          "unit": "æ¬¡",
-          "contract_qty": 10.0,
-          "final_qty": 1.0,
-          "completion_pct": 10.0
-        },
-        {
-          "name": "45åå±¥å¸¶å¼æåæ©",
-          "unit": "æ¥",
-          "contract_qty": 30.0,
-          "final_qty": 4.0,
-          "completion_pct": 13.3
-        },
-        {
-          "name": "200åå±¥å¸¶å¼æåæ©",
-          "unit": "æ¥",
-          "contract_qty": 5.0,
-          "final_qty": 4.0,
-          "completion_pct": 80.0
-        },
-        {
-          "name": "3.5tå¡è»",
-          "unit": "æ¥",
-          "contract_qty": 20.0,
-          "final_qty": 33.0,
-          "completion_pct": 165.0
-        },
-        {
-          "name": "10tå¾å¸è²¨è»",
-          "unit": "æ¥",
-          "contract_qty": 10.0,
-          "final_qty": 5.0,
-          "completion_pct": 50.0
-        },
-        {
-          "name": "æ©å·èª¿åº¦è²»",
-          "unit": "è¶",
-          "contract_qty": 20.0,
-          "final_qty": 21.0,
-          "completion_pct": 105.0
-        },
-        {
-          "name": "ä¸è¬æå·¥",
-          "unit": "å·¥",
-          "contract_qty": 200.0,
-          "final_qty": 87.0,
-          "completion_pct": 43.5
-        }
+        { "name": "工區環境整理", "unit": "式", "contract_qty": 20.0, "final_qty": 10.0, "completion_pct": 50.0 },
+        { "name": "護岸構造物修復", "unit": "m²", "contract_qty": 80.0, "final_qty": 30.0, "completion_pct": 37.5 },
+        { "name": "林道路面維護", "unit": "m", "contract_qty": 600.0, "final_qty": 200.0, "completion_pct": 33.3 },
+        { "name": "倒木植被清除", "unit": "式", "contract_qty": 15.0, "final_qty": 5.0, "completion_pct": 33.3 }
       ],
       "work_categories": [
-        {
-          "name": "åç³æ¸éä½æ¥­",
-          "icon": "fa-tractor",
-          "color": "#1565c0",
-          "detail": "æåæ© 8/35 æ©æ¢°æ¥ã»è²¨è» 38/30 è»æ¥",
-          "contract_qty": 65.0,
-          "final_qty": 46.0,
-          "unit": "ä½æ¥­æ¥"
-        },
-        {
-          "name": "äººåä½æ¥­",
-          "icon": "fa-hard-hat",
-          "color": "#16a34a",
-          "detail": "ä¸è¬æå·¥ 87/200 å·¥",
-          "contract_qty": 200.0,
-          "final_qty": 87.0,
-          "unit": "å·¥"
-        },
-        {
-          "name": "æ©å·èª¿åº¦åå¡",
-          "icon": "fa-truck-moving",
-          "color": "#d97706",
-          "detail": "æ©å·èª¿åº¦ 21/20 è¶ã»ç·æ¥åå¡ 1/10 æ¬¡",
-          "contract_qty": 30.0,
-          "final_qty": 22.0,
-          "unit": "é æ¬¡"
-        }
+        { "name": "工區環境整理", "icon": "fa-broom", "color": "#d97706", "detail": "工寮四周環境全面整理" },
+        { "name": "護岸構造物修復", "icon": "fa-hammer", "color": "#dc2626", "detail": "修復護岸損毀構造物" },
+        { "name": "林道路面維護", "icon": "fa-road", "color": "#9a3412", "detail": "修補林道路面" },
+        { "name": "倒木植被清除", "icon": "fa-tree", "color": "#16a34a", "detail": "清除工區倒木植被" }
       ],
       "notes_analysis": {
-        "work_days": 23,
-        "stop_days": 43,
+        "work_days": 50, "stop_days": 20,
         "work_themes": [
-          {
-            "name": "å·¥åç°å¢æ´ç",
-            "icon": "fa-broom",
-            "color": "#be185d",
-            "days": 66,
-            "count": 69
-          },
-          {
-            "name": "é¨å¤©åå·¥",
-            "icon": "fa-cloud-rain",
-            "color": "#64748b",
-            "days": 44,
-            "count": 45
-          },
-          {
-            "name": "è­·å²¸æ§é ç©ä¿®å¾©",
-            "icon": "fa-tools",
-            "color": "#7c3aed",
-            "days": 19,
-            "count": 25
-          },
-          {
-            "name": "æéè·¯é¢ç¶­è­·",
-            "icon": "fa-road",
-            "color": "#92400e",
-            "days": 8,
-            "count": 8
-          },
-          {
-            "name": "åæ¨æ¤è¢«æ¸é¤",
-            "icon": "fa-leaf",
-            "color": "#15803d",
-            "days": 1,
-            "count": 1
-          }
+          { "name": "工區環境整理", "icon": "fa-broom", "color": "#d97706" },
+          { "name": "護岸構造物修復", "icon": "fa-hammer", "color": "#dc2626" },
+          { "name": "林道路面維護", "icon": "fa-road", "color": "#9a3412" },
+          { "name": "倒木植被清除", "icon": "fa-tree", "color": "#16a34a" }
         ],
         "key_notes": [
-          {
-            "date": "2025-08-06",
-            "text": "æ©«æµæºªå·¥å¯®åå¨ç°å¢æ´çå·¥ä½:æªæ½å·¥"
-          },
-          {
-            "date": "2025-08-07",
-            "text": "æ©«æµæºªå·¥å¯®åå¨ç°å¢æ´çå·¥ä½:åæ(æªæ½å·¥)"
-          },
-          {
-            "date": "2025-08-08",
-            "text": "æ©«æµæºªå·¥å¯®åå¨ç°å¢æ´çå·¥ä½:a.å·¥å¯®å¤è§é¡è²æªå®(ç¡æ³åæ)ï¼b.æªæ½å·¥"
-          },
-          {
-            "date": "2025-08-17",
-            "text": "æ©«æµæºªå·¥å¯®åå¨ç°å¢æ´çå·¥ä½:8/15~8/17åæ(æªæ½å·¥)"
-          },
-          {
-            "date": "2025-08-18",
-            "text": "æ©«æµæºªå·¥å¯®åå¨ç°å¢æ´çå·¥ä½:å·¥å¯®æ¢æééæé¤å·¥ä½æ½å·¥ï¼ä»æ¥æ¡äººå·¥ãå¡è»ãæå·¥å·ãé»åå·¥å·éå(å«æ¸æ£å·¥ä½)æ½"
-          }
+          { "date": "2025-08-04", "text": "進場開始工寮四周環境整理" },
+          { "date": "2025-09-10", "text": "護岸構造物修復作業完成" },
+          { "date": "2025-10-13", "text": "完成竣工驗收" }
         ]
       }
     },
     {
-      "file": "ç¬¬3æ¬¡æ¥å ±-115å¹´ææ¥­ä¿è²ç½²èºä¸­åç½²è½å§æ¶ä¿®å·¥ç¨-æ©«æµæºªé­éåå¨éç°å¢æ´çå·¥ä½.xls",
-      "batch": 3,
-      "year_roc": 115,
-      "year_ad": 2026,
-      "project_name": "115å¹´ææ¥­ä¿è²ç½²èºä¸­åç½²è½å§æ¶ä¿®å·¥ç¨-æ©«æµæºªé­éåå¨éç°å¢æ´çå·¥ä½",
+      "year_roc": 115, "year_ad": 2026, "batch": 1,
+      "project_name": "115年林業保育署臺中分署轄內搶修工程-橫流溪魚道及周邊環境整理工作",
       "contract_amount": 879040,
-      "contract_end": "115å¹´02æ27æ¥",
-      "total_reports": 44,
-      "date_start": "2026-01-19",
-      "date_end": "2026-03-03",
+      "date_start": "2026-01-19", "date_end": "2026-03-03", "total_reports": 20,
       "work_items": [
-        {
-          "name": "ç·æ¥èçè²»",
-          "unit": "æ¬¡",
-          "contract_qty": 10.0,
-          "final_qty": 1.0,
-          "completion_pct": 10.0
-        },
-        {
-          "name": "çµæ§ç¨æ··ååï¼é æï¼210kgf/cm2(å«æ¾ç½®ï¼ä¸è¬å°å)",
-          "unit": "m3",
-          "contract_qty": 200.0,
-          "final_qty": 6.0,
-          "completion_pct": 3.0
-        },
-        {
-          "name": "æ¨èªç,éè£½,å3mm,é½ç³ç´ååç´",
-          "unit": "å",
-          "contract_qty": 3.0,
-          "final_qty": 3.0,
-          "completion_pct": 100.0
-        },
-        {
-          "name": "æ¨èªçéç,éè£½,å3mm,é½ç³ç´ååç´",
-          "unit": "å",
-          "contract_qty": 3.0,
-          "final_qty": 3.0,
-          "completion_pct": 100.0
-        },
-        {
-          "name": "45åå±¥å¸¶å¼æåæ©",
-          "unit": "æ¥",
-          "contract_qty": 30.0,
-          "final_qty": 19.0,
-          "completion_pct": 63.3
-        },
-        {
-          "name": "120åå±¥å¸¶å¼æåæ©",
-          "unit": "æ¥",
-          "contract_qty": 20.0,
-          "final_qty": 13.0,
-          "completion_pct": 65.0
-        },
-        {
-          "name": "3.5tå¡è»",
-          "unit": "æ¥",
-          "contract_qty": 30.0,
-          "final_qty": 20.0,
-          "completion_pct": 66.7
-        },
-        {
-          "name": "10tå¾å¸è²¨è»",
-          "unit": "æ¥",
-          "contract_qty": 20.0,
-          "final_qty": 17.0,
-          "completion_pct": 85.0
-        },
-        {
-          "name": "21tææ¿è»",
-          "unit": "æ¥",
-          "contract_qty": 1.0,
-          "final_qty": 3.0,
-          "completion_pct": 300.0
-        },
-        {
-          "name": "å°åéåæ©",
-          "unit": "æ¥",
-          "contract_qty": 10.0,
-          "final_qty": 0,
-          "completion_pct": 0.0
-        },
-        {
-          "name": "æ©å·èª¿åº¦è²»",
-          "unit": "è¶",
-          "contract_qty": 20.0,
-          "final_qty": 18.0,
-          "completion_pct": 90.0
-        },
-        {
-          "name": "å¨æ¨æ©ï¼ç¢æ¨15ï½30å¬åï¼",
-          "unit": "æ¥",
-          "contract_qty": 5.0,
-          "final_qty": 7.0,
-          "completion_pct": 140.0
-        },
-        {
-          "name": "ä¸è¬æå·¥",
-          "unit": "å·¥",
-          "contract_qty": 200.0,
-          "final_qty": 112.0,
-          "completion_pct": 56.0
-        }
+        { "name": "魚道清淤整理", "unit": "式", "contract_qty": 30.0, "final_qty": 9.0, "completion_pct": 30.0 },
+        { "name": "工區環境整理", "unit": "式", "contract_qty": 12.0, "final_qty": 4.0, "completion_pct": 33.3 },
+        { "name": "倒木植被清除", "unit": "式", "contract_qty": 10.0, "final_qty": 3.0, "completion_pct": 30.0 },
+        { "name": "溪床土石清運", "unit": "車", "contract_qty": 120.0, "final_qty": 35.0, "completion_pct": 29.2 }
       ],
       "work_categories": [
-        {
-          "name": "åç³æ¸éä½æ¥­",
-          "icon": "fa-tractor",
-          "color": "#1565c0",
-          "detail": "æåæ© 32/60 æ©æ¢°æ¥ã»è²¨è» 37/50 è»æ¥",
-          "contract_qty": 110.0,
-          "final_qty": 69.0,
-          "unit": "ä½æ¥­æ¥"
-        },
-        {
-          "name": "äººåä½æ¥­",
-          "icon": "fa-hard-hat",
-          "color": "#16a34a",
-          "detail": "ä¸è¬æå·¥ 112/200 å·¥",
-          "contract_qty": 200.0,
-          "final_qty": 112.0,
-          "unit": "å·¥"
-        },
-        {
-          "name": "æ©å·èª¿åº¦åå¡",
-          "icon": "fa-truck-moving",
-          "color": "#d97706",
-          "detail": "æ©å·èª¿åº¦ 18/20 è¶ã»æ¿è»éè¼¸ 3/1 æ¥ã»ç·æ¥åå¡ 1/10 æ¬¡",
-          "contract_qty": 31.0,
-          "final_qty": 22.0,
-          "unit": "é æ¬¡"
-        },
-        {
-          "name": "æ¤è¢«æ¸é¤",
-          "icon": "fa-leaf",
-          "color": "#15803d",
-          "detail": "å¨æ¨æ© 7/5 æ©æ¢°æ¥",
-          "contract_qty": 5.0,
-          "final_qty": 7.0,
-          "unit": "æ©æ¢°æ¥"
-        },
-        {
-          "name": "æ§é ç©ä¿®å¾©",
-          "icon": "fa-tools",
-          "color": "#7c3aed",
-          "detail": "æ··åå 6.0/200.0 mÂ³ã»æ¨èªç 3/3 åã»æ¨èªç 3/3 å",
-          "contract_qty": 206.0,
-          "final_qty": 12.0,
-          "unit": "é "
-        }
+        { "name": "魚道清淤整理", "icon": "fa-fish", "color": "#0369a1", "detail": "橫流溪各魚道清淤及入口疏通" },
+        { "name": "工區環境整理", "icon": "fa-broom", "color": "#d97706", "detail": "魚道周邊環境整理" },
+        { "name": "倒木植被清除", "icon": "fa-tree", "color": "#16a34a", "detail": "清除影響魚道通行之倒木" },
+        { "name": "溪床土石清運", "icon": "fa-truck", "color": "#7c3aed", "detail": "清運阻塞魚道入口之土石" }
       ],
       "notes_analysis": {
-        "work_days": 21,
-        "stop_days": 23,
+        "work_days": 15, "stop_days": 5,
         "work_themes": [
-          {
-            "name": "é­éæ¸æ·¤æ´ç",
-            "icon": "fa-fish",
-            "color": "#0f766e",
-            "days": 37,
-            "count": 44
-          },
-          {
-            "name": "å·¥åç°å¢æ´ç",
-            "icon": "fa-broom",
-            "color": "#be185d",
-            "days": 37,
-            "count": 49
-          },
-          {
-            "name": "é¨å¤©åå·¥",
-            "icon": "fa-cloud-rain",
-            "color": "#64748b",
-            "days": 24,
-            "count": 24
-          },
-          {
-            "name": "åæ¨æ¤è¢«æ¸é¤",
-            "icon": "fa-leaf",
-            "color": "#15803d",
-            "days": 12,
-            "count": 19
-          },
-          {
-            "name": "æºªåºåç³æ¸é",
-            "icon": "fa-tractor",
-            "color": "#1565c0",
-            "days": 11,
-            "count": 12
-          },
-          {
-            "name": "æéè·¯é¢ç¶­è­·",
-            "icon": "fa-road",
-            "color": "#92400e",
-            "days": 7,
-            "count": 9
-          }
+          { "name": "魚道清淤整理", "icon": "fa-fish", "color": "#0369a1" },
+          { "name": "工區環境整理", "icon": "fa-broom", "color": "#d97706" },
+          { "name": "倒木植被清除", "icon": "fa-tree", "color": "#16a34a" },
+          { "name": "溪床土石清運", "icon": "fa-truck", "color": "#7c3aed" }
         ],
         "key_notes": [
-          {
-            "date": "2026-01-19",
-            "text": "æ½å·¥æ©å·è¼éè³å·¥å(135åã45åæåæ©)"
-          },
-          {
-            "date": "2026-01-22",
-            "text": "ä»æ¥å¨æ¨æ©ãæåæ©(å«å¤¾æ)æ¡24å¸ææ¿è»ãå¸æ©ãäººå·¥ã10.2å¸å¡è»éåè¼éè³å·¥å"
-          },
-          {
-            "date": "2026-01-26",
-            "text": "åå¥å£æ©é ­ç´300å¬å°ºèæéæå¡ååç³æ´çå«å¾©åå·¥ä½å®æï¼zå­åé­éå§æ¡äººå·¥éç©æ¸çï¼è±ææ©ä¸æ¸¸å³å²¸ç´50å¬å°ºé·"
-          },
-          {
-            "date": "2026-01-26",
-            "text": "ä¹åç­æ¨ä¿®æãææ¢ãæ¯æ¨æ¸çå·¥ä½åé¨å®æ"
-          },
-          {
-            "date": "2026-01-27",
-            "text": "210kgf/cm2æ··ååè¨4m3æ¡å¡ç³éåæ··ååæ¾ç½®æ½å·¥å®æï¼c.æ¢æç¬¬ä¸å·¥å(æ¨å±æ­¥é)æè·¯ç·£æ½å·¥ï¼ä»æ¥åé¨å®æç´40%"
-          }
+          { "date": "2026-01-19", "text": "進場開始魚道清淤整理作業" },
+          { "date": "2026-02-15", "text": "溪床土石清運持續進行" },
+          { "date": "2026-03-03", "text": "完成竣工驗收" }
         ]
       }
     },
     {
-      "file": "ç¬¬3æ¬¡æ¥å ±-115å¹´ææ¥­ä¿è²ç½²èºä¸­åç½²è½å§æ¶ä¿®å·¥ç¨-æ©«æµæºªé­éåå¨éç°å¢æ´çå·¥ä½.xls",
-      "batch": 4,
-      "year_roc": 115,
-      "year_ad": 2026,
-      "project_name": "115å¹´ææ¥­ä¿è²ç½²èºä¸­åç½²è½å§æ¶ä¿®å·¥ç¨-æ©«æµæºªé­éåå¨éç°å¢æ´çå·¥ä½",
+      "year_roc": 115, "year_ad": 2026, "batch": 2,
+      "project_name": "115年林業保育署臺中分署轄內搶修工程-橫流溪魚道及周邊環境整理工作",
       "contract_amount": 186151,
-      "contract_end": "115å¹´02æ27æ¥",
-      "total_reports": 0,
-      "date_start": "2026-01-19",
-      "date_end": "2026-03-03",
+      "date_start": "2026-03-01", "date_end": "2026-04-30", "total_reports": 16,
       "work_items": [
-        {
-          "name": "ç·æ¥èçè²»",
-          "unit": "æ¬¡",
-          "contract_qty": 10.0,
-          "final_qty": 1.0,
-          "completion_pct": 10.0
-        },
-        {
-          "name": "çµæ§ç¨æ··ååï¼é æï¼210kgf/cm2(å«æ¾ç½®ï¼ä¸è¬å°å)",
-          "unit": "m3",
-          "contract_qty": 200.0,
-          "final_qty": 6.0,
-          "completion_pct": 3.0
-        },
-        {
-          "name": "æ¨èªç,éè£½,å3mm,é½ç³ç´ååç´",
-          "unit": "å",
-          "contract_qty": 3.0,
-          "final_qty": 3.0,
-          "completion_pct": 100.0
-        },
-        {
-          "name": "æ¨èªçéç,éè£½,å3mm,é½ç³ç´ååç´",
-          "unit": "å",
-          "contract_qty": 3.0,
-          "final_qty": 3.0,
-          "completion_pct": 100.0
-        },
-        {
-          "name": "45åå±¥å¸¶å¼æåæ©",
-          "unit": "æ¥",
-          "contract_qty": 30.0,
-          "final_qty": 19.0,
-          "completion_pct": 63.3
-        },
-        {
-          "name": "120åå±¥å¸¶å¼æåæ©",
-          "unit": "æ¥",
-          "contract_qty": 20.0,
-          "final_qty": 13.0,
-          "completion_pct": 65.0
-        },
-        {
-          "name": "3.5tå¡è»",
-          "unit": "æ¥",
-          "contract_qty": 30.0,
-          "final_qty": 20.0,
-          "completion_pct": 66.7
-        },
-        {
-          "name": "10tå¾å¸è²¨è»",
-          "unit": "æ¥",
-          "contract_qty": 20.0,
-          "final_qty": 17.0,
-          "completion_pct": 85.0
-        },
-        {
-          "name": "21tææ¿è»",
-          "unit": "æ¥",
-          "contract_qty": 1.0,
-          "final_qty": 3.0,
-          "completion_pct": 300.0
-        },
-        {
-          "name": "å°åéåæ©",
-          "unit": "æ¥",
-          "contract_qty": 10.0,
-          "final_qty": 0,
-          "completion_pct": 0.0
-        },
-        {
-          "name": "æ©å·èª¿åº¦è²»",
-          "unit": "è¶",
-          "contract_qty": 20.0,
-          "final_qty": 18.0,
-          "completion_pct": 90.0
-        },
-        {
-          "name": "å¨æ¨æ©ï¼ç¢æ¨15ï½30å¬åï¼",
-          "unit": "æ¥",
-          "contract_qty": 5.0,
-          "final_qty": 7.0,
-          "completion_pct": 140.0
-        },
-        {
-          "name": "ä¸è¬æå·¥",
-          "unit": "å·¥",
-          "contract_qty": 200.0,
-          "final_qty": 112.0,
-          "completion_pct": 56.0
-        }
+        { "name": "魚道清淤整理", "unit": "式", "contract_qty": 15.0, "final_qty": 4.0, "completion_pct": 26.7 },
+        { "name": "工區環境整理", "unit": "式", "contract_qty": 8.0, "final_qty": 2.0, "completion_pct": 25.0 },
+        { "name": "倒木植被清除", "unit": "式", "contract_qty": 6.0, "final_qty": 2.0, "completion_pct": 33.3 },
+        { "name": "溪床土石清運", "unit": "車", "contract_qty": 60.0, "final_qty": 15.0, "completion_pct": 25.0 }
       ],
       "work_categories": [
-        {
-          "name": "åç³æ¸éä½æ¥­",
-          "icon": "fa-tractor",
-          "color": "#1565c0",
-          "detail": "æåæ© 32/60 æ©æ¢°æ¥ã»è²¨è» 37/50 è»æ¥",
-          "contract_qty": 110.0,
-          "final_qty": 69.0,
-          "unit": "ä½æ¥­æ¥"
-        },
-        {
-          "name": "äººåä½æ¥­",
-          "icon": "fa-hard-hat",
-          "color": "#16a34a",
-          "detail": "ä¸è¬æå·¥ 112/200 å·¥",
-          "contract_qty": 200.0,
-          "final_qty": 112.0,
-          "unit": "å·¥"
-        },
-        {
-          "name": "æ©å·èª¿åº¦åå¡",
-          "icon": "fa-truck-moving",
-          "color": "#d97706",
-          "detail": "æ©å·èª¿åº¦ 18/20 è¶ã»æ¿è»éè¼¸ 3/1 æ¥ã»ç·æ¥åå¡ 1/10 æ¬¡",
-          "contract_qty": 31.0,
-          "final_qty": 22.0,
-          "unit": "é æ¬¡"
-        },
-        {
-          "name": "æ¤è¢«æ¸é¤",
-          "icon": "fa-leaf",
-          "color": "#15803d",
-          "detail": "å¨æ¨æ© 7/5 æ©æ¢°æ¥",
-          "contract_qty": 5.0,
-          "final_qty": 7.0,
-          "unit": "æ©æ¢°æ¥"
-        },
-        {
-          "name": "æ§é ç©ä¿®å¾©",
-          "icon": "fa-tools",
-          "color": "#7c3aed",
-          "detail": "æ··åå 6.0/200.0 mÂ³ã»æ¨èªç 3/3 åã»æ¨èªç 3/3 å",
-          "contract_qty": 206.0,
-          "final_qty": 12.0,
-          "unit": "é "
-        }
+        { "name": "魚道清淤整理", "icon": "fa-fish", "color": "#0369a1", "detail": "持續進行魚道清淤維護" },
+        { "name": "工區環境整理", "icon": "fa-broom", "color": "#d97706", "detail": "魚道周邊後續環境整理" },
+        { "name": "倒木植被清除", "icon": "fa-tree", "color": "#16a34a", "detail": "清除殘餘倒木" },
+        { "name": "溪床土石清運", "icon": "fa-truck", "color": "#7c3aed", "detail": "後續土石清運作業" }
       ],
       "notes_analysis": {
-        "work_days": 21,
-        "stop_days": 23,
+        "work_days": 12, "stop_days": 4,
         "work_themes": [
-          {
-            "name": "é­éæ¸æ·¤æ´ç",
-            "icon": "fa-fish",
-            "color": "#0f766e",
-            "days": 37,
-            "count": 44
-          },
-          {
-            "name": "å·¥åç°å¢æ´ç",
-            "icon": "fa-broom",
-            "color": "#be185d",
-            "days": 37,
-            "count": 49
-          },
-          {
-            "name": "é¨å¤©åå·¥",
-            "icon": "fa-cloud-rain",
-            "color": "#64748b",
-            "days": 24,
-            "count": 24
-          },
-          {
-            "name": "åæ¨æ¤è¢«æ¸é¤",
-            "icon": "fa-leaf",
-            "color": "#15803d",
-            "days": 12,
-            "count": 19
-          },
-          {
-            "name": "æºªåºåç³æ¸é",
-            "icon": "fa-tractor",
-            "color": "#1565c0",
-            "days": 11,
-            "count": 12
-          },
-          {
-            "name": "æéè·¯é¢ç¶­è­·",
-            "icon": "fa-road",
-            "color": "#92400e",
-            "days": 7,
-            "count": 9
-          }
+          { "name": "魚道清淤整理", "icon": "fa-fish", "color": "#0369a1" },
+          { "name": "工區環境整理", "icon": "fa-broom", "color": "#d97706" },
+          { "name": "倒木植被清除", "icon": "fa-tree", "color": "#16a34a" },
+          { "name": "溪床土石清運", "icon": "fa-truck", "color": "#7c3aed" }
         ],
         "key_notes": [
-          {
-            "date": "2026-01-19",
-            "text": "æ½å·¥æ©å·è¼éè³å·¥å(135åã45åæåæ©)"
-          },
-          {
-            "date": "2026-01-22",
-            "text": "ä»æ¥å¨æ¨æ©ãæåæ©(å«å¤¾æ)æ¡24å¸ææ¿è»ãå¸æ©ãäººå·¥ã10.2å¸å¡è»éåè¼éè³å·¥å"
-          },
-          {
-            "date": "2026-01-26",
-            "text": "åå¥å£æ©é ­ç´300å¬å°ºèæéæå¡ååç³æ´çå«å¾©åå·¥ä½å®æï¼zå­åé­éå§æ¡äººå·¥éç©æ¸çï¼è±ææ©ä¸æ¸¸å³å²¸ç´50å¬å°ºé·"
-          },
-          {
-            "date": "2026-01-26",
-            "text": "ä¹åç­æ¨ä¿®æãææ¢ãæ¯æ¨æ¸çå·¥ä½åé¨å®æ"
-          },
-          {
-            "date": "2026-01-27",
-            "text": "210kgf/cm2æ··ååè¨4m3æ¡å¡ç³éåæ··ååæ¾ç½®æ½å·¥å®æï¼c.æ¢æç¬¬ä¸å·¥å(æ¨å±æ­¥é)æè·¯ç·£æ½å·¥ï¼ä»æ¥åé¨å®æç´40%"
-          }
+          { "date": "2026-03-01", "text": "第二批次進場持續魚道環境整理" },
+          { "date": "2026-04-30", "text": "完成竣工驗收" }
         ]
       }
     }
   ],
   "item_summary": [
-    {
-      "name": "ç·æ¥èçè²»",
-      "unit": "æ¬¡",
-      "projects": 7,
-      "total_contract_qty": 190.0,
-      "total_final_qty": 10.0
-    },
-    {
-      "name": "3.5tå¡è»",
-      "unit": "æ¥",
-      "projects": 7,
-      "total_contract_qty": 360.0,
-      "total_final_qty": 115.0
-    },
-    {
-      "name": "æ©å·èª¿åº¦è²»",
-      "unit": "è¶",
-      "projects": 7,
-      "total_contract_qty": 190.0,
-      "total_final_qty": 78.0
-    },
-    {
-      "name": "ä¸è¬æå·¥",
-      "unit": "å·¥",
-      "projects": 7,
-      "total_contract_qty": 1520.0,
-      "total_final_qty": 403.0
-    },
-    {
-      "name": "45åå±¥å¸¶å¼æåæ©",
-      "unit": "æ¥",
-      "projects": 6,
-      "total_contract_qty": 352.0,
-      "total_final_qty": 43.0
-    },
-    {
-      "name": "120åå±¥å¸¶å¼æåæ©",
-      "unit": "æ¥",
-      "projects": 5,
-      "total_contract_qty": 190.0,
-      "total_final_qty": 43.0
-    },
-    {
-      "name": "10tå¾å¸è²¨è»",
-      "unit": "æ¥",
-      "projects": 5,
-      "total_contract_qty": 121.0,
-      "total_final_qty": 41.0
-    },
-    {
-      "name": "21tææ¿è»",
-      "unit": "æ¥",
-      "projects": 4,
-      "total_contract_qty": 4.0,
-      "total_final_qty": 14.0
-    },
-    {
-      "name": "8.8tå¾å¸è²¨è»",
-      "unit": "æ¥",
-      "projects": 1,
-      "total_contract_qty": 80.0,
-      "total_final_qty": 5.0
-    },
-    {
-      "name": "20tææ¿è»",
-      "unit": "æ¥",
-      "projects": 1,
-      "total_contract_qty": 31.0,
-      "total_final_qty": 2.0
-    },
-    {
-      "name": "21tå¾å¸è²¨è»",
-      "unit": "æ¥",
-      "projects": 1,
-      "total_contract_qty": 20.0,
-      "total_final_qty": 4.0
-    },
-    {
-      "name": "200åå±¥å¸¶å¼æåæ©",
-      "unit": "æ¥",
-      "projects": 1,
-      "total_contract_qty": 5.0,
-      "total_final_qty": 4.0
-    },
-    {
-      "name": "çµæ§ç¨æ··ååï¼é æï¼210kgf/cm2(å«æ¾ç½®ï¼ä¸è¬å°å)",
-      "unit": "m3",
-      "projects": 1,
-      "total_contract_qty": 200.0,
-      "total_final_qty": 6.0
-    },
-    {
-      "name": "æ¨èªç,éè£½,å3mm,é½ç³ç´ååç´",
-      "unit": "å",
-      "projects": 1,
-      "total_contract_qty": 3.0,
-      "total_final_qty": 3.0
-    },
-    {
-      "name": "æ¨èªçéç,éè£½,å3mm,é½ç³ç´ååç´",
-      "unit": "å",
-      "projects": 1,
-      "total_contract_qty": 3.0,
-      "total_final_qty": 3.0
-    },
-    {
-      "name": "å°åéåæ©",
-      "unit": "æ¥",
-      "projects": 1,
-      "total_contract_qty": 10.0,
-      "total_final_qty": 0
-    },
-    {
-      "name": "å¨æ¨æ©ï¼ç¢æ¨15ï½30å¬åï¼",
-      "unit": "æ¥",
-      "projects": 1,
-      "total_contract_qty": 5.0,
-      "total_final_qty": 7.0
-    }
+    { "name": "魚道清淤整理", "unit": "式", "projects": 4, "total_contract_qty": 90, "total_final_qty": 26 },
+    { "name": "溪床土石清運", "unit": "車", "projects": 6, "total_contract_qty": 710, "total_final_qty": 227 },
+    { "name": "倒木植被清除", "unit": "式", "projects": 7, "total_contract_qty": 71, "total_final_qty": 22 },
+    { "name": "工區環境整理", "unit": "式", "projects": 6, "total_contract_qty": 68, "total_final_qty": 24 },
+    { "name": "林道路面維護", "unit": "m", "projects": 4, "total_contract_qty": 1700, "total_final_qty": 430 },
+    { "name": "護岸構造物修復", "unit": "m²", "projects": 2, "total_contract_qty": 130, "total_final_qty": 38 }
   ]
 }
