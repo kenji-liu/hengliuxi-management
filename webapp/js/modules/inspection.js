@@ -354,11 +354,14 @@ function syncInspectionRecordToFacility(item, refreshSyncAt = true) {
 function syncFacilityStatusToInspections(silent = false) {
   const facilities  = DB.getAll('facilities');
   const inspections = DB.getAll('inspections');
-  let updated = 0;
+  const now         = new Date().toISOString();
+  let updated = 0, cleaned = 0;
 
+  // ── ① 設施狀態反向同步 ──────────────────────────────────────────
+  // 設施「正常」（不限 A1）時，將其舊的待處理/處理中巡查記錄標為完成
+  // 同時重置 deru 欄位，防止高 U 值再把設施改回「需維護」
   facilities.forEach(fac => {
-    // 設施盤點明確為「正常」且 DER 評等 A1 才執行
-    if (fac.status !== '正常' || fac.derLevel !== 'A1') return;
+    if (fac.status !== '正常') return; // 只要設施是正常即可，不限 A1
 
     const linked = inspections.filter(ins =>
       Number(ins.facilityId) === Number(fac.id) &&
@@ -366,24 +369,52 @@ function syncFacilityStatusToInspections(silent = false) {
     );
 
     linked.forEach(ins => {
-      DB.update('inspections', ins.id, {
-        status:   '完成',
-        priority: '低',
-        // 同步重置 DER 值為 A1 對應（D0/E1/R1/U1），
-        // 防止高 deru_u 再觸發 syncInspectionRecordToFacility 把設施改為「需維護」
-        deru_d: 0, deru_e: 1, deru_r: 1, deru_u: 1,
-        deru_label: 'U1 定期巡查', deru_score: 0,
-        facilityStatusSyncedAt: new Date().toISOString()
-      });
-      updated++;
+      // 若記錄的最新巡查日期比設施 lastInspect 舊，視為已過時紀錄
+      const insDate = ins.date || '';
+      const facDate = fac.lastInspect || fac.assessmentDate || '';
+      const isOutdated = !insDate || (facDate && insDate < facDate);
+
+      if (isOutdated || fac.derLevel === 'A1') {
+        DB.update('inspections', ins.id, {
+          status:   '完成',
+          priority: '低',
+          deru_d: 0, deru_e: 1, deru_r: 1, deru_u: 1,
+          deru_label: 'U1 定期巡查', deru_score: 0,
+          facilityStatusSyncedAt: now
+        });
+        updated++;
+      }
     });
   });
 
-  if (!silent && updated > 0)
-    showToast(`✅ 已依設施狀態同步 ${updated} 筆巡查記錄為「完成」`, 'success');
-  else if (!silent)
-    showToast('巡查記錄狀態已與設施盤點一致', 'info');
-  return updated;
+  // ── ② 清除舊記錄誤標的「待上傳」雲端狀態 ─────────────────────
+  // Drive 整合啟用日：2026-06-01。此前的記錄不應顯示「待上傳」
+  const DRIVE_START = '2026-06-01';
+  inspections.forEach(ins => {
+    const insDate = ins.date || ins.cloudQueuedAt || '';
+    const isOldRecord = insDate && insDate < DRIVE_START;
+    const hasValidDriveFile = !!(ins.driveFileId || ins.driveWebLink);
+
+    if (isOldRecord && ins.cloudTarget === 'Google Drive' &&
+        ins.cloudSyncStatus === '待上傳' && !hasValidDriveFile) {
+      // 舊記錄清除誤標的 Drive 上傳狀態
+      DB.update('inspections', ins.id, {
+        cloudTarget:     null,
+        cloudSyncStatus: null,
+        cloudQueuedAt:   null,
+        cloudFolderUrl:  null
+      });
+      cleaned++;
+    }
+  });
+
+  if (!silent) {
+    const msgs = [];
+    if (updated > 0) msgs.push(`同步 ${updated} 筆狀態`);
+    if (cleaned > 0) msgs.push(`清除 ${cleaned} 筆舊記錄誤標`);
+    showToast(msgs.length ? `✅ ${msgs.join('、')}` : '巡查記錄已與設施盤點一致', 'success');
+  }
+  return { updated, cleaned };
 }
 
 function ensureInspectionSyncMetadata() {
@@ -720,6 +751,51 @@ async function batchUploadPendingToDrive() {
     await new Promise(r => setTimeout(r, 500));
   }
   showToast(`批量上傳完成：✅ ${ok} 筆成功${fail ? `　❌ ${fail} 筆失敗` : ''}`, fail ? 'warning' : 'success');
+  renderInspection();
+}
+
+/**
+ * 全面同步修正（一鍵解決所有同步問題）
+ * 1. 清除舊記錄誤標的「待上傳」狀態
+ * 2. 依設施正常狀態關閉過時的待處理/處理中記錄
+ * 3. 批量上傳真正需要上傳的近期記錄至 Google Drive
+ */
+async function fullInspectionSync() {
+  showToast('🔄 正在執行全面同步修正…', 'info');
+
+  // ① 同步設施狀態 + 清除舊誤標
+  const { updated, cleaned } = syncFacilityStatusToInspections(true);
+
+  // ② 批量上傳近期待上傳記錄（2026-06-01 後的）
+  const DRIVE_START = '2026-06-01';
+  const rows = DB.getAll('inspections');
+  const toUpload = rows.filter(r =>
+    INSPECTION_FORM_SYNC_META[r.formType] &&
+    (r.date || '') >= DRIVE_START &&
+    (!r.cloudSyncStatus || r.cloudSyncStatus === '待上傳' || r.cloudSyncStatus === '上傳失敗') &&
+    !r.driveFileId
+  );
+
+  let uploadOk = 0, uploadFail = 0;
+  for (const item of toUpload) {
+    try {
+      await uploadInspectionFileToDrive(item, item.formType);
+      uploadOk++;
+    } catch(e) { uploadFail++; }
+    await new Promise(r => setTimeout(r, 400));
+  }
+
+  // 結果摘要
+  const msgs = [];
+  if (updated > 0) msgs.push(`${updated} 筆狀態已同步為完成`);
+  if (cleaned > 0) msgs.push(`${cleaned} 筆舊記錄誤標已清除`);
+  if (uploadOk > 0) msgs.push(`${uploadOk} 筆已上傳至 Drive`);
+  if (uploadFail > 0) msgs.push(`${uploadFail} 筆上傳失敗`);
+
+  showToast(
+    msgs.length ? `✅ 全面同步完成：${msgs.join('　')}` : '✅ 所有資料已是最新狀態',
+    uploadFail > 0 ? 'warning' : 'success'
+  );
   renderInspection();
 }
 
@@ -1984,8 +2060,8 @@ function renderInspectionDataManagement(standalone = false) {
           <button class="btn btn-outline" onclick="cleanupDuplicateInspections()" style="font-size:18px;padding:12px 24px;color:#7c3aed;border-color:#c4b5fd;background:#f5f3ff">
             <i class="fas fa-broom"></i> 清除重複記錄
           </button>
-          <button class="btn btn-outline" onclick="syncFacilityStatusToInspections();renderInspection()" style="font-size:18px;padding:12px 24px;color:#0369a1;border-color:#bae6fd;background:#e0f2fe">
-            <i class="fas fa-sync-alt"></i> 依設施狀態同步
+          <button class="btn btn-primary" onclick="fullInspectionSync()" style="font-size:18px;padding:12px 24px;background:#0369a1;border-color:#0369a1">
+            <i class="fas fa-magic"></i> 全面同步修正
           </button>
         </div>
       </div>` : `
@@ -2006,6 +2082,9 @@ function renderInspectionDataManagement(standalone = false) {
           </button>
           <button class="btn btn-outline" onclick="cleanupDuplicateInspections()" style="font-size:15px;padding:8px 16px;color:#7c3aed;border-color:#c4b5fd;background:#f5f3ff">
             <i class="fas fa-broom"></i> 清除重複
+          </button>
+          <button class="btn btn-primary" onclick="fullInspectionSync()" style="font-size:15px;padding:8px 16px;background:#0369a1;border-color:#0369a1">
+            <i class="fas fa-magic"></i> 全面同步
           </button>
         </div>
       </div>`}
