@@ -25,21 +25,61 @@ const DB = {
         return this.init();
       }
       const data = JSON.parse(raw);
-      // 版本檢查：若版本不符則清除舊資料並重新初始化
+
+      // ── 安全版本遷移（不再清除用戶資料）──────────────────────────
+      // 以前的「清除重新初始化」會把用戶填寫的巡查記錄全部刪除。
+      // 新策略：版本不符時 MERGE 預設值，保留用戶既有的 inspections。
       if (!data.settings?.version || data.settings.version !== this.VERSION) {
-        console.warn(`[DB] ⚠️ Version mismatch detected: old=${data.settings?.version}, new=${this.VERSION}`);
-        console.log('[DB] Clearing localStorage and reinitializing with fresh data...');
-        localStorage.removeItem(this.KEY);  // 明確清除舊資料
-        const freshData = this.init();
-        console.log('[DB] ✅ Fresh data initialized with VERSION', this.VERSION);
-        return freshData;
+        const oldVer = data.settings?.version || '(無)';
+        console.warn(`[DB] 版本遷移 ${oldVer} → ${this.VERSION}，保留用戶資料`);
+
+        // 安全遷移：先用 init() 取得最新預設值，再疊回用戶資料
+        // 暫存用戶的巡查/魚類/棲地記錄
+        const userInspections = Array.isArray(data.inspections) ? data.inspections : [];
+        const userFish        = Array.isArray(data.fish)        ? data.fish        : [];
+        const userHabitats    = Array.isArray(data.habitats)    ? data.habitats    : [];
+        const userReports     = Array.isArray(data.reports)     ? data.reports     : [];
+        const userSyncTs      = data.settings?.syncTimestamp    || 0;
+
+        // 以預設值重建（此時會寫入 localStorage，但馬上會被 merged 覆蓋）
+        const defaults = this.init();
+
+        // 設施遷移：保留用戶已修改的欄位（derLevel / assessmentDate / updatedAt）
+        const mergedFacilities = defaults.facilities.map(defFac => {
+          const userFac = (data.facilities || []).find(f => f.id === defFac.id);
+          if (!userFac) return defFac;
+          const userNewer = userFac.updatedAt ||
+            (userFac.assessmentDate && userFac.assessmentDate > (defFac.assessmentDate || ''));
+          return userNewer ? { ...defFac, ...userFac } : { ...defFac };
+        });
+
+        const merged = {
+          ...defaults,
+          facilities:  mergedFacilities,
+          // 用戶記錄優先（不清除用戶填寫的巡查資料）
+          inspections: userInspections.length ? userInspections : defaults.inspections,
+          fish:        userFish.length        ? userFish        : defaults.fish,
+          habitats:    userHabitats.length    ? userHabitats    : defaults.habitats,
+          reports:     userReports.length     ? userReports     : defaults.reports,
+          settings: {
+            ...defaults.settings,
+            version:       this.VERSION,
+            lastUpdate:    new Date().toISOString(),
+            syncTimestamp: userSyncTs || Date.now()
+          }
+        };
+
+        localStorage.setItem(this.KEY, JSON.stringify(merged));
+        console.log(`[DB] ✅ 版本遷移完成，保留 ${merged.inspections.length} 筆巡查記錄`);
+        return merged;
       }
+
       console.log('[DB] ✓ Loaded existing data (VERSION:', data.settings.version + ')');
       return data;
     } catch (e) {
       console.error('[DB] Load error:', e);
-      console.log('[DB] Clearing corrupted data and reinitializing...');
-      localStorage.removeItem(this.KEY);  // 發生錯誤也清除舊資料
+      // 僅在資料完全損毀（JSON 解析失敗）時才重新初始化
+      localStorage.removeItem(this.KEY);
       return this.init();
     }
   },
