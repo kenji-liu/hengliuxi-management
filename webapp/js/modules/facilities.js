@@ -2595,7 +2595,10 @@ function saveDERUAssessment(id) {
     maintenanceStrategy: strategy,
     assessmentDate: date,
     retirementEligible: document.getElementById('der_retirement').checked,
-    evaluationNotes: notes
+    evaluationNotes: notes,
+    // 標記人工 DER&U 評估日期，供巡查同步判斷優先權（手動評估較新時不被舊巡查覆寫）
+    derManualEditDate: date,
+    derManualEditAt: new Date().toISOString()
   };
 
   if (id) {

@@ -321,19 +321,45 @@ function syncInspectionRecordToFacility(item, refreshSyncAt = true) {
   const facility = DB.getById('facilities', facilityId);
   if (!facility) return;
   const now = new Date().toISOString();
+
+  // 若使用者透過 DER&U 表單手動編輯，且日期比此巡查記錄新，則不覆寫
+  // （手動評估優先；避免舊巡查記錄壓掉最新人工判定）
+  const insDate = String(item.date || '');
+  const manualDate = String(facility.derManualEditDate || '');
+  if (manualDate && insDate && manualDate > insDate) {
+    // 僅更新巡查同步時間戳，不動 DER 等級/狀態
+    if (refreshSyncAt) DB.update('facilities', facilityId, { inspectionSyncAt: now });
+    return;
+  }
+
+  // 取 D/E/R/U（優先用表單填寫值，缺則以公式推算）
+  const d = Number(item.deru_d || 0);
+  const e = Number(item.deru_e || 1);
+  const r = Number(item.deru_r || 1);
+  let u = Number(item.deru_u || 0);
+  if (!u && typeof fac_deriveUrgency === 'function') u = fac_deriveUrgency(d, e, r).u;
+  if (!u) u = 1;
+
+  // 用與「工程設施管理」完全相同的公式換算等級／健康／狀態，確保兩邊一致
+  const derLevel = (typeof fac_derLevelFromDeru === 'function')
+    ? fac_derLevelFromDeru(d, e, r, u)
+    : (d <= 0 && u <= 1 ? 'A1' : `D${d}/E${e}/R${r}・U${u}`);
+  const health = (typeof fac_healthFromDeru === 'function')
+    ? fac_healthFromDeru(d, e, r, String(item.findings || ''))
+    : Math.max(15, 100 - u * 20);
+  const facStatus = (u >= 4 || health < 35) ? '損壞'
+                  : (u >= 2 || health < 75) ? '需維護' : '正常';
+  const condition = health >= 85 ? 5 : health >= 70 ? 4 : health >= 50 ? 3 : health >= 30 ? 2 : 1;
   const priority = getInspectionPriority(item);
-  const status = getInspectionStatus(item);
-  const isOpen = status !== '完成' || ['緊急', '高'].includes(priority) || (item.deru_u || 0) >= 2;
-  const conditionByU = item.deru_u >= 4 ? 1 : item.deru_u === 3 ? 2 : item.deru_u === 2 ? 3 : facility.condition;
-  // 若設施盤點明確為 A1（正常），不讓舊巡查紀錄將狀態覆寫為「需維護」
-  const protectedA1 = facility.derLevel === 'A1' && facility.status === '正常';
+
   const updates = {
     lastInspect: item.date || facility.lastInspect || '',
     assessmentDate: item.date || facility.assessmentDate || '',
     maintenance_priority: priority,
-    status: (isOpen && !protectedA1) ? '需維護' : (facility.status || '正常'),
-    condition: conditionByU || facility.condition || 4,
-    derLevel: item.deru_label || facility.derLevel || '',
+    status: facStatus,
+    condition,
+    derLevel,
+    riskScore: Math.max(0, Math.min(100, Math.round(100 - health))),
     evaluationNotes: `${item.inspectionItem || inspectionRecordTypeLabel(inspectionRecordType(item))}：${item.findings || '已完成巡查資料更新'}`,
     maintenanceStrategy: item.action || facility.maintenanceStrategy || '依巡查結果持續追蹤',
     inspectionSyncAt: refreshSyncAt ? now : (facility.inspectionSyncAt || now)
@@ -418,9 +444,10 @@ function syncFacilityStatusToInspections(silent = false) {
 }
 
 function ensureInspectionSyncMetadata() {
-  DB.getAll('inspections')
-    .sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')))
-    .forEach(row => {
+  const rows = DB.getAll('inspections');
+
+  // ① 補齊每筆巡查記錄的中繼資料（PDF／雲端標記等）
+  rows.forEach(row => {
     if (!INSPECTION_FORM_SYNC_META[row.formType]) return;
     const prepared = prepareInspectionRecordForSync({ ...row }, row.formType, false);
     const updates = {};
@@ -432,7 +459,22 @@ function ensureInspectionSyncMetadata() {
       if (row[key] !== prepared[key]) updates[key] = prepared[key];
     });
     if (Object.keys(updates).length) DB.update('inspections', row.id, updates);
-    syncInspectionRecordToFacility(prepared, false);
+  });
+
+  // ② 每個設施「只用最新一筆專業/魚道巡查」同步至工程設施盤點，
+  //    確保設施清單的 DER 評等與巡查資料管理一致（避免舊記錄互相覆蓋）
+  const latestByFacility = {};
+  rows.forEach(row => {
+    if (row.formType !== 'professional_structure' && row.formType !== 'professional_fishway') return;
+    const fid = Number(row.facilityId || row.facility_id);
+    if (!fid) return;
+    const cur = latestByFacility[fid];
+    if (!cur || String(row.date || '') >= String(cur.date || '')) {
+      latestByFacility[fid] = row;
+    }
+  });
+  Object.values(latestByFacility).forEach(latest => {
+    syncInspectionRecordToFacility(latest, false);
   });
 }
 
