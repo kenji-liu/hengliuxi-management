@@ -2556,7 +2556,14 @@ function renderFishTrend() {
   const fishwayTargetTotals = fw => annualFishwaySeries.map(row =>
     fw.targetKeys.reduce((sum, key) => sum + (row[key] || 0), 0)
   );
-  window.hlxFishwayTrendPayload = { fishwayTypes: FISHWAY_TYPES, annualFishwaySeries };
+  // ── CPUE（尾/站訪次）：排除歷年調查站數差異，方為魚道連通效益的可靠趨勢基準 ──
+  //    每年該魚道型式關聯魚種捕獲量 ÷ 當年站訪次（與 annualEffortMetrics 同序對齊）。
+  const fishwayTargetCPUE = fw => annualFishwaySeries.map((row, i) => {
+    const sum = fw.targetKeys.reduce((s, key) => s + (row[key] || 0), 0);
+    const eff = annualEffortMetrics[i]?.effort || 0;
+    return eff ? +(sum / eff).toFixed(1) : 0;
+  });
+  window.hlxFishwayTrendPayload = { fishwayTypes: FISHWAY_TYPES, annualFishwaySeries, annualEffortMetrics };
 
   el.innerHTML = `
   <div style="padding:24px 28px 36px;max-width:none;width:100%;margin:0;box-sizing:border-box;font-size:16px">
@@ -2831,8 +2838,8 @@ function renderFishTrend() {
         <div style="border:2px solid #e2e8f0;border-radius:18px;padding:20px">
           <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:12px">
             <div>
-              <div style="font-size:18px;font-weight:900;color:#0f172a;margin-bottom:8px">魚道型式關聯指標總量比較</div>
-              <div style="font-size:14px;color:#64748b;line-height:1.7">折線越高，代表該型式關聯魚種於該年度調查捕獲尾數越高。</div>
+              <div style="font-size:18px;font-weight:900;color:#0f172a;margin-bottom:8px">魚道型式關聯指標 CPUE 比較<span style="font-size:13px;font-weight:700;color:#0e7490">（努力量校正・尾/站訪次）</span></div>
+              <div style="font-size:14px;color:#64748b;line-height:1.7">已以 CPUE（捕獲量÷站訪次）排除歷年調查站數差異；折線長期上升才是魚道連通效益的可靠證據，不受 6 站→1 站之採樣變動誤導。</div>
             </div>
             <button type="button" onclick="openFishwayTrendModal('all')" style="border:1.5px solid #93c5fd;background:#eff6ff;color:#1d4ed8;border-radius:10px;padding:9px 14px;font-size:14px;font-weight:900;cursor:pointer">
               <i class="fas fa-up-right-and-down-left-from-center"></i> 放大圖表
@@ -2844,10 +2851,13 @@ function renderFishTrend() {
         </div>
         <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-content:start">
           ${FISHWAY_TYPES.map(fw => {
-            const totals = fishwayTargetTotals(fw);
-            const latest = totals[totals.length - 1] || 0;
-            const first = totals[0] || 0;
-            const delta = latest - first;
+            const cpue = fishwayTargetCPUE(fw);
+            // 106年（建置前基準）對齊年度索引，與最新年度(114)比較 CPUE 變化
+            const baseIdx = annualEffortMetrics.findIndex(m => Number(m.year) === 2017);
+            const latest = cpue[cpue.length - 1] || 0;
+            const base = baseIdx >= 0 ? (cpue[baseIdx] || 0) : (cpue[0] || 0);
+            const delta = +(latest - base).toFixed(1);
+            const mult = base > 0 ? (latest / base).toFixed(1) : null;
             return `
               <div style="border:2px solid ${fw.color}55;border-radius:14px;padding:12px 14px;background:${fw.color}0d;min-height:132px">
                 <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px">
@@ -2858,8 +2868,8 @@ function renderFishTrend() {
                 <div style="font-size:12px;color:#334155;margin-top:6px;line-height:1.55">關聯物種：${fishwayTargetNames(fw)}</div>
                 <div style="display:flex;align-items:baseline;gap:8px;margin-top:8px;flex-wrap:wrap">
                   <span style="font-size:22px;font-weight:900;color:${fw.color};line-height:1">${latest}</span>
-                  <span style="font-size:12px;color:#64748b">114年關聯尾數</span>
-                  <span style="font-size:12px;color:${delta>=0?'#15803d':'#b91c1c'};font-weight:900">${delta>=0?'+':''}${delta} 較106年</span>
+                  <span style="font-size:12px;color:#64748b">114年 CPUE（尾/站訪次）</span>
+                  <span style="font-size:12px;color:${delta>=0?'#15803d':'#b91c1c'};font-weight:900">${delta>=0?'+':''}${delta} 較106年${mult&&delta>=0?`（×${mult}）`:''}</span>
                 </div>
               </div>
             `;
@@ -3368,7 +3378,7 @@ function renderFishTrend() {
           labels: fishwayLabels,
           datasets: FISHWAY_TYPES.map(fw => ({
             label: fw.name,
-            data: fishwayTargetTotals(fw),
+            data: fishwayTargetCPUE(fw),
             borderColor: fw.color,
             backgroundColor: fw.color + '22',
             borderWidth: fw.key === 'submerged' ? 4 : 3,
@@ -3391,9 +3401,14 @@ function renderFishTrend() {
               bodyFont: { size: 14 },
               padding: 12,
               callbacks: {
+                label(ctx) {
+                  return `${ctx.dataset.label}：CPUE ${ctx.parsed.y} 尾/站訪次`;
+                },
                 afterLabel(ctx) {
                   const fw = FISHWAY_TYPES[ctx.datasetIndex];
-                  return `關聯物種：${fishwayTargetNames(fw)}`;
+                  const m = annualEffortMetrics[ctx.dataIndex];
+                  const raw = fishwayTargetTotals(fw)[ctx.dataIndex];
+                  return `關聯物種：${fishwayTargetNames(fw)}\n原始捕獲 ${raw} 尾 ÷ 站訪次 ${m?.effort||'?'}`;
                 }
               }
             }
@@ -3403,7 +3418,7 @@ function renderFishTrend() {
             y: {
               beginAtZero: true,
               ticks: { font: { size: 13, weight: '700' } },
-              title: { display: true, text: '關聯指標魚種年度捕獲尾數', font: { size: 14, weight: '700' } }
+              title: { display: true, text: 'CPUE（關聯魚種尾數/站訪次・努力量校正）', font: { size: 14, weight: '700' } }
             }
           }
         }
@@ -3495,15 +3510,16 @@ function renderFishTrend() {
     FISHWAY_TYPES.forEach(fw => {
       const ctx = document.getElementById(`fishwayTrend_${fw.key}`);
       if (!ctx) return;
-      const totals = fishwayTargetTotals(fw);
+      const cpue = fishwayTargetCPUE(fw);
+      const raws = fishwayTargetTotals(fw);
       new Chart(ctx, {
         type: 'bar',
         data: {
           labels: fishwayLabels,
           datasets: [{
-            label: '關聯指標尾數',
-            data: totals,
-            backgroundColor: totals.map((v, i) => i === totals.length - 1 ? fw.color + 'dd' : fw.color + '66'),
+            label: 'CPUE（尾/站訪次）',
+            data: cpue,
+            backgroundColor: cpue.map((v, i) => i === cpue.length - 1 ? fw.color + 'dd' : fw.color + '66'),
             borderColor: fw.color,
             borderWidth: 2,
             borderRadius: 6
@@ -3519,13 +3535,18 @@ function renderFishTrend() {
               bodyFont: { size: 13 },
               padding: 12,
               callbacks: {
-                afterBody() { return [`關聯物種：${fishwayTargetNames(fw)}`]; }
+                label(c) { return `CPUE ${c.parsed.y} 尾/站訪次`; },
+                afterBody(items) {
+                  const i = items[0].dataIndex;
+                  const m = annualEffortMetrics[i];
+                  return [`原始捕獲 ${raws[i]} 尾 ÷ 站訪次 ${m?.effort||'?'}`, `關聯物種：${fishwayTargetNames(fw)}`];
+                }
               }
             }
           },
           scales: {
             x: { ticks: { font: { size: 12, weight: '700' }, maxRotation: 0 } },
-            y: { beginAtZero: true, ticks: { font: { size: 12, weight: '700' } } }
+            y: { beginAtZero: true, ticks: { font: { size: 12, weight: '700' } }, title: { display: true, text: 'CPUE', font: { size: 11, weight: '700' } } }
           }
         }
       });
@@ -3650,21 +3671,28 @@ function openFishwayTrendModal(key = 'all') {
     ying: '纓口臺鰍',
     jian: '臺灣間爬岩鰍'
   };
+  const effort = Array.isArray(payload.annualEffortMetrics) ? payload.annualEffortMetrics : [];
   const targetNames = fw => fw.targetKeys.map(k => speciesNames[k] || k).join('、');
   const targetTotals = fw => series.map(row => fw.targetKeys.reduce((sum, k) => sum + (row[k] || 0), 0));
+  // CPUE（尾/站訪次）：排除歷年調查站數差異
+  const targetCPUE = fw => series.map((row, i) => {
+    const sum = fw.targetKeys.reduce((s, k) => s + (row[k] || 0), 0);
+    const eff = effort[i]?.effort || 0;
+    return eff ? +(sum / eff).toFixed(1) : 0;
+  });
   const labels = series.map(row => row.label);
   const fw = key === 'all' ? null : fishwayTypes.find(item => item.key === key);
-  const title = fw ? `${fw.name}魚類歷年趨勢放大圖` : '各種魚道關聯魚類歷年趨勢放大圖';
+  const title = fw ? `${fw.name} CPUE 歷年趨勢放大圖` : '各魚道型式關聯 CPUE 放大圖（努力量校正）';
 
   document.getElementById('modalTitle').innerHTML = `<span style="font-size:24px;font-weight:900;color:#0f172a">${title}</span>`;
   document.getElementById('modalBody').innerHTML = `
     <div style="font-size:16px;color:#475569;line-height:1.75;margin-bottom:16px">
       ${fw
         ? `${fw.facilities}｜${fw.station}｜關聯物種：${targetNames(fw)}`
-        : '依魚道型式分組，呈現106～114年關聯指標魚種年度捕獲尾數。'}
+        : '依魚道型式分組，以 CPUE（尾/站訪次）呈現103～114年努力量校正後趨勢。'}
     </div>
-    <div style="background:#f8fafc;border-left:5px solid ${fw ? fw.color : '#2563eb'};border-radius:12px;padding:14px 18px;margin-bottom:18px;font-size:15px;color:#334155;line-height:1.75">
-      本圖為魚道型式與魚類調查資料的關聯趨勢判讀，適合比較不同魚道型態周邊指標魚種變化；非逐座魚道直接過魚量。
+    <div style="background:#ecfeff;border-left:5px solid ${fw ? fw.color : '#0e7490'};border-radius:12px;padding:14px 18px;margin-bottom:18px;font-size:15px;color:#334155;line-height:1.75">
+      <b style="color:#0e7490">努力量校正（CPUE）：</b>數值＝關聯魚種捕獲量 ÷ 當年站訪次，已排除歷年調查站數差異（107~110年3~6站、112年後1站）。折線長期上升方為魚道連通效益的可靠證據；非逐座魚道直接過魚量。
     </div>
     <div style="height:68vh;min-height:480px;border:1.5px solid #e2e8f0;border-radius:16px;padding:18px;background:#fff">
       <canvas id="fishwayTrendModalChart"></canvas>
@@ -3685,13 +3713,13 @@ function openFishwayTrendModal(key = 'all') {
     const ctx = document.getElementById('fishwayTrendModalChart');
     if (!ctx || typeof Chart === 'undefined') return;
     if (fw) {
-      const totals = targetTotals(fw);
+      const totals = targetCPUE(fw);
       new Chart(ctx, {
         type: 'bar',
         data: {
           labels,
           datasets: [{
-            label: `${fw.name}關聯指標尾數`,
+            label: `${fw.name} CPUE（尾/站訪次）`,
             data: totals,
             backgroundColor: totals.map((v, i) => i === totals.length - 1 ? fw.color + 'dd' : fw.color + '66'),
             borderColor: fw.color,
@@ -3699,7 +3727,7 @@ function openFishwayTrendModal(key = 'all') {
             borderRadius: 8
           }]
         },
-        options: fishwayLargeChartOptions(`關聯物種：${targetNames(fw)}`, 'bar')
+        options: fishwayLargeChartOptions(`關聯物種：${targetNames(fw)}（CPUE＝尾/站訪次）`, 'bar')
       });
       return;
     }
@@ -3709,7 +3737,7 @@ function openFishwayTrendModal(key = 'all') {
         labels,
         datasets: fishwayTypes.map(item => ({
           label: item.name,
-          data: targetTotals(item),
+          data: targetCPUE(item),
           borderColor: item.color,
           backgroundColor: item.color + '22',
           borderWidth: item.key === 'submerged' ? 4 : 3,
@@ -3759,7 +3787,7 @@ function fishwayLargeChartOptions(extraLabel = '', type = 'line', fishwayTypes =
       y: {
         beginAtZero: true,
         ticks: { font: { size: 16, weight: '700' } },
-        title: { display: true, text: '關聯指標魚種年度捕獲尾數', font: { size: 16, weight: '700' } }
+        title: { display: true, text: 'CPUE（關聯魚種尾數/站訪次・努力量校正）', font: { size: 16, weight: '700' } }
       }
     }
   };
