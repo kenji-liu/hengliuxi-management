@@ -1383,7 +1383,8 @@ async function callGroqDirect(query, localCtx = "", ocrCtx = "") {
   // 多輪對話歷史（最近 CHAT_HISTORY_TURNS 輪）
   const histMsgs = _chatHistory.slice(-(CHAT_HISTORY_TURNS * 2));
 
-  const models = ["llama-3.3-70b-versatile", "llama-3.1-70b-versatile", "llama3-70b-8192"];
+  // 現行有效 Groq 模型（llama-3.1-70b-versatile 已被 Groq 下架，移除避免全數失敗）
+  const models = ["llama-3.3-70b-versatile", "meta-llama/llama-4-scout-17b-16e-instruct", "llama-3.1-8b-instant"];
 
   for (const model of models) {
     try {
@@ -1506,6 +1507,14 @@ async function queryRAG(query) {
       if (!res.ok) continue;
       const data = await res.json();
       if (data.status !== "success") continue;
+      // 後端無可用 AI（provider=none）或回傳空泛 fallback 時，不可遮蔽本機知識庫
+      const backendUseless = data.llm_provider === "none" ||
+        !data.answer || data.answer.length < 30 ||
+        /目前所有 AI 服務皆無回應|未檢索到足以支持判斷/.test(data.answer || "");
+      if (backendUseless) {
+        console.info("[queryRAG] 後端無有效 AI 回答，改用本機知識庫");
+        break;
+      }
       data.structured_citations = (data.local_evidence || []).map((e, i) => ({
         index: i + 1, source_file: e.source || "橫流溪資料庫",
         page: e.page || 1, score: e.confidence || 0.6,
@@ -1521,8 +1530,29 @@ async function queryRAG(query) {
     }
   }
 
-  // ── 5. 完全 fallback：本機知識庫
-  return { ...kbResult, ocr_citations: ocrCitations };
+  // ── 5. 完全 fallback：本機知識庫（永遠帶出可用內容，不顯示「無可用 AI」）
+  const kbAnswer = kbResult?.answer || "";
+  if (kbAnswer && kbAnswer.length > 20) {
+    return {
+      ...kbResult,
+      llm_provider:  "local_kb",
+      llm_model:     "橫流溪本機知識庫",
+      policy_label:  kbResult.policy_label || "本機資料庫回答",
+      ocr_citations: ocrCitations,
+    };
+  }
+  // 連本機都無資料時，給出明確引導而非「無可用 AI」
+  return {
+    answer: ocrCtx
+      ? `已從雲端文件庫找到相關片段（見下方文件），但本機 AI 未啟用。\n建議設定 Groq API Key（🔑 Key）以取得完整分析。\n\n相關文件摘要：\n${ocrCtx.slice(0, 400)}`
+      : "目前查無相關資料。請嘗試：①點 🔑 Key 設定 Groq API Key 啟用 AI；②輸入更具體的設施名稱、樁號或年度；③於 📂 文件庫 更新雲端索引。",
+    llm_provider:  "local_kb",
+    llm_model:     "橫流溪本機知識庫",
+    confidence_level: ocrCitations.length ? "medium" : "low",
+    confidence_score: ocrCitations.length ? 55 : 20,
+    policy_label:  "本機引導",
+    ocr_citations: ocrCitations,
+  };
 }
 
 function clearAIChat() {
@@ -1705,10 +1735,15 @@ async function aiOpenDocSearch() {
       const d = await res.json();
       const info = d.data || {};
       const statusEl = modal.querySelector('#aiDocSearchResults');
-      if (info.indexed_at) {
+      if (info.running) {
+        statusEl.innerHTML = `<div style="text-align:center;color:#2563eb;font-size:13px;padding:18px">
+          索引建立中… ${info.progress || 0}/${info.total || '?'}
+          <div style="font-size:11px;color:#94a3b8;margin-top:6px">${escapeHtml((info.current_file||'').slice(0,40))}</div></div>`;
+        aiPollIndexStatus();
+      } else if (info.indexed_at) {
         statusEl.innerHTML = `<div style="font-size:11px;color:#6b7280;text-align:right;margin-bottom:4px">
           索引更新：${info.indexed_at.slice(0,10)} ／ 已索引 ${info.total_docs || 0} 個文件
-          （成功 ${info.stats?.success || 0}，掃描檔 ${info.stats?.scan_only || 0}）
+          （數位 ${info.stats?.success || 0}，視覺OCR ${info.stats?.vision || 0}，掃描檔 ${info.stats?.scan_only || 0}）
         </div><div style="text-align:center;color:#94a3b8;font-size:13px;padding:12px">請輸入關鍵字開始搜尋</div>`;
       } else {
         statusEl.innerHTML = `<div style="text-align:center;color:#f59e0b;font-size:13px;padding:16px">
@@ -1777,24 +1812,64 @@ function aiUseDocResult(doc) {
 
 async function aiTriggerReindex(btn) {
   if (btn) { btn.disabled = true; btn.textContent = '索引中…'; }
+  // 帶入使用者的 Groq Key，讓後端對掃描 PDF/圖說/照片做視覺 OCR
+  const groqKey = getAIKey();
+  if (!groqKey) {
+    const go = confirm('尚未設定 Groq API Key。\n\n無 Key 仍可索引「數位文字 PDF / Google 文件」，\n但掃描檔、工程圖說、現地照片需要 Groq 視覺模型才能 OCR 判讀。\n\n是否仍要繼續（僅索引數位文字）？');
+    if (!go) { if (btn) { btn.disabled = false; btn.textContent = '🔄 更新索引'; } return; }
+  }
   try {
     const base = window.HLX_API_BASE || window.location.origin;
     const res  = await fetch(`${base}/api/ocr/index-drive`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: "{}",
+      body: JSON.stringify(groqKey ? { groq_key: groqKey } : {}),
     });
     const data = await res.json();
-    if (typeof showToast === 'function') {
-      showToast(data.message || '索引建立中，約需 3-10 分鐘', 'info');
-    } else {
-      alert(data.message || '索引建立中，約需 3-10 分鐘，完成後請重新搜尋');
-    }
+    const msg = data.message || '索引建立中，約需 5-15 分鐘';
+    if (typeof showToast === 'function') showToast(msg, 'info'); else alert(msg + '，完成後請重新搜尋');
+    // 啟動輪詢，索引完成時自動更新狀態列
+    aiPollIndexStatus();
   } catch (err) {
     if (typeof showToast === 'function') showToast(`觸發失敗：${err.message}`, 'error');
+    else alert(`觸發失敗：${err.message}`);
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = '🔄 更新索引'; }
   }
+}
+
+let _aiIndexPollTimer = null;
+async function aiPollIndexStatus() {
+  if (_aiIndexPollTimer) clearInterval(_aiIndexPollTimer);
+  const base = window.HLX_API_BASE || window.location.origin;
+  _aiIndexPollTimer = setInterval(async () => {
+    try {
+      const res = await fetch(`${base}/api/ocr/status`, { signal: AbortSignal.timeout(5000) });
+      if (!res.ok) return;
+      const d = (await res.json()).data || {};
+      const resultsEl = document.getElementById('aiDocSearchResults');
+      if (d.running) {
+        if (resultsEl) resultsEl.innerHTML =
+          `<div style="text-align:center;color:#2563eb;font-size:13px;padding:18px">
+             索引建立中… ${d.progress || 0}/${d.total || '?'}
+             <div style="font-size:11px;color:#94a3b8;margin-top:6px">${escapeHtml((d.current_file || '').slice(0,40))}</div>
+           </div>`;
+      } else {
+        clearInterval(_aiIndexPollTimer); _aiIndexPollTimer = null;
+        if (resultsEl) {
+          const st = d.stats || {};
+          resultsEl.innerHTML =
+            `<div style="text-align:center;color:#16a34a;font-size:13px;padding:16px">
+               ✓ 索引完成：${d.total_docs || 0} 個文件
+               <div style="font-size:11px;color:#6b7280;margin-top:4px">
+                 數位 ${st.success||0}　視覺OCR ${st.vision||0}　掃描檔 ${st.scan_only||0}
+               </div>
+               <div style="font-size:11px;color:#94a3b8;margin-top:6px">請輸入關鍵字開始搜尋</div>
+             </div>`;
+        }
+      }
+    } catch (_) {}
+  }, 4000);
 }
 
 function aiAsk(subject) {

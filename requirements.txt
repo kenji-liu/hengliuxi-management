@@ -14,6 +14,9 @@ requests==2.31.0
 PyPDF2==3.0.1
 pdfplumber==0.10.3
 
+# 掃描 PDF 轉影像（供視覺 OCR；未安裝時自動降級略過掃描檔）
+PyMuPDF==1.24.10
+
 # NLP / AI (sentence-transformers 需 torch，Render 免費版不裝以節省 build 空間)
 duckduckgo-search>=6.1.0
 

@@ -945,13 +945,17 @@ _OCR_FOLDER_ID = "1k2s5HSd_R5GeCt05SOtJxn6UFSrbyoQ9"
 
 @nlp_rag.route("/ocr/index-drive", methods=["POST"])
 def ocr_index_drive() -> Any:
-    """觸發 Google Drive 文件全文索引（背景執行）。"""
+    """觸發 Google Drive 文件全文索引（背景執行）。
+    可選帶入 groq_key 供掃描 PDF/圖說/照片的視覺 OCR 使用（僅存記憶體）。"""
     svc = _get_ocr_svc()
     if svc is None:
         return jsonify({"status": "error", "message": "OCR 模組未載入"}), 503
-    started = svc.start_indexing(_OCR_FOLDER_ID)
+    data       = request.get_json(silent=True) or {}
+    vision_key = _as_text(data.get("groq_key") or data.get("vision_key")) or None
+    started    = svc.start_indexing(_OCR_FOLDER_ID, vision_key=vision_key)
+    vision_note = "（含掃描檔/照片視覺 OCR）" if vision_key else "（僅數位文字；未提供 Groq Key，掃描檔將以視覺降級）"
     if started:
-        return jsonify({"status": "success", "message": "索引建立中，請稍候（可能需要 3-10 分鐘）…", "started": True})
+        return jsonify({"status": "success", "message": f"索引建立中{vision_note}，請稍候（可能需要 5-15 分鐘）…", "started": True})
     return jsonify({"status": "success", "message": "索引執行中，請稍後查詢狀態", "started": False})
 
 
