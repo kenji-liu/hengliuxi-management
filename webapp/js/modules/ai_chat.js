@@ -609,6 +609,21 @@ function buildDynamicContext(query) {
       );
     }
 
+    // D-0b. 魚道趨勢「努力量校正」判讀（避免把站數下降誤判為魚類資源衰退）
+    const isTrendQuery = isFishQuery && (q.includes('趨勢') || q.includes('下降') || q.includes('減少') ||
+      q.includes('cpue') || q.includes('努力') || q.includes('魚道效益') || q.includes('成效') || q.includes('改善'));
+    if (isTrendQuery) {
+      const eff = (typeof window !== 'undefined' && window.hlxFishEffortMetrics) ? window.hlxFishEffortMetrics : null;
+      const effLine = eff ? eff.map(m => `${m.label}:CPUE ${m.cpue}(站訪次${m.effort}/物種${m.richness})`).join('、') : '';
+      parts.push(
+        `【魚道趨勢努力量校正（專業判讀基準）】原始年度總捕獲量受採樣站數影響極大：107年3站、108年4站、109~110年6站、112年後縮回下游1站。` +
+        `故 108年高峰→114年「下降」主因是站數由6站減為1站的「努力量假象」，非魚類資源衰退。` +
+        `應以 CPUE（尾/站訪次）與物種數判讀：103→114年 CPUE 由 17.0 升至 102.5（約6倍）、物種數由2種增至5~9種，證實魚道改善後連通性與族群顯著提升。` +
+        `109年 CPUE 短暫下探為魚道施工擾動期，完工後回升。回答魚道成效或趨勢時，務必用 CPUE+物種數，並提醒勿單看捕獲總數。` +
+        (effLine ? `\n各年度校正指標：${effLine}` : '')
+      );
+    }
+
     if (isFishQuery && fishRecords.length) {
       const fishMatches = fishRecords.filter(r => {
         const txt = `${r.chineseName||r.species||''} ${r.family||''} ${r.conservationStatus||''}`.toLowerCase();
