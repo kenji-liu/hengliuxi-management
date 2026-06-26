@@ -598,6 +598,17 @@ function buildDynamicContext(query) {
     // ── D. 魚類調查資料 ────────────────────────────────────
     const isFishQuery = q.includes('魚') || q.includes('生態') || q.includes('物種') ||
                         q.includes('保育') || q.includes('調查') || q.includes('尾數');
+
+    // D-0. 魚類數據統籌核對（權威完整歷年累計，解釋「水域生物 vs 歷年趨勢」落差）
+    if (isFishQuery && typeof HLX_FISH_FULL_TOTALS !== 'undefined') {
+      const totalsLine = Object.entries(HLX_FISH_FULL_TOTALS)
+        .map(([n, v]) => `${n}${v}尾`).join('、');
+      parts.push(
+        `【魚類數據統籌核對（權威）】完整歷年電捕調查序列（103~114年・${typeof HLX_FISH_SURVEY_EVENTS!=='undefined'?HLX_FISH_SURVEY_EVENTS:26}次季調查・成果報告表4-16／表5-3）各物種累計尾次：${totalsLine}；9種合計${typeof HLX_FISH_GRAND_TOTAL!=='undefined'?HLX_FISH_GRAND_TOTAL:3792}尾。\n` +
+        `※「水域生物」清單與「歷年趨勢分析」現已統一採此完整序列。先前落差原因：生態資料庫僅載入少數代表性快照記錄（例：臺灣間爬岩鰍只有 103基線8+107報告26+110追蹤2=36 尾），非完整序列；完整累計應為 104 尾。回答數量問題時請以本權威數值為準，並可說明落差來自「快照記錄」與「完整調查序列」的統計範圍不同。`
+      );
+    }
+
     if (isFishQuery && fishRecords.length) {
       const fishMatches = fishRecords.filter(r => {
         const txt = `${r.chineseName||r.species||''} ${r.family||''} ${r.conservationStatus||''}`.toLowerCase();

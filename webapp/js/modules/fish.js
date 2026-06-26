@@ -99,8 +99,10 @@ function switchFishTab(tab, btn) {
 
 function renderFishList() {
   const data = DB.getAll('fish');
-  const totalCount = data.reduce((s, f) => s + (Number(f.count) || 0), 0);
-  const uniqueSpecies = [...new Set(data.map(f => f.species))].length;
+  // 累計尾次採用「統籌核對後」的完整歷年序列（與歷年趨勢分析一致），非 DB 快照加總
+  const grouped = Object.values(fish_groupSpecies());
+  const totalCount = grouped.reduce((s, g) => s + (Number(g.totalCount) || 0), 0);
+  const uniqueSpecies = grouped.length;
   // Protected: count unique species (not records) with non-一般 status
   const protected_ = new Set(
     data.filter(f => f.conservation && f.conservation !== '一般').map(f => f.species)
@@ -219,9 +221,9 @@ function loadFishTable() {
               <div style="font-size:22px;font-weight:800;color:#0f172a;margin-bottom:4px;line-height:1.2">${fish_escape(s.species)}</div>
               <div style="font-size:14px;font-style:italic;color:#64748b;margin-bottom:12px">${fish_escape(s.scientificName||'')}</div>
               <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">
-                <div style="background:#f0fdfa;border-radius:8px;padding:10px 8px;text-align:center">
-                  <div style="font-size:26px;font-weight:900;color:#0e7490;line-height:1">${s.totalCount}</div>
-                  <div style="font-size:12px;color:#64748b;margin-top:2px">累計尾數</div>
+                <div style="background:#f0fdfa;border-radius:8px;padding:10px 8px;text-align:center" ${s.reconciled ? `title="完整歷年電捕累計 ${s.totalCount} 尾（103~114年・26次調查，與歷年趨勢分析一致）；資料庫代表性快照僅 ${s.dbCount} 筆合計，已統一校正"` : ''}>
+                  <div style="font-size:26px;font-weight:900;color:#0e7490;line-height:1">${s.totalCount}${s.reconciled ? '<span style="font-size:11px;color:#0e7490;vertical-align:super;margin-left:2px">✓</span>' : ''}</div>
+                  <div style="font-size:12px;color:#64748b;margin-top:2px">累計尾數${s.totalSource ? '<i class="fas fa-circle-info" style="color:#0e7490;margin-left:3px;font-size:10px"></i>' : ''}</div>
                 </div>
                 <div style="background:#f8fafc;border-radius:8px;padding:10px 8px;text-align:center">
                   <div style="font-size:22px;font-weight:900;color:#334155;line-height:1">${s.surveys}</div>
@@ -551,6 +553,27 @@ function renderFishNews() {
   setTimeout(fish_checkCardPhotos, 150);
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+//  魚類資料「單一真實來源」— 統籌核對：水域生物 ↔ 歷年趨勢分析
+//  ----------------------------------------------------------------------------
+//  下列累計尾數＝完整歷年電捕調查序列（103~114年，26 次季調查）逐筆合計，
+//  與 renderFishTrend() 的 SURVEYS 為同一組權威數據。
+//  來源：107~108年成果報告 表4-16、110年魚道生態廊道成效追蹤 表5-3。
+//
+//  ⚠ 落差說明：生態資料庫「水域生物」過去以 DB.fish 之「代表性快照記錄」加總，
+//     每物種僅載入少數幾筆（如臺灣間爬岩鰍只有 103基線8 + 107報告26 + 110追蹤2 = 36 尾），
+//     並非完整歷年序列；歷年趨勢分析則採全 26 次調查（間爬岩鰍實際累計 104 尾）。
+//     故同一物種出現 36 vs 104 的核對落差。本常數將兩者統一至完整序列。
+//     ※ renderFishTrend() 執行時會即時重算 SURVEYS 並於 console 警示任何不一致。
+// ════════════════════════════════════════════════════════════════════════════
+const HLX_FISH_FULL_TOTALS = {
+  '臺灣白甲魚': 1288, '臺灣石魚賓': 726, '臺灣鬚鱲': 659,
+  '纓口臺鰍':   335,  '臺灣間爬岩鰍': 104, '明潭吻鰕虎': 637,
+  '粗首馬口鱲': 10,   '短臀瘋鱨':     15,  '短吻紅斑吻鰕虎': 18,
+};
+const HLX_FISH_SURVEY_EVENTS = 26;   // 103~114 年累計電捕調查場次
+const HLX_FISH_GRAND_TOTAL   = 3792; // 9 種完整歷年累計總尾數
+
 function fish_groupSpecies() {
   const data = DB.getAll('fish');
   const species = {};
@@ -559,6 +582,16 @@ function fish_groupSpecies() {
     species[f.species].totalCount += Number(f.count) || 0;
     species[f.species].surveys++;
     species[f.species].records.push(f);
+  });
+  // ── 統籌核對：9 種趨勢物種的「累計尾數」對齊完整歷年電捕序列，與歷年趨勢分析一致 ──
+  Object.values(species).forEach(s => {
+    const full = HLX_FISH_FULL_TOTALS[s.species];
+    if (full != null) {
+      s.dbCount      = s.totalCount;          // 保留 DB 代表性快照合計（供核對）
+      s.totalCount   = full;                  // 對齊歷年趨勢分析完整累計
+      s.totalSource  = '完整歷年電捕序列（103~114年・26次調查）';
+      s.reconciled   = s.dbCount !== full;
+    }
   });
   return species;
 }
@@ -2247,6 +2280,21 @@ function renderFishTrend() {
   });
   const annualYears = Object.keys(annualData).sort();
 
+  // ── 統籌核對自我檢查：確認權威常數 HLX_FISH_FULL_TOTALS 與 SURVEYS 完全一致 ──
+  try {
+    const _keyToName = { bai:'臺灣白甲魚', shi:'臺灣石魚賓', xu:'臺灣鬚鱲', ying:'纓口臺鰍',
+      jian:'臺灣間爬岩鰍', min:'明潭吻鰕虎', kou:'粗首馬口鱲', feng:'短臀瘋鱨', hong:'短吻紅斑吻鰕虎' };
+    const _computed = {};
+    SURVEYS.forEach(s => Object.keys(_keyToName).forEach(k => {
+      _computed[_keyToName[k]] = (_computed[_keyToName[k]] || 0) + (s[k] || 0);
+    }));
+    Object.entries(_computed).forEach(([name, total]) => {
+      if (typeof HLX_FISH_FULL_TOTALS !== 'undefined' && HLX_FISH_FULL_TOTALS[name] !== total) {
+        console.warn(`[魚類統籌核對] ${name} 權威常數 ${HLX_FISH_FULL_TOTALS[name]} ≠ SURVEYS 重算 ${total}，請更新 HLX_FISH_FULL_TOTALS`);
+      }
+    });
+  } catch (e) { /* 自我檢查不影響渲染 */ }
+
   const SPECIES = [
     { key:'bai',  name:'臺灣白甲魚',     color:'#0ea5e9', engName:'Onychostoma barbatulum',       conserve:'保育類二級' },
     { key:'shi',  name:'臺灣石魚賓',     color:'#f97316', engName:'Acrossocheilus paradoxus',     conserve:'台灣特有種' },
@@ -3545,6 +3593,12 @@ function renderFishBioMap() {
 
       <!-- ══ SECTION 5：水域魚類清單 ══ -->
       ${bioSecHead('5','fa-fish','水域魚類清單','點擊任一列可展開詳細資訊・尾數反映歷年累計','#0e7490')}
+      <div style="background:#ecfeff;border:1px solid #a5f3fc;border-left:4px solid #0e7490;border-radius:8px;padding:11px 14px;margin:0 0 12px;font-size:13px;color:#155e75;line-height:1.6">
+        <i class="fas fa-circle-check" style="margin-right:5px"></i><b>資料統籌核對說明</b>：本清單「尾次」已與
+        <b>歷年趨勢分析</b>統一，採完整歷年電捕調查序列（103~114年・${HLX_FISH_SURVEY_EVENTS}次季調查・成果報告表4-16／表5-3）逐筆合計，9種合計
+        <b>${HLX_FISH_GRAND_TOTAL.toLocaleString()}</b> 尾次。
+        例：臺灣間爬岩鰍完整累計 <b>104</b> 尾（先前因僅載入 3 筆代表性快照記錄而顯示 36 尾，已校正）。
+      </div>
       <div class="card" style="margin-top:0;border-top:4px solid #0284c7">
         <div class="card-header" style="background:#f0f9ff">
           <span class="card-title" style="font-size:18px"><i class="fas fa-fish" style="color:#0e7490"></i> 水域魚類清單（${fishSpecies.length} 種）</span>
