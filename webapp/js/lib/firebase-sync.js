@@ -1,14 +1,14 @@
 /**
- * 橫流溪管理平台 — 即時多裝置同步模組
- * 使用 Firebase Firestore onSnapshot() 實現所有裝置即時同步
+ * 橫流溪管理平台 — 雲端主控同步模組
+ * 使用 Firebase Firestore 作為正式資料來源，前端只在受控流程下寫入
  *
  * 架構：
- *   localStorage（本機快取）←→ Firestore（雲端真相來源）
- *   任何裝置 DB.save() → push 到 Firestore → onSnapshot 通知其他裝置
- *   其他裝置收到通知 → 更新 localStorage → 刷新目前頁面
+ *   localStorage（本機快取）← Firestore（雲端真相來源）
+ *   一般 DB.save() 只更新本機，不自動寫入雲端
+ *   只有管理者手動按「↑ 推送」且通過資料驗證，才可覆蓋 Firestore
  *
  * 設定方式：
- *   使用者在平台「設定 > 即時同步」輸入 Firebase Config JSON
+ *   使用者在平台「設定 > 雲端同步」輸入 Firebase Config JSON
  *   儲存於 localStorage，之後每次載入自動連線
  */
 
@@ -18,6 +18,9 @@ const CloudSync = (() => {
   const DOC_PATH       = 'hengliuxi/main';
   const PUSH_DEBOUNCE  = 1500;  // ms：防抖，避免連續儲存觸發過多推送
   const STALE_GUARD    = 3000;  // ms：遠端資料至少比本機新 3 秒才接受
+  const STABLE_SCHEMA_VERSION = 'HLX_MAINTENANCE_STABLE_20260626';
+  const MIN_FACILITY_COUNT = 19;
+  const REQUIRED_FACILITY_CODES = ['1-1', '1-2', '2', '3', '4', '5-1', '5-2', '6', '7', '8-1', '8-2', '9', '10', '11', 'RA', 'P1', 'P2', 'P3', 'P4'];
 
   let _app        = null;
   let _db         = null;
@@ -28,6 +31,8 @@ const CloudSync = (() => {
   let _pushTimer  = null;
   let _status     = 'offline';  // 'offline' | 'connecting' | 'online' | 'error'
   let _listeners  = [];         // status change callbacks
+  let _remoteTs   = 0;
+  let _remoteExists = false;
 
   function _getDeviceId() {
     let id = localStorage.getItem(LS_DEVICE_KEY);
@@ -44,6 +49,56 @@ const CloudSync = (() => {
     _updateStatusUI(s);
   }
 
+  function _validateFacilityDataset(data) {
+    if (!data || !Array.isArray(data.facilities)) {
+      return { ok: false, reason: '缺少工程設施資料表' };
+    }
+
+    const facilities = data.facilities;
+    if (facilities.length < MIN_FACILITY_COUNT) {
+      return { ok: false, reason: `工程設施數量 ${facilities.length} 筆，少於正式盤點至少 ${MIN_FACILITY_COUNT} 筆` };
+    }
+
+    const codes = new Set(facilities.map(f => String(f.code || '').trim()).filter(Boolean));
+    const names = facilities.map(f => String(f.name || f.facilityName || '').trim()).join('｜');
+    const missing = REQUIRED_FACILITY_CODES.filter(code => {
+      if (codes.has(code)) return false;
+      if (code === 'RA') return !/護岸/.test(names);
+      if (/^P\d$/.test(code)) return !new RegExp(`平台\\s*${code.slice(1)}`).test(names);
+      return !names.includes(`溪構${code}`);
+    });
+
+    if (missing.length) {
+      return { ok: false, reason: `缺少正式設施代碼：${missing.join('、')}` };
+    }
+
+    return { ok: true, reason: '橫流溪正式設施資料檢核通過' };
+  }
+
+  function _normalizeCloudData(data, ts, mode) {
+    const normalized = { ...data };
+    delete normalized._ts;
+    delete normalized._deviceId;
+    normalized.settings = {
+      ...(normalized.settings || {}),
+      version: normalized.settings?.version || DB.VERSION,
+      syncTimestamp: ts,
+      initializedFromSeed: false,
+      cloudSyncKnown: true,
+      cloudSchemaVersion: STABLE_SCHEMA_VERSION,
+      [mode === 'push' ? 'cloudPushedAt' : 'cloudPulledAt']: new Date(ts || Date.now()).toISOString()
+    };
+    return normalized;
+  }
+
+  function _rejectInvalidRemote(remote, sourceLabel) {
+    const validation = _validateFacilityDataset(remote);
+    if (validation.ok) return false;
+    console.warn(`[CloudSync] 已拒絕${sourceLabel}資料：${validation.reason}`, remote);
+    showToast?.(`已拒絕雲端資料：${validation.reason}。請由主控設備重新推送正式資料。`, 'warning');
+    return true;
+  }
+
   function _updateStatusUI(s) {
     const el      = document.getElementById('cloudSyncStatus');
     const pullBtn = document.getElementById('syncPullBtn');
@@ -52,7 +107,7 @@ const CloudSync = (() => {
     const map = {
       offline:    { icon: '⚫', text: '未連線',  color: '#94a3b8' },
       connecting: { icon: '🔄', text: '連線中…', color: '#d97706' },
-      online:     { icon: '🟢', text: '即時同步', color: '#16a34a' },
+      online:     { icon: '🟢', text: '雲端連線', color: '#16a34a' },
       error:      { icon: '🔴', text: '同步錯誤', color: '#dc2626' },
     }[s] || { icon: '⚫', text: s, color: '#94a3b8' };
     el.textContent = map.icon + ' ' + map.text;
@@ -66,63 +121,54 @@ const CloudSync = (() => {
   /** 啟動 Firestore 即時監聽 */
   /**
    * 連線後立即比對：雲端有資料且比本機新 → 自動拉取並刷新頁面
-   * 雲端為空 → 推送本機資料作為初始版本
+   * 雲端為空 → 僅在本機不是 seed 資料時才可建立初始版本
    */
   async function _initSync() {
     try {
       const snap = await _docRef.get();
+      _remoteExists = snap.exists;
 
       if (!snap.exists) {
-        // Firestore 尚無資料 → 推送本機資料（第一台裝置建立雲端版本）
-        const local = JSON.parse(localStorage.getItem(DB.KEY) || '{}');
-        if (local && local.settings) {
-          local.settings.syncTimestamp = Date.now();
-          await _docRef.set({ ...local, _ts: Date.now(), _deviceId: _deviceId });
-          console.log('[CloudSync] 初次推送本機資料至 Firestore');
-        }
+        // Firestore 尚無資料時也不自動建立，避免任一新設備把本機舊資料變成雲端真相來源。
+        console.log('[CloudSync] 雲端尚無資料，等待主控設備手動推送正式資料');
+        showToast?.('雲端尚無正式資料；請由主控設備按「↑ 推送」建立正式版本。', 'warning');
         return;
       }
 
       // Firestore 有資料 → 比較時間戳
       const remote = snap.data();
+      if (_rejectInvalidRemote(remote, '初始化雲端')) return;
       const remoteTs = remote._ts || 0;
+      _remoteTs = remoteTs;
       let localTs = 0;
+      let localIsSeed = false;
+      let localCloudKnown = false;
       try {
         const local = JSON.parse(localStorage.getItem(DB.KEY) || '{}');
         localTs = local?.settings?.syncTimestamp || 0;
+        localIsSeed = !!local?.settings?.initializedFromSeed;
+        localCloudKnown = !!local?.settings?.cloudSyncKnown;
       } catch(_) {}
 
-      if (remoteTs > localTs) {
-        // 雲端更新 → 拉取覆蓋本機（無論差距多少毫秒）
-        const data = { ...remote };
-        delete data._ts;
-        delete data._deviceId;
+      if (localIsSeed || !localCloudKnown || remoteTs >= localTs) {
+        // 新設備或尚未建立雲端基準者，一律以雲端資料為真相來源。
+        const data = _normalizeCloudData(remote, remoteTs, 'pull');
         localStorage.setItem(DB.KEY, JSON.stringify(data));
         console.log('[CloudSync] 初始化：雲端資料較新，已拉取 ts:', new Date(remoteTs).toLocaleTimeString());
-        // 拉取後立即執行設施狀態反向同步，確保巡查記錄與設施盤點一致
+        // 拉取後只做本機靜默校正，不由新設備自動回寫雲端。
         if (typeof window.syncFacilityStatusToInspections === 'function') {
-          const n = window.syncFacilityStatusToInspections(true);
-          if (n > 0) {
-            // 若有更新，也把修正後的資料推送至 Firestore
-            const corrected = JSON.parse(localStorage.getItem(DB.KEY) || '{}');
-            corrected.settings = corrected.settings || {};
-            corrected.settings.syncTimestamp = Date.now();
-            localStorage.setItem(DB.KEY, JSON.stringify(corrected));
-            if (_docRef) _docRef.set({ ...corrected, _ts: Date.now(), _deviceId: _deviceId })
-              .then(() => console.log('[CloudSync] 反向同步修正已推送至 Firestore'))
-              .catch(e => console.warn('[CloudSync] 修正推送失敗', e));
+          const result = window.syncFacilityStatusToInspections(true);
+          if ((result?.updated || 0) + (result?.cleaned || 0) > 0) {
+            console.log('[CloudSync] 本機靜默校正完成，未自動推送雲端', result);
           }
         }
         _showSyncToast('雲端初始化', remoteTs);
         _refreshCurrentPage();
       } else if (localTs > remoteTs + 5000) {
-        // 本機更新且差距超過 5 秒 → 推送本機至雲端
-        const local = JSON.parse(localStorage.getItem(DB.KEY) || '{}');
-        local.settings.syncTimestamp = Date.now();
-        await _docRef.set({ ...local, _ts: Date.now(), _deviceId: _deviceId });
-        console.log('[CloudSync] 初始化：本機資料較新，已推送至 Firestore');
+        // 為避免新設備或舊快取覆蓋雲端，初始化階段不自動推送。
+        console.warn('[CloudSync] 初始化：本機時間較新，但需手動推送才會覆蓋雲端');
+        showToast?.('本機資料時間較新；為避免誤覆蓋雲端，請確認後手動按「↑ 推送」。', 'warning');
       }
-      // 若時間戳差距 < 5 秒，視為相同版本，不做處理
     } catch(e) {
       console.warn('[CloudSync] 初始化同步失敗', e);
     }
@@ -134,6 +180,7 @@ const CloudSync = (() => {
     _unsubscribe = _docRef.onSnapshot(snap => {
       if (!snap.exists) return;
       const remote = snap.data();
+      if (_rejectInvalidRemote(remote, '雲端更新')) return;
       const remoteTs   = remote._ts        || 0;
       const remoteDev  = remote._deviceId  || '';
 
@@ -149,14 +196,14 @@ const CloudSync = (() => {
 
       // 遠端比本機新才接受
       if (remoteTs > localTs + STALE_GUARD) {
-        const data = { ...remote };
-        delete data._ts;
-        delete data._deviceId;
+        const data = _normalizeCloudData(remote, remoteTs, 'pull');
+        _remoteTs = remoteTs;
+        _remoteExists = true;
 
         localStorage.setItem(DB.KEY, JSON.stringify(data));
         console.log('[CloudSync] 收到遠端更新 ts:', new Date(remoteTs).toLocaleTimeString());
 
-        // 收到遠端資料後也執行反向同步，確保巡查記錄與設施狀態一致
+        // 收到遠端資料後只做本機靜默校正，避免監聽回呼造成雲端覆寫。
         if (typeof window.syncFacilityStatusToInspections === 'function') {
           window.syncFacilityStatusToInspections(true);
         }
@@ -243,24 +290,58 @@ const CloudSync = (() => {
       }
     },
 
-    /** 推送本機最新資料到 Firestore（帶防抖） */
-    push(data) {
+    /** 推送本機最新資料到 Firestore（穩定模式下只允許管理者手動流程呼叫） */
+    push(data, options = {}) {
       if (_status !== 'online' || !_docRef) return;
+      if (options.manual !== true) {
+        console.warn('[CloudSync] 背景自動推送已停用，請使用「↑ 推送」手動發布正式資料');
+        return;
+      }
 
       clearTimeout(_pushTimer);
       _pushTimer = setTimeout(async () => {
         const now = Date.now();
         if (now - _lastPushAt < 500) return;
         _lastPushAt = now;
+        if (data?.settings?.initializedFromSeed && _remoteExists) {
+          console.warn('[CloudSync] 阻擋 seed 預設資料推送，避免覆蓋雲端正式資料');
+          return;
+        }
+        const validation = _validateFacilityDataset(data);
+        if (!validation.ok) {
+          console.warn('[CloudSync] 阻擋不完整本機資料推送：', validation.reason);
+          showToast?.(`已阻擋推送：${validation.reason}`, 'warning');
+          return;
+        }
+        const localTs = data?.settings?.syncTimestamp || 0;
+        if (_remoteTs && localTs + STALE_GUARD < _remoteTs) {
+          console.warn('[CloudSync] 阻擋舊版本機資料推送，請先拉取雲端最新資料');
+          showToast?.('雲端資料較新，已阻擋本機舊資料推送；請先按「↓ 拉取」。', 'warning');
+          return;
+        }
+        const payloadData = {
+          ...data,
+          settings: {
+            ...(data.settings || {}),
+            syncTimestamp: now,
+            initializedFromSeed: false,
+            cloudSyncKnown: true,
+            cloudSchemaVersion: STABLE_SCHEMA_VERSION,
+            cloudPushedAt: new Date(now).toISOString()
+          }
+        };
 
         const payload = {
-          ...data,
+          ...payloadData,
           _ts:       now,
           _deviceId: _deviceId,
         };
 
         try {
+          localStorage.setItem(DB.KEY, JSON.stringify(payloadData));
           await _docRef.set(payload);
+          _remoteTs = now;
+          _remoteExists = true;
           console.log('[CloudSync] 已推送', new Date(now).toLocaleTimeString());
         } catch(e) {
           console.warn('[CloudSync] 推送失敗', e);
@@ -279,9 +360,12 @@ const CloudSync = (() => {
         const snap = await _docRef.get({ source: 'server' });
         if (!snap.exists) { showToast?.('雲端尚無資料，請先從主裝置點「↑ 推送」', 'warning'); return; }
         const data = snap.data();
-        delete data._ts;
-        delete data._deviceId;
-        localStorage.setItem(DB.KEY, JSON.stringify(data));
+        if (_rejectInvalidRemote(data, '手動拉取雲端')) return;
+        const remoteTs = data._ts || Date.now();
+        const normalized = _normalizeCloudData(data, remoteTs, 'pull');
+        _remoteTs = remoteTs;
+        _remoteExists = true;
+        localStorage.setItem(DB.KEY, JSON.stringify(normalized));
         showToast?.('✅ 已從雲端拉取最新資料', 'success');
         _refreshCurrentPage();
       } catch(e) {
@@ -297,28 +381,62 @@ const CloudSync = (() => {
       }
       // ── 密碼驗證 ──────────────────────────────────────────
       const storedPwd = localStorage.getItem('SYNC_PUSH_PASSWORD') || '';
-      if (storedPwd) {
-        const entered = window.prompt('請輸入同步推送密碼：');
-        if (entered === null) return; // 使用者取消
-        if (entered.trim() !== storedPwd) {
-          showToast?.('❌ 密碼錯誤，無法推送', 'error');
-          return;
-        }
-      } else {
-        // 尚未設定密碼：提示管理員先設定
-        const confirmMsg = '尚未設定推送密碼，任何裝置均可推送資料。\n是否繼續推送？（建議到「⚙ 同步設定」設定密碼）';
-        if (!window.confirm(confirmMsg)) return;
+      if (!storedPwd) {
+        showToast?.('已阻擋推送：尚未設定推送密碼，請先到同步設定建立管理者密碼。', 'warning');
+        return;
+      }
+      const entered = window.prompt('請輸入同步推送密碼：');
+      if (entered === null) return; // 使用者取消
+      if (entered.trim() !== storedPwd) {
+        showToast?.('❌ 密碼錯誤，無法推送', 'error');
+        return;
       }
       // ── 執行推送 ──────────────────────────────────────────
       try {
         const data = JSON.parse(localStorage.getItem(DB.KEY) || '{}');
         if (!data.settings) { showToast?.('本機無資料', 'warning'); return; }
+        const validation = _validateFacilityDataset(data);
+        if (!validation.ok) {
+          showToast?.(`已阻擋推送：${validation.reason}`, 'warning');
+          return;
+        }
+        const snap = await _docRef.get({ source: 'server' });
+        if (snap.exists) {
+          const remote = snap.data();
+          const remoteTs = remote._ts || 0;
+          _remoteTs = remoteTs;
+          _remoteExists = true;
+          const localTs = data.settings.syncTimestamp || 0;
+          const remoteValidation = _validateFacilityDataset(remote);
+          if (data.settings.initializedFromSeed) {
+            showToast?.('已阻擋推送：此裝置仍是預設種子資料，請先匯入或拉取正式資料。', 'warning');
+            return;
+          }
+          if (remoteValidation.ok && !data.settings.cloudSyncKnown) {
+            showToast?.('已阻擋推送：此裝置尚未拉取雲端正式資料，請先按「↓ 拉取」。', 'warning');
+            return;
+          }
+          if (remoteValidation.ok && remoteTs > localTs + STALE_GUARD) {
+            showToast?.('已阻擋推送：雲端資料較新，請先拉取後再編輯。', 'warning');
+            return;
+          }
+          if (!remoteValidation.ok) {
+            const ok = window.confirm(`雲端資料未通過正式盤點檢核：${remoteValidation.reason}\n是否以本機完整資料覆蓋雲端？`);
+            if (!ok) return;
+          }
+        }
         const now = Date.now();
         data.settings.syncTimestamp = now;
+        data.settings.initializedFromSeed = false;
+        data.settings.cloudSyncKnown = true;
+        data.settings.cloudSchemaVersion = STABLE_SCHEMA_VERSION;
+        data.settings.cloudPushedAt = new Date(now).toISOString();
         localStorage.setItem(DB.KEY, JSON.stringify(data));
         await _docRef.set({ ...data, _ts: now, _deviceId: _deviceId });
+        _remoteTs = now;
+        _remoteExists = true;
         _lastPushAt = now;
-        showToast?.('✅ 本機資料已推送至雲端，其他裝置將自動同步', 'success');
+        showToast?.('✅ 本機資料已發布為雲端正式版本，其他裝置請拉取更新', 'success');
       } catch(e) {
         showToast?.(`推送失敗：${e.message}`, 'error');
       }
@@ -363,15 +481,15 @@ const CloudSync = (() => {
       if (!overlay || !bodyEl) { alert('請在平台頁面操作'); return; }
 
       if (modal) modal.style.maxWidth = '580px';
-      if (titleEl) titleEl.textContent = '設定即時多裝置同步';
+      if (titleEl) titleEl.textContent = '設定雲端主控同步';
 
       bodyEl.innerHTML = [
         '<div style="padding:2px 0 6px">',
         '<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;',
         'padding:12px 14px;margin-bottom:12px;font-size:13px;color:#166534;line-height:1.7">',
-        '<b><i class="fas fa-sync-alt"></i> 即時同步說明</b><br>',
-        '設定後所有裝置（iPad、電腦）儲存時，自動同步至其他裝置（延遲 &lt;3秒）。<br>',
-        '<b>免費使用</b>：50,000 讀取 / 20,000 寫入 per day。',
+        '<b><i class="fas fa-cloud"></i> 穩定同步說明</b><br>',
+        '所有裝置預設只從雲端拉取正式資料；一般儲存只寫入本機，不會自動覆蓋雲端。<br>',
+        '只有管理者按「↑ 推送」且通過資料檢核與密碼驗證，才會發布正式版本。',
         '</div>',
         '<div class="form-group">',
         '<label style="font-size:13px;font-weight:600;margin-bottom:6px;display:block">',
@@ -384,13 +502,13 @@ const CloudSync = (() => {
         '</div>',
         '<div class="form-group" style="margin-top:10px">',
         '<label style="font-size:13px;font-weight:600;margin-bottom:6px;display:block">',
-        '🔒 推送密碼（選填）',
+        '🔒 推送密碼（必填）',
         '<span style="font-weight:400;color:#94a3b8;font-size:11px;margin-left:6px">',
-        '設定後，點「↑ 推送」需先輸入密碼才能覆蓋雲端資料</span></label>',
+        '未設定密碼時禁止推送，避免新設備誤覆蓋雲端資料</span></label>',
         '<div style="display:flex;gap:8px">',
         '<input id="fbPushPwdInput" type="password" ',
         'value="' + (localStorage.getItem('SYNC_PUSH_PASSWORD') || '') + '" ',
-        'placeholder="留空 = 不設密碼" ',
+        'placeholder="請設定管理者推送密碼" ',
         'style="flex:1;padding:8px;border:1.5px solid #d1d5db;border-radius:6px;font-size:13px">',
         '<button class="btn btn-outline" style="font-size:12px;padding:6px 10px;flex-shrink:0" ',
         'onclick="(function(){',
@@ -430,7 +548,7 @@ const CloudSync = (() => {
         'var cfg;try{cfg=JSON.parse(raw);}catch(e){showToast(\'JSON格式錯誤：\'+e.message,\'error\');return;}',
         'if(!cfg.apiKey||!cfg.projectId){showToast(\'缺少 apiKey 或 projectId\',\'error\');return;}',
         'CloudSync.saveConfig(cfg).then(function(ok){',
-        'if(ok){showToast(\'✅ 即時同步已啟動！\',\'success\');closeModal();}',
+        'if(ok){showToast(\'✅ 雲端主控同步已啟動，請以「↓ 拉取 / ↑ 推送」控管資料\',\'success\');closeModal();}',
         'else{showToast(\'連線失敗，請確認 Config\',\'error\');}',
         '});',
         '})()">',

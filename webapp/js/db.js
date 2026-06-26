@@ -16,6 +16,18 @@ const DB = {
   // 資料版本（每次重大更新設施資料時遞增）
   VERSION: '5.8',  // 109~110年魚類調查數據修正：依成果報告表5-3補齊6站合計（修正前誤用均值）
 
+  _suppressCloudPush: false,
+
+  withoutCloudPush(fn) {
+    const prev = this._suppressCloudPush;
+    this._suppressCloudPush = true;
+    try {
+      return fn();
+    } finally {
+      this._suppressCloudPush = prev;
+    }
+  },
+
   // 讀取所有資料
   load() {
     try {
@@ -65,7 +77,9 @@ const DB = {
             ...defaults.settings,
             version:       this.VERSION,
             lastUpdate:    new Date().toISOString(),
-            syncTimestamp: userSyncTs || Date.now()
+            syncTimestamp: userSyncTs || 0,
+            initializedFromSeed: !userSyncTs,
+            cloudSyncKnown: !!data.settings?.cloudSyncKnown
           }
         };
 
@@ -323,7 +337,13 @@ const DB = {
         { id: 5, facilityId: 5, facilityName: '溪構6 階段式魚道', date: '2025-03-15', inspector: '王技士', weather: '晴', findings: '各水池水深0.3~0.5m，流速符合通行標準；觀察到粗首馬口鱲及明潭吻鰕虎通過', action: '繼續監測', status: '完成', priority: '低', photos: [] },
         { id: 6, facilityId: 13, facilityName: '溪構1-1 粗石斜曲面式魚道', date: '2025-03-15', inspector: '陳技士', weather: '晴', findings: '粗石坡面完整，水流分布均勻；記錄臺灣白甲魚及纓口臺鰍成功通行', action: '繼續監測', status: '完成', priority: '低', photos: [] }
       ],
-      settings: { lastUpdate: new Date().toISOString(), version: this.VERSION }
+      settings: {
+        lastUpdate: new Date().toISOString(),
+        version: this.VERSION,
+        syncTimestamp: 0,
+        initializedFromSeed: true,
+        cloudSyncKnown: false
+      }
     };
     const facilityTableOrder = {
       '1-1': 1, '1-2': 2, '2': 3, '3': 4, '4': 5, '5-1': 6, '5-2': 7,
@@ -341,19 +361,23 @@ const DB = {
       f.tableTwd97Y = f.twd97y ?? '-';
     });
     data.facilities.sort((a, b) => (a.tableOrder || a.id) - (b.tableOrder || b.id));
-    this.save(data);
+    localStorage.setItem(this.KEY, JSON.stringify(data));
     return data;
   },
 
   // 儲存資料
-  save(data) {
+  save(data, options = {}) {
     data.settings = data.settings || {};
     data.settings.lastUpdate    = new Date().toISOString();
     data.settings.version       = data.settings.version || this.VERSION;
+    data.settings.initializedFromSeed = false;
     data.settings.syncTimestamp = Date.now(); // 供 CloudSync 比較新舊
     localStorage.setItem(this.KEY, JSON.stringify(data));
-    // 即時推送到 Firebase（若已設定）
-    if (window.CloudSync?.isOnline) CloudSync.push(data);
+    // 穩定模式：一般儲存只更新本機快取，不再自動推送雲端。
+    // 跨設備同步必須由管理者明確按「↑ 推送」，避免新設備或舊快取覆蓋正式資料。
+    if (options.allowCloudPush === true && !this._suppressCloudPush && !options.suppressCloudPush && window.CloudSync?.isOnline) {
+      CloudSync.push(data, { manual: true });
+    }
   },
 
   // CRUD 操作
@@ -363,7 +387,7 @@ const DB = {
     return this.getAll(collection).find(item => item.id === id);
   },
 
-  insert(collection, item) {
+  insert(collection, item, options = {}) {
     const data = this.load();
     const items = data[collection] || [];
     const maxId = items.length > 0 ? Math.max(...items.map(i => i.id)) : 0;
@@ -371,25 +395,25 @@ const DB = {
     item.createdAt = new Date().toISOString();
     items.push(item);
     data[collection] = items;
-    this.save(data);
+    this.save(data, options);
     return item;
   },
 
-  update(collection, id, updates) {
+  update(collection, id, updates, options = {}) {
     const data = this.load();
     const items = data[collection] || [];
     const idx = items.findIndex(i => i.id === id);
     if (idx === -1) return null;
     items[idx] = { ...items[idx], ...updates, updatedAt: new Date().toISOString() };
     data[collection] = items;
-    this.save(data);
+    this.save(data, options);
     return items[idx];
   },
 
-  delete(collection, id) {
+  delete(collection, id, options = {}) {
     const data = this.load();
     data[collection] = (data[collection] || []).filter(i => i.id !== id);
-    this.save(data);
+    this.save(data, options);
   },
 
   // 匯出 JSON
