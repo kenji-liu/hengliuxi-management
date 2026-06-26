@@ -923,13 +923,76 @@ def _ai_synthesis(query: str, combined_ctx: str) -> "tuple[str, str, str]":
     return "", "none", ""
 
 
+# ── OCR Drive Index (lazy import to avoid startup failure) ───────────────────
+_ocr_svc = None
+
+def _get_ocr_svc():
+    global _ocr_svc
+    if _ocr_svc is None:
+        try:
+            from webapp import gdrive_ocr_service as _m
+            _ocr_svc = _m
+        except Exception:
+            try:
+                import gdrive_ocr_service as _m
+                _ocr_svc = _m
+            except Exception:
+                pass
+    return _ocr_svc
+
+_OCR_FOLDER_ID = "1k2s5HSd_R5GeCt05SOtJxn6UFSrbyoQ9"
+
+
+@nlp_rag.route("/ocr/index-drive", methods=["POST"])
+def ocr_index_drive() -> Any:
+    """觸發 Google Drive 文件全文索引（背景執行）。"""
+    svc = _get_ocr_svc()
+    if svc is None:
+        return jsonify({"status": "error", "message": "OCR 模組未載入"}), 503
+    started = svc.start_indexing(_OCR_FOLDER_ID)
+    if started:
+        return jsonify({"status": "success", "message": "索引建立中，請稍候（可能需要 3-10 分鐘）…", "started": True})
+    return jsonify({"status": "success", "message": "索引執行中，請稍後查詢狀態", "started": False})
+
+
+@nlp_rag.route("/ocr/status", methods=["GET"])
+def ocr_status() -> Any:
+    """取得 OCR 索引狀態與統計。"""
+    svc = _get_ocr_svc()
+    if svc is None:
+        return jsonify({"status": "error", "message": "OCR 模組未載入"}), 503
+    return jsonify({"status": "success", "data": svc.get_status()})
+
+
+@nlp_rag.route("/ocr/search", methods=["POST"])
+def ocr_search() -> Any:
+    """對 Drive OCR 索引進行關鍵字搜尋。"""
+    svc = _get_ocr_svc()
+    if svc is None:
+        return jsonify({"status": "error", "message": "OCR 模組未載入"}), 503
+    data  = request.get_json() or {}
+    query = _as_text(data.get("query") or data.get("q"))
+    top_k = max(1, min(10, int(data.get("top_k") or 5)))
+    if not query:
+        return jsonify({"status": "error", "message": "缺少 query"}), 400
+    results = svc.search(query, top_k=top_k)
+    return jsonify({
+        "status":    "success",
+        "query":     query,
+        "results":   results,
+        "count":     len(results),
+        "timestamp": _now(),
+    })
+
+
 @nlp_rag.route("/smart-ask", methods=["POST"])
 def smart_ask() -> Any:
     """
     智慧問答端點：
       1. DuckDuckGo 網路搜尋（免費，繁中優先）
       2. 本機 RAG 補充橫流溪專屬資料
-      3. qwen2.5:14b 綜合推論 → 流暢繁中回答
+      3. Drive OCR 全文索引補充（歷年報告、掃描表單）
+      4. AI 綜合推論 → 流暢繁中回答
     """
     data    = request.get_json() or {}
     query   = _as_text(data.get("query") or data.get("question"))
@@ -960,15 +1023,42 @@ def smart_ask() -> Any:
         except Exception:
             pass
 
-    # ── 3. 組合 context ───────────────────────────────────────
+    # ── 3. Drive OCR 全文搜尋 ────────────────────────────────
+    ocr_ctx      = ""
+    ocr_citations: List[Dict[str, Any]] = []
+    ocr_svc = _get_ocr_svc()
+    if ocr_svc is not None:
+        try:
+            ocr_hits = ocr_svc.search(query, top_k=3)
+            if ocr_hits:
+                ocr_parts = []
+                for h in ocr_hits:
+                    snippet = _as_text(h.get("chunk"))[:300]
+                    doc_name = _as_text(h.get("doc_name"))
+                    year_tag = f"（{h['year']}年）" if h.get("year") else ""
+                    ocr_parts.append(f"【文件：{doc_name}{year_tag}】\n{snippet}")
+                    ocr_citations.append({
+                        "title":   doc_name,
+                        "href":    h.get("web_view", ""),
+                        "year":    h.get("year"),
+                        "score":   h.get("score", 0),
+                        "snippet": snippet[:120],
+                    })
+                ocr_ctx = "\n\n".join(ocr_parts)
+        except Exception:
+            pass
+
+    # ── 4. 組合 context ───────────────────────────────────────
     combined_ctx_parts = []
     if web_ctx.strip():
         combined_ctx_parts.append(f"【網路搜尋結果（DuckDuckGo）】\n{web_ctx}")
     if local_ctx.strip():
-        combined_ctx_parts.append(f"【橫流溪本機資料】\n{local_ctx}")
+        combined_ctx_parts.append(f"【橫流溪本機 RAG 資料】\n{local_ctx}")
+    if ocr_ctx.strip():
+        combined_ctx_parts.append(f"【橫流溪雲端文件庫（OCR 全文）】\n{ocr_ctx}")
     combined_ctx = "\n\n".join(combined_ctx_parts)
 
-    # ── 4. AI 綜合推論（自動選用可用的免費服務）─────────────────
+    # ── 5. AI 綜合推論（自動選用可用的免費服務）─────────────────
     answer, provider_key, provider_display = _ai_synthesis(query, combined_ctx)
 
     if not answer:
@@ -985,8 +1075,9 @@ def smart_ask() -> Any:
     ]
 
     web_part  = f"網路搜尋（{len(web_results)} 筆）＋ " if web_results else ""
+    ocr_part  = f"雲端文件 {len(ocr_citations)} 筆 ＋ " if ocr_citations else ""
     ai_part   = provider_display or "本機知識庫"
-    msg       = f"{web_part}本機資料 ＋ {ai_part}"
+    msg       = f"{web_part}{ocr_part}本機資料 ＋ {ai_part}"
 
     return jsonify({
         "status":           "success",
@@ -996,6 +1087,7 @@ def smart_ask() -> Any:
         "web_search_used":  bool(web_results),
         "web_sources":      web_sources_out,
         "local_evidence":   local_evidence,
+        "ocr_citations":    ocr_citations,
         "confidence_level": "high" if answer else "none",
         "confidence_score": 90 if answer else 0,
         "policy_label":     "AI 綜合回答",

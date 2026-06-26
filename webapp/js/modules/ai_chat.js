@@ -863,6 +863,19 @@ function initAIChat() {
     .ai-citation-link:hover{text-decoration:underline}
     .ai-feedback-section,.ai-feedback-prompt,.ai-feedback-buttons,.ai-feedback-btn,
     .ai-feedback-comment,.ai-feedback-submit,.ai-feedback-confirmation{display:none!important}
+    .ai-ocr-docs{margin-top:10px;border-top:1px dashed #bae6fd;padding-top:8px}
+    .ai-ocr-title{font-size:11px;color:#0369a1;font-weight:700;margin-bottom:5px}
+    .ai-ocr-card{background:#f0f9ff;border:1px solid #bae6fd;border-radius:6px;padding:7px 9px;margin-top:5px;font-size:12px}
+    .ai-ocr-card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:6px}
+    .ai-ocr-card-name{font-weight:600;color:#1e40af;flex:1;line-height:1.3}
+    .ai-ocr-card-year{font-size:10px;background:#dbeafe;color:#1e3a8a;padding:1px 5px;border-radius:10px;white-space:nowrap}
+    .ai-ocr-card-snippet{margin-top:4px;color:#334155;line-height:1.4;white-space:pre-wrap}
+    .ai-ocr-card-link{display:inline-block;margin-top:4px;font-size:11px;color:#155eef;text-decoration:none}
+    .ai-ocr-card-link:hover{text-decoration:underline}
+    .ai-doc-search-modal{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center}
+    .ai-doc-search-box{background:#fff;border-radius:12px;padding:20px;width:min(92vw,520px);max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+    .ai-doc-search-result{border:1px solid #e2e8f0;border-radius:8px;padding:10px;margin-top:8px;cursor:pointer;transition:background .15s}
+    .ai-doc-search-result:hover{background:#f0f9ff}
     @keyframes bounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-6px)}}
   `;
   document.head.appendChild(style);
@@ -881,6 +894,8 @@ function initAIChat() {
             style="background:rgba(255,255,255,0.2);border:none;color:#fff;border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer">清除</button>
           <button onclick="aiSetKey()" title="設定 Groq API Key"
             style="background:rgba(255,255,255,0.2);border:none;color:#fff;border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer">🔑 Key</button>
+          <button onclick="aiOpenDocSearch()" title="雲端文件全文搜尋"
+            style="background:rgba(255,255,255,0.2);border:none;color:#fff;border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer">📂 文件庫</button>
           <button class="ai-header-close" onclick="toggleAIChat()">×</button>
         </div>
       </div>
@@ -896,6 +911,7 @@ function initAIChat() {
           ['⚠ 緊急事項', '目前有哪些設施或魚道需要緊急維護或處理？請依優先序列出'],
           ['📊 DER&U', '所有設施的DER&U等級分布，高風險設施有哪些？'],
           ['🌿 生態評估', '橫流溪魚類族群現況與魚道成效評估'],
+          ['📂 報告查詢', '橫流溪歷年成果報告、巡查表單中有哪些重要發現？'],
         ].map(([label, q]) =>
           `<button onclick="document.getElementById('aiInput').value='${q.replace(/'/g,"\\'")}';aiSend()"
             style="font-size:10px;padding:3px 7px;border:1px solid #bfdbfe;border-radius:999px;background:#eff6ff;color:#1e40af;cursor:pointer;white-space:nowrap">${label}</button>`
@@ -1150,8 +1166,26 @@ function composeAnswer(query, data) {
        </div>`
     : "";
 
+  // OCR 文件引用區塊
+  const ocrCitations = Array.isArray(data?.ocr_citations) ? data.ocr_citations : [];
+  const ocrHtml = ocrCitations.length
+    ? `<div class="ai-ocr-docs">
+         <div class="ai-ocr-title">📂 相關雲端文件（OCR 全文比對）</div>
+         ${ocrCitations.map(c => `
+           <div class="ai-ocr-card">
+             <div class="ai-ocr-card-head">
+               <div class="ai-ocr-card-name">${escapeHtml(c.title || c.doc_name || '文件')}</div>
+               ${c.year ? `<span class="ai-ocr-card-year">${escapeHtml(c.year)}年</span>` : ''}
+             </div>
+             ${c.snippet ? `<div class="ai-ocr-card-snippet">${escapeHtml(c.snippet)}</div>` : ''}
+             ${c.href ? `<a class="ai-ocr-card-link" href="${escapeHtml(c.href)}" target="_blank" rel="noopener">↗ 開啟 Google Drive</a>` : ''}
+           </div>`).join('')}
+       </div>`
+    : '';
+
   return `
     <div class="ai-answer">${answer ? escapeHtml(answer) : fallbackText}</div>
+    ${ocrHtml}
     ${webSourcesHtml}
     ${providerNote}
     ${renderFeedbackBlock()}
@@ -1319,13 +1353,13 @@ async function webSearchWiki(query) {
   }
 }
 
-async function callGroqDirect(query, localCtx = "") {
+async function callGroqDirect(query, localCtx = "", ocrCtx = "") {
   const key = getAIKey();
   if (!key) return null;
 
   // 即時 DB 資料
   const dbCtx = buildDynamicContext(query);
-  const localCombined = [localCtx, dbCtx].filter(Boolean).join('\n\n');
+  const localCombined = [localCtx, dbCtx, ocrCtx ? `【雲端文件庫（OCR 全文）】\n${ocrCtx}` : ''].filter(Boolean).join('\n\n');
 
   // 網路補充：當本機資料量少，或查詢涉及通用知識時，從維基百科補充
   const needsWeb = !localCombined || localCombined.length < 120 ||
@@ -1397,23 +1431,61 @@ async function queryRAG(query) {
   const kbResult = queryLocalKB(query);
   const localCtx = kbResult?.answer || "";
 
-  // ── 2. 直接呼叫 Groq（不需後端，最穩定路徑）
-  const groq = await callGroqDirect(query, localCtx);
+  // ── 2. Drive OCR 全文搜尋（後端可用時執行）
+  let ocrCtx      = "";
+  let ocrCitations = [];
+  const isDocQuery = /報告|文件|表單|成果|調查|記錄|圖說|掃描|附錄|巡查.*表|查詢文件/.test(query);
+  try {
+    const pageOrigin = window.location.protocol.startsWith("http") ? window.location.origin : "";
+    const bases = window.HLX_API_BASE ? [window.HLX_API_BASE]
+      : [pageOrigin, "http://127.0.0.1:5000", "http://localhost:5000"].filter(Boolean);
+    for (const base of bases) {
+      try {
+        const ocrRes = await fetch(`${base}/api/ocr/search`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query, top_k: 3 }),
+          signal: AbortSignal.timeout(6000),
+        });
+        if (!ocrRes.ok) continue;
+        const ocrData = await ocrRes.json();
+        if (ocrData.status !== "success") continue;
+        const hits = ocrData.results || [];
+        if (hits.length) {
+          ocrCitations = hits.map(h => ({
+            title:   h.doc_name,
+            href:    h.web_view || "",
+            year:    h.year,
+            score:   h.score,
+            snippet: (h.chunk || "").slice(0, 120),
+          }));
+          ocrCtx = hits.map(h =>
+            `【${h.doc_name}${h.year ? `（${h.year}年）` : ""}】\n${(h.chunk || "").slice(0, 300)}`
+          ).join("\n\n");
+        }
+        break;
+      } catch (_) {}
+    }
+  } catch (_) {}
+
+  // ── 3. 直接呼叫 Groq（不需後端，最穩定路徑）
+  const groq = await callGroqDirect(query, localCtx, ocrCtx);
   if (groq) {
     return {
-      answer: groq.text,
-      llm_provider: "groq",
-      llm_model: `${groq.model} (Groq)`,
-      confidence_level: "high",
-      confidence_score: 90,
-      policy_label: "AI 綜合回答",
-      message: `本機資料 ＋ ${groq.model}`,
-      web_sources: groq.webSources || [],
-      structured_citations: kbResult?.structured_citations || []
+      answer:            groq.text,
+      llm_provider:      "groq",
+      llm_model:         `${groq.model} (Groq)`,
+      confidence_level:  "high",
+      confidence_score:  90,
+      policy_label:      "AI 綜合回答",
+      message:           `本機資料 ＋ ${groq.model}`,
+      web_sources:       groq.webSources || [],
+      structured_citations: kbResult?.structured_citations || [],
+      ocr_citations:     ocrCitations,
     };
   }
 
-  // ── 3. 嘗試後端 smart-ask（有跑 Flask 時才有效）
+  // ── 4. 嘗試後端 smart-ask（有跑 Flask 時才有效）
   const pageOrigin = (window.location.protocol.startsWith("http"))
     ? window.location.origin : "";
   const bases = window.HLX_API_BASE
@@ -1439,14 +1511,18 @@ async function queryRAG(query) {
         page: e.page || 1, score: e.confidence || 0.6,
         preview: e.quote || "", source_href: e.source_href || ""
       }));
+      // Merge OCR citations from earlier search
+      if (!data.ocr_citations?.length && ocrCitations.length) {
+        data.ocr_citations = ocrCitations;
+      }
       return data;
     } catch (err) {
       console.warn(`[queryRAG] ${base} 失敗:`, err.message || err);
     }
   }
 
-  // ── 4. 完全 fallback：本機知識庫
-  return kbResult;
+  // ── 5. 完全 fallback：本機知識庫
+  return { ...kbResult, ocr_citations: ocrCitations };
 }
 
 function clearAIChat() {
@@ -1580,6 +1656,145 @@ function buildFacilityAIQuestion(subject) {
     "3. 建議處理方式、巡查重點與可量化判斷依據。",
     "回答請精簡、具體、以管理建議為主，不要列出文件出處。"
   ].join("\n");
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  雲端文件庫全文搜尋 Modal
+// ══════════════════════════════════════════════════════════════════
+
+async function aiOpenDocSearch() {
+  if (typeof initAIChat === "function") initAIChat();
+
+  // 建立 modal
+  const existing = document.getElementById('aiDocSearchModal');
+  if (existing) { existing.remove(); }
+
+  const modal = document.createElement('div');
+  modal.id = 'aiDocSearchModal';
+  modal.className = 'ai-doc-search-modal';
+  modal.innerHTML = `
+    <div class="ai-doc-search-box">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div style="font-weight:700;color:#1e40af;font-size:15px">📂 雲端文件庫全文搜尋</div>
+        <button onclick="document.getElementById('aiDocSearchModal').remove()"
+          style="background:none;border:none;font-size:18px;cursor:pointer;color:#6b7280">×</button>
+      </div>
+      <div style="display:flex;gap:6px;margin-bottom:8px">
+        <input id="aiDocSearchInput" placeholder="輸入關鍵字：固床工、魚道、114年報告…"
+          style="flex:1;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;outline:none"
+          onkeydown="if(event.key==='Enter')aiDoDocSearch()">
+        <button onclick="aiDoDocSearch()"
+          style="background:#1e40af;color:#fff;border:none;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;white-space:nowrap">搜尋</button>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div style="font-size:11px;color:#94a3b8">共可搜尋 Google Drive 雲端文件庫 PDF、報告、表單全文</div>
+        <button onclick="aiTriggerReindex(this)" title="重新建立文件索引"
+          style="background:none;border:1px solid #e5e7eb;border-radius:6px;padding:2px 8px;font-size:11px;color:#6b7280;cursor:pointer">🔄 更新索引</button>
+      </div>
+      <div id="aiDocSearchResults" style="min-height:60px">
+        <div style="text-align:center;color:#94a3b8;font-size:13px;padding:20px">請輸入關鍵字開始搜尋</div>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+
+  // 查詢索引狀態
+  try {
+    const base = window.HLX_API_BASE || window.location.origin;
+    const res  = await fetch(`${base}/api/ocr/status`, { signal: AbortSignal.timeout(5000) });
+    if (res.ok) {
+      const d = await res.json();
+      const info = d.data || {};
+      const statusEl = modal.querySelector('#aiDocSearchResults');
+      if (info.indexed_at) {
+        statusEl.innerHTML = `<div style="font-size:11px;color:#6b7280;text-align:right;margin-bottom:4px">
+          索引更新：${info.indexed_at.slice(0,10)} ／ 已索引 ${info.total_docs || 0} 個文件
+          （成功 ${info.stats?.success || 0}，掃描檔 ${info.stats?.scan_only || 0}）
+        </div><div style="text-align:center;color:#94a3b8;font-size:13px;padding:12px">請輸入關鍵字開始搜尋</div>`;
+      } else {
+        statusEl.innerHTML = `<div style="text-align:center;color:#f59e0b;font-size:13px;padding:16px">
+          ⚠ 尚未建立文件索引，請點右上方「🔄 更新索引」</div>`;
+      }
+    }
+  } catch (_) {}
+
+  setTimeout(() => modal.querySelector('#aiDocSearchInput')?.focus(), 100);
+}
+
+async function aiDoDocSearch() {
+  const input = document.getElementById('aiDocSearchInput');
+  const q = (input?.value || '').trim();
+  if (!q) return;
+
+  const resultsEl = document.getElementById('aiDocSearchResults');
+  if (resultsEl) resultsEl.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:20px;font-size:13px">搜尋中…</div>';
+
+  try {
+    const base = window.HLX_API_BASE || window.location.origin;
+    const res  = await fetch(`${base}/api/ocr/search`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query: q, top_k: 8 }),
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const hits = data.results || [];
+
+    if (!hits.length) {
+      resultsEl.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:20px;font-size:13px">查無相關文件，請換個關鍵字試試</div>';
+      return;
+    }
+
+    resultsEl.innerHTML = `<div style="font-size:11px;color:#6b7280;margin-bottom:6px">共找到 ${hits.length} 筆相關文件</div>` +
+      hits.map(h => `
+        <div class="ai-doc-search-result" onclick="aiUseDocResult(${JSON.stringify({name: h.doc_name, snippet: (h.chunk||'').slice(0,200), href: h.web_view||''}).replace(/"/g,'&quot;')})">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px">
+            <div style="font-weight:600;color:#1e40af;font-size:13px;flex:1">${escapeHtml(h.doc_name || '')}</div>
+            <div style="display:flex;gap:4px;flex-shrink:0">
+              ${h.year ? `<span style="font-size:10px;background:#dbeafe;color:#1e3a8a;padding:1px 6px;border-radius:10px">${escapeHtml(h.year)}年</span>` : ''}
+              <span style="font-size:10px;background:#f3f4f6;color:#6b7280;padding:1px 6px;border-radius:10px">${Math.round((h.score||0)*100)}%</span>
+            </div>
+          </div>
+          ${h.chunk ? `<div style="font-size:12px;color:#475569;margin-top:4px;line-height:1.4">${escapeHtml((h.chunk||'').slice(0,160))}…</div>` : ''}
+          ${h.web_view ? `<div style="font-size:11px;color:#155eef;margin-top:4px">點此可開啟 Google Drive ↗ （或點卡片詢問 AI）</div>` : ''}
+        </div>`).join('');
+  } catch (err) {
+    resultsEl.innerHTML = `<div style="text-align:center;color:#ef4444;padding:16px;font-size:13px">搜尋失敗：${escapeHtml(err.message)}<br><small>請確認後端伺服器是否執行中</small></div>`;
+  }
+}
+
+function aiUseDocResult(doc) {
+  document.getElementById('aiDocSearchModal')?.remove();
+  const input = document.getElementById('aiInput');
+  if (input) {
+    input.value = `請根據文件「${doc.name}」中的內容回答：${doc.snippet ? doc.snippet.slice(0, 80) + '…' : ''}`;
+  }
+  if (typeof initAIChat === 'function') initAIChat();
+  const panel = document.getElementById('aiChatPanel');
+  if (panel && !panel.classList.contains('open')) panel.classList.add('open');
+  if (typeof aiSend === 'function') setTimeout(() => aiSend(), 50);
+}
+
+async function aiTriggerReindex(btn) {
+  if (btn) { btn.disabled = true; btn.textContent = '索引中…'; }
+  try {
+    const base = window.HLX_API_BASE || window.location.origin;
+    const res  = await fetch(`${base}/api/ocr/index-drive`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+    });
+    const data = await res.json();
+    if (typeof showToast === 'function') {
+      showToast(data.message || '索引建立中，約需 3-10 分鐘', 'info');
+    } else {
+      alert(data.message || '索引建立中，約需 3-10 分鐘，完成後請重新搜尋');
+    }
+  } catch (err) {
+    if (typeof showToast === 'function') showToast(`觸發失敗：${err.message}`, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🔄 更新索引'; }
+  }
 }
 
 function aiAsk(subject) {
