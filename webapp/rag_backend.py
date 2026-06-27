@@ -325,6 +325,7 @@ rag = Blueprint('rag', __name__, url_prefix='/api/rag')
 _model = None
 _vector_store = None
 _metadata_index = None
+_vector_store_mode = 'none'
 
 MOJIBAKE_HINTS = ('?', '�', '\ue000', '\uf8ff')
 
@@ -483,14 +484,14 @@ def load_model():
 
 def load_vector_store():
     """Load vector store from JSONL file (lazy loading)."""
-    global _vector_store, _metadata_index
+    global _vector_store, _metadata_index, _vector_store_mode
 
     if _vector_store is not None:
         return _vector_store
 
     if not VECTOR_STORE_FILE.exists():
-        logger.warning(f"Vector store not found at {VECTOR_STORE_FILE}")
-        return None
+        logger.warning(f"Vector store not found at {VECTOR_STORE_FILE}; using manifest keyword fallback")
+        return load_manifest_store_fallback()
 
     try:
         logger.info("Loading vector store...")
@@ -507,6 +508,7 @@ def load_vector_store():
                     logger.warning(f"Skipped invalid JSON at line {line_idx}: {e}")
 
         logger.info(f"??Loaded {len(_vector_store)} document chunks")
+        _vector_store_mode = 'vector'
 
         # Load metadata index
         if METADATA_INDEX_FILE.exists():
@@ -518,7 +520,63 @@ def load_vector_store():
         return _vector_store
     except Exception as e:
         logger.error(f"Failed to load vector store: {e}")
-        return None
+        return load_manifest_store_fallback()
+
+
+def load_manifest_store_fallback():
+    """Build a deployment-safe keyword index from the document manifest.
+
+    This avoids shipping local document full text / embeddings to public hosting
+    while still letting the platform know which Hengliuxi files are available.
+    """
+    global _vector_store, _metadata_index, _vector_store_mode
+
+    if not MANIFEST_FILE.exists():
+        _vector_store = []
+        _metadata_index = {}
+        _vector_store_mode = 'none'
+        return _vector_store
+
+    try:
+        with open(MANIFEST_FILE, 'r', encoding='utf-8') as f:
+            manifest = json.load(f)
+        docs = manifest.get('documents', [])
+        fallback_docs = []
+        for idx, item in enumerate(docs):
+            name = item.get('name', '')
+            path = item.get('path', '')
+            pages = item.get('pages', 0)
+            chunks = item.get('chunks', 0)
+            text = (
+                f"{name}\n{path}\n"
+                f"文件頁數 {pages}；原始切塊數 {chunks}。"
+                "此為正式站文件清單式本機知識庫，完整全文由雲端 OCR 或本機向量庫補充。"
+            )
+            fallback_docs.append({
+                'id': f"manifest_{idx:04d}",
+                'source_file': name,
+                'source_path': path,
+                'page_number': 1,
+                'chunk_index': 0,
+                'text': text,
+                'full_text': text,
+                'section': f"{name} > 文件清單",
+                'manifest_chunks': chunks,
+                'manifest_pages': pages,
+                'manifest_fallback': True,
+            })
+
+        _vector_store = fallback_docs
+        _metadata_index = {}
+        _vector_store_mode = 'manifest_keyword'
+        logger.info(f"Loaded manifest fallback knowledge index: {len(fallback_docs)} documents")
+        return _vector_store
+    except Exception as e:
+        logger.error(f"Failed to load manifest fallback: {e}")
+        _vector_store = []
+        _metadata_index = {}
+        _vector_store_mode = 'none'
+        return _vector_store
 
 
 def normalize_vector(vector: np.ndarray) -> np.ndarray:
@@ -1957,6 +2015,8 @@ def status():
         vector_store = load_vector_store()
 
         chunk_count = len(vector_store) if vector_store else 0
+        if vector_store and _vector_store_mode == 'manifest_keyword':
+            chunk_count = sum(int(doc.get('manifest_chunks') or 1) for doc in vector_store)
         # Status should be a cheap health check. Do not initialize the embedding
         # model here, otherwise Render/local status panels can stall before any
         # user query is made.
@@ -1967,6 +2027,7 @@ def status():
             'status': 'ready' if is_ready else 'not_ready',
             'model_loaded': model_loaded,
             'model_lazy_load': True,
+            'knowledge_index_mode': _vector_store_mode,
             'vector_store_loaded': vector_store is not None,
             'chunk_count': chunk_count,
             'model_name': MODEL_NAME,
