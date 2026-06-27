@@ -22,6 +22,11 @@ try:
 except Exception:  # pragma: no cover - handled at runtime by status endpoint
     rag_backend = None
 
+try:
+    from webapp import management_context
+except Exception:  # pragma: no cover - optional runtime context
+    management_context = None
+
 
 nlp_rag = Blueprint("nlp_rag", __name__, url_prefix="/api")
 
@@ -737,6 +742,8 @@ def _format_web_results(results: List[Dict[str, Any]]) -> str:
 
 _SYSTEM_PROMPT = (
     "你是一位流利使用繁體中文的專業助理，擅長工程維護、生態保育與一般知識問答。"
+    "回答時必須優先使用最新巡查資料、維護管理資料、本機知識庫與雲端 OCR 文件。"
+    "若資料內有日期、DER&U、維護工項、照片數、金額或數量，請直接量化回答。"
     "回答清晰自然、適當分段，不使用 Markdown 標題符號（#、##）。"
 )
 
@@ -761,7 +768,7 @@ def _call_groq(query: str, ctx: str) -> "tuple[str, str]":
     if not key:
         return "", ""
     payload = _json.dumps({
-        "model": "llama-3.3-70b-versatile",
+        "model": os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile"),
         "messages": [
             {"role": "system", "content": _SYSTEM_PROMPT},
             {"role": "user",   "content": _build_user_msg(query, ctx)},
@@ -778,7 +785,8 @@ def _call_groq(query: str, ctx: str) -> "tuple[str, str]":
     try:
         with urllib.request.urlopen(req, timeout=30) as r:
             res = _json.loads(r.read().decode())
-        return res["choices"][0]["message"]["content"].strip(), "llama-3.3-70b (Groq)"
+        model_name = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")
+        return res["choices"][0]["message"]["content"].strip(), f"{model_name} (Groq)"
     except Exception:
         return "", ""
 
@@ -940,7 +948,7 @@ def _get_ocr_svc():
                 pass
     return _ocr_svc
 
-_OCR_FOLDER_ID = "1k2s5HSd_R5GeCt05SOtJxn6UFSrbyoQ9"
+_OCR_FOLDER_ID = os.environ.get("GDRIVE_FOLDER_ID", "1k2s5HSd_R5GeCt05SOtJxn6UFSrbyoQ9")
 
 
 @nlp_rag.route("/ocr/index-drive", methods=["POST"])
@@ -952,7 +960,13 @@ def ocr_index_drive() -> Any:
         return jsonify({"status": "error", "message": "OCR 模組未載入"}), 503
     data       = request.get_json(silent=True) or {}
     vision_key = _as_text(data.get("groq_key") or data.get("vision_key")) or None
-    started    = svc.start_indexing(_OCR_FOLDER_ID, vision_key=vision_key)
+    folder_id  = _as_text(data.get("folder_id") or data.get("drive_folder_id")) or _OCR_FOLDER_ID
+    folder_url = _as_text(data.get("folder_url") or data.get("drive_folder_url"))
+    if folder_url:
+        m = re.search(r"/folders/([A-Za-z0-9_-]+)", folder_url)
+        if m:
+            folder_id = m.group(1)
+    started    = svc.start_indexing(folder_id, vision_key=vision_key)
     vision_note = "（含掃描檔/照片視覺 OCR）" if vision_key else "（僅數位文字；未提供 Groq Key，掃描檔將以視覺降級）"
     if started:
         return jsonify({"status": "success", "message": f"索引建立中{vision_note}，請稍候（可能需要 5-15 分鐘）…", "started": True})
@@ -989,6 +1003,25 @@ def ocr_search() -> Any:
     })
 
 
+@nlp_rag.route("/management/latest-context", methods=["GET", "POST"])
+def management_latest_context() -> Any:
+    """Return latest inspection + maintenance context for AI grounding."""
+    if management_context is None:
+        return jsonify({"status": "error", "message": "管理上下文模組未載入"}), 503
+    data = request.get_json(silent=True) or {}
+    query = _as_text(data.get("query") or request.args.get("query") or "")
+    limit = max(1, min(10, int(data.get("limit") or request.args.get("limit") or 6)))
+    ctx = management_context.build_management_context(query, limit=limit)
+    return jsonify({
+        "status": "success",
+        "query": query,
+        "context": ctx.get("context", ""),
+        "evidence": ctx.get("evidence", []),
+        "counts": ctx.get("counts", {}),
+        "timestamp": _now(),
+    })
+
+
 @nlp_rag.route("/smart-ask", methods=["POST"])
 def smart_ask() -> Any:
     """
@@ -1001,6 +1034,7 @@ def smart_ask() -> Any:
     data    = request.get_json() or {}
     query   = _as_text(data.get("query") or data.get("question"))
     use_web = bool(data.get("use_web", True))
+    include_cloud_ocr = str(data.get("include_cloud_ocr", "true")).lower() not in ("0", "false", "no")
 
     if not query:
         return jsonify({"status": "error", "message": "缺少 query"}), 400
@@ -1030,9 +1064,25 @@ def smart_ask() -> Any:
     # ── 3. Drive OCR 全文搜尋 ────────────────────────────────
     ocr_ctx      = ""
     ocr_citations: List[Dict[str, Any]] = []
+    ocr_status_data: Dict[str, Any] = {}
+    ocr_index_started = False
     ocr_svc = _get_ocr_svc()
-    if ocr_svc is not None:
+    if include_cloud_ocr and ocr_svc is not None:
         try:
+            ocr_status_data = dict(ocr_svc.get_status() or {})
+            if (
+                int(ocr_status_data.get("total_docs") or 0) == 0
+                and not bool(ocr_status_data.get("running"))
+            ):
+                folder_id = _OCR_FOLDER_ID
+                folder_url = _as_text(data.get("folder_url") or data.get("drive_folder_url"))
+                if folder_url:
+                    m = re.search(r"/folders/([A-Za-z0-9_-]+)", folder_url)
+                    if m:
+                        folder_id = m.group(1)
+                ocr_index_started = bool(ocr_svc.start_indexing(folder_id))
+                ocr_status_data = dict(ocr_svc.get_status() or {})
+
             ocr_hits = ocr_svc.search(query, top_k=3)
             if ocr_hits:
                 ocr_parts = []
@@ -1052,8 +1102,23 @@ def smart_ask() -> Any:
         except Exception:
             pass
 
-    # ── 4. 組合 context ───────────────────────────────────────
+    # ── 4. 最新巡查與維護管理資料 ──────────────────────────
+    management_ctx = ""
+    management_evidence: List[Dict[str, Any]] = []
+    management_counts: Dict[str, Any] = {}
+    if management_context is not None:
+        try:
+            mgmt = management_context.build_management_context(query, limit=6)
+            management_ctx = _as_text(mgmt.get("context"))
+            management_evidence = list(mgmt.get("evidence") or [])
+            management_counts = dict(mgmt.get("counts") or {})
+        except Exception:
+            pass
+
+    # ── 5. 組合 context ───────────────────────────────────────
     combined_ctx_parts = []
+    if management_ctx.strip():
+        combined_ctx_parts.append(f"【最新巡查與維護管理資料】\n{management_ctx}")
     if web_ctx.strip():
         combined_ctx_parts.append(f"【網路搜尋結果（DuckDuckGo）】\n{web_ctx}")
     if local_ctx.strip():
@@ -1062,7 +1127,7 @@ def smart_ask() -> Any:
         combined_ctx_parts.append(f"【橫流溪雲端文件庫（OCR 全文）】\n{ocr_ctx}")
     combined_ctx = "\n\n".join(combined_ctx_parts)
 
-    # ── 5. AI 綜合推論（自動選用可用的免費服務）─────────────────
+    # ── 6. AI 綜合推論（自動選用可用的免費服務）─────────────────
     answer, provider_key, provider_display = _ai_synthesis(query, combined_ctx)
 
     if not answer:
@@ -1081,7 +1146,8 @@ def smart_ask() -> Any:
     web_part  = f"網路搜尋（{len(web_results)} 筆）＋ " if web_results else ""
     ocr_part  = f"雲端文件 {len(ocr_citations)} 筆 ＋ " if ocr_citations else ""
     ai_part   = provider_display or "本機知識庫"
-    msg       = f"{web_part}{ocr_part}本機資料 ＋ {ai_part}"
+    ocr_running_part = "雲端OCR索引建立中 ＋ " if ocr_index_started or ocr_status_data.get("running") else ""
+    msg       = f"{web_part}{ocr_part}{ocr_running_part}本機資料 ＋ {ai_part}"
 
     return jsonify({
         "status":           "success",
@@ -1092,6 +1158,10 @@ def smart_ask() -> Any:
         "web_sources":      web_sources_out,
         "local_evidence":   local_evidence,
         "ocr_citations":    ocr_citations,
+        "ocr_status":       ocr_status_data,
+        "ocr_index_started": ocr_index_started,
+        "management_evidence": management_evidence,
+        "management_counts": management_counts,
         "confidence_level": "high" if answer else "none",
         "confidence_score": 90 if answer else 0,
         "policy_label":     "AI 綜合回答",

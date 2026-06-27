@@ -170,6 +170,9 @@ async function loadAITechStatus() {
       ${aiTechStatusRow('向量片段', `${status.chunk_count || 0} 筆`)}
       ${aiTechStatusRow('嵌入模型', status.model_name || '-')}
       ${aiTechStatusRow('Ollama', status.ollama?.connected ? `已連線：${status.ollama.model}` : '未連線')}
+      ${aiTechStatusRow('Groq AI', status.groq?.configured ? `已設定：${status.groq.model}` : '未設定 API Key')}
+      ${aiTechStatusRow('雲端OCR', status.ocr?.available ? `已索引 ${status.ocr.total_docs || 0} 份` : '尚未建立索引')}
+      ${aiTechStatusRow('最新管理資料', status.management_context ? `巡查 ${status.management_context.inspection_records || 0} 筆／維護 ${status.management_context.maintenance_projects || 0} 件` : '-')}
     `;
   } catch (error) {
     el.innerHTML = `<div style="color:#b71c1c;font-size:13px">無法讀取 RAG 後端狀態：${escapeHtml(error.message)}</div>`;
@@ -395,6 +398,27 @@ function buildImmediatePlatformAnalysis() {
 async function queryRagForAITech(query, signal) {
   const bases = aiTechApiBases();
   let lastError = null;
+  for (const base of bases) {
+    try {
+      const res = await fetch(`${base}/api/smart-ask`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query,
+          use_web: false,
+          include_latest_management: true,
+          include_cloud_ocr: true
+        }),
+        signal
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (data.status === 'success' && data.answer) return data;
+      throw new Error(data.message || 'smart-ask no answer');
+    } catch (error) {
+      lastError = error;
+    }
+  }
   for (const base of bases) {
     try {
       const res = await fetch(`${base}/api/rag/chat`, {

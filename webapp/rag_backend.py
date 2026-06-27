@@ -49,6 +49,8 @@ OLLAMA_BASE_URL = os.environ.get('OLLAMA_BASE_URL', 'http://localhost:11434').rs
 OLLAMA_MODEL = os.environ.get('OLLAMA_MODEL', 'qwen2.5:14b')   # 繁中理解最佳開源模型
 OLLAMA_VISION_MODEL = os.environ.get('OLLAMA_VISION_MODEL', OLLAMA_MODEL)
 OLLAMA_TIMEOUT = int(os.environ.get('OLLAMA_TIMEOUT', '240'))
+GROQ_MODEL = os.environ.get('GROQ_MODEL', 'llama-3.3-70b-versatile')
+GROQ_API_URL = os.environ.get('GROQ_API_URL', 'https://api.groq.com/openai/v1/chat/completions')
 
 # Synonym expansion mapping for improved recall
 QUERY_SYNONYMS = {
@@ -938,6 +940,57 @@ def get_ollama_status() -> Dict[str, Any]:
         }
 
 
+def get_groq_status() -> Dict[str, Any]:
+    """Return Groq configuration status without exposing secrets."""
+    key_present = bool(os.environ.get("GROQ_API_KEY", "").strip())
+    return {
+        "configured": key_present,
+        "model": GROQ_MODEL,
+        "api_url": GROQ_API_URL,
+        "vision_model": os.environ.get("GROQ_VISION_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct"),
+        "ready": key_present,
+    }
+
+
+def get_management_context_for_query(query: str, limit: int = 6) -> Dict[str, Any]:
+    """Load latest inspection and maintenance context for AI grounding."""
+    try:
+        from webapp import management_context as mgmt
+    except Exception:
+        try:
+            import management_context as mgmt
+        except Exception:
+            return {"context": "", "evidence": [], "counts": {}}
+    try:
+        return mgmt.build_management_context(query, limit=limit)
+    except Exception as exc:
+        logger.warning("Failed to build management context: %s", exc)
+        return {"context": "", "evidence": [], "counts": {}}
+
+
+def _get_ocr_status_for_rag() -> Dict[str, Any]:
+    """Return Drive OCR index status if available."""
+    try:
+        from webapp import gdrive_ocr_service as ocr
+    except Exception:
+        try:
+            import gdrive_ocr_service as ocr
+        except Exception:
+            return {"available": False}
+    try:
+        status = ocr.get_status()
+        return {
+            "available": True,
+            "running": bool(status.get("running")),
+            "indexed_at": status.get("indexed_at"),
+            "total_docs": status.get("total_docs", 0),
+            "stats": status.get("stats", {}),
+            "folder_id": status.get("folder_id", ""),
+        }
+    except Exception as exc:
+        return {"available": False, "error": str(exc)[:160]}
+
+
 def clean_generated_answer(text: str) -> str:
     """Remove citation-like wording from model output while keeping analysis."""
     if not text:
@@ -949,6 +1002,58 @@ def clean_generated_answer(text: str) -> str:
     cleaned = re.sub(r'(?:\.pdf|PDF)', '', cleaned, flags=re.IGNORECASE)
     cleaned = re.sub(r'\n\s*\n+', '\n', cleaned)
     return cleaned.strip()
+
+
+def generate_answer_with_groq(query: str, context: str, query_type: str = 'general', history: str = '') -> str:
+    """Generate answer with Groq OpenAI-compatible API when GROQ_API_KEY exists."""
+    key = os.environ.get("GROQ_API_KEY", "").strip()
+    if not key:
+        return ""
+
+    domain_label = QUERY_TYPE_LABELS.get(query_type, "一般查詢")
+    history_block = f"\n【對話歷史】\n{history}\n" if history and history.strip() else ""
+    prompt = f"""你是「橫流溪 AI 助理」，請整合 RAG 文件、雲端 OCR 全文、最新巡查資料與維護管理資料回答。
+問題類型：{domain_label}
+
+嚴格規則：
+1. 僅依據下方上下文回答，不捏造數值。
+2. 回答不要列出 PDF 檔名、頁碼或引用來源，直接提出分析成果。
+3. 若有日期、DER&U、維護時間、處理階段、照片數、金額、魚道通行狀態或設施名稱，必須量化呈現。
+4. 工程設施、巡查資料、維護管理資料與生態資料需分開判讀，不把魚類資料當作工程健康指數直接因子。
+5. 回答格式固定為「量化判讀」「管理判斷」「處置建議」三段，每段 1 至 3 點，段落間距要緊湊。
+{history_block}
+【上下文】
+{context}
+
+【使用者問題】
+{query}
+
+請以繁體中文、具體且可執行的方式回答："""
+
+    payload = json.dumps({
+        "model": GROQ_MODEL,
+        "messages": [
+            {"role": "system", "content": "你是專業工程維護與生態資料分析助理，使用繁體中文，答案具體、保守、可執行。"},
+            {"role": "user", "content": prompt},
+        ],
+        "temperature": 0.2,
+        "max_tokens": 900,
+    }).encode("utf-8")
+
+    req = urllib.request.Request(
+        GROQ_API_URL,
+        data=payload,
+        headers={"Content-Type": "application/json", "Authorization": f"Bearer {key}"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=45) as response:
+            result = json.loads(response.read().decode("utf-8"))
+        text = result.get("choices", [{}])[0].get("message", {}).get("content", "")
+        return clean_generated_answer(text.strip()) if text else ""
+    except Exception as exc:
+        logger.warning("Groq generation failed: %s", str(exc)[:180])
+        return ""
 
 
 def generate_answer_with_ollama(query: str, context: str, query_type: str = 'general', history: str = '') -> str:
@@ -1584,10 +1689,12 @@ def chat():
         # ── 升級 2：BM25 混合檢索 ────────────────────────
         results = hybrid_search(query, top_k=TOP_K_RESULTS, threshold=SIMILARITY_THRESHOLD)
         curated_context = get_curated_context(query)
+        management_payload = get_management_context_for_query(query, limit=6)
+        management_context_text = (management_payload.get("context") or "").strip()
 
         logger.info(f"hybrid_search returned {len(results)} results")
 
-        if not results and not curated_context:
+        if not results and not curated_context and not management_context_text:
             confidence = classify_answer_confidence([])
             response_data = {
                 'status': 'success',
@@ -1601,6 +1708,8 @@ def chat():
                 'inference_mode': 'rag_ollama',
                 'llm_provider': 'ollama',
                 'llm_model': OLLAMA_MODEL,
+                'groq': get_groq_status(),
+                'management_context': management_payload.get("counts", {}),
                 'is_training': False,
                 'query_type': query_type,
                 'query_type_label': query_type_label,
@@ -1608,13 +1717,20 @@ def chat():
             response_data.update(confidence)
             return jsonify(response_data)
 
-        if not results and curated_context:
+        if not results and (curated_context or management_context_text):
             context = prepare_rag_context([], query)
+            if management_context_text:
+                context = "\n---\n".join([f"最新巡查與維護管理資料：\n{management_context_text}", context]).strip()
+            used_habitat_template = is_habitat_model_query(query)
             answer_text = (
                 generate_habitat_model_answer()
-                if is_habitat_model_query(query)
-                else generate_answer_with_ollama(query, context, query_type=query_type, history=history)
+                if used_habitat_template
+                else generate_answer_with_groq(query, context, query_type=query_type, history=history)
             )
+            llm_provider = 'platform' if used_habitat_template else ('groq' if answer_text else 'ollama')
+            llm_model = '平台二維水理棲地結構化資料' if used_habitat_template else (GROQ_MODEL if answer_text else OLLAMA_MODEL)
+            if not answer_text and not used_habitat_template:
+                answer_text = generate_answer_with_ollama(query, context, query_type=query_type, history=history)
             if is_ollama_timeout_answer(answer_text):
                 answer_text = generate_rag_fallback_answer(query, [], query_type=query_type)
             if session_id:
@@ -1636,10 +1752,13 @@ def chat():
                 'context': context,
                 'source_citations': '使用平台結構化資料。',
                 'structured_citations': [],
+                'management_evidence': management_payload.get("evidence", []),
+                'management_context': management_payload.get("counts", {}),
                 'has_context': True,
-                'inference_mode': 'rag_ollama',
-                'llm_provider': 'ollama',
-                'llm_model': OLLAMA_MODEL,
+                'inference_mode': 'rag_groq' if llm_provider == 'groq' else 'rag_ollama',
+                'llm_provider': llm_provider,
+                'llm_model': llm_model,
+                'groq': get_groq_status(),
                 'is_training': False,
                 'timestamp': datetime.now().isoformat(),
                 'query_type': query_type,
@@ -1651,15 +1770,22 @@ def chat():
 
         # ── 升級 3：結構化分析報告（透過 query_type-aware prompt）──
         context = prepare_rag_context(results, query)
+        if management_context_text:
+            context = "\n---\n".join([f"最新巡查與維護管理資料：\n{management_context_text}", context]).strip()
         citations = format_sources(results)
         structured_citations = build_structured_citations(results)
         confidence = classify_answer_confidence(results)
 
+        used_habitat_template = is_habitat_model_query(query)
         answer_text = (
             generate_habitat_model_answer()
-            if is_habitat_model_query(query)
-            else generate_answer_with_ollama(query, context, query_type=query_type, history=history)
+            if used_habitat_template
+            else generate_answer_with_groq(query, context, query_type=query_type, history=history)
         )
+        llm_provider = 'platform' if used_habitat_template else ('groq' if answer_text else 'ollama')
+        llm_model = '平台二維水理棲地結構化資料' if used_habitat_template else (GROQ_MODEL if answer_text else OLLAMA_MODEL)
+        if not answer_text and not used_habitat_template:
+            answer_text = generate_answer_with_ollama(query, context, query_type=query_type, history=history)
         if is_ollama_timeout_answer(answer_text):
             answer_text = generate_rag_fallback_answer(query, results, query_type=query_type)
 
@@ -1675,10 +1801,13 @@ def chat():
             'context': context,
             'source_citations': citations,
             'structured_citations': structured_citations,
+            'management_evidence': management_payload.get("evidence", []),
+            'management_context': management_payload.get("counts", {}),
             'has_context': len(context) > 0,
-            'inference_mode': 'rag_ollama',
-            'llm_provider': 'ollama',
-            'llm_model': OLLAMA_MODEL,
+            'inference_mode': 'rag_groq' if llm_provider == 'groq' else 'rag_ollama',
+            'llm_provider': llm_provider,
+            'llm_model': llm_model,
+            'groq': get_groq_status(),
             'is_training': False,
             'timestamp': datetime.now().isoformat(),
             'query_type': query_type,
@@ -1825,21 +1954,28 @@ def status():
         }
     """
     try:
-        model = load_model()
         vector_store = load_vector_store()
 
         chunk_count = len(vector_store) if vector_store else 0
-        is_ready = model is not None and vector_store is not None and chunk_count > 0
+        # Status should be a cheap health check. Do not initialize the embedding
+        # model here, otherwise Render/local status panels can stall before any
+        # user query is made.
+        model_loaded = _model is not None
+        is_ready = vector_store is not None and chunk_count > 0
 
         return jsonify({
             'status': 'ready' if is_ready else 'not_ready',
-            'model_loaded': model is not None,
+            'model_loaded': model_loaded,
+            'model_lazy_load': True,
             'vector_store_loaded': vector_store is not None,
             'chunk_count': chunk_count,
             'model_name': MODEL_NAME,
             'ollama': get_ollama_status(),
+            'groq': get_groq_status(),
+            'management_context': get_management_context_for_query('', limit=3).get('counts', {}),
+            'ocr': _get_ocr_status_for_rag(),
             'vector_store_path': str(VECTOR_STORE_FILE),
-            'inference_mode': 'rag_ollama',
+            'inference_mode': 'rag_groq_ollama' if get_groq_status().get('configured') else 'rag_ollama',
             'is_training': False,
             'nlp_features': [
                 '中文查詢語意解析',

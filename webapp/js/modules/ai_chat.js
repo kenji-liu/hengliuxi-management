@@ -1465,10 +1465,66 @@ async function callGroqDirect(query, localCtx = "", ocrCtx = "") {
   return null;
 }
 
+async function aiFetchLatestManagementContext(query) {
+  const pageOrigin = window.location.protocol.startsWith("http") ? window.location.origin : "";
+  const bases = window.HLX_API_BASE
+    ? [window.HLX_API_BASE]
+    : [pageOrigin, "https://hengliuxi-management.onrender.com", "http://127.0.0.1:5000", "http://localhost:5000"].filter(Boolean);
+
+  // 先嘗試把伺服器最新巡查合併到本機 DB，讓後續 buildDynamicContext 也吃到新資料。
+  if (typeof DB !== "undefined") {
+    for (const base of bases) {
+      try {
+        const res = await fetch(`${base}/api/sync/inspections`, { signal: AbortSignal.timeout(5000) });
+        if (!res.ok) continue;
+        const data = await res.json();
+        if (!data.success || !Array.isArray(data.records)) continue;
+        const local = DB.getAll("inspections") || [];
+        const map = {};
+        local.forEach(r => { if (r?.id) map[String(r.id)] = r; });
+        let changed = 0;
+        data.records.forEach(r => {
+          if (!r?.id) return;
+          const key = String(r.id);
+          const old = map[key];
+          const tNew = r.driveSyncedAt || r.updatedAt || r.syncedAt || r.date || "";
+          const tOld = old?.driveSyncedAt || old?.updatedAt || old?.syncedAt || old?.date || "";
+          if (!old) { DB.insert("inspections", r); changed += 1; }
+          else if (tNew >= tOld) { DB.update("inspections", r.id, r); changed += 1; }
+        });
+        if (changed && typeof fac_syncAllLatestProfessionalAssessments === "function") {
+          setTimeout(() => fac_syncAllLatestProfessionalAssessments(), 50);
+        }
+        break;
+      } catch (_) {}
+    }
+  }
+
+  for (const base of bases) {
+    try {
+      const res = await fetch(`${base}/api/management/latest-context`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query, limit: 6 }),
+        signal: AbortSignal.timeout(6000),
+      });
+      if (!res.ok) continue;
+      const data = await res.json();
+      if (data.status === "success" && data.context) return data;
+    } catch (_) {}
+  }
+  return null;
+}
+
 async function queryRAG(query) {
+  const latestManagement = await aiFetchLatestManagementContext(query);
+
   // ── 1. 先從本機 KB 取得相關背景知識（不管後端在不在都有資料）
   const kbResult = queryLocalKB(query);
-  const localCtx = kbResult?.answer || "";
+  const localCtx = [
+    latestManagement?.context ? `【最新巡查與維護管理資料】\n${latestManagement.context}` : "",
+    kbResult?.answer || ""
+  ].filter(Boolean).join("\n\n");
 
   // ── 2. Drive OCR 全文搜尋（後端可用時執行）
   let ocrCtx      = "";
@@ -1521,6 +1577,7 @@ async function queryRAG(query) {
       web_sources:       groq.webSources || [],
       structured_citations: kbResult?.structured_citations || [],
       ocr_citations:     ocrCitations,
+      management_evidence: latestManagement?.evidence || [],
     };
   }
 

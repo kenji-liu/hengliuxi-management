@@ -48,6 +48,8 @@ _GOOGLE_DOCS = {
 _NATIVE_TEXT = {
     'text/plain',
     'text/csv',
+    'application/json',
+    'text/json',
 }
 
 _WORD_DOCS = {
@@ -141,7 +143,7 @@ import base64 as _b64
 _vision_key:   Optional[str] = None   # 本次索引使用的 Groq Key（僅存記憶體，不落地）
 _vision_calls: int = 0
 
-_GROQ_VISION_MODEL = 'meta-llama/llama-4-scout-17b-16e-instruct'
+_GROQ_VISION_MODEL = os.environ.get('GROQ_VISION_MODEL', 'meta-llama/llama-4-scout-17b-16e-instruct')
 
 _VISION_PROMPT = (
     '你是橫流溪工程與生態資料的 OCR 與影像判讀助理。'
@@ -272,7 +274,7 @@ def _extract_text(service, file_info: Dict) -> Tuple[str, str]:
             text    = content.decode('utf-8', errors='replace') if isinstance(content, bytes) else str(content)
             return text.strip(), 'success' if text.strip() else 'scan_only'
 
-        # Plain text
+        # Plain text / CSV / JSON inspection records
         if mime in _NATIVE_TEXT:
             content = _download_file(service, fid, size)
             return content.decode('utf-8', errors='replace').strip(), 'success'
