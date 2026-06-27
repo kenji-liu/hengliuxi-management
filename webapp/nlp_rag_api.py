@@ -864,12 +864,12 @@ def _call_openrouter(query: str, ctx: str) -> "tuple[str, str]":
 
 def _call_ollama_synthesis(query: str, combined_ctx: str) -> str:
     """Ollama 本機推論（qwen2.5:14b）— 最後一道防線。"""
-    import urllib.request, json as _json
+    import os, urllib.request, json as _json
     if rag_backend is None:
         return ""
     ollama_url = f"{getattr(rag_backend, 'OLLAMA_BASE_URL', 'http://localhost:11434').rstrip('/')}/api/chat"
     model   = getattr(rag_backend, "OLLAMA_MODEL", "qwen2.5:14b")
-    timeout = getattr(rag_backend, "OLLAMA_TIMEOUT", 240)
+    timeout = min(float(os.environ.get("OLLAMA_SMART_TIMEOUT", "5")), float(getattr(rag_backend, "OLLAMA_TIMEOUT", 240)))
     payload = _json.dumps({
         "model": model,
         "messages": [
@@ -1022,6 +1022,51 @@ def management_latest_context() -> Any:
     })
 
 
+def _management_fallback_answer(
+    query: str,
+    evidence: List[Dict[str, Any]],
+    counts: Dict[str, Any],
+) -> str:
+    """Build a deterministic answer when no generative model is available."""
+    inspections = [e for e in evidence if e.get("type") == "inspection"][:4]
+    maint = [e for e in evidence if e.get("type") == "maintenance"][:4]
+
+    lines = [
+        "依目前最新同步的巡查資料與維護管理資料判讀：",
+        (
+            f"1. 資料量化：巡查紀錄 {counts.get('inspection_records', 0)} 筆"
+            f"（最新日期 {counts.get('latest_inspection') or '未標示'}），"
+            f"維護/搶修工程 {counts.get('maintenance_projects', 0)} 件，"
+            f"施工日誌 {counts.get('maintenance_reports', 0)} 份，"
+            f"照片 {counts.get('maintenance_photos', 0)} 張。"
+        ),
+    ]
+
+    if inspections:
+        lines.append("2. 最新巡查重點：")
+        for item in inspections:
+            lines.append(
+                f"- {item.get('date', '')}｜{item.get('title', '')}｜"
+                f"{item.get('form_type', '巡查')}｜狀態 {item.get('status', '未標示')}｜"
+                f"優先度 {item.get('priority', '未標示')}｜{item.get('summary', '')}"
+            )
+
+    if maint:
+        lines.append("3. 維護管理重點：")
+        for item in maint:
+            amount = f"｜金額 {item.get('amount')}" if item.get("amount") else ""
+            lines.append(
+                f"- {item.get('date', '')}｜{item.get('title', '')}{amount}｜"
+                f"{item.get('summary', '')}"
+            )
+
+    lines.append(
+        "4. 管理建議：優先追蹤狀態為待處理、處理中或緊急者，並以最新專業巡查或魚道檢核表作為設施狀態評估依據；"
+        "已完成案件則納入後續定期巡查與照片比對。"
+    )
+    return "\n".join(lines)
+
+
 @nlp_rag.route("/smart-ask", methods=["POST"])
 def smart_ask() -> Any:
     """
@@ -1129,6 +1174,10 @@ def smart_ask() -> Any:
 
     # ── 6. AI 綜合推論（自動選用可用的免費服務）─────────────────
     answer, provider_key, provider_display = _ai_synthesis(query, combined_ctx)
+
+    if not answer and management_ctx.strip():
+        answer = _management_fallback_answer(query, management_evidence, management_counts)
+        provider_key, provider_display = "management_context", "最新巡查與維護資料保底回答"
 
     if not answer:
         answer = _fallback_answer(parse_query(query), []) or (
