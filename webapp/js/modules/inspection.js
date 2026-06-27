@@ -378,6 +378,10 @@ function syncInspectionRecordToFacility(item, refreshSyncAt = true) {
  * 避免高 deru_u 值再觸發設施狀態被改回「需維護」
  */
 function syncFacilityStatusToInspections(silent = false) {
+  if (silent && typeof DB !== 'undefined' && typeof DB.withoutCloudPush === 'function' && !DB._suppressCloudPush) {
+    return DB.withoutCloudPush(() => syncFacilityStatusToInspections(true));
+  }
+
   const facilities  = DB.getAll('facilities');
   const inspections = DB.getAll('inspections');
   const now         = new Date().toISOString();
