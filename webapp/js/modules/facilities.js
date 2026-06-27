@@ -1625,22 +1625,10 @@ function loadFacilitiesTable() {
             <!-- 操作按鈕列 -->
             <div style="padding:14px 20px 18px;display:flex;gap:10px;border-top:2px solid ${stc}22;flex-wrap:wrap" onclick="event.stopPropagation()">
               <button class="btn btn-primary" onclick="viewFacility(${f.id})" style="font-size:15px;padding:10px 22px">
-                <i class="fas fa-eye"></i> 完整詳情
+                <i class="fas fa-clipboard-list"></i> 設施巡查及維護管理
               </button>
               <button class="btn btn-outline" onclick="analyzeFacility(${f.id})" style="font-size:15px;padding:10px 22px">
                 🤖 AI 分析
-              </button>
-              <button class="btn btn-outline" onclick="openDERUAssessmentForm(${f.id})"
-                style="font-size:15px;padding:10px 22px;background:${displayDerLevel==='A1'?'#e8f5e9':displayDerLevel==='B1-I'?'#fff3e0':'#ffebee'};
-                       border-color:${displayDerLevel==='A1'?'#4caf50':displayDerLevel==='B1-I'?'#ff9800':'#f44336'}">
-                📊 DER&U 評估
-              </button>
-              <button class="btn btn-outline" onclick="openFacilityForm(${f.id})" style="font-size:15px;padding:10px 18px">
-                <i class="fas fa-edit"></i> 編輯
-              </button>
-              <button class="btn btn-outline" onclick="deleteFacility(${f.id})"
-                style="font-size:15px;padding:10px 18px;color:var(--danger);border-color:var(--danger)">
-                <i class="fas fa-trash"></i>
               </button>
             </div>
           </div>
@@ -2323,7 +2311,6 @@ function viewFacility(id) {
   document.getElementById('modalFooter').innerHTML = `
     <button class="btn btn-outline" onclick="closeModal()">關閉</button>
     ${gmUrl ? `<a href="${gmUrl}" target="_blank" class="btn btn-outline" style="display:inline-flex;align-items:center;gap:6px;background:#4285f4;color:#fff;border-color:#4285f4"><i class="fas fa-map-marker-alt"></i> Google Maps</a>` : ''}
-    <button class="btn btn-primary" onclick="closeModal();openFacilityForm(${id})"><i class="fas fa-edit"></i> 編輯</button>
   `;
   openModal();
 
