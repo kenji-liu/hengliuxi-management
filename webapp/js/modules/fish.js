@@ -189,7 +189,7 @@ function loadFishTable() {
         const latest = s.records.slice().sort((a,b) => String(b.date||'').localeCompare(String(a.date||'')))[0] || s;
         return `
           <div style="background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px rgba(15,23,42,.1);border:1px solid #e2e8f0;display:flex;flex-direction:column">
-            <div style="position:relative;height:190px;overflow:hidden;background:#e5e7eb;cursor:pointer" onclick="fishCardToggle('${cardId}')">
+            <div style="position:relative;height:190px;overflow:hidden;background:#e5e7eb;cursor:pointer" onclick="openFishSpeciesDetail(this.dataset.species)" data-species="${fish_escape(s.species)}">
               <img src="${photo.image}" alt="${fish_escape(s.species)}"
                 style="width:100%;height:100%;object-fit:cover;object-position:${fish_escape(photo.position||'center center')};transition:transform .3s"
                 onerror="this.src='${fallback}'"
@@ -205,7 +205,7 @@ function loadFishTable() {
               </div>
               ${s.surveys > 1 ? `<div style="position:absolute;bottom:10px;right:12px"><span style="background:rgba(15,23,42,.72);color:#fff;font-size:12px;padding:3px 10px;border-radius:999px"><i class="fas fa-layer-group" style="margin-right:4px"></i>${s.surveys} 次調查</span></div>` : ''}
             </div>
-            <div style="padding:16px 18px 12px;flex:1;cursor:pointer" onclick="fishCardToggle('${cardId}')">
+            <div style="padding:16px 18px 12px;flex:1;cursor:pointer" onclick="openFishSpeciesDetail(this.dataset.species)" data-species="${fish_escape(s.species)}">
               <div style="font-size:22px;font-weight:800;color:#0f172a;margin-bottom:4px;line-height:1.2">${fish_escape(s.species)}</div>
               <div style="font-size:14px;font-style:italic;color:#64748b;margin-bottom:12px">${fish_escape(s.scientificName||'')}</div>
               <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">
@@ -239,7 +239,7 @@ function loadFishTable() {
                 </button>
               </div>
               <div style="text-align:center;margin-top:10px;color:#94a3b8;font-size:13px">
-                <span id="${cardId}_hint"><i class="fas fa-chevron-down"></i> 點選查看完整歷年調查明細（${(s.surveyRecords&&s.surveyRecords.length)||s.surveys} 次調查）</span>
+                <span id="${cardId}_hint"><i class="fas fa-up-right-from-square"></i> 點選開啟完整物種資料（${(s.surveyRecords&&s.surveyRecords.length)||s.surveys} 次調查）</span>
               </div>
             </div>
             <div id="${cardId}" style="display:none;border-top:1px solid #e2e8f0;padding:14px 18px;background:#f8fafc">
@@ -329,6 +329,152 @@ function fishCardToggle(id) {
   if (hint) hint.innerHTML = isOpen
     ? '<i class="fas fa-chevron-down"></i> 點選查看詳情'
     : '<i class="fas fa-chevron-up"></i> 收起詳情';
+}
+
+function openFishSpeciesDetail(speciesName) {
+  const target = Object.values(fish_groupSpecies()).find(s => s.species === speciesName);
+  if (!target) {
+    showToast(`找不到「${speciesName || '未命名物種'}」資料`, 'warning');
+    return;
+  }
+
+  const photo = fish_photoFor(target);
+  const cMap = { '瀕危':['#b91c1c','#fee2e2'], '易危':['#d97706','#fef9c3'], '近危':['#2563eb','#dbeafe'], '一般':['#16a34a','#dcfce7'] };
+  const [ccl, cbg] = cMap[target.conservation] || ['#475569','#f1f5f9'];
+  const records = (target.records || []).slice().sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+  const surveyRecords = Array.isArray(target.surveyRecords) ? target.surveyRecords : [];
+  const surveySum = surveyRecords.reduce((sum, row) => sum + (Number(row.count) || 0), 0);
+  const latest = records[0] || target;
+  const allLocs = [...new Set(records.map(r => r.location).filter(Boolean))];
+  const trendSet = new Set(['臺灣白甲魚','臺灣石魚賓','臺灣鬚鱲','纓口臺鰍','臺灣間爬岩鰍','明潭吻鰕虎','粗首馬口鱲','短臀瘋鱨','短吻紅斑吻鰕虎']);
+
+  const modal = document.getElementById('modal');
+  if (modal) {
+    modal.style.width = 'min(1120px, 94vw)';
+    modal.style.maxWidth = '1120px';
+    modal.style.maxHeight = '92vh';
+  }
+
+  document.getElementById('modalTitle').innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span style="font-size:22px;font-weight:900;color:#0f172a">${fish_escape(target.species)}</span>
+      <span style="background:${cbg};color:${ccl};border:1px solid ${ccl}44;border-radius:999px;padding:4px 12px;font-size:13px;font-weight:800">
+        ${fish_escape(target.conservation || '一般')}${target.redlistCode ? `（${fish_escape(target.redlistCode)}）` : ''}
+      </span>
+    </div>
+  `;
+
+  const fullSurveyHtml = surveyRecords.length ? `
+    <div style="border:1px solid #b2ebf2;border-radius:12px;overflow:hidden;background:#fff">
+      <div style="padding:12px 14px;background:#ecfeff;border-bottom:1px solid #b2ebf2;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">
+        <div style="font-size:15px;font-weight:900;color:#0e7490"><i class="fas fa-chart-line"></i> 完整歷年調查序列</div>
+        <div style="font-size:13px;color:#0f766e;font-weight:800">共 ${surveyRecords.length} 次出現，累計 ${surveySum} 尾</div>
+      </div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead>
+            <tr style="background:#f8fafc;color:#334155">
+              <th style="padding:9px 10px;text-align:left;border-bottom:1px solid #e2e8f0">調查場次</th>
+              <th style="padding:9px 10px;text-align:center;border-bottom:1px solid #e2e8f0">尾數</th>
+              <th style="padding:9px 10px;text-align:left;border-bottom:1px solid #e2e8f0">資料來源</th>
+              <th style="padding:9px 10px;text-align:left;border-bottom:1px solid #e2e8f0">備註摘要</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${surveyRecords.map(row => `
+              <tr>
+                <td style="padding:9px 10px;border-bottom:1px solid #edf2f7;font-weight:700;color:#0f172a">${fish_escape(row.label || '-')}</td>
+                <td style="padding:9px 10px;border-bottom:1px solid #edf2f7;text-align:center;font-weight:900;color:#0e7490">${Number(row.count) || 0}</td>
+                <td style="padding:9px 10px;border-bottom:1px solid #edf2f7;color:#475569">${fish_escape(row.source || '橫流溪電捕監測')}</td>
+                <td style="padding:9px 10px;border-bottom:1px solid #edf2f7;color:#64748b;line-height:1.5">${fish_escape(String(row.note || '').split('；').slice(0, 2).join('；') || '-')}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  ` : `
+    <div style="border:1px dashed #cbd5e1;border-radius:12px;padding:14px;background:#f8fafc;color:#64748b;line-height:1.7">
+      <b style="color:#334155">完整歷年序列尚未建置：</b>
+      目前改以資料庫代表紀錄呈現，避免點閱後出現空白；後續可再依報告書補齊逐次調查資料。
+    </div>
+  `;
+
+  const dbRecordsHtml = records.length ? `
+    <div style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;background:#fff">
+      <div style="padding:12px 14px;background:#f8fafc;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">
+        <div style="font-size:15px;font-weight:900;color:#0f172a"><i class="fas fa-database"></i> 資料庫代表調查紀錄</div>
+        <div style="font-size:13px;color:#64748b">共 ${records.length} 筆</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;padding:12px">
+        ${records.map((row, idx) => `
+          <div style="border:1px solid #e2e8f0;border-left:4px solid ${ccl};border-radius:10px;padding:11px 12px;background:#fff">
+            <div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:8px">
+              <b style="color:#0f172a">第 ${idx + 1} 筆</b>
+              <span style="color:#64748b;font-size:12px">${fish_escape(row.date || '-')}</span>
+            </div>
+            <div style="font-size:13px;line-height:1.7;color:#334155">
+              <div><span style="color:#94a3b8">尾數：</span><b style="color:#0e7490">${Number(row.count) || 0}</b></div>
+              <div><span style="color:#94a3b8">位置：</span>${fish_escape(row.location || '-')}</div>
+              <div><span style="color:#94a3b8">方法：</span>${fish_escape(row.method || '-')}</div>
+              <div><span style="color:#94a3b8">來源：</span>${fish_escape((row.recorder || '-').replace('成果報告', '').replace('生態調查', '').trim())}</div>
+              ${row.note ? `<div style="margin-top:7px;background:#f8fafc;border-radius:8px;padding:8px;color:#475569">${fish_escape(row.note)}</div>` : ''}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  ` : `
+    <div style="border:1px dashed #cbd5e1;border-radius:12px;padding:14px;background:#fff;color:#64748b">尚無資料庫代表紀錄。</div>
+  `;
+
+  document.getElementById('modalBody').innerHTML = `
+    <div style="display:grid;grid-template-columns:280px 1fr;gap:18px;align-items:start">
+      <div style="position:sticky;top:0">
+        <div style="border-radius:14px;overflow:hidden;background:#e5e7eb;border:1px solid #e2e8f0;box-shadow:0 2px 12px rgba(15,23,42,.08)">
+          <img src="${photo.image}" alt="${fish_escape(target.species)}" style="width:100%;height:210px;object-fit:cover;object-position:${fish_escape(photo.position || 'center center')}" onerror="this.src='/webapp/assets/fish-photos/field-measurement.jpg'">
+          <div style="padding:12px;background:#fff">
+            <div style="font-size:18px;font-weight:900;color:#0f172a">${fish_escape(target.species)}</div>
+            <div style="font-size:13px;color:#64748b;font-style:italic;margin-top:2px">${fish_escape(target.scientificName || '-')}</div>
+            <div style="font-size:12px;color:#64748b;margin-top:8px;line-height:1.6"><i class="fas fa-camera"></i> ${fish_escape(photo.source || '魚類調查影像')}</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">
+          <div style="background:#f0fdfa;border:1px solid #ccfbf1;border-radius:10px;padding:10px;text-align:center">
+            <div style="font-size:24px;font-weight:900;color:#0e7490">${target.totalCount || 0}</div>
+            <div style="font-size:12px;color:#64748b">累計尾數</div>
+          </div>
+          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:10px;text-align:center">
+            <div style="font-size:24px;font-weight:900;color:#334155">${surveyRecords.length || target.surveys || 0}</div>
+            <div style="font-size:12px;color:#64748b">有效調查</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px">
+          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;font-size:14px;color:#334155">
+            <div><span style="color:#94a3b8">科別：</span><b>${fish_escape(target.family || '-')}</b></div>
+            <div><span style="color:#94a3b8">最近調查：</span><b>${fish_escape(latest.date || '-')}</b></div>
+            <div style="grid-column:1/-1"><span style="color:#94a3b8">主要分布：</span>${fish_escape(allLocs.join('、') || target.location || '-')}</div>
+            <div style="grid-column:1/-1"><span style="color:#94a3b8">資料口徑：</span>${fish_escape(target.totalSource || '資料庫代表紀錄')}</div>
+            ${target.redlistNote ? `<div style="grid-column:1/-1;color:#b45309;background:#fffbeb;border-radius:8px;padding:8px 10px">${fish_escape(target.redlistNote)}</div>` : ''}
+          </div>
+        </div>
+        ${fullSurveyHtml}
+        ${dbRecordsHtml}
+      </div>
+    </div>
+  `;
+
+  document.getElementById('modalFooter').innerHTML = `
+    <button class="btn btn-outline" onclick="closeModal()">關閉</button>
+    ${trendSet.has(target.species) ? `<button class="btn btn-outline" onclick="closeModal();fish_jumpToTrend('${fish_escape(target.species)}')"><i class="fas fa-chart-line"></i> 查看歷年趨勢</button>` : ''}
+    <button class="btn btn-primary"
+      data-q="橫流溪 ${fish_escape(target.species)}（${fish_escape(target.scientificName || '')}）的族群現況、棲地需求與管理建議"
+      onclick="fish_openAIQA(this.getAttribute('data-q'))"><i class="fas fa-robot"></i> AI問答</button>
+  `;
+  openModal();
 }
 
 /* ── 依物種名稱推算相對位置描述 ── */
@@ -1185,7 +1331,7 @@ function fish_filterProtected() {
         const inTrend = TREND_SPECIES.has(f.species);
         return `
           <div style="background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px rgba(15,23,42,.1);border:2px solid ${ccl}33;display:flex;flex-direction:column">
-            <div style="position:relative;height:190px;overflow:hidden;background:#e5e7eb;cursor:pointer" onclick="fishCardToggle('${cardId}')">
+            <div style="position:relative;height:190px;overflow:hidden;background:#e5e7eb;cursor:pointer" onclick="openFishSpeciesDetail(this.dataset.species)" data-species="${fish_escape(f.species)}">
               <img src="${photo.image}" alt="${fish_escape(f.species)}"
                 style="width:100%;height:100%;object-fit:cover;object-position:${fish_escape(photo.position||'center center')};transition:transform .3s"
                 onerror="this.src='${fallback}'"
@@ -1197,7 +1343,7 @@ function fish_filterProtected() {
                 <span style="background:rgba(15,23,42,.72);color:#fff;font-size:13px;padding:4px 10px;border-radius:999px">${f.family||'-'}</span>
               </div>
             </div>
-            <div style="padding:16px 18px 12px;flex:1;cursor:pointer" onclick="fishCardToggle('${cardId}')">
+            <div style="padding:16px 18px 12px;flex:1;cursor:pointer" onclick="openFishSpeciesDetail(this.dataset.species)" data-species="${fish_escape(f.species)}">
               <div style="font-size:22px;font-weight:800;color:#0f172a;margin-bottom:4px">${fish_escape(f.species)}</div>
               <div style="font-size:14px;font-style:italic;color:#64748b;margin-bottom:12px">${fish_escape(f.scientificName||'')}</div>
               <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">
