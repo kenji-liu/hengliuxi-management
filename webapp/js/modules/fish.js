@@ -574,6 +574,33 @@ const HLX_FISH_FULL_TOTALS = {
 const HLX_FISH_SURVEY_EVENTS = 26;   // 103~114 年累計電捕調查場次
 const HLX_FISH_GRAND_TOTAL   = 3792; // 9 種完整歷年累計總尾數
 
+// ════════════════════════════════════════════════════════════════════════════
+//  保育受脅等級「單一真實來源」— 依據《2024臺灣淡水魚類紅皮書名錄》國家類別
+//  ----------------------------------------------------------------------------
+//  grade＝紅皮書國家受脅等級（近危/易危/一般）；code＝官方代碼。
+//  資料庫原 conservation 欄位多筆互相矛盾（同種有近危/易危/一般），且部分沿用
+//  2017 舊版或全球 IUCN，與 2024 國家紅皮書不符。本表為唯一正確依據，於
+//  fish_groupSpecies() 顯示層統一覆寫，確保各設備一致。
+//
+//  核對重點（2024 vs 平台原值）：
+//   臺灣石魚賓 一般(NLC)  ← 原誤標近危
+//   纓口臺鰍   近危(NNT)  ← 原誤標易危（2017為易危，2024下修近危）
+//   臺灣間爬岩鰍 近危(NNT) ← 正確（2017易危→2024近危）
+//   短臀瘋鱨   易危(NVU)  ← 正確（2017無危→2024上修易危）
+//   短吻紅斑吻鰕虎 一般(NLC) ← 原誤標近危（係沿用IUCN全球NT；台灣國家為無危）
+// ════════════════════════════════════════════════════════════════════════════
+const HLX_FISH_REDLIST_2024 = {
+  '臺灣白甲魚':   { grade:'近危', code:'NNT', endemic:true },
+  '臺灣石魚賓':   { grade:'一般', code:'NLC', endemic:true },
+  '臺灣鬚鱲':     { grade:'一般', code:'NLC', endemic:true },
+  '纓口臺鰍':     { grade:'近危', code:'NNT', endemic:true },
+  '臺灣間爬岩鰍': { grade:'近危', code:'NNT', endemic:true },
+  '明潭吻鰕虎':   { grade:'一般', code:'NLC', endemic:true },
+  '粗首馬口鱲':   { grade:'一般', code:'NLC', endemic:true },
+  '短臀瘋鱨':     { grade:'易危', code:'NVU', endemic:true },
+  '短吻紅斑吻鰕虎':{ grade:'一般', code:'NLC', endemic:true, note:'IUCN全球評估近危(NT)；2024臺灣國家紅皮書為國家無危(NLC)' },
+};
+
 function fish_groupSpecies() {
   const data = DB.getAll('fish');
   const species = {};
@@ -591,6 +618,16 @@ function fish_groupSpecies() {
       s.totalCount   = full;                  // 對齊歷年趨勢分析完整累計
       s.totalSource  = '完整歷年電捕序列（103~114年・26次調查）';
       s.reconciled   = s.dbCount !== full;
+    }
+    // ── 保育等級核對：統一覆寫為《2024臺灣淡水魚類紅皮書》國家受脅等級 ──
+    const rl = HLX_FISH_REDLIST_2024[s.species];
+    if (rl) {
+      s.conservationRaw  = s.conservation;    // 保留原值（供核對）
+      s.conservation     = rl.grade;          // 紅皮書國家受脅等級（近危/易危/一般）
+      s.redlistCode      = rl.code;           // 官方代碼 NNT/NVU/NLC
+      s.endemic          = !!rl.endemic;      // 台灣特有種
+      s.redlistNote      = rl.note || '';     // 全球/國家差異等補充
+      s.conservationFixed = s.conservationRaw && s.conservationRaw !== rl.grade;
     }
   });
   return species;
@@ -2480,15 +2517,15 @@ function renderFishTrend() {
   } catch (e) { /* 自我檢查不影響渲染 */ }
 
   const SPECIES = [
-    { key:'bai',  name:'臺灣白甲魚',     color:'#0ea5e9', engName:'Onychostoma barbatulum',       conserve:'保育類二級' },
-    { key:'shi',  name:'臺灣石魚賓',     color:'#f97316', engName:'Acrossocheilus paradoxus',     conserve:'台灣特有種' },
-    { key:'xu',   name:'臺灣鬚鱲',       color:'#a855f7', engName:'Candidia barbata',             conserve:'台灣特有種' },
-    { key:'ying', name:'纓口臺鰍',       color:'#22c55e', engName:'Formosania lacustre',          conserve:'保育類二級' },
-    { key:'jian', name:'臺灣間爬岩鰍',   color:'#f43f5e', engName:'Hemimyzon formosanus',        conserve:'保育類二級' },
-    { key:'min',  name:'明潭吻鰕虎',     color:'#3b82f6', engName:'Rhinogobius candidianus',     conserve:'一般物種' },
-    { key:'kou',  name:'粗首馬口鱲',     color:'#f59e0b', engName:'Zacco pachycephalus',          conserve:'一般物種' },
-    { key:'feng', name:'短臀瘋鱨',       color:'#dc2626', engName:'Tachysurus brevianalis',       conserve:'易危・第三級保育' },
-    { key:'hong', name:'短吻紅斑吻鰕虎', color:'#059669', engName:'Rhinogobius rubromaculatus',   conserve:'IUCN近危' },
+    { key:'bai',  name:'臺灣白甲魚',     color:'#0ea5e9', engName:'Onychostoma barbatulum',       conserve:'近危(NNT)・特有種' },
+    { key:'shi',  name:'臺灣石魚賓',     color:'#f97316', engName:'Acrossocheilus paradoxus',     conserve:'一般(NLC)・特有種' },
+    { key:'xu',   name:'臺灣鬚鱲',       color:'#a855f7', engName:'Candidia barbata',             conserve:'一般(NLC)・特有種' },
+    { key:'ying', name:'纓口臺鰍',       color:'#22c55e', engName:'Formosania lacustre',          conserve:'近危(NNT)・特有種' },
+    { key:'jian', name:'臺灣間爬岩鰍',   color:'#f43f5e', engName:'Hemimyzon formosanus',        conserve:'近危(NNT)・特有種' },
+    { key:'min',  name:'明潭吻鰕虎',     color:'#3b82f6', engName:'Rhinogobius candidianus',     conserve:'一般(NLC)・特有種' },
+    { key:'kou',  name:'粗首馬口鱲',     color:'#f59e0b', engName:'Zacco pachycephalus',          conserve:'一般(NLC)・特有種' },
+    { key:'feng', name:'短臀瘋鱨',       color:'#dc2626', engName:'Tachysurus brevianalis',       conserve:'易危(NVU)・特有種' },
+    { key:'hong', name:'短吻紅斑吻鰕虎', color:'#059669', engName:'Rhinogobius rubromaculatus',   conserve:'一般(NLC)・特有種（IUCN全球NT）' },
   ];
 
   const FULL_FISH_LIST = [
@@ -3091,17 +3128,17 @@ function renderFishTrend() {
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:18px;margin-top:18px">
         ${[
-          // ── 5 種長期指標特有種（年度合計資料）──
-          { id:'spTrend_臺灣白甲魚',     name:'臺灣白甲魚',     sci:'Onychostoma barbatulum',      cons:'保育二級', borderCol:'#bae6fd', topCol:'#0ea5e9', badge:'#e0f2fe', badgeTxt:'#0369a1', note:'103~114年連續監測・族群持續成長為優勢種' },
-          { id:'spTrend_臺灣石魚賓',     name:'臺灣石魚賓',     sci:'Acrossocheilus paradoxus',    cons:'特有種',   borderCol:'#fed7aa', topCol:'#f97316', badge:'#fff7ed', badgeTxt:'#9a3412', note:'103年基準優勢種・現與白甲魚共存穩定' },
-          { id:'spTrend_臺灣鬚鱲',       name:'臺灣鬚鱲',       sci:'Candidia barbata',            cons:'特有種',   borderCol:'#e9d5ff', topCol:'#a855f7', badge:'#f5f3ff', badgeTxt:'#6b21a8', note:'104年起持續記錄・中游水質指標種' },
-          { id:'spTrend_纓口臺鰍',       name:'纓口臺鰍',       sci:'Formosania lacustre',         cons:'保育二級', borderCol:'#bbf7d0', topCol:'#22c55e', badge:'#f0fdf4', badgeTxt:'#15803d', note:'底棲吸附型・魚道通行已確認' },
-          { id:'spTrend_臺灣間爬岩鰍',   name:'臺灣間爬岩鰍',   sci:'Hemimyzon formosanus',       cons:'保育二級', borderCol:'#fecaca', topCol:'#f43f5e', badge:'#fff1f2', badgeTxt:'#be123c', note:'魚道關聯最高・114年回升13尾' },
+          // ── 5 種長期指標特有種（年度合計資料）｜cons＝2024臺灣紅皮書國家受脅等級 ──
+          { id:'spTrend_臺灣白甲魚',     name:'臺灣白甲魚',     sci:'Onychostoma barbatulum',      cons:'近危', borderCol:'#bae6fd', topCol:'#0ea5e9', badge:'#e0f2fe', badgeTxt:'#0369a1', note:'特有種・2024紅皮書近危(NNT)・103~114年連續監測族群成長為優勢種' },
+          { id:'spTrend_臺灣石魚賓',     name:'臺灣石魚賓',     sci:'Acrossocheilus paradoxus',    cons:'一般',   borderCol:'#fed7aa', topCol:'#f97316', badge:'#fff7ed', badgeTxt:'#9a3412', note:'特有種・2024紅皮書無危(NLC)・103年基準優勢種，現與白甲魚共存穩定' },
+          { id:'spTrend_臺灣鬚鱲',       name:'臺灣鬚鱲',       sci:'Candidia barbata',            cons:'一般',   borderCol:'#e9d5ff', topCol:'#a855f7', badge:'#f5f3ff', badgeTxt:'#6b21a8', note:'特有種・2024紅皮書無危(NLC)・104年起持續記錄，中游水質指標種' },
+          { id:'spTrend_纓口臺鰍',       name:'纓口臺鰍',       sci:'Formosania lacustre',         cons:'近危', borderCol:'#bbf7d0', topCol:'#22c55e', badge:'#f0fdf4', badgeTxt:'#15803d', note:'特有種・2024紅皮書近危(NNT，2017易危下修)・底棲吸附型，魚道通行已確認' },
+          { id:'spTrend_臺灣間爬岩鰍',   name:'臺灣間爬岩鰍',   sci:'Hemimyzon formosanus',       cons:'近危', borderCol:'#fecaca', topCol:'#f43f5e', badge:'#fff1f2', badgeTxt:'#be123c', note:'特有種・2024紅皮書近危(NNT，2017易危下修)・魚道關聯最高，114年回升13尾' },
           // ── 4 種次要物種暨鰕虎科（電捕法DB記錄）──
-          { id:'spTrend_明潭吻鰕虎',     name:'明潭吻鰕虎',     sci:'Rhinogobius candidianus',    cons:'一般',     borderCol:'#bfdbfe', topCol:'#2563eb', badge:'#dbeafe', badgeTxt:'#1e40af', note:'109~114年累計 317 尾・數量最多' },
-          { id:'spTrend_粗首馬口鱲',     name:'粗首馬口鱲',     sci:'Zacco pachycephalus',        cons:'一般',     borderCol:'#fde68a', topCol:'#b45309', badge:'#fef9c3', badgeTxt:'#92400e', note:'107年累計 191 尾・112年4尾・113年6尾' },
-          { id:'spTrend_短臀瘋鱨',       name:'短臀瘋鱨',       sci:'Tachysurus brevianalis',     cons:'易危',     borderCol:'#fecdd3', topCol:'#dc2626', badge:'#fee2e2', badgeTxt:'#991b1b', note:'第三級保育・109~114累計 4 尾' },
-          { id:'spTrend_短吻紅斑吻鰕虎', name:'短吻紅斑吻鰕虎', sci:'Rhinogobius rubromaculatus', cons:'近危',     borderCol:'#d1fae5', topCol:'#059669', badge:'#ecfdf5', badgeTxt:'#065f46', note:'IUCN近危・109~114累計 14 尾' }
+          { id:'spTrend_明潭吻鰕虎',     name:'明潭吻鰕虎',     sci:'Rhinogobius candidianus',    cons:'一般',     borderCol:'#bfdbfe', topCol:'#2563eb', badge:'#dbeafe', badgeTxt:'#1e40af', note:'特有種・2024紅皮書無危(NLC)・109~114年累計 317 尾，數量最多' },
+          { id:'spTrend_粗首馬口鱲',     name:'粗首馬口鱲',     sci:'Zacco pachycephalus',        cons:'一般',     borderCol:'#fde68a', topCol:'#b45309', badge:'#fef9c3', badgeTxt:'#92400e', note:'特有種・2024紅皮書無危(NLC)・107年累計 191 尾・112年4尾・113年6尾' },
+          { id:'spTrend_短臀瘋鱨',       name:'短臀瘋鱨',       sci:'Tachysurus brevianalis',     cons:'易危',     borderCol:'#fecdd3', topCol:'#dc2626', badge:'#fee2e2', badgeTxt:'#991b1b', note:'特有種・2024紅皮書易危(NVU，2017無危上修)・109~114累計 4 尾' },
+          { id:'spTrend_短吻紅斑吻鰕虎', name:'短吻紅斑吻鰕虎', sci:'Rhinogobius rubromaculatus', cons:'一般',     borderCol:'#d1fae5', topCol:'#059669', badge:'#ecfdf5', badgeTxt:'#065f46', note:'特有種・台灣2024紅皮書國家無危(NLC)；IUCN全球評估近危(NT)・109~114累計 14 尾' }
         ].map(sp => `
           <div style="background:#fff;border:2px solid ${sp.borderCol};border-top:4px solid ${sp.topCol};border-radius:14px;overflow:hidden">
             <div style="background:${sp.badge};padding:12px 16px 10px">

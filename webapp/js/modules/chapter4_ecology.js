@@ -63,12 +63,12 @@ const MONITORING_REPORT = {
     sessions: ['112/5/9','112/9/19','113/4/18','113/9/19'],
     families: 3, species: 6,
     speciesList: [
-      { name: '臺灣白甲魚',   sci: 'Onychostoma barbatulum',   conservation: 'LC', note: '壩上下游皆有，改良型舟通式電捕最多(12尾)' },
-      { name: '明潭吻鰕虎',   sci: 'Rhinogobius candidianus',   conservation: 'LC', note: '陷阱法捕獲(3尾，體長4.3~8.2cm)' },
-      { name: '纓口臺鰍',     sci: 'Crossostoma lacustre',      conservation: 'VU', note: '陷阱法捕獲(1尾，體長6.8cm)' },
-      { name: '臺灣石魚賓',   sci: 'Acrossocheilus paradoxus',  conservation: 'NT', note: '' },
-      { name: '短吻紅斑吻鰕虎', sci: 'Rhinogobius rubromaculatus', conservation: 'LC', note: '陷阱法捕獲(1尾，體長5.2cm)' },
-      { name: '臺灣鬚鱲',     sci: 'Candidia barbata',          conservation: 'LC', note: '' }
+      { name: '臺灣白甲魚',   sci: 'Onychostoma barbatulum',   conservation: 'NT', note: '2024臺灣紅皮書近危(NNT)；壩上下游皆有，改良型舟通式電捕最多(12尾)' },
+      { name: '明潭吻鰕虎',   sci: 'Rhinogobius candidianus',   conservation: 'LC', note: '2024臺灣紅皮書無危(NLC)；陷阱法捕獲(3尾，體長4.3~8.2cm)' },
+      { name: '纓口臺鰍',     sci: 'Crossostoma lacustre',      conservation: 'NT', note: '2024臺灣紅皮書近危(NNT，2017易危下修)；陷阱法捕獲(1尾，體長6.8cm)' },
+      { name: '臺灣石魚賓',   sci: 'Acrossocheilus paradoxus',  conservation: 'LC', note: '2024臺灣紅皮書無危(NLC)' },
+      { name: '短吻紅斑吻鰕虎', sci: 'Rhinogobius rubromaculatus', conservation: 'LC', note: '台灣國家無危(NLC)；IUCN全球近危(NT)；陷阱法捕獲(1尾，體長5.2cm)' },
+      { name: '臺灣鬚鱲',     sci: 'Candidia barbata',          conservation: 'LC', note: '2024臺灣紅皮書無危(NLC)' }
     ],
     shannonMax112: 1.68, shannonMax113: 1.54,
     shrimpCrab: ['粗糙沼蝦']

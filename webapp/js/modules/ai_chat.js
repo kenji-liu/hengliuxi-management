@@ -609,6 +609,18 @@ function buildDynamicContext(query) {
       );
     }
 
+    // D-0a. 保育受脅等級（2024臺灣淡水魚類紅皮書國家類別，權威）
+    if (isFishQuery && (q.includes('保育') || q.includes('受脅') || q.includes('紅皮書') ||
+        q.includes('近危') || q.includes('易危') || q.includes('瀕危') || q.includes('等級'))) {
+      parts.push(
+        '【保育受脅等級（2024臺灣淡水魚類紅皮書・國家類別，權威）】' +
+        '臺灣白甲魚=近危(NNT)、纓口臺鰍=近危(NNT，2017易危下修)、臺灣間爬岩鰍=近危(NNT，2017易危下修)、' +
+        '短臀瘋鱨=易危(NVU，2017無危上修)；臺灣石魚賓=一般(NLC)、臺灣鬚鱲=一般(NLC)、明潭吻鰕虎=一般(NLC)、' +
+        '粗首馬口鱲=一般(NLC)、短吻紅斑吻鰕虎=一般(NLC，惟IUCN全球評估近危NT)。九種均為台灣特有種。' +
+        '回答保育等級時以此為準；注意紅皮書受脅等級≠野保法法定保育類≠特有種，屬三套不同系統。'
+      );
+    }
+
     // D-0b. 魚道趨勢「努力量校正」判讀（避免把站數下降誤判為魚類資源衰退）
     const isTrendQuery = isFishQuery && (q.includes('趨勢') || q.includes('下降') || q.includes('減少') ||
       q.includes('cpue') || q.includes('努力') || q.includes('魚道效益') || q.includes('成效') || q.includes('改善'));
