@@ -160,23 +160,11 @@ function renderFishList() {
 }
 
 function loadFishTable() {
-  const allData = DB.getAll('fish');
   const kw = document.getElementById('fishSearch')?.value?.toLowerCase() || '';
   const cf = document.getElementById('fishConservationFilter')?.value || '';
 
-  // Group raw records by species so each species shows one card
-  const grouped = {};
-  allData.forEach(f => {
-    if (!grouped[f.species]) grouped[f.species] = { ...f, totalCount: 0, surveys: 0, records: [] };
-    grouped[f.species].totalCount += Number(f.count) || 0;
-    grouped[f.species].surveys++;
-    grouped[f.species].records.push(f);
-    if (!grouped[f.species].latestDate || (f.date && f.date > grouped[f.species].latestDate)) {
-      grouped[f.species].latestDate = f.date;
-    }
-  });
-
-  let species = Object.values(grouped);
+  // 統一使用 fish_groupSpecies() 確保保育等級（2024紅皮書）與累計尾數覆寫正確套用
+  let species = Object.values(fish_groupSpecies());
   if (kw) species = species.filter(s => s.species.toLowerCase().includes(kw) || (s.scientificName || '').toLowerCase().includes(kw));
   if (cf) species = species.filter(s => s.conservation === cf);
 
