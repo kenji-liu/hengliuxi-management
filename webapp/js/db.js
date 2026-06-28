@@ -14,7 +14,7 @@ const DB = {
   },
 
   // 資料版本（每次重大更新設施資料時遞增）
-  VERSION: '5.9',  // 114年(2025/4)專業巡查匯入：構造物調查表37＋魚道檢核表1（附錄三，宜順工程顧問），含DERU與代表照
+  VERSION: '5.10',  // 附錄三巡查表正規化：一般巡查／專業巡查／魚道巡查分類、來源PDF、日期與照片標註
 
   _suppressCloudPush: false,
 
@@ -28,9 +28,103 @@ const DB = {
     }
   },
 
+  _inspectionDedupeKey(item = {}) {
+    const no = (item.inspectNo || '').toString().trim();
+    const ft = item.formType || item.type || '';
+    // 同一設施可能同時有「構造物調查表」與「魚道檢核表」，故 inspectNo 必須搭配 formType。
+    if (no) return `NO:${no}|${ft}`;
+    return ['F', item.facilityId, item.date, ft, (item.findings || '').trim()].join('|');
+  },
+
+  _rocDateLabel(dateStr) {
+    const m = String(dateStr || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!m) return '';
+    return `${Number(m[1]) - 1911}年${Number(m[2])}月${Number(m[3])}日`;
+  },
+
+  _normalizeInspection(item) {
+    if (!item || typeof item !== 'object') return item;
+    const out = { ...item };
+    const formType = out.formType || (out.type === 'general_periodic' ? 'general_periodic' : '');
+    const isDeruAssessment = out.type === 'deru_assessment' || out.sourceType === 'DER&U評估';
+    const normalizedFormType = formType || (isDeruAssessment ? '' : 'general_periodic');
+    if (normalizedFormType) out.formType = normalizedFormType;
+
+    if (out.position) out.position = String(out.position).replace(/横/g, '橫');
+    if (out.date && !out.maintenanceStart) out.maintenanceStart = out.date;
+    if (out.date && !out.recordDateLabel) out.recordDateLabel = this._rocDateLabel(out.date);
+    if (out.date && !out.photoDate) out.photoDate = out.date;
+    if (out.date && !out.photoDateLabel) out.photoDateLabel = out.recordDateLabel || this._rocDateLabel(out.date);
+    out.dateSort = out.date || out.maintenanceStart || out.createdAt || '';
+
+    const sourcePdf = 'a03附錄三_構造物調查表與魚道檢核表.pdf';
+    const sourcePdfPath = '01_工程設施維護與資料/更新資料/a03附錄三_構造物調查表與魚道檢核表.pdf';
+    const isAppendixThree = /^80\d{2}$/.test(String(out.id || '')) ||
+      String(out.inspectNo || '').includes('橫流溪－114') ||
+      (String(out.inspectUnit || '').includes('宜順工程') && String(out.date || '').startsWith('2025-04'));
+
+    if (normalizedFormType === 'professional_fishway') {
+      out.inspectionCategory = out.inspectionCategory || 'fishway';
+      out.inspectionClassLabel = out.inspectionClassLabel || '魚道巡查資料';
+      out.inspectionItem = out.inspectionItem || '魚道檢核表';
+      out.inspectionSubcategory = out.inspectionSubcategory || '魚道巡查資料';
+      out.sourceType = out.sourceType || '專業巡查-魚道檢核表';
+    } else if (normalizedFormType === 'professional_structure') {
+      out.inspectionCategory = out.inspectionCategory || 'professional';
+      out.inspectionClassLabel = out.inspectionClassLabel || '專業巡查';
+      out.inspectionItem = out.inspectionItem || '構造物調查表';
+      out.inspectionSubcategory = out.inspectionSubcategory || '專業巡查紀錄';
+      out.sourceType = out.sourceType || '專業巡查-構造物調查表';
+    } else if (normalizedFormType === 'general_periodic') {
+      out.inspectionCategory = out.inspectionCategory || 'general';
+      out.inspectionClassLabel = out.inspectionClassLabel || '一般巡查';
+      out.inspectionItem = out.inspectionItem || '一般巡查紀錄';
+      out.inspectionSubcategory = out.inspectionSubcategory || '一般巡查紀錄';
+      out.sourceType = out.sourceType || '一般巡查表單';
+    } else {
+      out.inspectionCategory = out.inspectionCategory || 'assessment';
+      out.inspectionClassLabel = out.inspectionClassLabel || 'DER&U評估';
+      out.inspectionItem = out.inspectionItem || 'DER&U評估紀錄';
+      out.inspectionSubcategory = out.inspectionSubcategory || '狀態評估紀錄';
+    }
+
+    if (isAppendixThree) {
+      out.sourcePdf = out.sourcePdf || sourcePdf;
+      out.sourcePdfPath = out.sourcePdfPath || sourcePdfPath;
+      out.pdfFormat = out.pdfFormat || 'PDF';
+      out.pdfTemplate = out.pdfTemplate || out.inspectionItem;
+      out.sourceFormBatch = out.sourceFormBatch || '114年附錄三';
+      out.photoGroup = out.photoGroup || '114年附錄三專業巡查照片';
+      out.photoYear = out.photoYear || '114';
+      out.importedFrom = out.importedFrom || '附錄三掃描PDF與巡查照片整理';
+    }
+
+    if (Array.isArray(out.photos)) {
+      out.photos = Array.from(new Set(out.photos));
+      out.photoCount = out.photos.length;
+    } else {
+      out.photos = [];
+      out.photoCount = 0;
+    }
+    return out;
+  },
+
+  _normalizeInspections(list) {
+    if (!Array.isArray(list)) return [];
+    return list
+      .map(item => this._normalizeInspection(item))
+      .sort((a, b) => {
+        const d = String(a?.dateSort || a?.date || '').localeCompare(String(b?.dateSort || b?.date || ''));
+        if (d !== 0) return d;
+        const fa = Number(a?.facilityId || 0);
+        const fb = Number(b?.facilityId || 0);
+        if (fa !== fb) return fa - fb;
+        return Number(a?.id || 0) - Number(b?.id || 0);
+      });
+  },
+
   // 巡查紀錄去重：多次雲端同步／腳本重跑會產生「同內容、不同 id」的重複表單。
-  // 去重鍵：有 inspectNo 時以 inspectNo 為準（114年匯入的各樁號表單彼此不同）；
-  // 無 inspectNo 時以 facilityId|date|formType|findings 全文判斷（攔截舊版同步的相同三胞胎），
+  // 去重鍵：inspectNo + formType；無 inspectNo 時用 facilityId|date|formType|findings。
   // 保留第一筆並把後續重複筆的照片合併進來，避免遺失影像。
   _dedupeInspections(list) {
     if (!Array.isArray(list)) return { list: list || [], removed: 0 };
@@ -39,13 +133,7 @@ const DB = {
     let removed = 0;
     list.forEach(item => {
       if (!item || typeof item !== 'object') { out.push(item); return; }
-      const no = (item.inspectNo || '').toString().trim();
-      const ft = item.formType || item.type || '';
-      // 注意：同一構造物的「構造物調查表」與「魚道檢核表」共用同一 inspectNo，
-      // 故 inspectNo 去重鍵必須再加 formType，避免誤刪魚道檢核表。
-      const key = no
-        ? 'NO:' + no + '|' + ft
-        : ['F', item.facilityId, item.date, ft, (item.findings || '').trim()].join('|');
+      const key = this._inspectionDedupeKey(item);
       if (seen.has(key)) {
         removed++;
         const kept = seen.get(key);
@@ -105,8 +193,11 @@ const DB = {
           // 合併 seed 巡查（依 inspectNo 去重）：保留用戶資料，並補入新 seed 的官方巡查
           inspections: (() => {
             if (!userInspections.length) return defaults.inspections;
-            const seen = new Set(userInspections.map(r => r.inspectNo).filter(Boolean));
-            const add = defaults.inspections.filter(r => r.inspectNo && !seen.has(r.inspectNo));
+            const seen = new Set(userInspections.map(r => this._inspectionDedupeKey(r)).filter(Boolean));
+            const add = defaults.inspections.filter(r => {
+              const key = this._inspectionDedupeKey(r);
+              return key && !seen.has(key);
+            });
             return add.length ? [...userInspections, ...add] : userInspections;
           })(),
           fish:        userFish.length        ? userFish        : defaults.fish,
@@ -124,7 +215,7 @@ const DB = {
 
         // 去重（遷移後一併清掉重複表單）
         const ddm = this._dedupeInspections(merged.inspections);
-        merged.inspections = ddm.list;
+        merged.inspections = this._normalizeInspections(ddm.list);
         localStorage.setItem(this.KEY, JSON.stringify(merged));
         console.log(`[DB] ✅ 版本遷移完成，保留 ${merged.inspections.length} 筆巡查記錄${ddm.removed ? `（去重移除 ${ddm.removed} 筆）` : ''}`);
         return merged;
@@ -133,9 +224,12 @@ const DB = {
       // 去重既有巡查紀錄（清掉舊版同步累積的重複表單）
       const dd = this._dedupeInspections(data.inspections);
       if (dd.removed > 0) {
-        data.inspections = dd.list;
+        data.inspections = this._normalizeInspections(dd.list);
         localStorage.setItem(this.KEY, JSON.stringify(data));
         console.warn(`[DB] 巡查去重：移除 ${dd.removed} 筆重複表單`);
+      } else if (Array.isArray(data.inspections) && data.inspections.some(i => !i.inspectionCategory || !i.recordDateLabel || !i.dateSort)) {
+        data.inspections = this._normalizeInspections(data.inspections);
+        localStorage.setItem(this.KEY, JSON.stringify(data));
       }
       console.log('[DB] ✓ Loaded existing data (VERSION:', data.settings.version + ')');
       return data;
@@ -449,6 +543,7 @@ const DB = {
       f.tableTwd97Y = f.twd97y ?? '-';
     });
     data.facilities.sort((a, b) => (a.tableOrder || a.id) - (b.tableOrder || b.id));
+    data.inspections = this._normalizeInspections(this._dedupeInspections(data.inspections).list);
     localStorage.setItem(this.KEY, JSON.stringify(data));
     return data;
   },
@@ -460,6 +555,9 @@ const DB = {
     data.settings.version       = data.settings.version || this.VERSION;
     data.settings.initializedFromSeed = false;
     data.settings.syncTimestamp = Date.now(); // 供 CloudSync 比較新舊
+    if (Array.isArray(data.inspections)) {
+      data.inspections = this._normalizeInspections(this._dedupeInspections(data.inspections).list);
+    }
     localStorage.setItem(this.KEY, JSON.stringify(data));
     // 穩定模式：一般儲存只更新本機快取，不再自動推送雲端。
     // 跨設備同步必須由管理者明確按「↑ 推送」，避免新設備或舊快取覆蓋正式資料。

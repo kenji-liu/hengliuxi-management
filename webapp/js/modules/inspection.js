@@ -846,20 +846,28 @@ async function fullInspectionSync() {
 }
 
 /**
- * 清除重複巡查紀錄：同一設施 + 同一 formType 只保留最新一筆
- * 無 formType 的舊記錄不受影響
+ * 清除重複巡查紀錄：以 inspectNo + formType 為主鍵。
+ * 護岸、步道、平台會共用 facilityId，因此不可只用 facilityId + formType 去重。
  */
 function cleanupDuplicateInspections() {
   const rows = DB.getAll('inspections');
 
-  // 只針對有 formType 的專業巡查記錄去重
-  const formRows = rows.filter(r => r.formType && INSPECTION_FORM_SYNC_META[r.formType]);
-  const otherRows = rows.filter(r => !r.formType || !INSPECTION_FORM_SYNC_META[r.formType]);
+  const keyOf = r => {
+    if (typeof DB !== 'undefined' && typeof DB._inspectionDedupeKey === 'function') {
+      return DB._inspectionDedupeKey(r);
+    }
+    const no = String(r.inspectNo || '').trim();
+    const ft = r.formType || r.type || '';
+    return no ? `NO:${no}|${ft}` : ['F', r.facilityId, r.date, ft, String(r.findings || '').trim()].join('|');
+  };
 
-  // 按 (facilityId, formType) 分組，每組保留 updatedAt 或 date 最新的
+  // 只針對可辨識為表單的巡查記錄去重；沒有表單類型的舊紀錄保留。
+  const formRows = rows.filter(r => r.formType && INSPECTION_FORM_SYNC_META[r.formType]);
+
+  // 按「巡查編號＋表單類型」分組，保留最新一筆，並避免誤刪不同樁號表單。
   const groups = {};
   formRows.forEach(r => {
-    const key = `${r.facilityId}_${r.formType}`;
+    const key = keyOf(r);
     if (!groups[key]) groups[key] = [];
     groups[key].push(r);
   });
@@ -883,10 +891,10 @@ function cleanupDuplicateInspections() {
     return;
   }
 
-  if (!confirm(`找到 ${toDelete.length} 筆重複記錄（每個設施各保留最新一筆），確定刪除？`)) return;
+  if (!confirm(`找到 ${toDelete.length} 筆重複表單（依巡查編號與表單類型判定），確定刪除？`)) return;
 
   toDelete.forEach(r => DB.delete('inspections', r.id));
-  showToast(`已清除 ${toDelete.length} 筆重複記錄，保留 ${toKeep.length} 筆最新記錄`, 'success');
+  showToast(`已清除 ${toDelete.length} 筆重複表單，保留 ${toKeep.length} 筆有效表單`, 'success');
   renderInspection();
 }
 
@@ -2453,7 +2461,7 @@ function renderInspDataList(data) {
          onmouseout="this.style.boxShadow='0 2px 6px rgba(15,23,42,.05)'">
 
       <!-- 主列（點擊展開） -->
-      <div style="display:grid;grid-template-columns:8px 1fr auto auto;align-items:stretch;cursor:pointer"
+      <div style="display:grid;grid-template-columns:8px minmax(0,1fr) ${hasDeru ? 'auto ' : ''}auto auto;align-items:stretch;cursor:pointer"
            onclick="inspDataRowToggle('${rid}')">
         <div style="background:${m.color}"></div>
         <div style="padding:18px 20px">
@@ -2491,6 +2499,16 @@ function renderInspDataList(data) {
             U${item.deru_u??'-'}
           </div>
         </div>` : ''}
+        <!-- 刪除按鈕 -->
+        <div style="padding:0 12px;display:flex;align-items:center;border-left:1px solid #f1f5f9">
+          <button type="button"
+            onclick="event.stopPropagation();deleteInspection(${item.id})"
+            title="刪除此筆巡查紀錄"
+            style="display:inline-flex;align-items:center;gap:6px;border:1px solid #fecaca;background:#fff1f2;color:#b91c1c;
+                   border-radius:10px;padding:9px 13px;font-size:15px;font-weight:800;cursor:pointer;white-space:nowrap">
+            <i class="fas fa-trash"></i> 刪除
+          </button>
+        </div>
         <!-- 展開箭頭 -->
         <div style="padding:0 20px;display:flex;align-items:center;border-left:1px solid #f1f5f9">
           <i id="${rid}_arrow" class="fas fa-chevron-down" style="color:#94a3b8;font-size:22px;transition:transform .2s"></i>
@@ -2527,6 +2545,10 @@ function renderInspDataList(data) {
               ${inspDetailRow('類型', m.label)}
               ${item.inspectionItem ? inspDetailRow('巡查項目', item.inspectionItem) : ''}
               ${pdfLabel ? inspDetailRow('PDF表單', pdfLabel) : ''}
+              ${item.sourcePdf ? inspDetailRow('來源PDF', item.sourcePdf) : ''}
+              ${item.recordDateLabel ? inspDetailRow('表單日期標註', item.recordDateLabel) : ''}
+              ${item.photoGroup ? inspDetailRow('照片整理分類', item.photoGroup) : ''}
+              ${item.photoDateLabel ? inspDetailRow('照片日期', item.photoDateLabel) : ''}
               ${(item.cloudTarget && INSPECTION_FORM_SYNC_META[item.formType]) ? inspDetailRow('雲端同步', `${item.cloudTarget}／${item.cloudSyncStatus || '待上傳'}`) : ''}
               ${item.driveSyncedAt ? inspDetailRow('Drive 同步時間', item.driveSyncedAt.slice(0,16).replace('T',' ')) : ''}
               ${inspDetailRow('狀態', item.uiStatus)}
@@ -2592,6 +2614,7 @@ function renderInspDataList(data) {
                 const isBase64 = String(src).startsWith('data:');
                 const label = idx < recPhotos.length ? '巡查照片' : '設施照片';
                 const lc    = idx < recPhotos.length ? '#0369a1' : '#166534';
+                const photoDate = idx < recPhotos.length ? (item.photoDateLabel || item.recordDateLabel || item.date || '') : '';
                 return `
                   <button type="button"
                     onclick='(typeof openPhotoViewer==="function")?openPhotoViewer(${JSON.stringify(allPhotos)},${idx}):window.open("${isBase64?'':inspectionEscape(src)}","_blank")'
@@ -2604,7 +2627,7 @@ function renderInspDataList(data) {
                       onerror="this.parentElement.style.display='none'">
                     <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(15,23,42,.6);color:#fff;
                                 font-size:11px;padding:4px 7px;font-weight:700;color:${lc==='#0369a1'?'#bfdbfe':'#bbf7d0'}">
-                      ${label}
+                      ${label}${photoDate ? `｜${inspectionEscape(photoDate)}` : ''}
                     </div>
                   </button>`;
               }).join('')}

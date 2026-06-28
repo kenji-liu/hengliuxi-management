@@ -162,7 +162,8 @@ try:
                                        is_configured as _drive_configured,
                                        start_oauth_flow, finish_oauth_flow)
     DRIVE_SERVICE_AVAILABLE = True
-    print(f"[INFO] Drive service 已載入，{'✅ Token 已授權' if _drive_configured() else '⚠ 尚未授權（請前往 /api/drive/authorize）'}")
+    drive_status = 'Token authorized' if _drive_configured() else 'Not authorized; open /api/drive/authorize'
+    print(f"[INFO] Drive service loaded, {drive_status}")
 except (ImportError, OSError) as _drive_err:
     DRIVE_SERVICE_AVAILABLE = False
     print(f"[WARNING] Drive service 無法載入：{_drive_err}")
@@ -248,6 +249,7 @@ def api_drive_status():
 _SYNC_DATA_DIR  = os.path.join(PROJECT_ROOT, 'webapp', 'data')
 _SYNC_INSP_FILE = os.path.join(_SYNC_DATA_DIR, 'synced_inspections.json')
 _SYNC_FAC_FILE  = os.path.join(_SYNC_DATA_DIR, 'synced_facilities.json')
+_SYNC_DB_FILE   = os.path.join(_SYNC_DATA_DIR, 'synced_database.json')
 
 def _sync_load(path):
     try:
@@ -260,6 +262,41 @@ def _sync_save(path, records):
     os.makedirs(_SYNC_DATA_DIR, exist_ok=True)
     with open(path, 'w', encoding='utf-8') as f:
         json.dump(records, f, ensure_ascii=False, indent=2)
+
+def _sync_load_object(path):
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+def _sync_save_object(path, data):
+    os.makedirs(_SYNC_DATA_DIR, exist_ok=True)
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+def _sync_db_timestamp(data: dict) -> int:
+    if not isinstance(data, dict):
+        return 0
+    settings = data.get('settings') if isinstance(data.get('settings'), dict) else {}
+    for val in (data.get('_ts'), settings.get('syncTimestamp')):
+        try:
+            if val:
+                return int(val)
+        except Exception:
+            continue
+    return 0
+
+def _validate_sync_database(data: dict):
+    if not isinstance(data, dict):
+        return False, '資料格式不是物件'
+    facilities = data.get('facilities')
+    if not isinstance(facilities, list):
+        return False, '缺少工程設施資料表'
+    if len(facilities) < 19:
+        return False, f'工程設施數量 {len(facilities)} 筆，少於正式盤點至少 19 筆'
+    return True, '資料檢核通過'
 
 def _sync_merge(existing: list, incoming: list, id_key='id') -> list:
     """合併兩份記錄，相同 ID 以 updatedAt / syncedAt 較新者為準"""
@@ -277,6 +314,71 @@ def _sync_merge(existing: list, incoming: list, id_key='id') -> list:
             if t_new >= t_old:
                 merged[rid] = rec
     return list(merged.values())
+
+@app.route('/api/sync/database', methods=['GET', 'POST', 'OPTIONS'])
+def api_sync_database():
+    """完整平台資料庫同步端點，供同網址跨設備拉取/推送 hengliuxi_db。"""
+    if request.method == 'OPTIONS':
+        return '', 204
+
+    if request.method == 'GET':
+        data = _sync_load_object(_SYNC_DB_FILE)
+        ts = _sync_db_timestamp(data)
+        return jsonify({
+            'success': True,
+            'exists': bool(data),
+            'syncTimestamp': ts,
+            'data': data if data else None,
+            'serverTime': datetime.utcnow().isoformat() + 'Z',
+            'host': request.host
+        })
+
+    body = request.get_json(force=True) or {}
+    incoming = body.get('data') or body.get('database') or body
+    if not isinstance(incoming, dict):
+        return jsonify({'success': False, 'error': 'data 必須為物件'}), 400
+
+    token = os.environ.get('SYNC_PUSH_TOKEN', '').strip()
+    if token:
+        supplied = request.headers.get('X-Sync-Token') or body.get('token') or ''
+        if supplied != token:
+            return jsonify({'success': False, 'error': '同步推送權杖錯誤'}), 403
+
+    ok, reason = _validate_sync_database(incoming)
+    if not ok:
+        return jsonify({'success': False, 'error': reason}), 400
+
+    existing = _sync_load_object(_SYNC_DB_FILE)
+    existing_ts = _sync_db_timestamp(existing)
+    incoming_ts = _sync_db_timestamp(incoming) or int(datetime.utcnow().timestamp() * 1000)
+    force = bool(body.get('force'))
+    if existing and not force and incoming_ts + 3000 < existing_ts:
+        return jsonify({
+            'success': False,
+            'error': '伺服器資料較新，請先拉取後再推送',
+            'serverSyncTimestamp': existing_ts
+        }), 409
+
+    normalized = dict(incoming)
+    settings = dict(normalized.get('settings') or {})
+    settings.update({
+        'syncTimestamp': incoming_ts,
+        'initializedFromSeed': False,
+        'cloudSyncKnown': True,
+        'serverSyncedAt': datetime.utcnow().isoformat() + 'Z',
+        'serverHost': request.host
+    })
+    normalized['settings'] = settings
+    normalized['_ts'] = incoming_ts
+    normalized['_deviceId'] = body.get('deviceId') or request.headers.get('X-Device-Id') or ''
+    _sync_save_object(_SYNC_DB_FILE, normalized)
+    return jsonify({
+        'success': True,
+        'syncTimestamp': incoming_ts,
+        'facilities': len(normalized.get('facilities') or []),
+        'inspections': len(normalized.get('inspections') or []),
+        'serverTime': datetime.utcnow().isoformat() + 'Z'
+    })
 
 @app.route('/api/sync/inspections', methods=['GET', 'POST', 'OPTIONS'])
 def api_sync_inspections():
