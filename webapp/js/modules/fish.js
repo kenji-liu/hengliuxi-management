@@ -1639,95 +1639,110 @@ const LAND_LIFE_DATA = [
 
 let landLifeMap = null;
 
-/* Wikipedia 頁面標題（英文）→ 用 REST API 動態取得縮圖，無 CORS 問題 */
-const LAND_CAT_WIKI = {
-  '鳥類':       'Taiwan_barbet',
-  '兩棲爬蟲類': 'Rhacophorus_arvalis',
-  '哺乳類':     'Chinese_pangolin',
-  '陸域昆蟲':   'Troides_aeacus'
-};
+/* 陸域物種照片來源已改為 GOV_SPECIES → TaiCOL 政府物種頁（見下），原 Wikipedia/嘎嘎昆蟲網對照表已移除。 */
 
-const LAND_WIKI_TITLES = {
-  /* 鳥類 */
-  '鉛色水鶇':   'Plumbeous_water_redstart',
-  '翠鳥':       'Common_kingfisher',
-  '藍腹鷴':     "Swinhoe's_pheasant",
-  '紅嘴黑鵯':   'Black_bulbul',
-  '小白鷺':     'Little_egret',
-  '大冠鷲':     'Crested_serpent_eagle',
-  '白鶺鴒':     'White_wagtail',
-  '白腹秧雞':   'White-breasted_waterhen',
-  '夜鷺':       'Black-crowned_night_heron',
-  '五色鳥':     'Taiwan_barbet',
-  '山紅頭':     'Rufous-capped_babbler',
-  '竹鳥':       'Taiwan_wren-babbler',
-  '褐頭鷦鶯':   'Plain_prinia',
-  '灰喉山椒鳥': 'Grey-chinned_minivet',
-  '小啄木':     'Grey-capped_pygmy_woodpecker',
-  '臺灣畫眉':   'Taiwan_hwamei',
-  /* 兩棲爬蟲 */
-  '梭德氏赤蛙': 'Nidirana_adenopleura',
-  '斯文豪氏赤蛙': 'Odorrana_swinhoana',
-  '褡裢樹蛙':   'Rhacophorus_arvalis',
-  '面天樹蛙':   'Kurixalus_idiootocus',
-  '拉都希氏赤蛙': 'Rana_latouchii',
-  '臺灣草蜥':   'Takydromus_formosanus',
-  '龜殼花':     'Chinese_habu',
-  '高砂蛇':     'Oligodon_formosanus',
-  '臺灣爬岩鰍守宮': 'Gekko_japonicus',
-  /* 哺乳類 */
-  '臺灣穿山甲': 'Chinese_pangolin',
-  '食蟹獴':     'Crab-eating_mongoose',
-  '臺灣山羌':   "Reeve's_muntjac",
-  '臺灣野豬':   'Wild_boar',
-  '臺灣黑熊':   'Formosan_black_bear',
-  /* 昆蟲 */
-  '黃裳鳳蝶':   'Troides_aeacus',
-  '臺灣寬尾鳳蝶': 'Papilio_maraho',
-  '枯葉蝶':     'Orange_oakleaf',
-  '獨角仙':     'Japanese_rhinoceros_beetle',
-  '寬腹蜻蜓':   'Lyriothemis',
-  '粗鉤春蜓':   'Gomphidae',
-  '臺灣紋白蝶': 'Pieris_canidia',
-  '霧社血斑天牛': 'Chlorophorus',
-  '大圓翅鍬形蟲': 'Lucanus_formosanus',
-  '蜉蝣目（數種）': 'Mayfly',
-  '石蠅（數種）': 'Stonefly',
-  '毛翅目（數種）': 'Caddisfly',
-  '魚蛉':       'Dobsonfly',
-  '短翅蟋蟀':   'Cricket_(insect)',
-  '斑紋蟬（數種）': 'Cicada',
-  '埋葬蟲（數種）': 'Nicrophorus'
+/* ════════════════════════════════════════════════════════════════════════════
+   政府物種頁對照表  GOV_SPECIES（取代 Wikimedia Commons／Wikipedia 影像來源）
+   ────────────────────────────────────────────────────────────────────────────
+   來源：TaiCOL 台灣物種名錄（api.taicol.tw），農業部生物多樣性研究所維運。
+   以各物種學名解析烘焙出官方 taxon_id；卡片改連至官方物種頁（分類·照片·分布），
+   採「政府資料開放授權條款第1版」，屬具規模、政府同意之開放資料來源。
+   ※ 代表照「內嵌」需 TaiEOL 臺灣生命大百科檢索服務（目前機房維護中）恢復後，
+     以同法烘焙 og:image 靜態網址補上；服務未恢復前一律呈現官方物種頁連結卡，
+     即「能取得政府代表照則內嵌，否則官方連結卡」之漸進策略。
+   ════════════════════════════════════════════════════════════════════════════ */
+const GOV_SPECIES = {
+  /* 陸域生物 */
+  '鉛色水鶇': { code:'t0098449', sci:'Phoenicurus fuliginosus' },
+  '翠鳥': { code:'t0099912', sci:'Alcedo atthis' },
+  '藍腹鷴': { code:'t0067882', sci:'Lophura swinhoii' },
+  '紅嘴黑鵯': { code:'t0097352', sci:'Hypsipetes leucocephalus' },
+  '小白鷺': { code:'t0096829', sci:'Egretta garzetta' },
+  '大冠鷲': { code:'t0098934', sci:'Spilornis cheela' },
+  '白鶺鴒': { code:'t0096454', sci:'Motacilla alba' },
+  '白腹秧雞': { code:'t0099934', sci:'Amaurornis phoenicurus' },
+  '夜鷺': { code:'t0098099', sci:'Nycticorax nycticorax' },
+  '五色鳥': { code:'t0037193', sci:'Psilopogon nuchalis' },
+  '山紅頭': { code:'t0097878', sci:'Cyanoderma ruficeps' },
+  '竹鳥': { code:'t0036478', sci:'Pomatorhinus musicus' },
+  '褐頭鷦鶯': { code:'t0098583', sci:'Prinia inornata' },
+  '灰喉山椒鳥': { code:'t0098391', sci:'Pericrocotus solaris' },
+  '小啄木': { code:'t0096707', sci:'Yungipicus canicapillus' },
+  '臺灣畫眉': { code:'t0064313', sci:'Garrulax taewanus' },
+  '梭德氏赤蛙': { code:'t0032420', sci:'Rana sauteri' },
+  '斯文豪氏赤蛙': { code:'t0031239', sci:'Odorrana swinhoana' },
+  '褡裢樹蛙': { code:'t0028607', sci:'Zhangixalus arvalis' },
+  '面天樹蛙': { code:'t0027255', sci:'Kurixalus idiootocus' },
+  '拉都希氏赤蛙': { code:'t0029786', sci:'Hylarana latouchii' },
+  '高砂蛇': { code:'t0031261', sci:'Oligodon formosanus' },
+  '臺灣草蜥': { code:'t0046739', sci:'Takydromus formosanus' },
+  '龜殼花': { code:'t0036854', sci:'Protobothrops mucrosquamatus' },
+  '臺灣穿山甲': { code:'t0096289', sci:'Manis pentadactyla' },
+  '臺灣黑熊': { code:'t0096631', sci:'Ursus thibetanus' },
+  '食蟹獴': { code:'t0097258', sci:'Urva urva' },
+  '臺灣山羌': { code:'t0096460', sci:'Muntiacus reevesi' },
+  '臺灣野豬': { code:'t0099008', sci:'Sus scrofa' },
+  '寬腹蜻蜓': { code:'t0022125', sci:'Lyriothemis' },
+  '霧社血斑天牛': { code:'t0011829', sci:'Chlorophorus' },
+  '大圓翅鍬形蟲': { code:'t0096537', sci:'Neolucanus maximus' },
+  '黃裳鳳蝶': { code:'t0096580', sci:'Troides aeacus' },
+  '臺灣寬尾鳳蝶': { code:'t0031476', sci:'Papilio maraho' },
+  '枯葉蝶': { code:'t0095965', sci:'Kallima inachus' },
+  '臺灣紋白蝶': { code:'t0031917', sci:'Pieris canidia' },
+  '蜉蝣目（數種）': { code:'t0001849', sci:'Ephemeroptera' },
+  '石蠅（數種）': { code:'t0002075', sci:'Plecoptera' },
+  '毛翅目（數種）': { code:'t0002216', sci:'Trichoptera' },
+  '短翅蟋蟀': { code:'t0018044', sci:'Velarifictorus' },
+  '臺灣大鍬': { code:'t0018893', sci:'Dorcus' },
+  '獨角仙': { code:'t0099921', sci:'Allomyrina dichotoma' },
+  '斑紋蟬（數種）': { code:'t0005634', sci:'Cicadidae' },
+  '埋葬蟲（數種）': { code:'t0013099', sci:'Nicrophorus' },
+  /* 陸域植生 */
+  '五節芒': { code:'t0054476', sci:'Miscanthus floridulus' },
+  '大花咸豐草': { code:'t0072858', sci:'Bidens pilosa' },
+  '臺灣五葉松': { code:'t0054840', sci:'Pinus morrisonicola' },
+  '構樹': { code:'t0040466', sci:'Broussonetia papyrifera' },
+  '竹葉草': { code:'t0054632', sci:'Oplismenus compositus' },
+  '狗尾草': { code:'t0055330', sci:'Setaria viridis' },
+  '星毛蕨': { code:'t0026955', sci:'Christella parasitica' },
+  '銀合歡': { code:'t0054221', sci:'Leucaena leucocephala' },
+  '野桐': { code:'t0058499', sci:'Mallotus japonicus' },
+  '山黃麻': { code:'t0069669', sci:'Trema orientalis' },
+  '金絲草': { code:'t0054901', sci:'Pogonatherum crinitum' },
+  '九芎': { code:'t0054164', sci:'Lagerstroemia subcostata' },
+  '土密樹': { code:'t0040451', sci:'Bridelia tomentosa' },
+  '烏毛蕨': { code:'t0027051', sci:'Blechnopsis orientalis' },
+  '密花苧麻': { code:'t0059098', sci:'Pouzolzia zeylanica' },
+  '九節木': { code:'t0054987', sci:'Psychotria rubra' },
+  '小花蔓澤蘭': { code:'t0054468', sci:'Mikania micrantha' },
+  '水柳': { code:'t0055196', sci:'Salix warburgii' },
+  '山葛': { code:'t0054996', sci:'Pueraria montana' },
 };
+const GOV_SPECIES_SOURCE = '資料來源：TaiCOL 台灣物種名錄（農業部生物多樣性研究所）｜政府資料開放授權條款第1版';
+/* 各分類群代表物種（用於分類橫幅連結卡） */
+const LAND_CAT_REP = { '鳥類':'五色鳥', '兩棲爬蟲類':'褡裢樹蛙', '哺乳類':'臺灣穿山甲', '陸域昆蟲':'黃裳鳳蝶' };
 
-const DIRECT_PHOTO_URLS = {
-  '臺灣大鍬': { src: 'http://gagaphoto.com/9806/985.jpg', credit: '© 嘎嘎昆蟲網' }
-};
+function govSpeciesPage(code){ return 'https://taicol.tw/zh-hant/taxon/' + code; }
 
-async function _loadLandLifePhotos() {
-  const imgs = document.querySelectorAll('[data-wiki]');
-  const seen = new Set();
-  for (const img of imgs) {
-    const title = img.dataset.wiki;
-    if (!title || seen.has(title)) continue;
-    seen.add(title);
-    try {
-      const res = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`);
-      if (!res.ok) continue;
-      const data = await res.json();
-      const src = data.thumbnail?.source || data.originalimage?.source;
-      const hires = data.originalimage?.source || src;
-      if (!src) continue;
-      document.querySelectorAll(`[data-wiki="${CSS.escape(title)}"]`).forEach(el => {
-        el.src = src;
-        el.style.display = 'block';
-        if (hires) el.setAttribute('data-hires', hires);
-        const wrap = el.closest('[data-photowrap]');
-        if (wrap) wrap.style.display = 'block';
-      });
-    } catch(e) { /* 略過失敗項目 */ }
+/* 政府物種頁連結卡：取代外部照片內嵌（Commons/Wikipedia）。
+   name=顯示名；code=TaiCOL taxon_id；h=高度px；compact=精簡樣式 */
+function govSpeciesCard(name, code, h){
+  if (!code) {
+    return `<div style="height:${h}px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;background:#f8fafc;color:#94a3b8">
+      <i class="fas fa-clipboard-list" style="font-size:24px"></i><span style="font-size:12px">物種資料</span></div>`;
   }
+  const url = govSpeciesPage(code);
+  return `<a href="${url}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()"
+      title="於 TaiCOL 台灣物種名錄查看 ${fish_escape(name)} 的官方分類、照片與分布（農業部生物多樣性研究所）"
+      style="height:${h}px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:7px;text-decoration:none;
+             background:linear-gradient(135deg,#ecfdf5,#d1fae5)">
+      <i class="fas fa-landmark" style="font-size:24px;color:#047857;opacity:.9"></i>
+      <span style="font-size:13px;font-weight:800;color:#047857">TaiCOL 官方物種頁</span>
+      <span style="font-size:11px;color:#059669;text-align:center;line-height:1.3">農業部生物多樣性研究所<br>政府開放資料 · 分類／照片／分布</span>
+      <span style="font-size:10px;color:#10b981"><i class="fas fa-up-right-from-square" style="font-size:9px;margin-right:3px"></i>點擊前往官方頁</span>
+    </a>`;
 }
+
 
 function renderLandLife() {
   const container = document.getElementById('fishTabContent');
@@ -1755,12 +1770,12 @@ function renderLandLife() {
     <!-- 來源說明 -->
     <div style="background:#f8faff;border:1px solid #c7d2fe;border-left:4px solid #6366f1;border-radius:10px;padding:12px 16px;margin-bottom:20px;font-size:14px;color:#4338ca">
       <i class="fas fa-book-open" style="margin-right:7px"></i>
-      <strong>資料來源：</strong>橫流溪動物通道及周邊設施檢查效能智慧評估 第三次期中報告書（114年）— 陸域生態調查章節
+      <strong>資料來源：</strong>橫流溪動物通道及周邊設施檢查效能智慧評估 第三次期中報告書（114年）— 陸域生態調查章節<br>
+      <span style="font-size:12px;color:#6366f1"><i class="fas fa-landmark" style="margin:0 5px 0 1px"></i>物種分類與代表影像連結：TaiCOL 台灣物種名錄（農業部生物多樣性研究所）｜政府資料開放授權條款第1版（已不再引用 Wikimedia Commons／Wikipedia 影像）</span>
     </div>
 
     <!-- 物種分類卡 -->
     ${LAND_LIFE_DATA.map((cat, catIdx) => {
-      const catPhoto = LAND_CAT_WIKI[cat.category] || '';
       return `
       <div style="margin-bottom:20px;border:1px solid ${cat.border};border-left:5px solid ${cat.color};border-radius:12px;background:${cat.bg};overflow:hidden">
         <!-- 分類標題（點擊收合） -->
@@ -1791,18 +1806,12 @@ function renderLandLife() {
                 <div style="font-size:40px;font-weight:900;color:${cat.color};line-height:1">${cat.category}</div>
               </div>
               <div style="font-size:20px;font-weight:700;color:${cat.color};opacity:0.7;margin-left:48px">代表物種</div>
-              <div style="font-size:13px;color:#94a3b8;margin-top:4px;margin-left:48px">© Wikipedia</div>
+              <div style="font-size:12px;color:#94a3b8;margin-top:4px;margin-left:48px"><i class="fas fa-landmark" style="margin-right:4px"></i>TaiCOL 政府開放資料</div>
             </div>
-            <!-- 右側：照片（載入後顯示，漸層融入背景） -->
-            <div data-photowrap data-name="${cat.category}" data-wikititle="${LAND_CAT_WIKI[cat.category] || ''}"
-              style="position:absolute;right:0;top:0;bottom:0;width:52%;display:none;overflow:hidden;cursor:zoom-in"
-              onclick="(function(w){var img=w.querySelector('img');if(img&&img.src)landPhotoLightbox(w.dataset.name,w.dataset.wikititle,img.getAttribute('data-hires')||img.src)})(this)">
-              <img data-wiki="${LAND_CAT_WIKI[cat.category] || ''}" alt="${cat.category}"
-                src="" style="width:100%;height:100%;object-fit:cover;display:none">
-              <div style="position:absolute;inset:0;background:linear-gradient(to right,${cat.bg} 0%,${cat.bg}88 25%,transparent 55%);pointer-events:none"></div>
-              <div style="position:absolute;bottom:4px;right:8px;pointer-events:none">
-                <span style="color:rgba(255,255,255,0.7);font-size:10px;text-shadow:0 1px 3px rgba(0,0,0,0.6)">© Wikipedia</span>
-              </div>
+            <!-- 右側：政府物種頁連結卡（取代外部照片內嵌） -->
+            <div style="position:absolute;right:0;top:0;bottom:0;width:46%;overflow:hidden;border-left:1px solid ${cat.border}">
+              ${govSpeciesCard(LAND_CAT_REP[cat.category] || cat.category, (GOV_SPECIES[LAND_CAT_REP[cat.category]]||{}).code, 160)}
+              <div style="position:absolute;inset:0;background:linear-gradient(to right,${cat.bg} 0%,${cat.bg}66 18%,transparent 45%);pointer-events:none"></div>
             </div>
             <!-- 背景大圖示裝飾 -->
             <i class="fas ${cat.icon}" style="position:absolute;right:54%;top:50%;transform:translateY(-50%);
@@ -1820,21 +1829,11 @@ function renderLandLife() {
                 '指標': ['#fce7f3','#9d174d'], '常見': ['#f1f5f9','#475569']
               };
               const [tbg, tcl] = tagColors[item.tag] || ['#f1f5f9','#475569'];
-              const wikiKey = LAND_WIKI_TITLES[item.name] || '';
-              const directP = DIRECT_PHOTO_URLS[item.name] || null;
               return `
                 <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden">
-                  ${(wikiKey || directP) ? `
-                  <div data-photowrap data-name="${item.name}" data-wikititle="${wikiKey || item.name}" data-credit="${directP ? directP.credit : ''}"
-                    style="height:150px;overflow:hidden;background:${cat.color}11;display:${directP ? 'block' : 'none'};position:relative;cursor:zoom-in"
-                    onclick="(function(w){var img=w.querySelector('img');if(img&&img.src)landPhotoLightbox(w.dataset.name,w.dataset.wikititle,img.getAttribute('data-hires')||img.src,w.dataset.credit)})(this)">
-                    <img ${wikiKey ? `data-wiki="${wikiKey}"` : ''} alt="${item.name}"
-                      src="${directP ? directP.src : ''}" style="width:100%;height:100%;object-fit:cover;display:${directP ? 'block' : 'none'}">
-                    <div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,0.62));padding:5px 9px 4px;pointer-events:none;display:flex;align-items:center;justify-content:space-between">
-                      <span style="color:rgba(255,255,255,0.82);font-size:11px">${directP ? directP.credit : '© Wikipedia'}</span>
-                      <span style="color:rgba(255,255,255,0.55);font-size:10px"><i class="fas fa-search-plus" style="font-size:9px;margin-right:3px"></i>點擊放大</span>
-                    </div>
-                  </div>` : ''}
+                  <div style="position:relative">
+                    ${govSpeciesCard(item.name, (GOV_SPECIES[item.name]||{}).code, 150)}
+                  </div>
                   <div style="padding:12px 14px">
                     <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px">
                       <div style="flex:1">
@@ -1885,25 +1884,11 @@ function renderLandLife() {
     document.addEventListener('keydown', e => { if (e.key === 'Escape') landLightboxClose(); });
   }
 
-  setTimeout(() => { _loadLandLifePhotos(); }, 200);
+  /* 照片來源已由 Wikimedia Commons/Wikipedia 改為 TaiCOL 政府物種頁連結卡，
+     不再於前端抓取外部影像；_loadLandLifePhotos 已停用。 */
 }
 
-function landPhotoLightbox(name, wikiTitle, imgSrc, creditText) {
-  const lb  = document.getElementById('landLightbox');
-  const img = document.getElementById('landLightboxImg');
-  const cap = document.getElementById('landLightboxCaption');
-  if (!lb || !img || !imgSrc) return;
-  img.src = imgSrc;
-  img.alt = name;
-  const creditHtml = creditText
-    ? `<span style="color:#93c5fd;font-size:13px">${creditText}</span>`
-    : `<a href="https://en.wikipedia.org/wiki/${encodeURIComponent(wikiTitle)}" target="_blank"
-        style="color:#93c5fd;font-size:13px" onclick="event.stopPropagation()">
-        © Wikipedia · ${wikiTitle.replace(/_/g,' ')}</a>`;
-  cap.innerHTML = `<strong style="font-size:18px;color:#f8fafc">${name}</strong><br>${creditHtml}`;
-  lb.style.display = 'flex';
-  document.body.style.overflow = 'hidden';
-}
+/* landPhotoLightbox 已移除：陸域物種照片改採 TaiCOL 政府物種頁連結卡，不再內嵌外部影像。 */
 
 function landLightboxClose() {
   const lb = document.getElementById('landLightbox');
@@ -2024,166 +2009,84 @@ const VEG_DOMINANT = [
   { name: '九節木',     pct:  1.14, family: '茜草科', type: '原生', invasive: false, endemic: false }
 ];
 
-/* 優勢植種代表照片
-   植生專家校核原則：
-   1. 物種名錄與相對豐度仍以橫流溪調查報告為主。
-   2. 外部照片僅作為辨識代表影像，不標示為橫流溪現地照片。
-   3. TBD/TBN 用於中文名與分類群校核；照片來源另列授權與連結。
-*/
-const _WM = 'https://commons.wikimedia.org/wiki/Special:FilePath/';
-const _WC = 'https://commons.wikimedia.org/wiki/File:';
-const _TBD = 'https://tbd.tbn.org.tw/';
+/* 優勢植種代表資料（學名＋植生專家備註）
+   照片與物種頁連結改採 GOV_SPECIES → TaiCOL 台灣物種名錄（農業部生物多樣性研究所，
+   政府資料開放授權），不再引用 Wikimedia Commons。本表僅保留學名與專家備註文字。 */
 const PLANT_PHOTO_LIBRARY = {
   '五節芒': {
-    url: _WM + 'Miscanthus_floridulus_-_J._C._Raulston_Arboretum_-_DSC06206.JPG?width=700',
-    sci: 'Miscanthus floridulus', pos: 'center 58%',
-    source: '照片：Wikimedia Commons 代表影像；物種名校核：TBD 臺灣野生植物資料庫',
-    sourceUrl: _WC + 'Miscanthus_floridulus_-_J._C._Raulston_Arboretum_-_DSC06206.JPG',
-    taxonUrl: _TBD, license: '依來源頁授權標示使用，平台僅作辨識示意',
+    sci: 'Miscanthus floridulus',
     expertNote: '濱溪開闊灘地優勢高草本，適合作為河岸固土與遮蔽指標。'
   },
   '大花咸豐草': {
-    url: _WM + 'Bidens_pilosa_(Habitus).jpg?width=700',
-    sci: 'Bidens pilosa var. radiata', pos: 'center center',
-    source: '照片：Wikimedia Commons 代表影像；入侵屬性校核：TBD/TBN',
-    sourceUrl: _WC + 'Bidens_pilosa_(Habitus).jpg',
-    taxonUrl: _TBD, license: '依來源頁授權標示使用，平台僅作辨識示意',
+    sci: 'Bidens pilosa var. radiata',
     expertNote: '外來歸化草本，常在擾動地與道路邊快速擴張，應列為清除優先種。'
   },
   '臺灣五葉松': {
-    url: _WM + 'Pinus_morrisonicola_27729847.jpg?width=700',
-    sci: 'Pinus morrisonicola', pos: 'center 38%',
-    source: '照片：Wikimedia Commons 代表影像；特有種校核：TBD 臺灣野生植物資料庫',
-    sourceUrl: _WC + 'Pinus_morrisonicola_27729847.jpg',
-    taxonUrl: _TBD, license: '依來源頁授權標示使用，平台僅作辨識示意',
+    sci: 'Pinus morrisonicola',
     expertNote: '臺灣特有針葉樹；本場域資料註明為人工種植，管理上不宜解讀為天然族群。'
   },
   '構樹': {
-    url: _WM + 'Broussonetia_papyrifera_Leaves_3008px.jpg?width=700',
-    sci: 'Broussonetia papyrifera', pos: 'center center',
-    source: '照片：Wikimedia Commons 代表影像；物種名校核：TBD/TBN',
-    sourceUrl: _WC + 'Broussonetia_papyrifera_Leaves_3008px.jpg',
-    taxonUrl: _TBD, license: '依來源頁授權標示使用，平台僅作辨識示意',
+    sci: 'Broussonetia papyrifera',
     expertNote: '陽性速生木本，可反映邊坡或溪岸擾動後的早期演替。'
   },
   '竹葉草': {
-    url: _WM + 'Oplismenus_compositus_at_Peradeniya_Royal_Botanical_Garden.jpg?width=700',
-    sci: 'Oplismenus compositus', pos: 'center center',
-    source: '照片：Wikimedia Commons 代表影像；中文名與類群校核：TBD/TBN',
-    sourceUrl: _WC + 'Oplismenus_compositus_at_Peradeniya_Royal_Botanical_Garden.jpg',
-    taxonUrl: _TBD, license: '依來源頁授權標示使用，平台僅作辨識示意',
+    sci: 'Oplismenus compositus',
     expertNote: '林緣或半遮陰地常見禾本科地被，代表溪岸林下草本層。'
   },
   '狗尾草': {
-    url: _WM + '20140919Setaria_viridis1.jpg?width=700',
-    sci: 'Setaria viridis', pos: 'center center',
-    source: '照片：Wikimedia Commons 代表影像；物種名校核：TBD/TBN',
-    sourceUrl: _WC + '20140919Setaria_viridis1.jpg',
-    taxonUrl: _TBD, license: '依來源頁授權標示使用，平台僅作辨識示意',
+    sci: 'Setaria viridis',
     expertNote: '乾燥擾動地常見禾草，可作道路邊坡與裸露地恢復狀態參考。'
   },
   '星毛蕨': {
-    url: _WM + 'Thelypteris_torresiana_(23924305519).jpg?width=700',
-    sci: 'Christella parasitica / Thelypteris torresiana group', pos: 'center center',
-    source: '照片：Wikimedia Commons 代表影像；蕨類類群校核：TBD/TBN',
-    sourceUrl: _WC + 'Thelypteris_torresiana_(23924305519).jpg',
-    taxonUrl: _TBD, license: '依來源頁授權標示使用，平台僅作辨識示意',
+    sci: 'Christella parasitica / Thelypteris torresiana group',
     expertNote: '蕨類名稱在資料庫間可能有同物異名，平台以報告中文名呈現並註記校核。'
   },
   '銀合歡': {
-    url: _WM + 'Subabool_(Leucaena_leucocephala)_dried_pods_in_Kolkata_W_IMG_4301.jpg?width=700',
-    sci: 'Leucaena leucocephala', pos: 'center center',
-    source: '照片：Wikimedia Commons 代表影像；入侵屬性校核：TBD/TBN',
-    sourceUrl: _WC + 'Subabool_(Leucaena_leucocephala)_dried_pods_in_Kolkata_W_IMG_4301.jpg',
-    taxonUrl: _TBD, license: '依來源頁授權標示使用，平台僅作辨識示意',
+    sci: 'Leucaena leucocephala',
     expertNote: '木本外來入侵種，若形成灌叢會壓縮原生濱溪植物更新。'
   },
   '野桐': {
-    url: _WM + 'Mallotus_japonicus_(17332868491).jpg?width=700',
-    sci: 'Mallotus japonicus', pos: 'center center',
-    source: '照片：Wikimedia Commons 代表影像；物種名校核：TBD/TBN',
-    sourceUrl: _WC + 'Mallotus_japonicus_(17332868491).jpg',
-    taxonUrl: _TBD, license: '依來源頁授權標示使用，平台僅作辨識示意',
+    sci: 'Mallotus japonicus',
     expertNote: '河岸次生林常見陽性樹種，可作溪岸木本恢復指標。'
   },
   '山黃麻': {
-    url: _WM + 'Starr_070321-5915_Trema_orientalis.jpg?width=700',
-    sci: 'Trema orientalis', pos: 'center center',
-    source: '照片：Wikimedia Commons 代表影像；物種名校核：TBD/TBN',
-    sourceUrl: _WC + 'Starr_070321-5915_Trema_orientalis.jpg',
-    taxonUrl: _TBD, license: '依來源頁授權標示使用，平台僅作辨識示意',
+    sci: 'Trema orientalis',
     expertNote: '先驅木本，可反映崩塌地、邊坡或開闊溪岸的植生回復。'
   },
   '金絲草': {
-    url: _WM + 'Pogonatherum_crinitum_%E9%87%91%E7%B5%B2%E8%8D%89_1_(%E5%A4%A9%E5%95%8F).jpg?width=700',
-    sci: 'Pogonatherum crinitum', pos: 'center center',
-    source: '照片：Wikimedia Commons 代表影像；物種名校核：TBD/TBN',
-    sourceUrl: _WC + 'Pogonatherum_crinitum_%E9%87%91%E7%B5%B2%E8%8D%89_1_(%E5%A4%A9%E5%95%8F).jpg',
-    taxonUrl: _TBD, license: '依來源頁授權標示使用，平台僅作辨識示意',
+    sci: 'Pogonatherum crinitum',
     expertNote: '坡面草本，可作裸露坡面覆蓋與表土保護參考。'
   },
   '九芎': {
-    url: _WM + 'Lagerstroemia_subcostata_47672.JPG?width=700',
-    sci: 'Lagerstroemia subcostata', pos: 'center 30%',
-    source: '照片：Wikimedia Commons 代表影像；物種名校核：TBD/TBN',
-    sourceUrl: _WC + 'Lagerstroemia_subcostata_47672.JPG',
-    taxonUrl: _TBD, license: '依來源頁授權標示使用，平台僅作辨識示意',
+    sci: 'Lagerstroemia subcostata',
     expertNote: '溪岸與低海拔闊葉林常見原生木本，適合列入河岸復育候選樹種。'
   },
   '土密樹': {
-    url: _WM + 'Leaf_for_Bridelia_tomentosa.jpg?width=700',
-    sci: 'Bridelia tomentosa', pos: 'center center',
-    source: '照片：Wikimedia Commons 代表影像；物種名校核：TBD/TBN',
-    sourceUrl: _WC + 'Leaf_for_Bridelia_tomentosa.jpg',
-    taxonUrl: _TBD, license: '依來源頁授權標示使用，平台僅作辨識示意',
+    sci: 'Bridelia tomentosa',
     expertNote: '低海拔次生林木本；目前採葉部辨識代表照，平台上不作為現地照片證據。'
   },
   '烏毛蕨': {
-    url: _WM + 'Blechnum_orientale.jpg?width=700',
-    sci: 'Blechnum orientale', pos: 'center center',
-    source: '照片：Wikimedia Commons 代表影像；蕨類類群校核：TBD/TBN',
-    sourceUrl: _WC + 'Blechnum_orientale.jpg',
-    taxonUrl: _TBD, license: '依來源頁授權標示使用，平台僅作辨識示意',
+    sci: 'Blechnum orientale',
     expertNote: '濕潤林緣與溪谷常見蕨類，可作遮陰與濕度條件指標。'
   },
   '密花苧麻': {
-    url: _WM + 'Pouzolzia_zeylanica_01.JPG?width=700',
-    sci: 'Pouzolzia zeylanica', pos: 'center center',
-    source: '照片：Wikimedia Commons 代表影像；物種名校核：TBD/TBN',
-    sourceUrl: _WC + 'Pouzolzia_zeylanica_01.JPG',
-    taxonUrl: _TBD, license: '依來源頁授權標示使用，平台僅作辨識示意',
+    sci: 'Pouzolzia zeylanica',
     expertNote: '濱溪及林緣草本，反映地被層與濕潤微棲地。'
   },
   '九節木': {
-    url: _WM + '%E4%B9%9D%E7%AF%80%E6%9C%A8Psychotria_rubra_20210609155251_05.jpg?width=700',
-    sci: 'Psychotria rubra', pos: 'center center',
-    source: '照片：Wikimedia Commons 代表影像；物種名校核：TBD/TBN',
-    sourceUrl: _WC + '%E4%B9%9D%E7%AF%80%E6%9C%A8Psychotria_rubra_20210609155251_05.jpg',
-    taxonUrl: _TBD, license: '依來源頁授權標示使用，平台僅作辨識示意',
+    sci: 'Psychotria rubra',
     expertNote: '林下灌木，可作較穩定闊葉林下層組成參考。'
   },
   '小花蔓澤蘭': {
-    url: _WM + 'Climbing_hempweed_3.jpg?width=700',
-    sci: 'Mikania micrantha', pos: 'center center',
-    source: '照片：Wikimedia Commons 代表影像；入侵屬性校核：TBD/TBN',
-    sourceUrl: _WC + 'Climbing_hempweed_3.jpg',
-    taxonUrl: _TBD, license: '依來源頁授權標示使用，平台僅作辨識示意',
+    sci: 'Mikania micrantha',
     expertNote: '高風險蔓藤型入侵植物，若覆蓋灌木與幼樹會抑制原生植被更新。'
   },
   '水柳': {
-    url: _WM + 'Salix_warburgii_1.jpg?width=700',
-    sci: 'Salix warburgii', pos: 'center center',
-    source: '照片：Wikimedia Commons 代表影像；物種名校核：TBD/TBN',
-    sourceUrl: _WC + 'Salix_warburgii_1.jpg',
-    taxonUrl: _TBD, license: '依來源頁授權標示使用，平台僅作辨識示意',
+    sci: 'Salix warburgii',
     expertNote: '溪岸濕生木本，適合作為河岸近水帶復育與穩定化參考物種。'
   },
   '山葛': {
-    url: _WM + 'Fabales_-_Pueraria_montana_roots_-_1.jpg?width=700',
-    sci: 'Pueraria montana', pos: 'center 30%',
-    source: '照片：Wikimedia Commons 代表影像；物種名校核：TBD/TBN',
-    sourceUrl: _WC + 'Fabales_-_Pueraria_montana_roots_-_1.jpg',
-    taxonUrl: _TBD, license: '依來源頁授權標示使用，平台僅作辨識示意',
+    sci: 'Pueraria montana',
     expertNote: '蔓性豆科植物，可快速覆蓋裸露地，但需避免與外來蔓藤混淆。'
   },
 };
@@ -2347,16 +2250,16 @@ function renderVegetation() {
       </div>
     </div>
 
-    <!-- 優勢植種照片圖鑑 -->
+    <!-- 優勢植種圖鑑（政府物種頁） -->
     <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:18px 20px;margin-bottom:20px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:8px">
         <div style="font-size:17px;font-weight:800;color:#0f172a">
-          <i class="fas fa-images" style="color:#16a34a;margin-right:7px"></i>優勢植種照片圖鑑
+          <i class="fas fa-images" style="color:#16a34a;margin-right:7px"></i>優勢植種圖鑑
         </div>
-        <div style="font-size:12px;color:#64748b;text-align:right">出處：橫流溪調查資料／TBD 物種校核／照片依各卡片來源</div>
+        <div style="font-size:12px;color:#64748b;text-align:right">出處：橫流溪調查資料（豐度）／物種分類與影像連結 TaiCOL 台灣物種名錄</div>
       </div>
       <div style="font-size:13px;color:#64748b;margin-bottom:16px">
-        植生專家校核：下列照片為物種辨識代表影像，非標示為橫流溪現地照片；物種組成與相對豐度仍以橫流溪陸域植生調查成果為準。
+        物種組成與相對豐度以橫流溪陸域植生調查成果為準；各卡片連結至 TaiCOL 台灣物種名錄（農業部生物多樣性研究所，政府資料開放授權）查看官方分類、照片與分布，已不再引用 Wikimedia Commons 影像。
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px">
         ${VEG_DOMINANT.filter(v => PLANT_PHOTO_LIBRARY[v.name]).map(v => {
@@ -2369,10 +2272,7 @@ function renderVegetation() {
             <div style="border-radius:10px;overflow:hidden;box-shadow:0 2px 10px rgba(15,23,42,.1);border:1px solid #e2e8f0;cursor:pointer"
               onclick="document.getElementById('${modalId}').style.display='flex'">
               <div style="position:relative;height:160px;overflow:hidden;background:#f1f5f9">
-                <img src="${photo.url}" alt="${v.name}"
-                  style="width:100%;height:100%;object-fit:cover;object-position:${photo.pos};transition:transform .4s"
-                  onerror="this.parentElement.innerHTML='<div style=&quot;width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#94a3b8;flex-direction:column;gap:6px&quot;><i class=&quot;fas fa-image&quot; style=&quot;font-size:28px&quot;></i><span style=&quot;font-size:12px&quot;>暫無照片</span></div>'"
-                  onmouseover="this.style.transform='scale(1.07)'" onmouseout="this.style.transform='scale(1)'">
+                ${govSpeciesCard(v.name, (GOV_SPECIES[v.name]||{}).code, 160)}
                 <div style="position:absolute;top:8px;right:8px">
                   <span style="background:${ccl};color:#fff;font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px">${badge}</span>
                 </div>
@@ -2389,25 +2289,24 @@ function renderVegetation() {
                 <div style="font-size:12px;color:#64748b;margin-bottom:6px">${v.family}</div>
                 <div style="font-size:12px;color:#334155;line-height:1.55;background:#f8fafc;border-radius:7px;padding:7px 8px;margin-bottom:7px">${fish_escape(photo.expertNote || '')}</div>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;font-size:11px;line-height:1.4">
-                  <a href="${photo.sourceUrl}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" style="color:#2563eb;text-decoration:none;font-weight:700">照片來源</a>
-                  <a href="${photo.taxonUrl}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" style="color:#15803d;text-decoration:none;font-weight:700">物種校核</a>
-                  <span style="color:#94a3b8">${fish_escape(photo.license || '')}</span>
+                  ${(GOV_SPECIES[v.name]||{}).code ? `<a href="${govSpeciesPage((GOV_SPECIES[v.name]).code)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" style="color:#15803d;text-decoration:none;font-weight:700"><i class="fas fa-landmark" style="margin-right:3px"></i>TaiCOL 官方物種頁</a>` : ''}
+                  <span style="color:#94a3b8">政府開放資料</span>
                 </div>
               </div>
             </div>
             <!-- 放大燈箱 -->
             <div id="${modalId}" onclick="this.style.display='none'"
               style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:9999;align-items:center;justify-content:center;flex-direction:column;gap:12px;cursor:zoom-out">
-              <img src="${photo.url}" alt="${v.name}"
-                style="max-width:90vw;max-height:80vh;object-fit:contain;border-radius:8px;box-shadow:0 8px 40px rgba(0,0,0,.6)">
+              <div style="width:min(520px,86vw);border-radius:12px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,.6)">
+                ${govSpeciesCard(v.name, (GOV_SPECIES[v.name]||{}).code, 220)}
+              </div>
               <div style="text-align:center;color:#fff">
                 <div style="font-size:20px;font-weight:800">${v.name}</div>
                 <div style="font-size:14px;font-style:italic;opacity:.8;margin-top:4px">${photo.sci}　｜　${v.family}　｜　相對豐度 ${v.pct}%</div>
                 <div style="font-size:13px;opacity:.85;margin-top:8px;max-width:760px;line-height:1.6">${fish_escape(photo.expertNote || '')}</div>
                 <div style="font-size:12px;opacity:.72;margin-top:6px">
-                  ${fish_escape(photo.source || '')}　
-                  <a href="${photo.sourceUrl}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" style="color:#93c5fd">照片來源</a>　
-                  <a href="${photo.taxonUrl}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" style="color:#86efac">TBD校核</a>　點擊背景關閉
+                  ${GOV_SPECIES_SOURCE}
+                  ${(GOV_SPECIES[v.name]||{}).code ? `<a href="${govSpeciesPage((GOV_SPECIES[v.name]).code)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" style="color:#86efac">前往官方物種頁</a>　` : ''}點擊背景關閉
                 </div>
               </div>
             </div>
