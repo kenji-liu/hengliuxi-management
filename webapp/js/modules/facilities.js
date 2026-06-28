@@ -1138,6 +1138,19 @@ function renderFacilityInspectionDataSection(f) {
               </div>
               <div style="color:#334155;line-height:1.55">${String(item.findings || item.note || '尚無發現事項摘要。').slice(0, 130)}</div>
               <div style="color:#475569;line-height:1.55;margin-top:3px"><b>建議處理：</b>${item.action || item.recommendation || '依現況持續追蹤，必要時建立維護案件。'}</div>
+              ${(() => {
+                const own = Array.isArray(item.photos) && item.photos.length;
+                const pics = (own ? item.photos : (Array.isArray(f.photos) ? f.photos : [])).slice(0, 3);
+                if (!pics.length) return '';
+                return `<div style="display:flex;gap:6px;margin-top:7px;align-items:center;flex-wrap:wrap">
+                  ${pics.map(src => `<div style="position:relative;width:88px;height:62px;border-radius:5px;overflow:hidden;border:1px solid #e2e8f0;background:#f1f5f9;cursor:zoom-in"
+                      onclick="event.stopPropagation();window.open('${src}','_blank')">
+                    <img src="${src}" loading="lazy" alt="${(item.date||'')}巡查照片" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.style.display='none'">
+                    <span style="position:absolute;left:2px;bottom:2px;background:rgba(15,23,42,.72);color:#fff;font-size:9px;padding:0 4px;border-radius:3px">${item.date || ''}</span>
+                  </div>`).join('')}
+                  <span style="font-size:10px;color:#94a3b8"><i class="fas fa-camera" style="margin-right:3px"></i>${own ? '巡查現況照' : '設施盤點代表照'}・攝於 ${item.date || '-'}</span>
+                </div>`;
+              })()}
             </div>
           `}).join('')}
         </div>

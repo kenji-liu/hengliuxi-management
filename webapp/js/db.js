@@ -28,6 +28,39 @@ const DB = {
     }
   },
 
+  // 巡查紀錄去重：多次雲端同步／腳本重跑會產生「同內容、不同 id」的重複表單。
+  // 去重鍵：有 inspectNo 時以 inspectNo 為準（114年匯入的各樁號表單彼此不同）；
+  // 無 inspectNo 時以 facilityId|date|formType|findings 全文判斷（攔截舊版同步的相同三胞胎），
+  // 保留第一筆並把後續重複筆的照片合併進來，避免遺失影像。
+  _dedupeInspections(list) {
+    if (!Array.isArray(list)) return { list: list || [], removed: 0 };
+    const seen = new Map();
+    const out = [];
+    let removed = 0;
+    list.forEach(item => {
+      if (!item || typeof item !== 'object') { out.push(item); return; }
+      const no = (item.inspectNo || '').toString().trim();
+      const ft = item.formType || item.type || '';
+      // 注意：同一構造物的「構造物調查表」與「魚道檢核表」共用同一 inspectNo，
+      // 故 inspectNo 去重鍵必須再加 formType，避免誤刪魚道檢核表。
+      const key = no
+        ? 'NO:' + no + '|' + ft
+        : ['F', item.facilityId, item.date, ft, (item.findings || '').trim()].join('|');
+      if (seen.has(key)) {
+        removed++;
+        const kept = seen.get(key);
+        // 合併照片（保留現有，補入重複筆獨有的）
+        const a = Array.isArray(kept.photos) ? kept.photos : [];
+        const b = Array.isArray(item.photos) ? item.photos : [];
+        if (b.length) kept.photos = Array.from(new Set([...a, ...b]));
+        return;
+      }
+      seen.set(key, item);
+      out.push(item);
+    });
+    return { list: out, removed };
+  },
+
   // 讀取所有資料
   load() {
     try {
@@ -89,11 +122,21 @@ const DB = {
           }
         };
 
+        // 去重（遷移後一併清掉重複表單）
+        const ddm = this._dedupeInspections(merged.inspections);
+        merged.inspections = ddm.list;
         localStorage.setItem(this.KEY, JSON.stringify(merged));
-        console.log(`[DB] ✅ 版本遷移完成，保留 ${merged.inspections.length} 筆巡查記錄`);
+        console.log(`[DB] ✅ 版本遷移完成，保留 ${merged.inspections.length} 筆巡查記錄${ddm.removed ? `（去重移除 ${ddm.removed} 筆）` : ''}`);
         return merged;
       }
 
+      // 去重既有巡查紀錄（清掉舊版同步累積的重複表單）
+      const dd = this._dedupeInspections(data.inspections);
+      if (dd.removed > 0) {
+        data.inspections = dd.list;
+        localStorage.setItem(this.KEY, JSON.stringify(data));
+        console.warn(`[DB] 巡查去重：移除 ${dd.removed} 筆重複表單`);
+      }
       console.log('[DB] ✓ Loaded existing data (VERSION:', data.settings.version + ')');
       return data;
     } catch (e) {
