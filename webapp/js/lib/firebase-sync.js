@@ -433,17 +433,21 @@ const CloudSync = (() => {
     get deviceId() { return _deviceId; },
     get isOnline() { return _status === 'online'; },
 
-    /** 初始化（從 localStorage 讀取 Firebase config）*/
+    /** 初始化：同網址 Render 後端優先；Firebase 只作為後備。*/
     async init() {
       _deviceId = _getDeviceId();
+      const serverReady = await _initServerSync();
+      if (serverReady) return true;
+
       const cfgStr = localStorage.getItem(LS_CONFIG_KEY);
-      if (!cfgStr) return _initServerSync();
+      if (!cfgStr) { _setStatus('offline'); return false; }
 
       let cfg;
       try { cfg = JSON.parse(cfgStr); }
       catch(e) {
-        console.warn('[CloudSync] Firebase config 格式錯誤，改用同網址後端同步');
-        return _initServerSync();
+        console.warn('[CloudSync] Firebase config 格式錯誤');
+        _setStatus('error');
+        return false;
       }
 
       _setStatus('connecting');
@@ -466,8 +470,9 @@ const CloudSync = (() => {
         console.log('[CloudSync] 已連線，裝置 ID:', _deviceId);
         return true;
       } catch(e) {
-        console.error('[CloudSync] 連線失敗', e);
-        return _initServerSync();
+        console.error('[CloudSync] Firebase 連線失敗', e);
+        _setStatus('error');
+        return false;
       }
     },
 
@@ -731,6 +736,7 @@ const CloudSync = (() => {
         'var pwd=document.getElementById(\'fbPushPwdInput\');',
         'if(pwd){localStorage.setItem(\'SYNC_PUSH_PASSWORD\',pwd.value.trim());}',
         'var raw=el.value.trim();',
+        'if(!raw){localStorage.removeItem(\'FIREBASE_CONFIG\');}',
         'if(!raw){CloudSync.init().then(function(ok){',
         'if(ok){showToast(\'✅ 已啟用同網址後端同步，請以「↓ 拉取 / ↑ 推送」控管資料\',\'success\');closeModal();}',
         'else{showToast(\'同網址後端同步無法連線，請確認 web_api.py / Render 服務\',\'error\');}',

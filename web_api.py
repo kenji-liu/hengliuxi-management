@@ -434,10 +434,15 @@ def api_sync_status():
     """回傳同步端點狀態"""
     insp  = _sync_load(_SYNC_INSP_FILE)
     fac   = _sync_load(_SYNC_FAC_FILE)
+    db_data = _sync_load_object(_SYNC_DB_FILE)
     return jsonify({
         'ok': True,
         'inspections': len(insp),
         'facilities': len(fac),
+        'databaseExists': bool(db_data),
+        'databaseSyncTimestamp': _sync_db_timestamp(db_data),
+        'databaseFacilities': len(db_data.get('facilities') or []) if isinstance(db_data, dict) else 0,
+        'databaseInspections': len(db_data.get('inspections') or []) if isinstance(db_data, dict) else 0,
         'serverTime': datetime.utcnow().isoformat() + 'Z',
         'host': request.host
     })
