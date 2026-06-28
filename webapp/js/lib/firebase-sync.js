@@ -334,6 +334,35 @@ const CloudSync = (() => {
     return true;
   }
 
+  /** 連線 Firebase Firestore（持久＋即時跨裝置）。成功回傳 true。 */
+  async function _initFirebaseSync(cfg) {
+    _setStatus('connecting');
+    try {
+      if (!window.firebase) throw new Error('Firebase SDK 未載入');
+      if (!firebase.apps.length) firebase.initializeApp(cfg);
+      _app    = firebase.app();
+      _db     = firebase.firestore();
+      _docRef = _db.doc(DOC_PATH);
+
+      // 連線驗證：實際向伺服器讀取一次，憑證或 Firestore 規則錯誤會在此拋出，
+      // 以便乾淨地退回同網址後端，而非誤判為已連線。
+      await _docRef.get({ source: 'server' });
+
+      _mode = 'firebase';
+      // 連線後立即比對雲端與本機版本
+      await _initSync();
+      // 啟動即時監聽：其他裝置推送後自動同步（無需手動拉取）
+      _startListener();
+      console.log('[CloudSync] 已連線 Firebase Firestore（持久＋即時），裝置 ID:', _deviceId);
+      return true;
+    } catch(e) {
+      console.error('[CloudSync] Firebase 連線失敗', e);
+      _app = _db = _docRef = null;
+      _mode = 'none';
+      return false;
+    }
+  }
+
   async function _initServerSync() {
     _mode = 'server';
     _app = _db = _docRef = null;
@@ -433,47 +462,34 @@ const CloudSync = (() => {
     get deviceId() { return _deviceId; },
     get isOnline() { return _status === 'online'; },
 
-    /** 初始化：同網址 Render 後端優先；Firebase 只作為後備。*/
+    /**
+     * 初始化：有 Firebase 設定時「優先用 Firebase」（持久＋即時跨裝置），
+     * 否則才退回同網址 Render 後端同步。
+     * ※ Render 免費方案檔案系統為暫時性，部署/休眠會清空執行期推送的資料庫，
+     *   故跨平板正式同步應以 Firebase Firestore 為主。
+     */
     async init() {
       _deviceId = _getDeviceId();
+
+      // ① 有 Firebase Config → 優先連 Firebase（免費、持久、即時）
+      const cfgStr = localStorage.getItem(LS_CONFIG_KEY);
+      if (cfgStr) {
+        let cfg = null;
+        try { cfg = JSON.parse(cfgStr); }
+        catch(e) { console.warn('[CloudSync] Firebase config 格式錯誤，改用後端同步'); }
+        if (cfg && cfg.apiKey && cfg.projectId) {
+          const fbReady = await _initFirebaseSync(cfg);
+          if (fbReady) return true;
+          console.warn('[CloudSync] Firebase 連線失敗，後備改用同網址 Render 後端同步');
+        }
+      }
+
+      // ② 無 Firebase 設定或連線失敗 → 後備用同網址 Render 後端
       const serverReady = await _initServerSync();
       if (serverReady) return true;
 
-      const cfgStr = localStorage.getItem(LS_CONFIG_KEY);
-      if (!cfgStr) { _setStatus('offline'); return false; }
-
-      let cfg;
-      try { cfg = JSON.parse(cfgStr); }
-      catch(e) {
-        console.warn('[CloudSync] Firebase config 格式錯誤');
-        _setStatus('error');
-        return false;
-      }
-
-      _setStatus('connecting');
-      try {
-        // 使用 Firebase compat SDK（透過 CDN 載入）
-        if (!window.firebase) throw new Error('Firebase SDK 未載入');
-        if (!firebase.apps.length) firebase.initializeApp(cfg);
-        _app    = firebase.app();
-        _db     = firebase.firestore();
-        _docRef = _db.doc(DOC_PATH);
-        _mode = 'firebase';
-
-        // 停用離線持久化（避免 offline 快取干擾即時拉取）
-        // try { await _db.enablePersistence({ synchronizeTabs: true }); } catch(_) {}
-
-        // ── 連線後立即比對雲端與本機版本，確保所有裝置資料一致 ──
-        await _initSync();
-
-        _startListener();
-        console.log('[CloudSync] 已連線，裝置 ID:', _deviceId);
-        return true;
-      } catch(e) {
-        console.error('[CloudSync] Firebase 連線失敗', e);
-        _setStatus('error');
-        return false;
-      }
+      _setStatus('offline');
+      return false;
     },
 
     /** 推送本機最新資料到 Firestore（穩定模式下只允許管理者手動流程呼叫） */
