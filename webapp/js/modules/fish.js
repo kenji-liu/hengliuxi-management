@@ -1639,7 +1639,70 @@ const LAND_LIFE_DATA = [
 
 let landLifeMap = null;
 
-/* 陸域物種照片來源已改為 GOV_SPECIES → TaiCOL 政府物種頁（見下），原 Wikipedia/嘎嘎昆蟲網對照表已移除。 */
+/* 物種辨識代表照（中文名→英文維基頁名，經 REST API 取縮圖）。
+   ※ 依使用者要求：照片補於政府物種頁卡下方，畫面不顯示來源文字；
+     來源僅保留於圖片 title 提示（CC 授權之最小化標示）。 */
+const LAND_CAT_WIKI = {
+  '鳥類':       'Taiwan_barbet',
+  '兩棲爬蟲類': 'Rhacophorus_arvalis',
+  '哺乳類':     'Chinese_pangolin',
+  '陸域昆蟲':   'Troides_aeacus'
+};
+const LAND_WIKI_TITLES = {
+  /* 鳥類 */
+  '鉛色水鶇':   'Plumbeous_water_redstart',
+  '翠鳥':       'Common_kingfisher',
+  '藍腹鷴':     "Swinhoe's_pheasant",
+  '紅嘴黑鵯':   'Black_bulbul',
+  '小白鷺':     'Little_egret',
+  '大冠鷲':     'Crested_serpent_eagle',
+  '白鶺鴒':     'White_wagtail',
+  '白腹秧雞':   'White-breasted_waterhen',
+  '夜鷺':       'Black-crowned_night_heron',
+  '五色鳥':     'Taiwan_barbet',
+  '山紅頭':     'Rufous-capped_babbler',
+  '竹鳥':       'Taiwan_wren-babbler',
+  '褐頭鷦鶯':   'Plain_prinia',
+  '灰喉山椒鳥': 'Grey-chinned_minivet',
+  '小啄木':     'Grey-capped_pygmy_woodpecker',
+  '臺灣畫眉':   'Taiwan_hwamei',
+  /* 兩棲爬蟲 */
+  '梭德氏赤蛙': 'Nidirana_adenopleura',
+  '斯文豪氏赤蛙': 'Odorrana_swinhoana',
+  '褡裢樹蛙':   'Rhacophorus_arvalis',
+  '面天樹蛙':   'Kurixalus_idiootocus',
+  '拉都希氏赤蛙': 'Rana_latouchii',
+  '臺灣草蜥':   'Takydromus_formosanus',
+  '龜殼花':     'Chinese_habu',
+  '高砂蛇':     'Oligodon_formosanus',
+  '臺灣爬岩鰍守宮': 'Gekko_japonicus',
+  /* 哺乳類 */
+  '臺灣穿山甲': 'Chinese_pangolin',
+  '食蟹獴':     'Crab-eating_mongoose',
+  '臺灣山羌':   "Reeve's_muntjac",
+  '臺灣野豬':   'Wild_boar',
+  '臺灣黑熊':   'Formosan_black_bear',
+  /* 昆蟲 */
+  '黃裳鳳蝶':   'Troides_aeacus',
+  '臺灣寬尾鳳蝶': 'Papilio_maraho',
+  '枯葉蝶':     'Orange_oakleaf',
+  '獨角仙':     'Japanese_rhinoceros_beetle',
+  '寬腹蜻蜓':   'Lyriothemis',
+  '粗鉤春蜓':   'Gomphidae',
+  '臺灣紋白蝶': 'Pieris_canidia',
+  '霧社血斑天牛': 'Chlorophorus',
+  '大圓翅鍬形蟲': 'Lucanus_formosanus',
+  '蜉蝣目（數種）': 'Mayfly',
+  '石蠅（數種）': 'Stonefly',
+  '毛翅目（數種）': 'Caddisfly',
+  '魚蛉':       'Dobsonfly',
+  '短翅蟋蟀':   'Cricket_(insect)',
+  '斑紋蟬（數種）': 'Cicada',
+  '埋葬蟲（數種）': 'Nicrophorus'
+};
+const DIRECT_PHOTO_URLS = {
+  '臺灣大鍬': { src: 'http://gagaphoto.com/9806/985.jpg' }
+};
 
 /* ════════════════════════════════════════════════════════════════════════════
    政府物種頁對照表  GOV_SPECIES（取代 Wikimedia Commons／Wikipedia 影像來源）
@@ -1743,6 +1806,45 @@ function govSpeciesCard(name, code, h){
     </a>`;
 }
 
+/* 載入物種辨識代表照（維基 REST 縮圖）。畫面不顯示來源文字，
+   來源僅置於圖片 title 提示；載入成功才顯示，失敗則維持隱藏（僅留政府連結卡）。 */
+async function _loadLandLifePhotos() {
+  const imgs = document.querySelectorAll('[data-wiki]');
+  const seen = new Set();
+  for (const img of imgs) {
+    const title = img.dataset.wiki;
+    if (!title || seen.has(title)) continue;
+    seen.add(title);
+    try {
+      const res = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`);
+      if (!res.ok) continue;
+      const data = await res.json();
+      const src = data.thumbnail?.source || data.originalimage?.source;
+      const hires = data.originalimage?.source || src;
+      if (!src) continue;
+      document.querySelectorAll(`[data-wiki="${CSS.escape(title)}"]`).forEach(el => {
+        el.src = src;
+        el.style.display = 'block';
+        if (hires) el.setAttribute('data-hires', hires);
+        const wrap = el.closest('[data-photowrap]');
+        if (wrap) wrap.style.display = 'block';
+      });
+    } catch(e) { /* 略過失敗項目 */ }
+  }
+}
+
+/* 照片放大燈箱（不顯示來源文字） */
+function landPhotoLightbox(name, imgSrc) {
+  const lb  = document.getElementById('landLightbox');
+  const img = document.getElementById('landLightboxImg');
+  const cap = document.getElementById('landLightboxCaption');
+  if (!lb || !img || !imgSrc) return;
+  img.src = imgSrc;
+  img.alt = name || '';
+  if (cap) cap.innerHTML = `<strong style="font-size:18px;color:#f8fafc">${name || ''}</strong>`;
+  lb.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
 
 function renderLandLife() {
   const container = document.getElementById('fishTabContent');
@@ -1771,7 +1873,7 @@ function renderLandLife() {
     <div style="background:#f8faff;border:1px solid #c7d2fe;border-left:4px solid #6366f1;border-radius:10px;padding:12px 16px;margin-bottom:20px;font-size:14px;color:#4338ca">
       <i class="fas fa-book-open" style="margin-right:7px"></i>
       <strong>資料來源：</strong>橫流溪動物通道及周邊設施檢查效能智慧評估 第三次期中報告書（114年）— 陸域生態調查章節<br>
-      <span style="font-size:12px;color:#6366f1"><i class="fas fa-landmark" style="margin:0 5px 0 1px"></i>物種分類與代表影像連結：TaiCOL 台灣物種名錄（農業部生物多樣性研究所）｜政府資料開放授權條款第1版（已不再引用 Wikimedia Commons／Wikipedia 影像）</span>
+      <span style="font-size:12px;color:#6366f1"><i class="fas fa-landmark" style="margin:0 5px 0 1px"></i>物種分類與官方物種頁：TaiCOL 台灣物種名錄（農業部生物多樣性研究所）｜政府資料開放授權條款第1版；卡片照片為物種辨識代表影像</span>
     </div>
 
     <!-- 物種分類卡 -->
@@ -1806,12 +1908,14 @@ function renderLandLife() {
                 <div style="font-size:40px;font-weight:900;color:${cat.color};line-height:1">${cat.category}</div>
               </div>
               <div style="font-size:20px;font-weight:700;color:${cat.color};opacity:0.7;margin-left:48px">代表物種</div>
-              <div style="font-size:12px;color:#94a3b8;margin-top:4px;margin-left:48px"><i class="fas fa-landmark" style="margin-right:4px"></i>TaiCOL 政府開放資料</div>
             </div>
-            <!-- 右側：政府物種頁連結卡（取代外部照片內嵌） -->
-            <div style="position:absolute;right:0;top:0;bottom:0;width:46%;overflow:hidden;border-left:1px solid ${cat.border}">
-              ${govSpeciesCard(LAND_CAT_REP[cat.category] || cat.category, (GOV_SPECIES[LAND_CAT_REP[cat.category]]||{}).code, 160)}
-              <div style="position:absolute;inset:0;background:linear-gradient(to right,${cat.bg} 0%,${cat.bg}66 18%,transparent 45%);pointer-events:none"></div>
+            <!-- 右側：代表照（載入後顯示，無來源文字；漸層融入背景） -->
+            <div data-photowrap data-name="${cat.category}"
+              style="position:absolute;right:0;top:0;bottom:0;width:52%;display:none;overflow:hidden;cursor:zoom-in"
+              onclick="(function(w){var i=w.querySelector('img');if(i&&i.src)landPhotoLightbox(w.dataset.name,i.getAttribute('data-hires')||i.src)})(this)">
+              <img data-wiki="${LAND_CAT_WIKI[cat.category] || ''}" alt="${cat.category}" title="${cat.category}"
+                src="" style="width:100%;height:100%;object-fit:cover;display:none">
+              <div style="position:absolute;inset:0;background:linear-gradient(to right,${cat.bg} 0%,${cat.bg}88 25%,transparent 55%);pointer-events:none"></div>
             </div>
             <!-- 背景大圖示裝飾 -->
             <i class="fas ${cat.icon}" style="position:absolute;right:54%;top:50%;transform:translateY(-50%);
@@ -1832,8 +1936,22 @@ function renderLandLife() {
               return `
                 <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden">
                   <div style="position:relative">
-                    ${govSpeciesCard(item.name, (GOV_SPECIES[item.name]||{}).code, 150)}
+                    ${govSpeciesCard(item.name, (GOV_SPECIES[item.name]||{}).code, 118)}
                   </div>
+                  ${(() => {
+                    const wk = LAND_WIKI_TITLES[item.name] || '';
+                    const dp = DIRECT_PHOTO_URLS[item.name] || null;
+                    if (!wk && !dp) return '';
+                    return `<div data-photowrap data-name="${item.name}"
+                      style="height:140px;overflow:hidden;background:#f1f5f9;display:${dp ? 'block' : 'none'};position:relative;cursor:zoom-in;border-top:1px solid #e2e8f0"
+                      onclick="(function(w){var i=w.querySelector('img');if(i&&i.src)landPhotoLightbox(w.dataset.name,i.getAttribute('data-hires')||i.src)})(this)">
+                      <img ${wk ? `data-wiki="${wk}"` : ''} alt="${item.name}" title="${item.name}"
+                        src="${dp ? dp.src : ''}" style="width:100%;height:100%;object-fit:cover;display:${dp ? 'block' : 'none'}">
+                      <div style="position:absolute;bottom:6px;right:8px;pointer-events:none">
+                        <i class="fas fa-search-plus" style="color:rgba(255,255,255,0.85);font-size:11px;text-shadow:0 1px 3px rgba(0,0,0,.6)"></i>
+                      </div>
+                    </div>`;
+                  })()}
                   <div style="padding:12px 14px">
                     <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px">
                       <div style="flex:1">
@@ -1884,11 +2002,9 @@ function renderLandLife() {
     document.addEventListener('keydown', e => { if (e.key === 'Escape') landLightboxClose(); });
   }
 
-  /* 照片來源已由 Wikimedia Commons/Wikipedia 改為 TaiCOL 政府物種頁連結卡，
-     不再於前端抓取外部影像；_loadLandLifePhotos 已停用。 */
+  setTimeout(() => { _loadLandLifePhotos(); }, 200);
 }
 
-/* landPhotoLightbox 已移除：陸域物種照片改採 TaiCOL 政府物種頁連結卡，不再內嵌外部影像。 */
 
 function landLightboxClose() {
   const lb = document.getElementById('landLightbox');
@@ -2009,9 +2125,33 @@ const VEG_DOMINANT = [
   { name: '九節木',     pct:  1.14, family: '茜草科', type: '原生', invasive: false, endemic: false }
 ];
 
-/* 優勢植種代表資料（學名＋植生專家備註）
-   照片與物種頁連結改採 GOV_SPECIES → TaiCOL 台灣物種名錄（農業部生物多樣性研究所，
-   政府資料開放授權），不再引用 Wikimedia Commons。本表僅保留學名與專家備註文字。 */
+/* 優勢植種辨識代表照（檔名→維基共享資源縮圖）。
+   ※ 物種頁連結採 GOV_SPECIES → TaiCOL（政府開放資料）；照片補於卡片下方，
+     畫面不顯示來源文字，來源僅置於圖片 title 提示（CC 授權之最小化標示）。 */
+const _WM = 'https://commons.wikimedia.org/wiki/Special:FilePath/';
+const PLANT_PHOTO_FILE = {
+  '五節芒':     { file:'Miscanthus_floridulus_-_J._C._Raulston_Arboretum_-_DSC06206.JPG?width=700', pos:'center 58%' },
+  '大花咸豐草': { file:'Bidens_pilosa_(Habitus).jpg?width=700', pos:'center center' },
+  '臺灣五葉松': { file:'Pinus_morrisonicola_27729847.jpg?width=700', pos:'center 38%' },
+  '構樹':       { file:'Broussonetia_papyrifera_Leaves_3008px.jpg?width=700', pos:'center center' },
+  '竹葉草':     { file:'Oplismenus_compositus_at_Peradeniya_Royal_Botanical_Garden.jpg?width=700', pos:'center center' },
+  '狗尾草':     { file:'20140919Setaria_viridis1.jpg?width=700', pos:'center center' },
+  '星毛蕨':     { file:'Thelypteris_torresiana_(23924305519).jpg?width=700', pos:'center center' },
+  '銀合歡':     { file:'Subabool_(Leucaena_leucocephala)_dried_pods_in_Kolkata_W_IMG_4301.jpg?width=700', pos:'center center' },
+  '野桐':       { file:'Mallotus_japonicus_(17332868491).jpg?width=700', pos:'center center' },
+  '山黃麻':     { file:'Starr_070321-5915_Trema_orientalis.jpg?width=700', pos:'center center' },
+  '金絲草':     { file:'Pogonatherum_crinitum_%E9%87%91%E7%B5%B2%E8%8D%89_1_(%E5%A4%A9%E5%95%8F).jpg?width=700', pos:'center center' },
+  '九芎':       { file:'Lagerstroemia_subcostata_47672.JPG?width=700', pos:'center 30%' },
+  '土密樹':     { file:'Leaf_for_Bridelia_tomentosa.jpg?width=700', pos:'center center' },
+  '烏毛蕨':     { file:'Blechnum_orientale.jpg?width=700', pos:'center center' },
+  '密花苧麻':   { file:'Pouzolzia_zeylanica_01.JPG?width=700', pos:'center center' },
+  '九節木':     { file:'%E4%B9%9D%E7%AF%80%E6%9C%A8Psychotria_rubra_20210609155251_05.jpg?width=700', pos:'center center' },
+  '小花蔓澤蘭': { file:'Climbing_hempweed_3.jpg?width=700', pos:'center center' },
+  '水柳':       { file:'Salix_warburgii_1.jpg?width=700', pos:'center center' },
+  '山葛':       { file:'Fabales_-_Pueraria_montana_roots_-_1.jpg?width=700', pos:'center 30%' },
+};
+function plantPhotoUrl(name){ const p = PLANT_PHOTO_FILE[name]; return p ? (_WM + p.file) : ''; }
+function plantPhotoPos(name){ const p = PLANT_PHOTO_FILE[name]; return p ? p.pos : 'center center'; }
 const PLANT_PHOTO_LIBRARY = {
   '五節芒': {
     sci: 'Miscanthus floridulus',
@@ -2259,7 +2399,7 @@ function renderVegetation() {
         <div style="font-size:12px;color:#64748b;text-align:right">出處：橫流溪調查資料（豐度）／物種分類與影像連結 TaiCOL 台灣物種名錄</div>
       </div>
       <div style="font-size:13px;color:#64748b;margin-bottom:16px">
-        物種組成與相對豐度以橫流溪陸域植生調查成果為準；各卡片連結至 TaiCOL 台灣物種名錄（農業部生物多樣性研究所，政府資料開放授權）查看官方分類、照片與分布，已不再引用 Wikimedia Commons 影像。
+        物種組成與相對豐度以橫流溪陸域植生調查成果為準；卡片照片為物種辨識代表影像，並連結至 TaiCOL 台灣物種名錄（農業部生物多樣性研究所，政府資料開放授權）查看官方分類與分布。
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px">
         ${VEG_DOMINANT.filter(v => PLANT_PHOTO_LIBRARY[v.name]).map(v => {
@@ -2273,6 +2413,10 @@ function renderVegetation() {
               onclick="document.getElementById('${modalId}').style.display='flex'">
               <div style="position:relative;height:160px;overflow:hidden;background:#f1f5f9">
                 ${govSpeciesCard(v.name, (GOV_SPECIES[v.name]||{}).code, 160)}
+                ${plantPhotoUrl(v.name) ? `<img src="${plantPhotoUrl(v.name)}" alt="${v.name}" title="${v.name}"
+                  style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:${plantPhotoPos(v.name)};transition:transform .4s"
+                  onerror="this.style.display='none'"
+                  onmouseover="this.style.transform='scale(1.07)'" onmouseout="this.style.transform='scale(1)'">` : ''}
                 <div style="position:absolute;top:8px;right:8px">
                   <span style="background:${ccl};color:#fff;font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px">${badge}</span>
                 </div>
@@ -2297,15 +2441,14 @@ function renderVegetation() {
             <!-- 放大燈箱 -->
             <div id="${modalId}" onclick="this.style.display='none'"
               style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:9999;align-items:center;justify-content:center;flex-direction:column;gap:12px;cursor:zoom-out">
-              <div style="width:min(520px,86vw);border-radius:12px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,.6)">
-                ${govSpeciesCard(v.name, (GOV_SPECIES[v.name]||{}).code, 220)}
-              </div>
+              ${plantPhotoUrl(v.name) ? `<img src="${plantPhotoUrl(v.name)}" alt="${v.name}" title="${v.name}"
+                style="max-width:90vw;max-height:74vh;object-fit:contain;border-radius:8px;box-shadow:0 8px 40px rgba(0,0,0,.6)">`
+                : `<div style="width:min(520px,86vw);border-radius:12px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,.6)">${govSpeciesCard(v.name, (GOV_SPECIES[v.name]||{}).code, 220)}</div>`}
               <div style="text-align:center;color:#fff">
                 <div style="font-size:20px;font-weight:800">${v.name}</div>
                 <div style="font-size:14px;font-style:italic;opacity:.8;margin-top:4px">${photo.sci}　｜　${v.family}　｜　相對豐度 ${v.pct}%</div>
                 <div style="font-size:13px;opacity:.85;margin-top:8px;max-width:760px;line-height:1.6">${fish_escape(photo.expertNote || '')}</div>
                 <div style="font-size:12px;opacity:.72;margin-top:6px">
-                  ${GOV_SPECIES_SOURCE}
                   ${(GOV_SPECIES[v.name]||{}).code ? `<a href="${govSpeciesPage((GOV_SPECIES[v.name]).code)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" style="color:#86efac">前往官方物種頁</a>　` : ''}點擊背景關閉
                 </div>
               </div>
