@@ -186,11 +186,11 @@ function loadFishTable() {
         const cardId = `fishcard_sp_${s.species.replace(/[^\w]/g, '_')}`;
         const inTrend = TREND_SET.has(s.species);
         const allLocs = [...new Set(s.records.map(r => r.location).filter(Boolean))];
-        const latest = s.records.slice().sort((a,b) => String(b.date||'').localeCompare(String(a.date||'')))[0] || s;
         const surveyRecords = Array.isArray(s.surveyRecords) ? s.surveyRecords : [];
         const displayRecords = fish_canonicalDetailRecords(s.species, s.records.slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))), surveyRecords);
         const displaySurveyCount = surveyRecords.length || displayRecords.length || s.surveys || 0;
         const displayTotal = fish_recordSum(displayRecords) || Number(s.totalCount) || 0;
+        const latestDateLabel = fish_latestRecordLabel(displayRecords);
         return `
           <div style="background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px rgba(15,23,42,.1);border:1px solid #e2e8f0;display:flex;flex-direction:column">
             <div style="position:relative;height:190px;overflow:hidden;background:#e5e7eb;cursor:pointer" onclick="openFishSpeciesDetail(this.dataset.species)" data-species="${fish_escape(s.species)}">
@@ -222,7 +222,7 @@ function loadFishTable() {
                   <div style="font-size:12px;color:#64748b;margin-top:2px">調查次數</div>
                 </div>
                 <div style="background:#f8fafc;border-radius:8px;padding:10px 8px;text-align:center">
-                  <div style="font-size:13px;font-weight:700;color:#0f172a;line-height:1.3">${latest.date||'-'}</div>
+                  <div style="font-size:13px;font-weight:700;color:#0f172a;line-height:1.3">${fish_escape(latestDateLabel)}</div>
                   <div style="font-size:12px;color:#64748b;margin-top:2px">最近調查</div>
                 </div>
               </div>
@@ -352,7 +352,7 @@ function openFishSpeciesDetail(speciesName) {
   const dbSum = fish_recordSum(dbDisplayRecords);
   const adoptedTotal = surveySum || Number(target.totalCount) || dbSum || 0;
   const effectiveSurveyCount = surveyRecords.length || dbDisplayRecords.length || target.surveys || 0;
-  const latest = records[0] || target;
+  const latestDateLabel = fish_latestRecordLabel(dbDisplayRecords);
   const allLocs = [...new Set(records.map(r => r.location).filter(Boolean))];
   const trendSet = new Set(['臺灣白甲魚','臺灣石魚賓','臺灣鬚鱲','纓口臺鰍','臺灣間爬岩鰍','明潭吻鰕虎','粗首馬口鱲','短臀瘋鱨','短吻紅斑吻鰕虎']);
 
@@ -463,7 +463,7 @@ function openFishSpeciesDetail(speciesName) {
         <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px">
           <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;font-size:14px;color:#334155">
             <div><span style="color:#94a3b8">科別：</span><b>${fish_escape(target.family || '-')}</b></div>
-            <div><span style="color:#94a3b8">最近調查：</span><b>${fish_escape(latest.date || '-')}</b></div>
+            <div><span style="color:#94a3b8">最近調查：</span><b>${fish_escape(latestDateLabel)}</b></div>
             <div style="grid-column:1/-1"><span style="color:#94a3b8">主要分布：</span>${fish_escape(allLocs.join('、') || target.location || '-')}</div>
             <div style="grid-column:1/-1"><span style="color:#94a3b8">資料口徑：</span>${fish_escape(target.totalSource || '資料庫代表紀錄')}</div>
             <div style="grid-column:1/-1;background:#f0fdfa;border:1px solid #99f6e4;border-radius:10px;padding:10px 12px;line-height:1.7">
@@ -822,6 +822,7 @@ function fish_surveyBreakdown(speciesName) {
     .map(s => ({
       label:  String(s.label || '').replace(/\n/g, ' '),
       year:   s.year,
+      m:      s.m || 0,
       count:  s[key] || 0,
       source: (String(s.note || '').match(/來源：([^；]+)/) || [, ''])[1].trim()
               || (s.preConstruct ? '麗陽站魚道建置前基線' : '橫流溪電捕監測'),
@@ -832,6 +833,18 @@ function fish_surveyBreakdown(speciesName) {
 
 function fish_recordSum(records = []) {
   return records.reduce((sum, row) => sum + (Number(row.count) || 0), 0);
+}
+
+function fish_recordTimeValue(row = {}) {
+  if (Number(row.year)) return (Number(row.year) * 10000) + ((Number(row.m) || 0) * 100);
+  const m = String(row.date || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return (Number(m[1]) * 10000) + (Number(m[2]) * 100) + Number(m[3]);
+  return 0;
+}
+
+function fish_latestRecordLabel(records = []) {
+  const latest = (records || []).slice().sort((a, b) => fish_recordTimeValue(a) - fish_recordTimeValue(b)).pop();
+  return latest ? (latest.label || latest.date || '-') : '-';
 }
 
 function fish_canonicalDetailRecords(speciesName, dbRecords = [], surveyRecords = []) {
@@ -937,7 +950,8 @@ function fish_photoThumb(f) {
 function fish_newsCard(item) {
   const photo = fish_photoFor(item);
   const loc = fish_locationDetail(item);
-  const latest = (item.records || []).slice().sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))[0] || item;
+  const surveyRecords = Array.isArray(item.surveyRecords) ? item.surveyRecords : [];
+  const latestDateLabel = fish_latestRecordLabel(fish_canonicalDetailRecords(item.species, item.records || [], surveyRecords));
   const headline = fish_newsHeadline(item);
   const lead = fish_newsLead(item, loc);
   const colorMap = { '瀕危': '#b91c1c', '易危': '#c2410c', '近危': '#0369a1', '一般': '#15803d' };
@@ -948,7 +962,7 @@ function fish_newsCard(item) {
         <span style="background:${color}">${fish_escape(item.conservation || '未分級')}</span>
       </div>
       <div class="fish-news-body">
-        <div class="fish-news-kicker">${fish_escape(latest.date || '調查資料')} · ${fish_escape(item.family || '魚類')}</div>
+        <div class="fish-news-kicker">${fish_escape(latestDateLabel || '調查資料')} · ${fish_escape(item.family || '魚類')}</div>
         <h4>${fish_escape(headline)}</h4>
         <p>${fish_escape(lead)}</p>
         <div class="fish-news-facts">
