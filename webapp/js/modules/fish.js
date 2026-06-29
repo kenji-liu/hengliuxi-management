@@ -187,6 +187,10 @@ function loadFishTable() {
         const inTrend = TREND_SET.has(s.species);
         const allLocs = [...new Set(s.records.map(r => r.location).filter(Boolean))];
         const latest = s.records.slice().sort((a,b) => String(b.date||'').localeCompare(String(a.date||'')))[0] || s;
+        const surveyRecords = Array.isArray(s.surveyRecords) ? s.surveyRecords : [];
+        const displayRecords = fish_canonicalDetailRecords(s.species, s.records.slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))), surveyRecords);
+        const displaySurveyCount = surveyRecords.length || displayRecords.length || s.surveys || 0;
+        const displayTotal = fish_recordSum(displayRecords) || Number(s.totalCount) || 0;
         return `
           <div style="background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px rgba(15,23,42,.1);border:1px solid #e2e8f0;display:flex;flex-direction:column">
             <div style="position:relative;height:190px;overflow:hidden;background:#e5e7eb;cursor:pointer" onclick="openFishSpeciesDetail(this.dataset.species)" data-species="${fish_escape(s.species)}">
@@ -203,18 +207,18 @@ function loadFishTable() {
               <div style="position:absolute;top:12px;left:12px">
                 <span style="background:rgba(15,23,42,.72);color:#fff;font-size:13px;padding:4px 10px;border-radius:999px">${s.family||'-'}</span>
               </div>
-              ${s.surveys > 1 ? `<div style="position:absolute;bottom:10px;right:12px"><span style="background:rgba(15,23,42,.72);color:#fff;font-size:12px;padding:3px 10px;border-radius:999px"><i class="fas fa-layer-group" style="margin-right:4px"></i>${s.surveys} 次調查</span></div>` : ''}
+              ${displaySurveyCount > 1 ? `<div style="position:absolute;bottom:10px;right:12px"><span style="background:rgba(15,23,42,.72);color:#fff;font-size:12px;padding:3px 10px;border-radius:999px"><i class="fas fa-layer-group" style="margin-right:4px"></i>${displaySurveyCount} 次調查</span></div>` : ''}
             </div>
             <div style="padding:16px 18px 12px;flex:1;cursor:pointer" onclick="openFishSpeciesDetail(this.dataset.species)" data-species="${fish_escape(s.species)}">
               <div style="font-size:22px;font-weight:800;color:#0f172a;margin-bottom:4px;line-height:1.2">${fish_escape(s.species)}</div>
               <div style="font-size:14px;font-style:italic;color:#64748b;margin-bottom:12px">${fish_escape(s.scientificName||'')}</div>
               <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">
-                <div style="background:#f0fdfa;border-radius:8px;padding:10px 8px;text-align:center" ${s.reconciled ? `title="完整歷年電捕累計 ${s.totalCount} 尾（103~114年・26次調查，與歷年趨勢分析一致）；資料庫代表性快照僅 ${s.dbCount} 筆合計，已統一校正"` : ''}>
-                  <div style="font-size:26px;font-weight:900;color:#0e7490;line-height:1">${s.totalCount}${s.reconciled ? '<span style="font-size:11px;color:#0e7490;vertical-align:super;margin-left:2px">✓</span>' : ''}</div>
+                <div style="background:#f0fdfa;border-radius:8px;padding:10px 8px;text-align:center" ${s.reconciled ? `title="完整歷年電捕累計 ${displayTotal} 尾（103~114年・26次調查，與歷年趨勢分析一致）；資料庫代表性快照已同步完整序列"` : ''}>
+                  <div style="font-size:26px;font-weight:900;color:#0e7490;line-height:1">${displayTotal}${s.reconciled ? '<span style="font-size:11px;color:#0e7490;vertical-align:super;margin-left:2px">✓</span>' : ''}</div>
                   <div style="font-size:12px;color:#64748b;margin-top:2px">累計尾數${s.totalSource ? '<i class="fas fa-circle-info" style="color:#0e7490;margin-left:3px;font-size:10px"></i>' : ''}</div>
                 </div>
                 <div style="background:#f8fafc;border-radius:8px;padding:10px 8px;text-align:center">
-                  <div style="font-size:22px;font-weight:900;color:#334155;line-height:1">${s.surveys}</div>
+                  <div style="font-size:22px;font-weight:900;color:#334155;line-height:1">${displaySurveyCount}</div>
                   <div style="font-size:12px;color:#64748b;margin-top:2px">調查次數</div>
                 </div>
                 <div style="background:#f8fafc;border-radius:8px;padding:10px 8px;text-align:center">
@@ -232,14 +236,14 @@ function loadFishTable() {
                   <i class="fas fa-chart-line"></i> 歷年趨勢
                 </button>` : ''}
                 <button
-                  data-q="橫流溪 ${fish_escape(s.species)}（${fish_escape(s.scientificName||'')}）的生態習性、族群現況（累計${s.totalCount}尾 / ${s.surveys}次調查）與保育建議"
+                  data-q="橫流溪 ${fish_escape(s.species)}（${fish_escape(s.scientificName||'')}）的生態習性、族群現況（累計${displayTotal}尾 / ${displaySurveyCount}次調查）與保育建議"
                   onclick="event.stopPropagation();fish_openAIQA(this.getAttribute('data-q'))"
                   style="${inTrend ? '' : 'width:100%;'}padding:8px;border:1.5px solid #6366f1;border-radius:8px;background:#f5f3ff;color:#4f46e5;font-size:14px;font-weight:700;cursor:pointer;flex-shrink:0">
                   <i class="fas fa-robot"></i> AI問答
                 </button>
               </div>
               <div style="text-align:center;margin-top:10px;color:#94a3b8;font-size:13px">
-                <span id="${cardId}_hint"><i class="fas fa-up-right-from-square"></i> 點選開啟完整物種資料（${(s.surveyRecords&&s.surveyRecords.length)||s.surveys} 次調查）</span>
+                <span id="${cardId}_hint"><i class="fas fa-up-right-from-square"></i> 點選開啟完整物種資料（${displaySurveyCount} 次調查）</span>
               </div>
             </div>
             <div id="${cardId}" style="display:none;border-top:1px solid #e2e8f0;padding:14px 18px;background:#f8fafc">
@@ -283,22 +287,22 @@ function loadFishTable() {
                 </div>`;
               })()}
               <div style="font-size:13px;color:#64748b;margin:10px 0 6px;font-weight:600">
-                <i class="fas fa-database"></i> 資料庫重點記錄（可編輯／含棲地註記・共 ${s.records.length} 筆）
+                <i class="fas fa-database"></i> 資料庫代表調查紀錄（已同步完整序列・共 ${displayRecords.length} 筆，累計 ${displayTotal} 尾）
               </div>
               <div style="display:flex;flex-direction:column;gap:8px">
-                ${s.records.slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))).map((r,i) => `
+                ${displayRecords.map((r,i) => `
                   <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px">
                     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
                       <span style="font-size:13px;font-weight:700;color:#0e7490">第 ${i+1} 筆記錄</span>
-                      <span style="font-size:12px;color:#94a3b8">${r.date||'-'}</span>
+                      <span style="font-size:12px;color:#94a3b8">${fish_escape(r.date || r.label || '-')}</span>
                     </div>
                     <div style="font-size:13px;color:#334155;display:grid;grid-template-columns:1fr 1fr;gap:4px">
                       <div><span style="color:#94a3b8">尾數：</span><b style="color:#0e7490">${r.count}</b></div>
-                      <div><span style="color:#94a3b8">來源：</span>${fish_escape((r.recorder||'-').replace('成果報告','').replace('生態調查','').trim())}</div>
-                      <div style="grid-column:1/-1"><span style="color:#94a3b8">位置：</span>${fish_escape(r.location||'-')}</div>
+                      <div><span style="color:#94a3b8">來源：</span>${fish_escape((r.recorder || r.source || '-').replace('成果報告','').replace('生態調查','').trim())}</div>
+                      <div style="grid-column:1/-1"><span style="color:#94a3b8">位置：</span>${fish_escape(r.location||'橫流溪電捕監測樣站')}</div>
                       ${r.note ? `<div style="grid-column:1/-1;font-size:12px;color:#64748b;margin-top:2px">${fish_escape(r.note)}</div>` : ''}
                     </div>
-                    <div style="display:flex;gap:8px;margin-top:8px">
+                    ${r.id ? `<div style="display:flex;gap:8px;margin-top:8px">
                       <button onclick="openFishForm(${r.id})"
                         style="flex:1;padding:6px;border:none;background:#0e7490;color:#fff;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer">
                         <i class="fas fa-edit"></i> 編輯
@@ -307,7 +311,7 @@ function loadFishTable() {
                         style="flex:1;padding:6px;border:none;background:#fee2e2;color:#b91c1c;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer">
                         <i class="fas fa-trash"></i> 刪除
                       </button>
-                    </div>
+                    </div>` : ''}
                   </div>
                 `).join('')}
               </div>
@@ -344,8 +348,10 @@ function openFishSpeciesDetail(speciesName) {
   const records = (target.records || []).slice().sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
   const surveyRecords = Array.isArray(target.surveyRecords) ? target.surveyRecords : [];
   const surveySum = surveyRecords.reduce((sum, row) => sum + (Number(row.count) || 0), 0);
-  const dbSum = records.reduce((sum, row) => sum + (Number(row.count) || 0), 0);
-  const adoptedTotal = Number(target.totalCount) || surveySum || dbSum || 0;
+  const dbDisplayRecords = fish_canonicalDetailRecords(target.species, records, surveyRecords);
+  const dbSum = fish_recordSum(dbDisplayRecords);
+  const adoptedTotal = surveySum || Number(target.totalCount) || dbSum || 0;
+  const effectiveSurveyCount = surveyRecords.length || dbDisplayRecords.length || target.surveys || 0;
   const latest = records[0] || target;
   const allLocs = [...new Set(records.map(r => r.location).filter(Boolean))];
   const trendSet = new Set(['臺灣白甲魚','臺灣石魚賓','臺灣鬚鱲','纓口臺鰍','臺灣間爬岩鰍','明潭吻鰕虎','粗首馬口鱲','短臀瘋鱨','短吻紅斑吻鰕虎']);
@@ -406,20 +412,20 @@ function openFishSpeciesDetail(speciesName) {
     <div style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;background:#fff">
       <div style="padding:12px 14px;background:#f8fafc;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">
         <div style="font-size:15px;font-weight:900;color:#0f172a"><i class="fas fa-database"></i> 資料庫代表調查紀錄</div>
-        <div style="font-size:13px;color:#64748b">共 ${records.length} 筆，累計 ${dbSum} 尾</div>
+        <div style="font-size:13px;color:#64748b">共 ${dbDisplayRecords.length} 筆，累計 ${dbSum} 尾</div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;padding:12px">
-        ${records.map((row, idx) => `
+        ${dbDisplayRecords.map((row, idx) => `
           <div style="border:1px solid #e2e8f0;border-left:4px solid ${ccl};border-radius:10px;padding:11px 12px;background:#fff">
             <div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:8px">
               <b style="color:#0f172a">第 ${idx + 1} 筆</b>
-              <span style="color:#64748b;font-size:12px">${fish_escape(row.date || '-')}</span>
+              <span style="color:#64748b;font-size:12px">${fish_escape(row.date || row.label || '-')}</span>
             </div>
             <div style="font-size:13px;line-height:1.7;color:#334155">
               <div><span style="color:#94a3b8">尾數：</span><b style="color:#0e7490">${Number(row.count) || 0}</b></div>
-              <div><span style="color:#94a3b8">位置：</span>${fish_escape(row.location || '-')}</div>
-              <div><span style="color:#94a3b8">方法：</span>${fish_escape(row.method || '-')}</div>
-              <div><span style="color:#94a3b8">來源：</span>${fish_escape((row.recorder || '-').replace('成果報告', '').replace('生態調查', '').trim())}</div>
+              <div><span style="color:#94a3b8">位置：</span>${fish_escape(row.location || '橫流溪電捕監測樣站')}</div>
+              <div><span style="color:#94a3b8">方法：</span>${fish_escape(row.method || '電捕')}</div>
+              <div><span style="color:#94a3b8">來源：</span>${fish_escape((row.recorder || row.source || '-').replace('成果報告', '').replace('生態調查', '').trim())}</div>
               ${row.note ? `<div style="margin-top:7px;background:#f8fafc;border-radius:8px;padding:8px;color:#475569">${fish_escape(row.note)}</div>` : ''}
             </div>
           </div>
@@ -447,7 +453,7 @@ function openFishSpeciesDetail(speciesName) {
             <div style="font-size:12px;color:#64748b">累計尾數</div>
           </div>
           <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:10px;text-align:center">
-            <div style="font-size:24px;font-weight:900;color:#334155">${surveyRecords.length || target.surveys || 0}</div>
+            <div style="font-size:24px;font-weight:900;color:#334155">${effectiveSurveyCount}</div>
             <div style="font-size:12px;color:#64748b">有效調查</div>
           </div>
         </div>
@@ -463,7 +469,7 @@ function openFishSpeciesDetail(speciesName) {
             <div style="grid-column:1/-1;background:#f0fdfa;border:1px solid #99f6e4;border-radius:10px;padding:10px 12px;line-height:1.7">
               <b style="color:#0f766e">數據核對：</b>
               完整歷年調查序列 ${surveySum} 尾（${surveyRecords.length} 次出現）；
-              資料庫代表調查紀錄 ${dbSum} 尾（${records.length} 筆）；
+              資料庫代表調查紀錄 ${dbSum} 尾（${dbDisplayRecords.length} 筆）；
               本頁採用累計 ${adoptedTotal} 尾。
               ${surveySum === dbSum && dbSum === adoptedTotal ? '<span style="color:#15803d;font-weight:900"> 已一致。</span>' : '<span style="color:#b45309;font-weight:900"> 請優先檢核來源表。</span>'}
             </div>
@@ -822,6 +828,24 @@ function fish_surveyBreakdown(speciesName) {
       note:   s.note || ''
     }))
     .filter(r => r.count > 0);
+}
+
+function fish_recordSum(records = []) {
+  return records.reduce((sum, row) => sum + (Number(row.count) || 0), 0);
+}
+
+function fish_canonicalDetailRecords(speciesName, dbRecords = [], surveyRecords = []) {
+  if (Array.isArray(surveyRecords) && surveyRecords.length) {
+    return surveyRecords.map(row => ({
+      ...row,
+      date: row.label || row.date || '',
+      location: row.location || '橫流溪電捕監測樣站',
+      method: row.method || '電捕',
+      recorder: row.source || '橫流溪歷年調查序列',
+      canonical: true
+    }));
+  }
+  return (dbRecords || []).slice();
 }
 
 // ════════════════════════════════════════════════════════════════════════════
