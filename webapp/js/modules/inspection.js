@@ -172,6 +172,13 @@ const INSPECTION_FORM_SYNC_META = {
     sourceType: '專業巡查-魚道檢核表',
     pdfTitle: '表3-3_魚道檢核表.pdf',
     cloudFolder: '巡查資料管理/專業巡查/魚道檢核表'
+  },
+  maintenance_completion: {
+    category: 'maintenance',
+    label: '維護完工回報',
+    sourceType: '維護完工回報表單',
+    pdfTitle: '維護完工回報表單.pdf',
+    cloudFolder: '巡查資料管理/維護完工回報'
   }
 };
 
@@ -959,6 +966,7 @@ function inspectionRecordType(item = {}) {
   if (item.formType === 'general_periodic') return 'general';
   if (item.formType === 'professional_structure') return 'professional';
   if (item.formType === 'professional_fishway') return 'fishway';
+  if (item.formType === 'maintenance_completion') return 'maintenance';
   const text = `${item.sourceType || ''} ${item.type || ''} ${item.inspector || ''} ${item.profession || ''}`;
   if (text.includes('魚道檢核')) return 'fishway';
   if (text.includes('專業') || text.includes('技師') || text.includes('技士') || text.includes('DER&U') || text.includes('工程')) return 'professional';
@@ -1732,7 +1740,8 @@ const INSP_TYPE_META = {
   professional: { label:'專業巡查',   color:'#9a3412', bg:'#fff7ed', border:'#fed7aa', icon:'fa-hard-hat' },
   fishway:      { label:'魚道檢核表', color:'#0f766e', bg:'#f0fdfa', border:'#99f6e4', icon:'fa-fish' },
   ranger:       { label:'護管員巡查', color:'#166534', bg:'#f0fdf4', border:'#bbf7d0', icon:'fa-shield-halved' },
-  forestry:     { label:'林業巡護',   color:'#0f766e', bg:'#f0fdfa', border:'#99f6e4', icon:'fa-tree' }
+  forestry:     { label:'林業巡護',   color:'#0f766e', bg:'#f0fdfa', border:'#99f6e4', icon:'fa-tree' },
+  maintenance:  { label:'維護完工回報', color:'#7c3aed', bg:'#faf5ff', border:'#ddd6fe', icon:'fa-screwdriver-wrench' }
 };
 
 /* ══════════════════════════════════════════════════════════════
@@ -2050,6 +2059,7 @@ function renderInspectionDataManagement(standalone = false) {
     general:      enriched.filter(i => i.uiType === 'general'),
     professional: enriched.filter(i => i.uiType === 'professional'),
     fishway:      enriched.filter(i => i.uiType === 'fishway'),
+    maintenance:  enriched.filter(i => i.uiType === 'maintenance'),
     ranger:       enriched.filter(i => i.uiType === 'ranger')
   };
 
@@ -2299,7 +2309,7 @@ function renderInspectionDataManagement(standalone = false) {
 
       <!-- ── 分頁籤 ── -->
       <div style="display:flex;gap:6px;margin-bottom:18px;border-bottom:3px solid #e5e7eb;padding-bottom:0;flex-wrap:wrap">
-        ${[['general','一般巡查','#1565c0'],['professional','專業巡查','#9a3412'],['fishway','魚道檢核表','#0f766e'],['ranger','護管員巡查','#166534'],['forestry','林業巡護','#0f766e']].map(([key,lbl,cl])=>`
+        ${[['general','一般巡查','#1565c0'],['professional','專業巡查','#9a3412'],['fishway','魚道檢核表','#0f766e'],['maintenance','維護完工回報','#7c3aed'],['ranger','護管員巡查','#166534'],['forestry','林業巡護','#0f766e']].map(([key,lbl,cl])=>`
           <button onclick="inspSwitchTab('${key}')"
             style="padding:13px 22px;border:none;background:none;cursor:pointer;font-size:20px;font-weight:${inspDataTab===key?'800':'500'};
                    color:${inspDataTab===key?cl:'#64748b'};border-bottom:${inspDataTab===key?`4px solid ${cl}`:'4px solid transparent'};
@@ -2307,7 +2317,7 @@ function renderInspectionDataManagement(standalone = false) {
             ${lbl}
             <span style="background:${inspDataTab===key?cl+'22':'#f1f5f9'};color:${inspDataTab===key?cl:'#64748b'};
                          border-radius:999px;padding:2px 10px;font-size:17px;font-weight:700">
-              ${key==='all'?enriched.length:key==='general'?GENERAL_INSP_RECORDS.length + byType.general.length:key==='ranger'?RANGER_INSP_RECORDS.length:key==='forestry'?FORESTRY_PATROL_DOCS.length:byType[key]?.length||0}
+              ${key==='all'?enriched.length:key==='general'?GENERAL_INSP_RECORDS.length + byType.general.length:key==='ranger'?RANGER_INSP_RECORDS.length:key==='forestry'?FORESTRY_PATROL_DOCS.length:key==='maintenance'?byType.maintenance.length:byType[key]?.length||0}
             </span>
           </button>`).join('')}
         <div style="margin-left:auto;display:flex;gap:8px;align-items:center;padding-bottom:4px">
@@ -6354,6 +6364,226 @@ function saveFishwayForm(id) {
   closeModal();
   if (window._facAfterInspectionSave) { const cb=window._facAfterInspectionSave; window._facAfterInspectionSave=null; setTimeout(cb,80); }
   else { renderInspection(); }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   維護完工回報表單
+   流程：巡查異常 → 維護施工 → 填寫本表單（含前後照片＋DER&U）
+        → 儲存後設施狀態自動更新、維護案件標為完成
+   ════════════════════════════════════════════════════════════════ */
+function openMaintenanceCompletionForm(facilityId = null, id = null) {
+  const rec = id ? DB.getById('inspections', id) : null;
+  const facs = DB.getAll('facilities');
+  const _preFacId = facilityId ? Number(facilityId) : null;
+  const mc = rec || {};
+
+  const overlay = document.getElementById('modalOverlay');
+  const titleEl = document.getElementById('modalTitle');
+  const bodyEl  = document.getElementById('modalBody');
+  const footEl  = document.getElementById('modalFooter');
+  const modal   = document.getElementById('modal');
+  if (!overlay || !bodyEl) return;
+  if (modal) modal.style.maxWidth = '820px';
+  if (titleEl) titleEl.innerHTML = '<i class="fas fa-screwdriver-wrench" style="color:#7c3aed;margin-right:8px"></i>維護完工回報表單';
+
+  // 對應待處理的巡查異常（選設施後列出 U≥2 的巡查）
+  const relatedInsp = _preFacId
+    ? DB.getAll('inspections').filter(i => Number(i.facilityId) === _preFacId && (i.deru_u >= 2 || i.status !== '完成'))
+    : [];
+
+  bodyEl.innerHTML = `
+    <div style="font-size:13px;color:#6d28d9;background:#faf5ff;border:1px solid #ddd6fe;border-radius:8px;padding:10px 14px;margin-bottom:14px">
+      <i class="fas fa-info-circle" style="margin-right:6px"></i>
+      填寫維護完工後的現況，儲存後設施狀態將依照更新後 DER&U 自動更新。建議搭配維護前、施工中、完工後各1至2張照片。
+    </div>
+    <div class="form-grid">
+      <div class="form-group full-width">
+        <label>設施名稱 *</label>
+        <select id="mc_facility" onchange="_mcLoadRelated(this.value)">
+          <option value="">請選擇設施</option>
+          ${facs.map(f => `<option value="${f.id}" ${Number(_preFacId) === f.id ? 'selected' : ''}>${inspectionEscape(f.name)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group"><label>維護完工日期 *</label><input id="mc_date" type="date" value="${mc.date || new Date().toISOString().split('T')[0]}"></div>
+      <div class="form-group"><label>維護執行人員 / 單位</label><input id="mc_executor" type="text" placeholder="承辦廠商或施工人員" value="${inspectionEscape(mc.executor || mc.inspector || '')}"></div>
+    </div>
+
+    <!-- 對應異常巡查 -->
+    <div class="form-group" id="mc_related_wrap" style="margin-bottom:12px">
+      <label>對應異常巡查（選填，可多選）</label>
+      <div id="mc_related_list" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;font-size:13px">
+        ${relatedInsp.length
+          ? relatedInsp.map(i => `
+            <label style="display:flex;align-items:center;gap:5px;background:#fff;border:1px solid #ddd6fe;border-radius:7px;padding:5px 10px;cursor:pointer">
+              <input type="checkbox" name="mc_rel" value="${i.id}" ${(mc.relatedInspIds||[]).includes(i.id)?'checked':''}>
+              ${inspectionEscape(i.date || '')} ${inspectionEscape((i.findings||'').slice(0,24))}
+            </label>`).join('')
+          : '<span style="color:#94a3b8">（選擇設施後顯示待處理的異常巡查）</span>'}
+      </div>
+    </div>
+
+    <div class="form-group full-width">
+      <label>維護前現況描述 *</label>
+      <textarea id="mc_before" rows="2" placeholder="描述維護前的問題狀況，如：格框消能設施基礎淘空，約 24m²">${inspectionEscape(mc.beforeDesc || '')}</textarea>
+    </div>
+    <div class="form-group full-width">
+      <label>維護工法與施工內容 *</label>
+      <textarea id="mc_method" rows="2" placeholder="說明採用的工法，如：基礎修補灌漿，補設格框護腳">${inspectionEscape(mc.method || mc.action || '')}</textarea>
+    </div>
+    <div class="form-group full-width">
+      <label>維護後現況說明 *</label>
+      <textarea id="mc_after" rows="2" placeholder="完工後現場狀況，如：基礎修補完成，外觀良好，功能恢復正常">${inspectionEscape(mc.afterDesc || mc.findings || '')}</textarea>
+    </div>
+
+    <!-- DER&U 更新值 -->
+    <div style="background:#faf5ff;border:1px solid #ddd6fe;border-radius:8px;padding:14px;margin-bottom:12px">
+      <div style="font-size:14px;font-weight:800;color:#6d28d9;margin-bottom:10px">
+        <i class="fas fa-chart-bar" style="margin-right:6px"></i>維護完工後 DER&U 評定
+        <span style="font-size:11px;font-weight:400;color:#94a3b8;margin-left:8px">U=1 → 設施狀態自動更新為「正常」</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
+        ${[['D','deru_d','損壞程度',['D0 無明顯損壞','D1 輕微劣化','D2 中度損壞','D3 明顯損壞','D4 嚴重損壞']],
+           ['E','deru_e','影響範圍',['E1 局部','E2 較大範圍','E3 大範圍','E4 全面']],
+           ['R','deru_r','風險影響',['R1 低','R2 中低','R3 中高','R4 高']],
+           ['U','deru_u','急迫程度',['U1 定期巡查','U2 優先維護','U3 儘速處理','U4 緊急搶修']]
+          ].map(([lbl,id,desc,opts]) => `
+          <div>
+            <label style="font-size:13px;font-weight:700;color:#6d28d9">${lbl}（${desc}）</label>
+            <select id="mc_${id}" style="width:100%;margin-top:4px;font-size:13px">
+              ${opts.map((o,i) => `<option value="${i}" ${Number(mc[id]??0)===i?'selected':''}>${o}</option>`).join('')}
+            </select>
+          </div>`).join('')}
+      </div>
+      <div id="mc_deru_preview" style="margin-top:10px;font-size:13px;color:#6d28d9;font-weight:700"></div>
+    </div>
+
+    <div class="form-group full-width">
+      <label>後續追蹤建議</label>
+      <textarea id="mc_followup" rows="2" placeholder="下次複查時間或注意事項，如：3個月後複查基礎穩定狀況">${inspectionEscape(mc.followUp || '維護完工後3個月內安排複查，確認修補效果')}</textarea>
+    </div>
+
+    <!-- 照片 -->
+    <div style="font-size:14px;font-weight:800;color:#0f172a;margin-bottom:6px">
+      <i class="fas fa-camera" style="color:#7c3aed;margin-right:6px"></i>維護前後照片（3–4 張）
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:4px">
+      ${['維護前','施工中','完工後-1','完工後-2'].map((lbl,i) => `
+        <div style="font-size:11px;color:#6d28d9;text-align:center;font-weight:700;margin-bottom:2px">${lbl}</div>`).join('')}
+    </div>
+    ${renderMultiPhotoPanel('mc', Array.isArray(mc.photos)?mc.photos:[], 4)}
+    <div style="font-size:11px;color:#94a3b8;margin-top:4px">建議順序：維護前 → 施工中 → 完工後-1 → 完工後-2</div>
+  `;
+  footEl.innerHTML = `
+    <button class="btn btn-outline" onclick="closeModal(); document.getElementById('modal').style.maxWidth=''">取消</button>
+    <button class="btn btn-primary" style="background:#7c3aed;border-color:#7c3aed"
+      onclick="saveMaintenanceCompletionForm(${id || 'null'})">
+      <i class="fas fa-save"></i> 儲存完工回報
+    </button>`;
+  overlay.style.display = 'flex';
+
+  // DER&U 即時預覽
+  ['mc_deru_d','mc_deru_e','mc_deru_r','mc_deru_u'].forEach(sel => {
+    document.getElementById(sel)?.addEventListener('change', _mcDeruPreview);
+  });
+  _mcDeruPreview();
+}
+
+function _mcDeruPreview() {
+  const d = Number(document.getElementById('mc_deru_d')?.value || 0);
+  const e = Number(document.getElementById('mc_deru_e')?.value || 1);
+  const r = Number(document.getElementById('mc_deru_r')?.value || 1);
+  const u = Number(document.getElementById('mc_deru_u')?.value || 1);
+  const el = document.getElementById('mc_deru_preview');
+  if (!el) return;
+  const statusColor = u >= 4 ? '#b91c1c' : u >= 2 ? '#d97706' : '#16a34a';
+  const statusLabel = u >= 4 ? '損壞' : u >= 2 ? '需維護' : '正常 ✓';
+  el.innerHTML = `評定結果：D${d}/E${e}/R${r}・U${u} → 設施狀態將更新為 <b style="color:${statusColor}">${statusLabel}</b>`;
+}
+
+function _mcLoadRelated(facId) {
+  const list = document.getElementById('mc_related_list');
+  if (!list) return;
+  const related = DB.getAll('inspections').filter(i => Number(i.facilityId) === Number(facId) && (i.deru_u >= 2 || i.status !== '完成'));
+  list.innerHTML = related.length
+    ? related.map(i => `
+        <label style="display:flex;align-items:center;gap:5px;background:#fff;border:1px solid #ddd6fe;border-radius:7px;padding:5px 10px;cursor:pointer">
+          <input type="checkbox" name="mc_rel" value="${i.id}">
+          ${inspectionEscape(i.date || '')} ${inspectionEscape((i.findings||'').slice(0,28))}
+        </label>`).join('')
+    : '<span style="color:#94a3b8">（此設施目前無待處理異常巡查）</span>';
+}
+
+function saveMaintenanceCompletionForm(id) {
+  const date = document.getElementById('mc_date')?.value;
+  if (!date) { showToast('請填寫維護完工日期', 'error'); return; }
+  const facilityId = parseInt(document.getElementById('mc_facility')?.value) || null;
+  if (!facilityId) { showToast('請選擇設施名稱', 'error'); return; }
+  const facilityName = DB.getById('facilities', facilityId)?.name || '';
+  const beforeDesc = document.getElementById('mc_before')?.value.trim() || '';
+  const method     = document.getElementById('mc_method')?.value.trim() || '';
+  const afterDesc  = document.getElementById('mc_after')?.value.trim() || '';
+  if (!afterDesc) { showToast('請填寫維護後現況說明', 'error'); return; }
+
+  const d = Number(document.getElementById('mc_deru_d')?.value || 0);
+  const e = Number(document.getElementById('mc_deru_e')?.value || 1);
+  const r = Number(document.getElementById('mc_deru_r')?.value || 1);
+  const u = Number(document.getElementById('mc_deru_u')?.value || 1);
+
+  // 對應異常巡查 id
+  const relatedInspIds = [...document.querySelectorAll('input[name="mc_rel"]:checked')].map(cb => Number(cb.value));
+
+  const facStatus = u >= 4 ? '損壞' : u >= 2 ? '需維護' : '正常';
+  const item = {
+    formType: 'maintenance_completion',
+    facilityId, facilityName, date,
+    executor: document.getElementById('mc_executor')?.value.trim() || '',
+    inspector: document.getElementById('mc_executor')?.value.trim() || '',
+    beforeDesc, method, afterDesc,
+    relatedInspIds,
+    followUp: document.getElementById('mc_followup')?.value.trim() || '',
+    findings: `[維護完工] ${afterDesc}`,
+    action: method,
+    deru_d: d, deru_e: e, deru_r: r, deru_u: u,
+    deru_label: `U${u} 維護完工評定`,
+    status: '完成',
+    priority: u >= 4 ? '緊急' : u >= 3 ? '高' : u >= 2 ? '中' : '低',
+    photoDataUrls: _inspGetMultiPhotos('mc'),
+    photos: _inspGetMultiPhotos('mc')
+  };
+
+  prepareInspectionRecordForSync(item, 'maintenance_completion', true);
+  const savedItem = id
+    ? DB.update('inspections', id, item)
+    : DB.insert('inspections', item);
+
+  // 同步設施狀態
+  syncInspectionRecordToFacility(savedItem || item);
+
+  // 將對應的待處理巡查標為完成
+  relatedInspIds.forEach(rid => {
+    const rel = DB.getById('inspections', rid);
+    if (rel && rel.status !== '完成') {
+      DB.update('inspections', rid, {
+        status: '完成',
+        completedAt: date,
+        maintenanceLinkedId: (savedItem || item).id
+      });
+    }
+  });
+
+  showToast(`✅ 維護完工回報已儲存，設施狀態更新為「${facStatus}」`, 'success');
+
+  // Firebase 推播
+  _autoCloudPush(savedItem || item);
+  if (window.CloudSync?.isOnline) {
+    setTimeout(() => CloudSync.push(DB.load(), { manual: true }), 300);
+  }
+
+  document.getElementById('modal').style.maxWidth = '';
+  closeModal();
+  if (window._facAfterInspectionSave) {
+    const cb = window._facAfterInspectionSave; window._facAfterInspectionSave = null; setTimeout(cb, 80);
+  } else { renderInspection(); }
 }
 
 /* ════════════════════════════════════════════════════════════════
