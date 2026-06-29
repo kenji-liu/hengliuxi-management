@@ -4,9 +4,9 @@ let fishFilter = { keyword: '', conservation: '' };
 
 const FISH_PHOTO_LIBRARY = {
   '臺灣白甲魚': {
-    image: '/webapp/assets/fish-photos/onychostoma-barbatulum.png',
-    source: '02_魚類與棲地資料庫／施工前魚類調查嵌入影像',
-    caption: '溪流魚類量測實拍，臺灣白甲魚（Onychostoma barbatulum）代表影像'
+    image: '/webapp/assets/fish-photos/onychostoma-barbatulum-field-20260629.png',
+    source: '更換魚類照片／白甲魚／臺灣白甲魚.png',
+    caption: '臺灣白甲魚（Onychostoma barbatulum）田野實拍，依指定白甲魚照片更新'
   },
   '粗首馬口鱲': {
     image: '/webapp/assets/fish-photos/zacco-pachycephalus.png',
