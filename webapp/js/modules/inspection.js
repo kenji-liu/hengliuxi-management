@@ -322,6 +322,51 @@ function prepareInspectionRecordForSync(item, formType = item?.formType, refresh
   return item;
 }
 
+function inspectionLinkedText(item = {}) {
+  return [
+    item.findings, item.action, item.recommendation, item.notes, item.afterDesc,
+    item.method, item.followUp, item.sourceType, item.inspectionItem, item.formType,
+    item.sf_functionComment, item.sf_overall, item.fw_generalComment,
+    ...(Array.isArray(item.sf_deruItems) ? item.sf_deruItems.map(row => `${row.defectType || ''} ${row.note || ''}`) : []),
+    ...(Array.isArray(item.fw_deruItems) ? item.fw_deruItems.map(row => `${row.name || ''} ${row.note || ''}`) : [])
+  ].filter(Boolean).join(' ');
+}
+
+function inspectionIsRestoredRecord(item = {}) {
+  const text = inspectionLinkedText(item);
+  const hasCompletion = /維護完工|已完成改善|改善完成|修復完成|已修復|已恢復原始狀態|恢復原始狀態|消能設施完善|功能已恢復|通水恢復|結案|完工/.test(text);
+  const hasUnclosed = /尚未改善|未完成|待處理|處理中|需優先|緊急處置|仍需改善|仍需修復|仍有.*阻塞|仍有.*淘空|未恢復/.test(text);
+  return hasCompletion && !hasUnclosed;
+}
+
+function inspectionAuthorityRank(item = {}) {
+  if (inspectionIsRestoredRecord(item)) return 90;
+  if (item.formType === 'maintenance_completion') return 80;
+  if (item.formType === 'professional_fishway') return 70;
+  if (item.formType === 'professional_structure') return 65;
+  if (item.type === 'deru_assessment') return 60;
+  if (item.formType === 'general_periodic') return 20;
+  return 10;
+}
+
+function inspectionIsFacilityStatusCandidate(row = {}) {
+  return [
+    'maintenance_completion',
+    'professional_structure',
+    'professional_fishway',
+    'general_periodic'
+  ].includes(row.formType) || row.type === 'deru_assessment' || inspectionIsRestoredRecord(row);
+}
+
+function inspectionCompareForFacilityStatus(a = {}, b = {}) {
+  const dateCmp = String(a.date || '').localeCompare(String(b.date || ''));
+  if (dateCmp !== 0) return dateCmp;
+  const rankCmp = inspectionAuthorityRank(a) - inspectionAuthorityRank(b);
+  if (rankCmp !== 0) return rankCmp;
+  return String(a.updatedAt || a.statusEvaluationSyncedAt || a.id || '')
+    .localeCompare(String(b.updatedAt || b.statusEvaluationSyncedAt || b.id || ''));
+}
+
 function syncInspectionRecordToFacility(item, refreshSyncAt = true) {
   const facilityId = Number(item?.facilityId || item?.facility_id);
   if (!facilityId) return;
@@ -340,10 +385,11 @@ function syncInspectionRecordToFacility(item, refreshSyncAt = true) {
   }
 
   // 取 D/E/R/U（優先用表單填寫值，缺則以公式推算）
-  const d = Number(item.deru_d || 0);
-  const e = Number(item.deru_e || 1);
-  const r = Number(item.deru_r || 1);
-  let u = Number(item.deru_u || 0);
+  const restored = inspectionIsRestoredRecord(item);
+  const d = restored ? 0 : Number(item.deru_d || 0);
+  const e = restored ? 1 : Number(item.deru_e || 1);
+  const r = restored ? 1 : Number(item.deru_r || 1);
+  let u = restored ? 1 : Number(item.deru_u || 0);
   if (!u && typeof fac_deriveUrgency === 'function') u = fac_deriveUrgency(d, e, r).u;
   if (!u) u = 1;
 
@@ -351,7 +397,7 @@ function syncInspectionRecordToFacility(item, refreshSyncAt = true) {
   const derLevel = (typeof fac_derLevelFromDeru === 'function')
     ? fac_derLevelFromDeru(d, e, r, u)
     : (d <= 0 && u <= 1 ? 'A1' : `D${d}/E${e}/R${r}・U${u}`);
-  const health = (typeof fac_healthFromDeru === 'function')
+  const health = restored ? 90 : (typeof fac_healthFromDeru === 'function')
     ? fac_healthFromDeru(d, e, r, String(item.findings || ''))
     : Math.max(15, 100 - u * 20);
   const facStatus = (u >= 4 || health < 35) ? '損壞'
@@ -367,8 +413,8 @@ function syncInspectionRecordToFacility(item, refreshSyncAt = true) {
     condition,
     derLevel,
     riskScore: Math.max(0, Math.min(100, Math.round(100 - health))),
-    evaluationNotes: `${item.inspectionItem || inspectionRecordTypeLabel(inspectionRecordType(item))}：${item.findings || '已完成巡查資料更新'}`,
-    maintenanceStrategy: item.action || facility.maintenanceStrategy || '依巡查結果持續追蹤',
+    evaluationNotes: `${item.inspectionItem || inspectionRecordTypeLabel(inspectionRecordType(item))}：${item.findings || '已完成巡查資料更新'}${restored ? '；本筆紀錄判定為改善完成，設施狀態閉合為正常。' : ''}`,
+    maintenanceStrategy: restored ? (item.action || '例行巡查維護') : (item.action || facility.maintenanceStrategy || '依巡查結果持續追蹤'),
     inspectionSyncAt: refreshSyncAt ? now : (facility.inspectionSyncAt || now)
   };
   const needsUpdate = Object.keys(updates).some(key => facility[key] !== updates[key]);
@@ -472,15 +518,15 @@ function ensureInspectionSyncMetadata() {
     if (Object.keys(updates).length) DB.update('inspections', row.id, updates);
   });
 
-  // ② 每個設施「只用最新一筆專業/魚道巡查」同步至工程設施盤點，
-  //    確保設施清單的 DER 評等與巡查資料管理一致（避免舊記錄互相覆蓋）
+  // ② 每個設施只用最新且最具權威的巡查/維護紀錄同步至工程設施盤點。
+  //    同日優先序：維護完工/改善完成 > 魚道檢核 > 構造物專業巡查 > 一般巡查。
   const latestByFacility = {};
   rows.forEach(row => {
-    if (row.formType !== 'professional_structure' && row.formType !== 'professional_fishway') return;
+    if (!inspectionIsFacilityStatusCandidate(row)) return;
     const fid = Number(row.facilityId || row.facility_id);
     if (!fid) return;
     const cur = latestByFacility[fid];
-    if (!cur || String(row.date || '') >= String(cur.date || '')) {
+    if (!cur || inspectionCompareForFacilityStatus(row, cur) >= 0) {
       latestByFacility[fid] = row;
     }
   });

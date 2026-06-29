@@ -248,8 +248,38 @@ function fac_inspectionText(item = {}) {
   ].filter(Boolean).join(' ');
 }
 
+function fac_isRestoredInspection(item = {}) {
+  const text = fac_inspectionText(item);
+  const hasCompletion = /維護完工|已完成改善|改善完成|修復完成|已修復|已恢復原始狀態|恢復原始狀態|消能設施完善|功能已恢復|通水恢復|結案|完工/.test(text);
+  const hasUnclosed = /尚未改善|未完成|待處理|處理中|需優先|緊急處置|仍需改善|仍需修復|仍有.*阻塞|仍有.*淘空|未恢復/.test(text);
+  return hasCompletion && !hasUnclosed;
+}
+
+function fac_authorityRank(item = {}) {
+  if (fac_isRestoredInspection(item)) return 90;
+  if (item.formType === 'maintenance_completion') return 80;
+  if (item.formType === 'professional_fishway') return 70;
+  if (item.formType === 'professional_structure') return 65;
+  if (item.type === 'deru_assessment') return 60;
+  if (fac_inspectionType(item) === 'professional') return 55;
+  if (fac_inspectionType(item) === 'fishway') return 50;
+  return 20;
+}
+
+function fac_sortAuthoritativeInspections(rows = []) {
+  return [...rows].sort((a, b) => {
+    const dateCmp = String(b.date || '').localeCompare(String(a.date || ''));
+    if (dateCmp !== 0) return dateCmp;
+    const rankCmp = fac_authorityRank(b) - fac_authorityRank(a);
+    if (rankCmp !== 0) return rankCmp;
+    return String(b.updatedAt || b.statusEvaluationSyncedAt || b.id || '')
+      .localeCompare(String(a.updatedAt || a.statusEvaluationSyncedAt || a.id || ''));
+  });
+}
+
 function fac_isProfessionalInspection(item = {}) {
   const t = fac_inspectionType(item);
+  if (item.formType === 'maintenance_completion' || fac_isRestoredInspection(item)) return true;
   if (t === 'professional' || t === 'fishway') return true;
   const text = fac_inspectionText(item);
   return /技士|技師|專業|構造物|魚道檢核|DER&U|工程檢核|外觀檢視/.test(text)
@@ -259,7 +289,7 @@ function fac_isProfessionalInspection(item = {}) {
 }
 
 function fac_professionalInspectionRows(f) {
-  return fac_linkedInspections(f).filter(fac_isProfessionalInspection);
+  return fac_sortAuthoritativeInspections(fac_linkedInspections(f).filter(fac_isProfessionalInspection));
 }
 
 function fac_deriveUrgency(d = 0, e = 1, r = 1) {
@@ -290,6 +320,20 @@ function fac_healthFromDeru(d, e, r, text = '') {
 
 function fac_inferDeruFromInspection(item = {}) {
   const text = fac_inspectionText(item);
+  if (fac_isRestoredInspection(item)) {
+    return {
+      d: 0, e: 1, r: 1, u: 1,
+      label: 'U1 定期巡查',
+      score: 0.6,
+      derLevel: 'A1',
+      health: 90,
+      status: '正常',
+      priority: '低',
+      condition: 5,
+      source: item.formType === 'maintenance_completion' ? '維護完工閉合判定' : '改善完成閉合判定',
+      text
+    };
+  }
   let d = Number.isFinite(Number(item.deru_d)) ? Number(item.deru_d) : 0;
   let e = Number.isFinite(Number(item.deru_e)) ? Number(item.deru_e) : 1;
   let r = Number.isFinite(Number(item.deru_r)) ? Number(item.deru_r) : 1;
@@ -415,7 +459,10 @@ function fac_latestProfessionalAssessment(f) {
   const typeLabel = fac_inspectionTypeLabel(fac_inspectionType(latestProfessional));
   const finding = String(latestProfessional.findings || latestProfessional.notes || '').trim();
   const action = String(latestProfessional.action || latestProfessional.recommendation || '').trim();
-  const basis = `採最新專業巡查作為最後表徵：${latestProfessional.date || '-'} ${typeLabel}（${latestProfessional.inspector || '未填巡查人員'}），${deru.source}，判定 ${deru.derLevel}、${deru.label}，代表健康分數 ${deru.health} 分。${finding ? `主要發現：${finding}` : ''}`;
+  const basisPrefix = fac_isRestoredInspection(latestProfessional)
+    ? '採最新維護完成或改善完成紀錄作為最後表徵'
+    : '採最新專業巡查作為最後表徵';
+  const basis = `${basisPrefix}：${latestProfessional.date || '-'} ${typeLabel}（${latestProfessional.inspector || latestProfessional.executor || '未填巡查人員'}），${deru.source}，判定 ${deru.derLevel}、${deru.label}，代表健康分數 ${deru.health} 分。${finding ? `主要發現：${finding}` : ''}`;
 
   return {
     hasProfessional: true,
@@ -427,7 +474,7 @@ function fac_latestProfessionalAssessment(f) {
     derLevel: deru.derLevel,
     assessmentDate: latestProfessional.date || f.assessmentDate || f.lastInspect || '',
     priority: deru.priority,
-    sourceLabel: `最新${typeLabel}`,
+    sourceLabel: fac_isRestoredInspection(latestProfessional) ? `最新${typeLabel}（改善完成）` : `最新${typeLabel}`,
     basis,
     strategy: action || (deru.u >= 4 ? '緊急處置' : deru.u >= 3 ? '優先維護' : deru.u >= 2 ? '追蹤觀察' : '定期巡查'),
     deru,
@@ -964,6 +1011,7 @@ function fac_filterPrimaryCategory(data) {
 }
 
 function fac_inspectionType(item = {}) {
+  if (item.formType === 'maintenance_completion') return 'maintenance';
   if (item.formType === 'general_periodic') return 'general';
   if (item.formType === 'professional_structure') return 'professional';
   if (item.formType === 'professional_fishway') return 'fishway';
@@ -979,6 +1027,7 @@ function fac_inspectionTypeLabel(type) {
     general: '一般巡查紀錄',
     professional: '專業巡查紀錄',
     fishway: '魚道檢核表',
+    maintenance: '維護完工回報',
     ranger: '護管員巡查紀錄'
   }[type] || '一般巡查紀錄';
 }
