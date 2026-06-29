@@ -15,6 +15,8 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: "Microsoft JhengHei", "Segoe UI", sans-serif;
+  font-size: 16px;
+  line-height: 1.55;
 }
 
 .mobile-header {
@@ -30,9 +32,9 @@ body {
   color: #fff;
 }
 
-.eyebrow { margin: 0 0 2px; font-size: 12px; opacity: .78; }
-h1 { margin: 0; font-size: 21px; line-height: 1.2; }
-h2 { margin: 18px 0 12px; font-size: 17px; }
+.eyebrow { margin: 0 0 2px; font-size: 13px; opacity: .78; }
+h1 { margin: 0; font-size: 23px; line-height: 1.2; }
+h2 { margin: 18px 0 12px; font-size: 19px; }
 
 .mobile-shell {
   width: min(760px, 100%);
@@ -67,7 +69,7 @@ button, .secondary-button {
   border-radius: var(--radius);
   border: 1px solid var(--line);
   padding: 10px 12px;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 700;
   text-align: center;
 }
@@ -96,7 +98,7 @@ label {
   gap: 6px;
   margin-bottom: 12px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
 }
 
@@ -120,7 +122,7 @@ textarea { resize: vertical; min-height: 80px; }
 .status-line {
   margin-top: 10px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .photo-strip {
@@ -168,7 +170,7 @@ textarea { resize: vertical; min-height: 80px; }
   border: 1px solid var(--line);
   border-radius: var(--radius);
   color: var(--text);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
 }
 
@@ -191,7 +193,7 @@ textarea { resize: vertical; min-height: 80px; }
 }
 .recent-card:last-child { border-bottom: 0; }
 .recent-card strong { display: block; margin-bottom: 4px; }
-.recent-card span { color: var(--muted); font-size: 13px; }
+.recent-card span { color: var(--muted); font-size: 14px; }
 
 @media (max-width: 520px) {
   .mobile-shell { padding: 10px; }
