@@ -7,7 +7,7 @@
  * expected app version, but never navigate or clear data automatically.
  */
 (function () {
-  const TARGET_VERSION = "3.2";
+  const TARGET_VERSION = "3.3-fish-redtext";
   const FLAG_KEY = "hengliuxi_app_version_seen";
 
   try {
