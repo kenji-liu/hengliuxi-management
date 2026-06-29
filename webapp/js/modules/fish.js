@@ -344,6 +344,8 @@ function openFishSpeciesDetail(speciesName) {
   const records = (target.records || []).slice().sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
   const surveyRecords = Array.isArray(target.surveyRecords) ? target.surveyRecords : [];
   const surveySum = surveyRecords.reduce((sum, row) => sum + (Number(row.count) || 0), 0);
+  const dbSum = records.reduce((sum, row) => sum + (Number(row.count) || 0), 0);
+  const adoptedTotal = Number(target.totalCount) || surveySum || dbSum || 0;
   const latest = records[0] || target;
   const allLocs = [...new Set(records.map(r => r.location).filter(Boolean))];
   const trendSet = new Set(['臺灣白甲魚','臺灣石魚賓','臺灣鬚鱲','纓口臺鰍','臺灣間爬岩鰍','明潭吻鰕虎','粗首馬口鱲','短臀瘋鱨','短吻紅斑吻鰕虎']);
@@ -404,7 +406,7 @@ function openFishSpeciesDetail(speciesName) {
     <div style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;background:#fff">
       <div style="padding:12px 14px;background:#f8fafc;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">
         <div style="font-size:15px;font-weight:900;color:#0f172a"><i class="fas fa-database"></i> 資料庫代表調查紀錄</div>
-        <div style="font-size:13px;color:#64748b">共 ${records.length} 筆</div>
+        <div style="font-size:13px;color:#64748b">共 ${records.length} 筆，累計 ${dbSum} 尾</div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;padding:12px">
         ${records.map((row, idx) => `
@@ -441,7 +443,7 @@ function openFishSpeciesDetail(speciesName) {
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">
           <div style="background:#f0fdfa;border:1px solid #ccfbf1;border-radius:10px;padding:10px;text-align:center">
-            <div style="font-size:24px;font-weight:900;color:#0e7490">${target.totalCount || 0}</div>
+            <div style="font-size:24px;font-weight:900;color:#0e7490">${adoptedTotal}</div>
             <div style="font-size:12px;color:#64748b">累計尾數</div>
           </div>
           <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:10px;text-align:center">
@@ -458,6 +460,13 @@ function openFishSpeciesDetail(speciesName) {
             <div><span style="color:#94a3b8">最近調查：</span><b>${fish_escape(latest.date || '-')}</b></div>
             <div style="grid-column:1/-1"><span style="color:#94a3b8">主要分布：</span>${fish_escape(allLocs.join('、') || target.location || '-')}</div>
             <div style="grid-column:1/-1"><span style="color:#94a3b8">資料口徑：</span>${fish_escape(target.totalSource || '資料庫代表紀錄')}</div>
+            <div style="grid-column:1/-1;background:#f0fdfa;border:1px solid #99f6e4;border-radius:10px;padding:10px 12px;line-height:1.7">
+              <b style="color:#0f766e">數據核對：</b>
+              完整歷年調查序列 ${surveySum} 尾（${surveyRecords.length} 次出現）；
+              資料庫代表調查紀錄 ${dbSum} 尾（${records.length} 筆）；
+              本頁採用累計 ${adoptedTotal} 尾。
+              ${surveySum === dbSum && dbSum === adoptedTotal ? '<span style="color:#15803d;font-weight:900"> 已一致。</span>' : '<span style="color:#b45309;font-weight:900"> 請優先檢核來源表。</span>'}
+            </div>
             ${target.redlistNote ? `<div style="grid-column:1/-1;color:#b45309;background:#fffbeb;border-radius:8px;padding:8px 10px">${fish_escape(target.redlistNote)}</div>` : ''}
           </div>
         </div>
@@ -753,7 +762,7 @@ const HLX_FISH_SURVEYS = [
   { label:'106年 Q3\n(9月)',  year:2017, m:9,  bai:26, shi:3,  xu:0,  ying:0,  jian:2,  min:0, kou:0, feng:0, hong:0, note:'電捕法，橫流溪(下游)' },
   { label:'106年 Q4\n(12月)', year:2017, m:12, bai:23, shi:0,  xu:0,  ying:0,  jian:0,  min:0, kou:0, feng:0, hong:0, note:'電捕法，橫流溪(下游)' },
   // ── 107年：3站電捕調查（來源：107~108年度成果報告 表4-16）──
-  { label:'107年 S1\n(5月)',  year:2018, m:5,  bai:100,shi:73, xu:63, ying:109,jian:12, min:85, kou:0, feng:1, hong:0, note:'107年度第一季(5/28~29)，3站電捕合計；8種，443尾；短臀瘋鱨1尾（首次記錄）；來源：成果報告表4-16' },
+  { label:'107年 S1\n(5月)',  year:2018, m:5,  bai:100,shi:73, xu:63, ying:109,jian:12, min:85, kou:32, feng:1, hong:0, note:'107年度第一季(5/28~29)，3站電捕資料；粗首馬口鱲32尾；短臀瘋鱨1尾（首次記錄）；來源：成果報告表4-16' },
   { label:'107年 S2\n(7月)',  year:2018, m:7,  bai:21, shi:30, xu:33, ying:11, jian:0,  min:52, kou:0, feng:0, hong:2, note:'107年度第二季(7/9~10)，3站電捕合計；7種，149尾；短吻紅斑吻鰕虎2尾（首次記錄）；來源：成果報告表4-16' },
   // ── 108年：4站電捕調查，數據完整（來源：成果報告 表4-16）──
   { label:'108年 S3\n(4月)',  year:2019, m:4,  bai:169,shi:101,xu:113,ying:40, jian:24, min:133,kou:0, feng:3, hong:6, note:'108年度第三季春季(4/17~18)，4站電捕合計；8種，589尾；短臀瘋鱨3尾、短吻紅斑吻鰕虎6尾；來源：成果報告表4-16' },
@@ -3380,7 +3389,7 @@ function renderFishTrend() {
           { id:'spTrend_臺灣間爬岩鰍',   name:'臺灣間爬岩鰍',   sci:'Hemimyzon formosanus',       cons:'近危', borderCol:'#fecaca', topCol:'#f43f5e', badge:'#fff1f2', badgeTxt:'#be123c', note:'特有種・2024紅皮書近危(NNT，2017易危下修)・魚道關聯最高，114年回升13尾' },
           // ── 4 種次要物種暨鰕虎科（電捕法DB記錄）──
           { id:'spTrend_明潭吻鰕虎',     name:'明潭吻鰕虎',     sci:'Rhinogobius candidianus',    cons:'一般',     borderCol:'#bfdbfe', topCol:'#2563eb', badge:'#dbeafe', badgeTxt:'#1e40af', note:'特有種・2024紅皮書無危(NLC)・109~114年累計 317 尾，數量最多' },
-          { id:'spTrend_粗首馬口鱲',     name:'粗首馬口鱲',     sci:'Zacco pachycephalus',        cons:'一般',     borderCol:'#fde68a', topCol:'#b45309', badge:'#fef9c3', badgeTxt:'#92400e', note:'特有種・2024紅皮書無危(NLC)・107年累計 191 尾・112年4尾・113年6尾' },
+          { id:'spTrend_粗首馬口鱲',     name:'粗首馬口鱲',     sci:'Zacco pachycephalus',        cons:'一般',     borderCol:'#fde68a', topCol:'#b45309', badge:'#fef9c3', badgeTxt:'#92400e', note:'特有種・2024紅皮書無危(NLC)・102~108累計191尾；107代表調查32尾・112年4尾・113年6尾' },
           { id:'spTrend_短臀瘋鱨',       name:'短臀瘋鱨',       sci:'Tachysurus brevianalis',     cons:'易危',     borderCol:'#fecdd3', topCol:'#dc2626', badge:'#fee2e2', badgeTxt:'#991b1b', note:'特有種・2024紅皮書易危(NVU，2017無危上修)・109~114累計 4 尾' },
           { id:'spTrend_短吻紅斑吻鰕虎', name:'短吻紅斑吻鰕虎', sci:'Rhinogobius rubromaculatus', cons:'一般',     borderCol:'#d1fae5', topCol:'#059669', badge:'#ecfdf5', badgeTxt:'#065f46', note:'特有種・台灣2024紅皮書國家無危(NLC)；IUCN全球評估近危(NT)・109~114累計 14 尾' }
         ].map(sp => `
@@ -3407,7 +3416,7 @@ function renderFishTrend() {
       <div style="margin-top:14px;padding:16px 20px;background:#f8fafc;border-radius:10px;font-size:15px;color:#475569;line-height:1.8;border-left:4px solid #3b82f6">
         <strong>整合說明：</strong>上方堆疊柱狀圖已納入全9種魚類。107~108年度數據依據《107~108年度橫流溪整治規劃設計監造與監測調查委託技術服務案成果報告》表4-16完整補充4季調查（107年5月/7月、108年4月/10月）。
         各次要物種首次記錄：短臀瘋鱨（107年5月，1尾）；短吻紅斑吻鰕虎（107年7月，2尾）。108年4月族群最豐，短吻紅斑吻鰕虎達6尾、短臀瘋鱨達3尾；
-        明潭吻鰕虎在108年4月達133尾（歷年最高），是次要4種中最穩健的物種。粗首馬口鱲在107~108年度3站調查中未被記錄（0尾），112~113年始有穩定記錄（各4~6尾）。
+        明潭吻鰕虎在108年4月達133尾（歷年最高），是次要4種中最穩健的物種。粗首馬口鱲依107年5月代表調查記錄為32尾，112年6月4尾、113年6月6尾，平台採同一核對口徑累計42尾。
       </div>
 
       <!-- 次要物種族群趨勢因素分析 -->
