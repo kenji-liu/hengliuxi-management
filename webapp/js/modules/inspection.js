@@ -605,9 +605,15 @@ async function uploadInspectionFileToDrive(item, formType) {
     if (typeof renderInspection === 'function') renderInspection();
 
   } catch (err) {
-    showToast(`Drive 上傳失敗：${err.message}`, 'error');
+    const isTokenErr = /invalid_grant|token.*expired|revoked|credentials/i.test(err.message);
+    showToast(
+      isTokenErr
+        ? '⚠️ 巡查資料已儲存至本機及 Firebase 雲端，Google Drive 服務帳號憑證已過期，請聯絡管理者更新授權。'
+        : `Drive 上傳未完成：${err.message}（資料已儲存於本機）`,
+      'warning'
+    );
     if (item.id) DB.update('inspections', item.id, { cloudSyncStatus: '待上傳' });
-    console.error('[GDrive Upload]', err);
+    console.warn('[GDrive Upload]', err.message);
   }
 }
 
@@ -5654,6 +5660,10 @@ function saveGeneralPeriodicForm(id) {
 
   syncInspFormToCloud('general_periodic', savedItem || item);
   _autoCloudPush(savedItem || item);
+  // Firebase 即時推播：讓其他已連線平板自動收到新巡查
+  if (window.CloudSync?.isOnline) {
+    setTimeout(() => CloudSync.push(DB.load(), { manual: true }), 300);
+  }
   document.getElementById('modal').style.maxWidth = '';
   closeModal();
   if (window._facAfterInspectionSave) { const cb=window._facAfterInspectionSave; window._facAfterInspectionSave=null; setTimeout(cb,80); }
@@ -6057,6 +6067,9 @@ function saveStructureInspectionForm(id) {
   syncInspFormToCloud('professional_structure', savedItem || item);
   uploadInspectionFileToDrive(savedItem || item, 'professional_structure');
   _autoCloudPush(savedItem || item);
+  if (window.CloudSync?.isOnline) {
+    setTimeout(() => CloudSync.push(DB.load(), { manual: true }), 300);
+  }
   document.getElementById('modal').style.maxWidth = '';
   closeModal();
   if (window._facAfterInspectionSave) { const cb=window._facAfterInspectionSave; window._facAfterInspectionSave=null; setTimeout(cb,80); }
@@ -6334,6 +6347,9 @@ function saveFishwayForm(id) {
   syncInspFormToCloud('professional_fishway', savedItem || item);
   uploadInspectionFileToDrive(savedItem || item, 'professional_fishway');
   _autoCloudPush(savedItem || item);
+  if (window.CloudSync?.isOnline) {
+    setTimeout(() => CloudSync.push(DB.load(), { manual: true }), 300);
+  }
   document.getElementById('modal').style.maxWidth = '';
   closeModal();
   if (window._facAfterInspectionSave) { const cb=window._facAfterInspectionSave; window._facAfterInspectionSave=null; setTimeout(cb,80); }
