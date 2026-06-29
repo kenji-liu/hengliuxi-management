@@ -6406,6 +6406,9 @@ function openMaintenanceCompletionForm(facilityId = null, id = null) {
       </div>
       <div class="form-group"><label>維護完工日期 *</label><input id="mc_date" type="date" value="${mc.date || new Date().toISOString().split('T')[0]}"></div>
       <div class="form-group"><label>維護執行人員 / 單位</label><input id="mc_executor" type="text" placeholder="承辦廠商或施工人員" value="${inspectionEscape(mc.executor || mc.inspector || '')}"></div>
+      <div class="form-group"><label>填表人員 *</label><input id="mc_reporter" type="text" placeholder="填寫本表單之人員姓名" value="${inspectionEscape(mc.reporter || '')}"></div>
+      <div class="form-group"><label>填表單位</label><input id="mc_reportUnit" type="text" placeholder="填表所屬單位或機關" value="${inspectionEscape(mc.reportUnit || '')}"></div>
+      <div class="form-group"><label>填表時間</label><input id="mc_reportTime" type="datetime-local" value="${mc.reportTime || new Date().toISOString().slice(0,16)}"></div>
     </div>
 
     <!-- 對應異常巡查 -->
@@ -6536,8 +6539,11 @@ function saveMaintenanceCompletionForm(id) {
   const item = {
     formType: 'maintenance_completion',
     facilityId, facilityName, date,
-    executor: document.getElementById('mc_executor')?.value.trim() || '',
-    inspector: document.getElementById('mc_executor')?.value.trim() || '',
+    executor:    document.getElementById('mc_executor')?.value.trim() || '',
+    inspector:   document.getElementById('mc_executor')?.value.trim() || '',
+    reporter:    document.getElementById('mc_reporter')?.value.trim() || '',
+    reportUnit:  document.getElementById('mc_reportUnit')?.value.trim() || '',
+    reportTime:  document.getElementById('mc_reportTime')?.value || new Date().toISOString().slice(0,16),
     beforeDesc, method, afterDesc,
     relatedInspIds,
     followUp: document.getElementById('mc_followup')?.value.trim() || '',

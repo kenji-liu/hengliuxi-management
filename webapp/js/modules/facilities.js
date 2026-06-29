@@ -1008,6 +1008,9 @@ function fac_facilityLinkedMaintenanceCases(f) {
     followUp: item.followUp || item.followUpDate || item.nextInspect || '',
     isCompletion: item.formType === 'maintenance_completion',
     itemId: item.id,
+    reporter:   item.reporter   || '',
+    reportUnit: item.reportUnit || '',
+    reportTime: item.reportTime ? item.reportTime.replace('T',' ').slice(0,16) : '',
     photos: [
       ...(Array.isArray(item.photoDataUrls) ? item.photoDataUrls : []),
       ...(Array.isArray(item.photos) ? item.photos : [])
@@ -1208,6 +1211,9 @@ function renderFacilityMaintenanceDataSection(f) {
                 <div><b>${item.isCompletion?'完工日期':'通報日期'}：</b>${item.reportDate}</div>
                 <div><b>來源：</b>${item.source}</div>
                 <div><b>完成時間：</b>${item.completedAt || (item.isCompletion ? item.reportDate : '尚未完成')}</div>
+                ${item.isCompletion && item.reporter ? `<div><b>填表人員：</b>${(item.reporter||'').replace(/</g,'&lt;')}</div>` : ''}
+                ${item.isCompletion && item.reportUnit ? `<div><b>填表單位：</b>${(item.reportUnit||'').replace(/</g,'&lt;')}</div>` : ''}
+                ${item.isCompletion && item.reportTime ? `<div><b>填表時間：</b>${(item.reportTime||'').replace(/</g,'&lt;')}</div>` : ''}
               </div>
               <div style="color:#334155;line-height:1.55"><b>${item.isCompletion?'維護工法與完工情形':'維護內容'}：</b>${item.action}</div>
               <div style="color:#475569;line-height:1.55;margin-top:3px"><b>後續追蹤：</b>${item.followUp || '建議於下次巡查確認處理成效。'}</div>
