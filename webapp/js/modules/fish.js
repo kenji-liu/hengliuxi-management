@@ -1454,9 +1454,9 @@ const BIO_LAND_DATA = [
     bg: '#dcfce7',
     border: '#bbf7d0',
     items: [
-      { name: '原生種植物', detail: '61 種，含臺灣特有種 4 種', tag: '原生' },
+      { name: '原生種植物', detail: '60 種，含臺灣特有種 4 種', tag: '原生' },
       { name: '歸化種植物', detail: '30 種，外來歸化植物', tag: '歸化' },
-      { name: '豐林橋沿線植被', detail: '上下游各 200m，38 科 91 種', tag: '全域' }
+      { name: '豐林橋沿線植被', detail: '上下游各 200m，37 科 90 種', tag: '全域' }
     ]
   },
   {
@@ -1780,7 +1780,6 @@ const GOV_SPECIES = {
   /* 陸域植生 */
   '五節芒': { code:'t0054476', sci:'Miscanthus floridulus' },
   '大花咸豐草': { code:'t0072858', sci:'Bidens pilosa' },
-  '臺灣五葉松': { code:'t0054840', sci:'Pinus morrisonicola' },
   '構樹': { code:'t0040466', sci:'Broussonetia papyrifera' },
   '竹葉草': { code:'t0054632', sci:'Oplismenus compositus' },
   '狗尾草': { code:'t0055330', sci:'Setaria viridis' },
@@ -2126,7 +2125,6 @@ let vegMap = null;
 const VEG_DOMINANT = [
   { name: '五節芒',     pct: 31.82, family: '禾本科', type: '原生', invasive: false, endemic: false },
   { name: '大花咸豐草', pct: 13.64, family: '菊科',   type: '歸化', invasive: true,  endemic: false },
-  { name: '臺灣五葉松', pct: 10.23, family: '松科',   type: '特有', invasive: false, endemic: true  },
   { name: '構樹',       pct:  5.68, family: '桑科',   type: '原生', invasive: false, endemic: false },
   { name: '竹葉草',     pct:  4.55, family: '禾本科', type: '原生', invasive: false, endemic: false },
   { name: '狗尾草',     pct:  4.55, family: '禾本科', type: '原生', invasive: false, endemic: false },
@@ -2149,7 +2147,6 @@ const _WM = 'https://commons.wikimedia.org/wiki/Special:FilePath/';
 const PLANT_PHOTO_FILE = {
   '五節芒':     { file:'Miscanthus_floridulus_-_J._C._Raulston_Arboretum_-_DSC06206.JPG?width=700', pos:'center 58%' },
   '大花咸豐草': { file:'Bidens_pilosa_(Habitus).jpg?width=700', pos:'center center' },
-  '臺灣五葉松': { file:'Pinus_morrisonicola_27729847.jpg?width=700', pos:'center 38%' },
   '構樹':       { file:'Broussonetia_papyrifera_Leaves_3008px.jpg?width=700', pos:'center center' },
   '竹葉草':     { file:'Oplismenus_compositus_at_Peradeniya_Royal_Botanical_Garden.jpg?width=700', pos:'center center' },
   '狗尾草':     { file:'20140919Setaria_viridis1.jpg?width=700', pos:'center center' },
@@ -2177,10 +2174,6 @@ const PLANT_PHOTO_LIBRARY = {
   '大花咸豐草': {
     sci: 'Bidens pilosa var. radiata',
     expertNote: '外來歸化草本，常在擾動地與道路邊快速擴張，應列為清除優先種。'
-  },
-  '臺灣五葉松': {
-    sci: 'Pinus morrisonicola',
-    expertNote: '臺灣特有針葉樹；本場域資料註明為人工種植，管理上不宜解讀為天然族群。'
   },
   '構樹': {
     sci: 'Broussonetia papyrifera',
@@ -2248,7 +2241,7 @@ const PLANT_PHOTO_LIBRARY = {
   },
 };
 
-/* 完整植物名錄（91種，依植物類群分組） */
+/* 完整植物名錄（90種，依植物類群分組；已移除無原始紀錄支撐之工寮周邊植生點位） */
 const VEG_SPECIES_GROUPS = [
   {
     group: '蕨類植物', color: '#166534', bg: '#dcfce7', icon: 'fa-seedling', count: 14,
@@ -2262,12 +2255,6 @@ const VEG_SPECIES_GROUPS = [
       { name: '腎蕨科', items: ['腎蕨'] },
       { name: '裡白科', items: ['芒萁'] },
       { name: '粉葉蕨科', items: ['粉葉蕨*'] }
-    ]
-  },
-  {
-    group: '裸子植物', color: '#0f766e', bg: '#f0fdfa', icon: 'fa-tree', count: 1,
-    families: [
-      { name: '松科', items: ['臺灣五葉松#（人工種植）'] }
     ]
   },
   {
@@ -2320,8 +2307,8 @@ function renderVegetation() {
     <!-- 統計卡片 -->
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px">
       ${[
-        ['fa-leaf',         '#16a34a','#f0fdf4', '91 種',  '植物總種數'],
-        ['fa-layer-group',  '#1d4ed8','#eff6ff', '38 科',  '植物科數'],
+        ['fa-leaf',         '#16a34a','#f0fdf4', '90 種',  '植物總種數'],
+        ['fa-layer-group',  '#1d4ed8','#eff6ff', '37 科',  '植物科數'],
         ['fa-seedling',     '#0f766e','#f0fdfa', '14 種',  '蕨類植物'],
         ['fa-exclamation-triangle','#dc2626','#fee2e2', '9 種', '外來入侵種'],
         ['fa-star',         '#92400e','#fef9c3',  '4 種',  '臺灣特有種'],
@@ -2342,10 +2329,6 @@ function renderVegetation() {
         <i class="fas fa-info-circle" style="color:#16a34a;margin-right:7px"></i>植被概況說明
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;font-size:14px;color:#334155">
-        <div style="background:#f0fdf4;border-radius:8px;padding:12px 14px">
-          <div style="font-weight:700;color:#166534;margin-bottom:4px"><i class="fas fa-home" style="margin-right:5px"></i>工寮周邊</div>
-          臺灣五葉松為主（人工種植），林下蕨類植物豐富，山坡地帶以金絲草、狗尾草等禾草為主
-        </div>
         <div style="background:#fef9c3;border-radius:8px;padding:12px 14px">
           <div style="font-weight:700;color:#854d0e;margin-bottom:4px"><i class="fas fa-water" style="margin-right:5px"></i>溪流濱溪帶</div>
           五節芒優勢植群（相對豐度31.82%），伴生大花咸豐草（歸化）、山黃麻、九芎、水柳等濱溪植物
@@ -2478,7 +2461,7 @@ function renderVegetation() {
     <!-- 植物名錄（依類群） -->
     <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:18px 20px;margin-bottom:20px">
       <div style="font-size:17px;font-weight:800;color:#0f172a;margin-bottom:14px">
-        <i class="fas fa-list-ul" style="color:#16a34a;margin-right:7px"></i>橫流溪陸域植物名錄（91種）
+        <i class="fas fa-list-ul" style="color:#16a34a;margin-right:7px"></i>橫流溪陸域植物名錄（90種）
       </div>
       ${VEG_SPECIES_GROUPS.map(grp => `
         <div style="border:1px solid ${grp.color}33;border-left:4px solid ${grp.color};border-radius:10px;background:${grp.bg};margin-bottom:12px;overflow:hidden">
@@ -2532,12 +2515,6 @@ function renderVegetation() {
             <i class="fas fa-seedling" style="color:#fff;font-size:10px"></i>
           </div>
           <span>濱溪帶樣區（五節芒優勢）</span>
-        </div>
-        <div style="display:flex;align-items:center;gap:7px">
-          <div style="width:22px;height:22px;background:#92400e;border:2.5px solid #7c2d12;border-radius:5px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
-            <i class="fas fa-tree" style="color:#fff;font-size:10px"></i>
-          </div>
-          <span>工寮周邊（臺灣五葉松）</span>
         </div>
         <div style="display:flex;align-items:center;gap:7px">
           <div style="position:relative;width:24px;height:22px;flex-shrink:0">
@@ -2605,15 +2582,6 @@ function _initVegMap() {
     { lat: 24.1858, lng: 120.9108, type: 'riparian', zone: '濱溪帶 E（動物通道上游）',
       dominant: '五節芒、臺灣懸鉤子', companion: '蕨類（芒萁、烏毛蕨）、水麻',
       invasive: '無', cover: '草本及灌木混生', ndvi: 0.78 },
-
-    /* 工寮周邊（臺灣五葉松） */
-    { lat: 24.1798, lng: 120.9114, type: 'worksite', zone: '工寮周邊 A',
-      dominant: '臺灣五葉松（人工林）', companion: '星毛蕨、蕨、腎蕨',
-      invasive: '無', cover: '喬木層 > 60%、林下蕨類豐富', ndvi: 0.85 },
-    { lat: 24.1820, lng: 120.9118, type: 'worksite', zone: '工寮周邊 B',
-      dominant: '臺灣五葉松、構樹', companion: '野桐、山黃麻、九節木',
-      invasive: '粉葉蕨（林下）', cover: '喬木層 55%、灌木層 30%', ndvi: 0.82 },
-
     /* 外來植物警示區 */
     { lat: 24.1765, lng: 120.9102, type: 'invasive', zone: '外來種警示 A',
       dominant: '銀合歡、大花咸豐草（共優）', companion: '狗尾草、草本層',
@@ -2631,12 +2599,11 @@ function _initVegMap() {
       invasive: '無', cover: '林下遮陰 > 80%，蕨類多樣性高', ndvi: 0.79 }
   ];
 
-  const colorMap = { riparian: '#16a34a', worksite: '#92400e', invasive: '#dc2626', fern: '#0d9488' };
-  const labelMap = { riparian: '濱溪帶', worksite: '松林帶', invasive: '外來種警示', fern: '蕨類豐富帶' };
+  const colorMap = { riparian: '#16a34a', invasive: '#dc2626', fern: '#0d9488' };
+  const labelMap = { riparian: '濱溪帶', invasive: '外來種警示', fern: '蕨類豐富帶' };
 
   const vegIconCfg = {
     riparian: { bg: '#16a34a', dark: '#14532d', fa: 'fa-seedling', shape: 'circle'   },
-    worksite: { bg: '#92400e', dark: '#7c2d12', fa: 'fa-tree',     shape: 'square'   },
     invasive: { bg: '#dc2626', dark: '#991b1b', fa: 'fa-cannabis', shape: 'triangle' },
     fern:     { bg: '#0d9488', dark: '#134e4a', fa: 'fa-spa',      shape: 'diamond'  }
   };
@@ -4136,7 +4103,7 @@ function renderFishBioMap() {
       <!-- ══ SECTION 1：生態概況統計 ══ -->
       ${bioSecHead('1','fa-chart-bar','生態概況統計','橫流溪場域生物多樣性總覽','#1e40af')}
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:28px">
-        ${bioStat('濱溪植物', '91 種', '38 科，特有種 4', '#166534', '#dcfce7', 'fa-seedling')}
+        ${bioStat('濱溪植物', '90 種', '37 科，特有種 4', '#166534', '#dcfce7', 'fa-seedling')}
         ${bioStat('水棲昆蟲', '25+ 科', '水質：好～極好', '#854d0e', '#fef9c3', 'fa-bug')}
         ${bioStat('水域魚類', `${fishSpecies.length} 種`, `累計 ${totalFish} 尾次`, '#0e7490', '#cffafe', 'fa-fish')}
         ${bioStat('保育魚類', `${protectedFish} 種`, '含易危・近危', '#b91c1c', '#fee2e2', 'fa-shield-halved')}
@@ -5424,9 +5391,9 @@ function biogisLandPopup() {
   return `<div style="min-width:200px;font-size:13px;line-height:1.7">
     <div style="font-weight:800;font-size:14px;color:#166534;margin-bottom:6px"><i class="fas fa-tree"></i> 陸域濱溪帶</div>
     <table style="width:100%;font-size:12px;border-collapse:collapse">
-      <tr><td style="color:#64748b;padding:2px 0">植物科數</td><td style="font-weight:700;color:#166534">38 科</td></tr>
-      <tr><td style="color:#64748b;padding:2px 0">植物種數</td><td style="font-weight:700;color:#166534">91 種</td></tr>
-      <tr><td style="color:#64748b;padding:2px 0">原生種</td><td>61 種</td></tr>
+      <tr><td style="color:#64748b;padding:2px 0">植物科數</td><td style="font-weight:700;color:#166534">37 科</td></tr>
+      <tr><td style="color:#64748b;padding:2px 0">植物種數</td><td style="font-weight:700;color:#166534">90 種</td></tr>
+      <tr><td style="color:#64748b;padding:2px 0">原生種</td><td>60 種</td></tr>
       <tr><td style="color:#64748b;padding:2px 0">特有種</td><td>4 種</td></tr>
       <tr><td style="color:#64748b;padding:2px 0">歸化種</td><td>30 種</td></tr>
       <tr><td style="color:#64748b;padding:2px 0">調查時間</td><td>112年6月</td></tr>

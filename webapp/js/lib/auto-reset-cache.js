@@ -7,7 +7,7 @@
  * expected app version, but never navigate or clear data automatically.
  */
 (function () {
-  const TARGET_VERSION = "3.5-redlist-map";
+  const TARGET_VERSION = "3.6-vegetation-source-cleanup";
   const FLAG_KEY = "hengliuxi_app_version_seen";
 
   try {
