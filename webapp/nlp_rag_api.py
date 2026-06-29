@@ -10,9 +10,12 @@ retrieval, Ollama generation, and confidence policy.
 from __future__ import annotations
 
 from datetime import datetime
+import html
 import json
 import os
 import re
+import urllib.parse
+import urllib.request
 from typing import Any, Dict, List, Optional
 
 from flask import Blueprint, jsonify, request
@@ -740,9 +743,91 @@ def _format_web_results(results: List[Dict[str, Any]]) -> str:
     return "\n\n".join(parts[:5])
 
 
+DEFAULT_PLATFORM_URL = os.environ.get(
+    "HLX_PLATFORM_URL",
+    "https://hengliuxi-management.onrender.com/webapp/",
+)
+
+
+def _fetch_url_text(url: str, timeout: int = 8, max_chars: int = 2200) -> str:
+    """Fetch a web page and extract compact readable text without extra deps."""
+    if not url:
+        return ""
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        return ""
+    try:
+        req = urllib.request.Request(
+            url,
+            headers={
+                "User-Agent": "Hengliuxi-RAG/1.0 (+https://hengliuxi-management.onrender.com/webapp/)",
+                "Accept": "text/html,application/xhtml+xml,text/plain;q=0.8,*/*;q=0.5",
+            },
+        )
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            raw = resp.read(max_chars * 6)
+            charset = resp.headers.get_content_charset() or "utf-8"
+        text = raw.decode(charset, errors="ignore")
+        text = re.sub(r"(?is)<(script|style|noscript|svg|canvas).*?</\1>", " ", text)
+        text = re.sub(r"(?is)<[^>]+>", " ", text)
+        text = html.unescape(text)
+        text = re.sub(r"\s+", " ", text).strip()
+        return text[:max_chars]
+    except Exception:
+        return ""
+
+
+def _fetch_platform_url_context(query: str, platform_url: str = "") -> Dict[str, Any]:
+    """Read the public platform URL and same-origin management API for grounding."""
+    url = _as_text(platform_url) or DEFAULT_PLATFORM_URL
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+        return {"context": "", "evidence": [], "url": url}
+
+    origin = f"{parsed.scheme}://{parsed.netloc}"
+    evidence: List[Dict[str, Any]] = []
+    parts: List[str] = []
+
+    page_text = _fetch_url_text(url)
+    if page_text:
+        parts.append(f"線上平台頁面：{url}\n頁面可讀文字摘要：{page_text}")
+        evidence.append({
+            "type": "platform_page",
+            "title": "橫流溪管理平台線上頁面",
+            "url": url,
+            "summary": page_text[:180],
+        })
+
+    # If the deployed platform exposes the management context API, prefer it
+    # because it reflects synced inspection and maintenance records more accurately
+    # than static SPA HTML.
+    try:
+        payload = json.dumps({"query": query, "limit": 6}).encode("utf-8")
+        req = urllib.request.Request(
+            f"{origin}/api/management/latest-context",
+            data=payload,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            data = json.loads(resp.read().decode("utf-8", errors="ignore"))
+        ctx = _as_text(data.get("context"))
+        if data.get("status") == "success" and ctx:
+            parts.append(f"線上平台最新管理 API：{origin}/api/management/latest-context\n{ctx[:2200]}")
+            evidence.extend(list(data.get("evidence") or [])[:6])
+    except Exception:
+        pass
+
+    return {
+        "context": "\n\n".join(parts),
+        "evidence": evidence[:8],
+        "url": url,
+    }
+
+
 _SYSTEM_PROMPT = (
     "你是一位流利使用繁體中文的專業助理，擅長工程維護、生態保育與一般知識問答。"
-    "回答時必須優先使用最新巡查資料、維護管理資料、本機知識庫與雲端 OCR 文件。"
+    "回答時必須優先使用線上平台目前資料、最新巡查資料、維護管理資料、本機知識庫與雲端 OCR 文件。"
     "若資料內有日期、DER&U、維護工項、照片數、金額或數量，請直接量化回答。"
     "回答清晰自然、適當分段，不使用 Markdown 標題符號（#、##）。"
 )
@@ -1080,18 +1165,29 @@ def smart_ask() -> Any:
     query   = _as_text(data.get("query") or data.get("question"))
     use_web = bool(data.get("use_web", True))
     include_cloud_ocr = str(data.get("include_cloud_ocr", "true")).lower() not in ("0", "false", "no")
+    platform_url = _as_text(data.get("platform_url") or data.get("source_url")) or DEFAULT_PLATFORM_URL
+    include_platform_url = str(data.get("include_platform_url", "true")).lower() not in ("0", "false", "no")
 
     if not query:
         return jsonify({"status": "error", "message": "缺少 query"}), 400
 
-    # ── 1. 網路搜尋 ──────────────────────────────────────────
+    # ── 1. 線上平台 URL 即時資料 ─────────────────────────────
+    platform_ctx = ""
+    platform_evidence: List[Dict[str, Any]] = []
+    platform_payload: Dict[str, Any] = {}
+    if include_platform_url:
+        platform_payload = _fetch_platform_url_context(query, platform_url)
+        platform_ctx = _as_text(platform_payload.get("context"))
+        platform_evidence = list(platform_payload.get("evidence") or [])
+
+    # ── 2. 網路搜尋 ──────────────────────────────────────────
     web_results: List[Dict[str, Any]] = []
     web_ctx     = ""
     if use_web:
         web_results = _web_search_ddg(query, max_results=6)
         web_ctx     = _format_web_results(web_results)
 
-    # ── 2. 本機 RAG 補充 ──────────────────────────────────────
+    # ── 3. 本機 RAG 補充 ──────────────────────────────────────
     local_ctx = ""
     local_evidence: List[Dict[str, Any]] = []
     if rag_backend is not None:
@@ -1106,7 +1202,7 @@ def smart_ask() -> Any:
         except Exception:
             pass
 
-    # ── 3. Drive OCR 全文搜尋 ────────────────────────────────
+    # ── 4. Drive OCR 全文搜尋 ────────────────────────────────
     ocr_ctx      = ""
     ocr_citations: List[Dict[str, Any]] = []
     ocr_status_data: Dict[str, Any] = {}
@@ -1147,7 +1243,7 @@ def smart_ask() -> Any:
         except Exception:
             pass
 
-    # ── 4. 最新巡查與維護管理資料 ──────────────────────────
+    # ── 5. 最新巡查與維護管理資料 ──────────────────────────
     management_ctx = ""
     management_evidence: List[Dict[str, Any]] = []
     management_counts: Dict[str, Any] = {}
@@ -1160,8 +1256,10 @@ def smart_ask() -> Any:
         except Exception:
             pass
 
-    # ── 5. 組合 context ───────────────────────────────────────
+    # ── 6. 組合 context ───────────────────────────────────────
     combined_ctx_parts = []
+    if platform_ctx.strip():
+        combined_ctx_parts.append(f"【線上平台即時讀取資料】\n{platform_ctx}")
     if management_ctx.strip():
         combined_ctx_parts.append(f"【最新巡查與維護管理資料】\n{management_ctx}")
     if web_ctx.strip():
@@ -1172,7 +1270,7 @@ def smart_ask() -> Any:
         combined_ctx_parts.append(f"【橫流溪雲端文件庫（OCR 全文）】\n{ocr_ctx}")
     combined_ctx = "\n\n".join(combined_ctx_parts)
 
-    # ── 6. AI 綜合推論（自動選用可用的免費服務）─────────────────
+    # ── 7. AI 綜合推論（自動選用可用的免費服務）─────────────────
     answer, provider_key, provider_display = _ai_synthesis(query, combined_ctx)
 
     if not answer and management_ctx.strip():
@@ -1192,11 +1290,12 @@ def smart_ask() -> Any:
         for r in web_results[:4]
     ]
 
+    platform_part = "線上平台資料＋ " if platform_ctx else ""
     web_part  = f"網路搜尋（{len(web_results)} 筆）＋ " if web_results else ""
     ocr_part  = f"雲端文件 {len(ocr_citations)} 筆 ＋ " if ocr_citations else ""
     ai_part   = provider_display or "本機知識庫"
     ocr_running_part = "雲端OCR索引建立中 ＋ " if ocr_index_started or ocr_status_data.get("running") else ""
-    msg       = f"{web_part}{ocr_part}{ocr_running_part}本機資料 ＋ {ai_part}"
+    msg       = f"{platform_part}{web_part}{ocr_part}{ocr_running_part}本機資料 ＋ {ai_part}"
 
     return jsonify({
         "status":           "success",
@@ -1205,6 +1304,9 @@ def smart_ask() -> Any:
         "llm_model":        provider_display,
         "web_search_used":  bool(web_results),
         "web_sources":      web_sources_out,
+        "platform_url":      platform_url,
+        "platform_context_used": bool(platform_ctx),
+        "platform_evidence": platform_evidence,
         "local_evidence":   local_evidence,
         "ocr_citations":    ocr_citations,
         "ocr_status":       ocr_status_data,

@@ -1391,13 +1391,76 @@ async function webSearchWiki(query) {
   }
 }
 
+function buildCurrentPlatformPageContext(query = "") {
+  const parts = [];
+  try {
+    const pageTitle = document.querySelector(".page-title, h1, h2")?.innerText?.trim() || document.title || "橫流溪管理平台";
+    const activeNav = [...document.querySelectorAll(".nav-item.active, .tab-btn.active, .active")]
+      .map(el => (el.innerText || "").trim())
+      .filter(Boolean)
+      .slice(0, 6)
+      .join(" / ");
+    const visibleText = (document.body?.innerText || "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 1600);
+    parts.push(`【目前線上平台頁面】URL：${location.href}\n頁面：${pageTitle}${activeNav ? `｜目前區塊：${activeNav}` : ""}\n可見文字摘要：${visibleText}`);
+  } catch (_) {}
+
+  try {
+    if (typeof DB !== "undefined") {
+      const facilities = DB.getAll("facilities") || [];
+      const inspections = DB.getAll("inspections") || [];
+      const fish = DB.getAll("fish") || [];
+      const byStatus = facilities.reduce((acc, f) => {
+        const status = f.status || "未標示";
+        acc[status] = (acc[status] || 0) + 1;
+        return acc;
+      }, {});
+      const recent = [...inspections]
+        .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")))
+        .slice(0, 5)
+        .map(r => `${r.date || "-"}｜${r.facilityName || r.facility_name || "-"}｜${r.inspectionItem || r.sourceType || r.formType || "巡查"}｜${r.status || "-"}｜${String(r.findings || r.action || "").slice(0, 80)}`)
+        .join("\n");
+
+      const q = String(query || "").toLowerCase();
+      const matchedFacilities = facilities.filter(f => {
+        const txt = `${f.name || ""} ${f.code || ""} ${f.type || ""} ${f.subType || ""}`.toLowerCase();
+        return q && txt && (q.includes(String(f.code || "").toLowerCase()) || q.split(/\s+/).some(w => w.length > 1 && txt.includes(w)));
+      }).slice(0, 3).map(f => {
+        const assessment = typeof fac_latestProfessionalAssessment === "function" ? fac_latestProfessionalAssessment(f) : null;
+        const status = assessment?.status || f.status || "-";
+        const der = assessment?.derLevel || f.derLevel || "-";
+        const date = assessment?.assessmentDate || f.lastInspect || "-";
+        const health = assessment?.health ?? (typeof fac_health === "function" ? fac_health(f) : f.healthScore || "-");
+        return `${f.name}｜${f.stationKm || f.location || "-"}｜${status}｜${der}｜健康${health}%｜最後表徵${date}`;
+      }).join("\n");
+
+      parts.push(
+        `【平台資料庫即時快照】工程設施 ${facilities.length} 筆，巡查/維護紀錄 ${inspections.length} 筆，魚類紀錄 ${fish.length} 筆。` +
+        `設施狀態分布：${Object.entries(byStatus).map(([k, v]) => `${k}${v}`).join("、") || "無"}。` +
+        (matchedFacilities ? `\n查詢命中設施：\n${matchedFacilities}` : "") +
+        (recent ? `\n最近巡查/維護紀錄：\n${recent}` : "")
+      );
+    }
+  } catch (_) {}
+
+  return parts.filter(Boolean).join("\n\n");
+}
+
 async function callGroqDirect(query, localCtx = "", ocrCtx = "") {
   const key = getAIKey();
   if (!key) return null;
 
   // 即時 DB 資料
   const dbCtx = buildDynamicContext(query);
-  const localCombined = [localCtx, dbCtx, ocrCtx ? `【雲端文件庫（OCR 全文）】\n${ocrCtx}` : ''].filter(Boolean).join('\n\n');
+  const platformPageCtx = buildCurrentPlatformPageContext(query);
+  const localCombined = [
+    platformPageCtx ? `【線上平台目前頁面與資料庫快照】\n${platformPageCtx}` : "",
+    localCtx,
+    dbCtx,
+    ocrCtx ? `【雲端文件庫（OCR 全文）】\n${ocrCtx}` : ''
+  ].filter(Boolean).join('\n\n');
 
   // 網路補充：當本機資料量少，或查詢涉及通用知識時，從維基百科補充
   const needsWeb = !localCombined || localCombined.length < 120 ||
@@ -1414,7 +1477,7 @@ async function callGroqDirect(query, localCtx = "", ocrCtx = "") {
 
   const fullCtx = [localCombined, webCtx].filter(Boolean).join('\n');
   const ctxBlock = fullCtx
-    ? `\n【橫流溪本機資料庫（即時查詢）】\n${fullCtx}\n\n請優先依上述資料回答，不足時再補充專業知識。\n`
+    ? `\n【橫流溪線上平台與本機資料庫（即時查詢）】\n${fullCtx}\n\n請優先依上述平台目前資料與最新巡查維護資料回答，不足時再補充專業知識。\n`
     : "";
   const userMsg = `${ctxBlock}\n【使用者問題】\n${query}\n\n請以繁體中文回答：`;
 
@@ -1573,7 +1636,7 @@ async function queryRAG(query) {
       confidence_level:  "high",
       confidence_score:  90,
       policy_label:      "AI 綜合回答",
-      message:           `本機資料 ＋ ${groq.model}`,
+      message:           `線上平台資料＋本機資料＋${groq.model}`,
       web_sources:       groq.webSources || [],
       structured_citations: kbResult?.structured_citations || [],
       ocr_citations:     ocrCitations,
@@ -1595,7 +1658,12 @@ async function queryRAG(query) {
       const res = await fetch(`${base}/api/smart-ask`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query, use_web: true }),
+        body: JSON.stringify({
+          query,
+          use_web: true,
+          include_platform_url: true,
+          platform_url: "https://hengliuxi-management.onrender.com/webapp/"
+        }),
         signal: ctrl.signal
       });
       clearTimeout(tid);
