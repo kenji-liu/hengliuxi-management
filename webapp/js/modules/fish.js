@@ -842,6 +842,10 @@ const HLX_FISH_REDLIST_2024 = {
   '短吻紅斑吻鰕虎':{ grade:'一般', code:'NLC', endemic:true, note:'IUCN全球評估近危(NT)；2024臺灣國家紅皮書為國家無危(NLC)' },
 };
 
+function fish_redlist2024(speciesName) {
+  return HLX_FISH_REDLIST_2024[speciesName] || { grade: '一般', code: 'NLC' };
+}
+
 function fish_groupSpecies() {
   const data = DB.getAll('fish');
   const species = {};
@@ -4199,10 +4203,10 @@ function renderFishBioMap() {
                 <i class="fas fa-fish" style="font-size:15px"></i> 水域魚類
               </div>
               ${[
-                ['carp',  '#dc2626','瀕　　危','臺灣白甲魚・纓口臺鰍'],
-                ['minnow','#d97706','易　　危','高身鏟頷魚'],
-                ['loach', '#2563eb','近　　危','臺灣石魚賓・臺灣間爬岩鰍'],
-                ['goby',  '#16a34a','一　　般','臺灣鬚鱲・明潭吻蝦虎']
+                ['carp',  '#dc2626','瀕　　危','本區調查魚種目前無瀕危紀錄'],
+                ['minnow','#d97706','易　　危','短臀瘋鱨'],
+                ['loach', '#2563eb','近　　危','臺灣白甲魚・纓口臺鰍・臺灣間爬岩鰍'],
+                ['goby',  '#16a34a','一　　般','臺灣石魚賓・臺灣鬚鱲・明潭吻鰕虎・粗首馬口鱲・短吻紅斑吻鰕虎']
               ].map(([shape,col,tag,ex])=>`
                 <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
                   <div style="width:44px;height:28px;flex-shrink:0;filter:drop-shadow(0 1px 3px rgba(0,0,0,.30))">
@@ -5144,6 +5148,14 @@ function initBioGISMap(fishSpecies, facilities) {
     return          [[0.00034, 0],[-0.00006,-0.00024],[-0.00006,0.00024]];
   };
   const _consColor = c => ({瀕危:'#dc2626',易危:'#d97706',近危:'#2563eb',一般:'#16a34a'}[c]||'#64748b');
+  _FWDIST.forEach(fw => {
+    fw.species.forEach(sp => {
+      const rl = fish_redlist2024(sp.name);
+      sp.cons = rl.grade;
+      sp.redlistCode = rl.code;
+      sp.color = _consColor(rl.grade);
+    });
+  });
   const _statusBadge = s => s==='堵塞列管'?'🔴':s==='需維護'?'🟡':'🟢';
 
   _FWDIST.forEach(fw => {
