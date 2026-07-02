@@ -610,7 +610,7 @@ window._facHCInst = {};
 
 function fac_renderHistoryHealthChart(f) {
   const rows = fac_professionalInspectionRows(f);
-  if (rows.length < 2) return '';
+  if (rows.length < 1) return '';
 
   const FT = { professional_structure:'構造物', professional_fishway:'魚道', maintenance_completion:'完工', general_periodic:'一般', general:'一般' };
   const pts = rows.map(item => {
@@ -626,11 +626,11 @@ function fac_renderHistoryHealthChart(f) {
     };
   }).filter(Boolean).reverse();
 
-  if (pts.length < 2) return '';
+  if (pts.length < 1) return '';
 
-  const trend = pts[pts.length-1].hp - pts[0].hp;
-  const trendTxt = trend > 0 ? `↑ +${trend} 分` : trend < 0 ? `↓ ${trend} 分` : '持平';
-  const trendClr = trend > 0 ? '#16a34a' : trend < 0 ? '#dc2626' : '#64748b';
+  const trend = pts.length >= 2 ? pts[pts.length-1].hp - pts[0].hp : null;
+  const trendTxt = trend === null ? `目前 ${pts[0].hp} 分` : trend > 0 ? `↑ +${trend} 分` : trend < 0 ? `↓ ${trend} 分` : '持平';
+  const trendClr = trend === null ? '#475569' : trend > 0 ? '#16a34a' : trend < 0 ? '#dc2626' : '#64748b';
 
   window._facHCData[f.id] = {
     labels: pts.map(p => p.date.slice(0,7)),
