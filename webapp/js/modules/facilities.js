@@ -647,8 +647,8 @@ function fac_renderHistoryHealthChart(f) {
         </div>
         <div style="font-size:12px;font-weight:800;color:${trendClr}">${trendTxt}</div>
       </div>
-      <div style="position:relative;height:145px">
-        <canvas id="fac_hc_${f.id}"></canvas>
+      <div style="position:relative;height:145px;width:100%">
+        <canvas id="fac_hc_${f.id}" style="display:block;width:100%;height:145px"></canvas>
       </div>
     </div>`;
 }
@@ -951,7 +951,11 @@ function facListToggle(id) {
   body.style.display  = open ? 'none' : 'block';
   if (arrow) arrow.style.transform = open ? '' : 'rotate(180deg)';
   _expandedFacId = open ? null : id;
-  if (!open) setTimeout(() => fac_initHistoryChart(id), 80);
+  if (!open) {
+    const facId = String(id).replace('facrow_', '');
+    const numId = isNaN(facId) ? facId : Number(facId);
+    setTimeout(() => fac_initHistoryChart(numId), 250);
+  }
 }
 
 /* ── 詳情欄位列 ── */
@@ -1971,7 +1975,9 @@ function loadFacilitiesTable() {
       _row.style.display = 'block';
       const _arrow = document.getElementById(_expandedFacId + '_arrow');
       if (_arrow) _arrow.style.transform = 'rotate(180deg)';
-      setTimeout(() => fac_initHistoryChart(_expandedFacId), 150);
+      const _facIdNum = isNaN(String(_expandedFacId).replace('facrow_',''))
+        ? _expandedFacId : Number(String(_expandedFacId).replace('facrow_',''));
+      setTimeout(() => fac_initHistoryChart(_facIdNum), 300);
     }
   }
 }
