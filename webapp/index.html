@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css">
 </head>
 <body>
   <nav class="sidebar" id="sidebar">
@@ -123,6 +124,25 @@
 
   <div class="toast-container" id="toastContainer"></div>
 
+  <!-- 環景瀏覽 Modal（Pannellum 360°） -->
+  <div id="panoramaOverlay" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.92);flex-direction:column">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:rgba(0,0,0,.6)">
+      <div style="color:#fff;font-weight:700;font-size:16px">
+        <i class="fas fa-street-view" style="margin-right:8px;color:#60a5fa"></i>
+        <span id="panoramaTitle">環景瀏覽</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="color:#94a3b8;font-size:12px">拖曳旋轉・滾輪縮放</span>
+        <button onclick="closePanorama()"
+          style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:6px;
+                 padding:6px 14px;font-size:14px;font-weight:700;cursor:pointer">
+          <i class="fas fa-times"></i> 關閉
+        </button>
+      </div>
+    </div>
+    <div id="panoramaViewer" style="flex:1;width:100%;min-height:0"></div>
+  </div>
+
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <!-- Firebase SDK（即時多裝置同步） -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -131,12 +151,14 @@
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <!-- Google Maps API key loaded via /api/config endpoint -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js"></script>
   <script src="js/lib/twd97-transform.js"></script>
   <script src="js/lib/coordinate-audit.js"></script>
   <script src="js/lib/firebase-sync.js"></script>
   <script src="js/lib/auth.js"></script>
   <script src="js/db.js"></script>
   <script src="js/modules/dashboard.js"></script>
+  <script src="js/modules/historical_imagery.js"></script>
   <script src="js/modules/facilities.js"></script>
   <script src="js/modules/engineering_bookshelf.js"></script>
   <script src="js/modules/fish.js?v=20260629-fish-redtext"></script>

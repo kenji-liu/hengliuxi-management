@@ -1,4 +1,80 @@
 // 工程設施管理模組
+
+/* ── 環景圖對照表（設施名稱前綴 → assets 路徑）── */
+const FAC_PANORAMA_MAP = {
+  '溪構1-1':  'assets/panorama/xg1-1.jpg',
+  '溪構1-2':  'assets/panorama/xg1-2.jpg',
+  '溪構2':    'assets/panorama/xg2.jpg',
+  '溪構3':    'assets/panorama/xg3.jpg',
+  '溪構4':    'assets/panorama/xg4.jpg',
+  '溪構5-1':  'assets/panorama/xg5-1.jpg',
+  '溪構5-2':  'assets/panorama/xg5-2.jpg',
+  '溪構6':    'assets/panorama/xg6.jpg',
+  '溪構7':    'assets/panorama/xg7.jpg',
+  '溪構8-1':  'assets/panorama/xg8-1.jpg',
+  '溪構8-2':  'assets/panorama/xg8-2.jpg',
+  '溪構9':    'assets/panorama/xg9.jpg',
+  '溪構10':   'assets/panorama/xg10.jpg',
+  '溪構11':   'assets/panorama/xg11.jpg',
+  '護岸':     'assets/panorama/hugan.jpg',
+};
+
+function fac_panoramaPath(f) {
+  const name = f.name || '';
+  // 以「最長前綴優先」匹配，避免「溪構1」誤匹配「溪構10」
+  const keys = Object.keys(FAC_PANORAMA_MAP).sort((a,b) => b.length - a.length);
+  for (const k of keys) {
+    if (name.includes(k)) return FAC_PANORAMA_MAP[k];
+  }
+  return null;
+}
+
+let _pannellumInst = null;
+
+function openPanorama(path, title) {
+  const overlay = document.getElementById('panoramaOverlay');
+  const viewer  = document.getElementById('panoramaViewer');
+  const titleEl = document.getElementById('panoramaTitle');
+  if (!overlay || !viewer) return;
+
+  if (titleEl) titleEl.textContent = title || '環景瀏覽';
+  overlay.style.display = 'flex';
+  viewer.innerHTML = '';
+
+  // 銷毀舊實例
+  if (_pannellumInst) { try { _pannellumInst.destroy(); } catch(_){} _pannellumInst = null; }
+
+  if (typeof pannellum === 'undefined') {
+    viewer.innerHTML = `<div style="color:#fff;text-align:center;padding:60px;font-size:15px">
+      <i class="fas fa-spinner fa-spin" style="font-size:32px;margin-bottom:16px;display:block"></i>
+      全景檢視器載入中…</div>`;
+    return;
+  }
+
+  // 建立容器 div（Pannellum 需要 explicit div）
+  const pDiv = document.createElement('div');
+  pDiv.style.cssText = 'width:100%;height:100%';
+  viewer.appendChild(pDiv);
+
+  _pannellumInst = pannellum.viewer(pDiv, {
+    type: 'equirectangular',
+    panorama: path,
+    autoLoad: true,
+    showControls: true,
+    compass: false,
+    hfov: 100,
+    strings: { loadButtonLabel: '點擊載入環景', loadingLabel: '載入中…', bylineLabel: '' }
+  });
+}
+
+function closePanorama() {
+  const overlay = document.getElementById('panoramaOverlay');
+  if (overlay) overlay.style.display = 'none';
+  if (_pannellumInst) { try { _pannellumInst.destroy(); } catch(_){} _pannellumInst = null; }
+  const viewer = document.getElementById('panoramaViewer');
+  if (viewer) viewer.innerHTML = '';
+}
+
 let facilityPage = 1;
 const facilityPageSize = 14;   // 卡片模式每頁 14 筆（2 欄 × 7 列）
 let facilityFilter = { keyword: '', type: '', status: '' };
@@ -1759,6 +1835,7 @@ function loadFacilitiesTable() {
                 <span style="background:${stc}18;color:${stc};border:1px solid ${stc}44;border-radius:999px;padding:4px 12px;font-size:14px;font-weight:700">${f.subType || f.type || '-'}</span>
                 <span style="background:${sbg};color:${sc};border:1px solid ${sc}44;border-radius:999px;padding:4px 12px;font-size:14px;font-weight:700">${displayStatus}</span>
                 ${assessment.hasProfessional ? `<span style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:999px;padding:4px 10px;font-size:12px;font-weight:800">最新專業巡查表徵</span>` : ''}
+                ${(() => { const pp = fac_panoramaPath(f); return pp ? `<button onclick="event.stopPropagation();openPanorama('${pp}','${f.name.replace(/'/g,'\\\'').replace(/"/g,'&quot;')} 環景')" style="background:#0f172a;color:#60a5fa;border:1px solid #1e40af;border-radius:999px;padding:4px 12px;font-size:12px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:5px"><i class="fas fa-street-view"></i> 環景</button>` : ''; })()}
               </div>
               <div style="display:flex;gap:20px;flex-wrap:wrap;font-size:15px;color:#475569;align-items:center">
                 <span><i class="fas fa-route" style="color:${activeCategory.color};margin-right:6px"></i><b style="color:#1565c0;font-size:16px">${f.stationKm || '-'}</b></span>
