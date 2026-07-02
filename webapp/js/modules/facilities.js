@@ -528,67 +528,130 @@ function fac_historicalInspectionSummary(f) {
   return Object.values(groups).sort((a, b) => String(b.year).localeCompare(String(a.year)));
 }
 
-/* ── 歷史評估分數 mini bar chart ── */
+/* ── 歷史評估分數：Chart.js 長條圖＋趨勢線 ── */
+window._facHCData   = {};   // facilityId → chart data payload
+window._facHCInst   = {};   // facilityId → Chart instance
+
 function fac_renderHistoryHealthChart(f) {
   const rows = fac_professionalInspectionRows(f);
-  if (rows.length < 2) return ''; // 只有1筆或無紀錄時不顯示
+  if (rows.length < 2) return '';
 
-  // 計算每筆健康分數
   const FT = { professional_structure:'構造物', professional_fishway:'魚道', maintenance_completion:'完工', general_periodic:'一般', general:'一般' };
   const pts = rows.map(item => {
-    const d = item.deru_d ?? item.fw_deruItems?.reduce((s,x)=>s+(x.d||0),0)/Math.max(1,item.fw_deruItems?.length||1);
+    const d = item.deru_d != null ? item.deru_d
+      : (item.fw_deruItems?.length ? item.fw_deruItems.reduce((s,x)=>s+(x.d||0),0)/item.fw_deruItems.length : null);
+    if (d === null) return null;
     const e = item.deru_e ?? 1;
     const r = item.deru_r ?? 1;
     const text = String(item.findings||item.fw_findings||item.notes||'');
-    const hp = (item.deru_d != null || item.fw_deruItems?.length)
-      ? fac_healthFromDeru(d, e, r, text)
-      : null;
     return {
       date: item.date || '-',
-      hp,
+      hp: fac_healthFromDeru(d, e, r, text),
       label: FT[item.formType] || '專業',
       inspector: item.inspector || ''
     };
-  }).filter(p => p.hp !== null).reverse(); // 時間正序（舊→新）
+  }).filter(Boolean).reverse(); // 時間正序
 
   if (pts.length < 2) return '';
 
-  const maxHp = Math.max(...pts.map(p => p.hp));
-  const minHp = Math.min(...pts.map(p => p.hp));
-
-  const bars = pts.map((p, i) => {
-    const pct = Math.max(8, Math.round(p.hp));
-    const clr = p.hp >= 75 ? '#16a34a' : p.hp >= 50 ? '#ca8a04' : p.hp >= 30 ? '#ea580c' : '#b91c1c';
-    const bgClr = p.hp >= 75 ? '#dcfce7' : p.hp >= 50 ? '#fef9c3' : p.hp >= 30 ? '#ffedd5' : '#fee2e2';
-    const isLatest = i === pts.length - 1;
-    const yr = p.date.slice(0,7); // yyyy-mm
-    const tooltip = `${p.date}｜${p.label}巡查｜健康${p.hp}分`;
-    return `
-      <div title="${tooltip}" style="display:flex;align-items:center;gap:6px;font-size:11px;margin-bottom:3px">
-        <div style="width:52px;color:#64748b;flex-shrink:0;text-align:right">${yr}</div>
-        <div style="flex:1;background:#e9ecef;border-radius:3px;height:13px;overflow:hidden">
-          <div style="height:100%;width:${pct}%;background:${clr};border-radius:3px;transition:width .3s"></div>
-        </div>
-        <div style="width:32px;text-align:left;font-weight:${isLatest?'800':'600'};color:${clr}">${p.hp}</div>
-        <div style="width:30px;font-size:10px;color:#94a3b8">${p.label}</div>
-      </div>`;
-  }).join('');
-
-  const trend = pts.length >= 2 ? pts[pts.length-1].hp - pts[0].hp : 0;
-  const trendTxt = trend > 0 ? `↑ 較初次 +${trend} 分` : trend < 0 ? `↓ 較初次 ${trend} 分` : '持平';
+  const canvasId = `fac_hc_${f.id}`;
+  const trend = pts[pts.length-1].hp - pts[0].hp;
+  const trendTxt = trend > 0 ? `↑ +${trend} 分` : trend < 0 ? `↓ ${trend} 分` : '持平';
   const trendClr = trend > 0 ? '#16a34a' : trend < 0 ? '#b91c1c' : '#64748b';
+
+  // 儲存資料供 init 函式使用
+  window._facHCData[f.id] = {
+    labels:  pts.map(p => p.date.slice(0,7)),
+    scores:  pts.map(p => p.hp),
+    types:   pts.map(p => p.label),
+    dates:   pts.map(p => p.date)
+  };
 
   return `
     <div style="margin-top:12px;border-top:1px dashed #e2e8f0;padding-top:10px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px">
-        <div style="font-size:12px;font-weight:700;color:#475569"><i class="fas fa-history" style="margin-right:4px"></i>歷史評估分數（${pts.length}次）</div>
-        <div style="font-size:11px;font-weight:700;color:${trendClr}">${trendTxt}</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="font-size:12px;font-weight:700;color:#475569">
+          <i class="fas fa-chart-line" style="margin-right:4px;color:#3b82f6"></i>歷史評估分數（${pts.length}次）
+        </div>
+        <div style="font-size:12px;font-weight:800;color:${trendClr}">${trendTxt}</div>
       </div>
-      ${bars}
-      <div style="display:flex;justify-content:space-between;font-size:10px;color:#94a3b8;margin-top:3px;padding:0 58px 0 58px">
-        <span>${pts[0].date.slice(0,7)}</span><span style="font-size:10px">← 時間 →</span><span>${pts[pts.length-1].date.slice(0,7)}</span>
+      <div style="position:relative;height:130px">
+        <canvas id="${canvasId}"></canvas>
       </div>
     </div>`;
+}
+
+function fac_initHistoryChart(facilityId) {
+  const data = window._facHCData[facilityId];
+  const canvas = document.getElementById(`fac_hc_${facilityId}`);
+  if (!data || !canvas || typeof Chart === 'undefined') return;
+
+  // 銷毀已存在的圖表（避免重複）
+  if (window._facHCInst[facilityId]) {
+    try { window._facHCInst[facilityId].destroy(); } catch(_) {}
+    delete window._facHCInst[facilityId];
+  }
+
+  const barBg  = data.scores.map(s => s>=75?'rgba(22,163,74,.25)':s>=50?'rgba(202,138,4,.25)':s>=30?'rgba(234,88,12,.25)':'rgba(185,28,28,.25)');
+  const barBrd = data.scores.map(s => s>=75?'#16a34a':s>=50?'#ca8a04':s>=30?'#ea580c':'#b91c1c');
+
+  window._facHCInst[facilityId] = new Chart(canvas, {
+    data: {
+      labels: data.labels,
+      datasets: [
+        {
+          type: 'bar',
+          label: '健康分數',
+          data: data.scores,
+          backgroundColor: barBg,
+          borderColor: barBrd,
+          borderWidth: 1.5,
+          borderRadius: 4,
+          order: 2
+        },
+        {
+          type: 'line',
+          label: '趨勢線',
+          data: data.scores,
+          borderColor: '#3b82f6',
+          borderWidth: 2,
+          pointBackgroundColor: '#fff',
+          pointBorderColor: '#3b82f6',
+          pointBorderWidth: 2,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+          fill: false,
+          tension: 0.35,
+          order: 1
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: 500 },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: ctx => data.dates[ctx[0].dataIndex],
+            label: ctx => `${data.types[ctx.dataIndex]}巡查　健康 ${ctx.parsed.y} 分`
+          }
+        }
+      },
+      scales: {
+        y: {
+          min: 0, max: 100,
+          ticks: { stepSize: 25, font: { size: 10 }, color: '#94a3b8' },
+          grid: { color: '#f1f5f9' }
+        },
+        x: {
+          ticks: { font: { size: 10 }, color: '#64748b', maxRotation: 40 },
+          grid: { display: false }
+        }
+      }
+    }
+  });
 }
 
 function fac_inspectionLinkage(f) {
@@ -791,6 +854,7 @@ function facListToggle(id) {
   body.style.display  = open ? 'none' : 'block';
   if (arrow) arrow.style.transform = open ? '' : 'rotate(180deg)';
   _expandedFacId = open ? null : id;
+  if (!open) setTimeout(() => fac_initHistoryChart(id), 80);
 }
 
 /* ── 詳情欄位列 ── */
@@ -1809,6 +1873,7 @@ function loadFacilitiesTable() {
       _row.style.display = 'block';
       const _arrow = document.getElementById(_expandedFacId + '_arrow');
       if (_arrow) _arrow.style.transform = 'rotate(180deg)';
+      setTimeout(() => fac_initHistoryChart(_expandedFacId), 150);
     }
   }
 }
