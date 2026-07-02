@@ -528,6 +528,69 @@ function fac_historicalInspectionSummary(f) {
   return Object.values(groups).sort((a, b) => String(b.year).localeCompare(String(a.year)));
 }
 
+/* ── 歷史評估分數 mini bar chart ── */
+function fac_renderHistoryHealthChart(f) {
+  const rows = fac_professionalInspectionRows(f);
+  if (rows.length < 2) return ''; // 只有1筆或無紀錄時不顯示
+
+  // 計算每筆健康分數
+  const FT = { professional_structure:'構造物', professional_fishway:'魚道', maintenance_completion:'完工', general_periodic:'一般', general:'一般' };
+  const pts = rows.map(item => {
+    const d = item.deru_d ?? item.fw_deruItems?.reduce((s,x)=>s+(x.d||0),0)/Math.max(1,item.fw_deruItems?.length||1);
+    const e = item.deru_e ?? 1;
+    const r = item.deru_r ?? 1;
+    const text = String(item.findings||item.fw_findings||item.notes||'');
+    const hp = (item.deru_d != null || item.fw_deruItems?.length)
+      ? fac_healthFromDeru(d, e, r, text)
+      : null;
+    return {
+      date: item.date || '-',
+      hp,
+      label: FT[item.formType] || '專業',
+      inspector: item.inspector || ''
+    };
+  }).filter(p => p.hp !== null).reverse(); // 時間正序（舊→新）
+
+  if (pts.length < 2) return '';
+
+  const maxHp = Math.max(...pts.map(p => p.hp));
+  const minHp = Math.min(...pts.map(p => p.hp));
+
+  const bars = pts.map((p, i) => {
+    const pct = Math.max(8, Math.round(p.hp));
+    const clr = p.hp >= 75 ? '#16a34a' : p.hp >= 50 ? '#ca8a04' : p.hp >= 30 ? '#ea580c' : '#b91c1c';
+    const bgClr = p.hp >= 75 ? '#dcfce7' : p.hp >= 50 ? '#fef9c3' : p.hp >= 30 ? '#ffedd5' : '#fee2e2';
+    const isLatest = i === pts.length - 1;
+    const yr = p.date.slice(0,7); // yyyy-mm
+    const tooltip = `${p.date}｜${p.label}巡查｜健康${p.hp}分`;
+    return `
+      <div title="${tooltip}" style="display:flex;align-items:center;gap:6px;font-size:11px;margin-bottom:3px">
+        <div style="width:52px;color:#64748b;flex-shrink:0;text-align:right">${yr}</div>
+        <div style="flex:1;background:#e9ecef;border-radius:3px;height:13px;overflow:hidden">
+          <div style="height:100%;width:${pct}%;background:${clr};border-radius:3px;transition:width .3s"></div>
+        </div>
+        <div style="width:32px;text-align:left;font-weight:${isLatest?'800':'600'};color:${clr}">${p.hp}</div>
+        <div style="width:30px;font-size:10px;color:#94a3b8">${p.label}</div>
+      </div>`;
+  }).join('');
+
+  const trend = pts.length >= 2 ? pts[pts.length-1].hp - pts[0].hp : 0;
+  const trendTxt = trend > 0 ? `↑ 較初次 +${trend} 分` : trend < 0 ? `↓ 較初次 ${trend} 分` : '持平';
+  const trendClr = trend > 0 ? '#16a34a' : trend < 0 ? '#b91c1c' : '#64748b';
+
+  return `
+    <div style="margin-top:12px;border-top:1px dashed #e2e8f0;padding-top:10px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px">
+        <div style="font-size:12px;font-weight:700;color:#475569"><i class="fas fa-history" style="margin-right:4px"></i>歷史評估分數（${pts.length}次）</div>
+        <div style="font-size:11px;font-weight:700;color:${trendClr}">${trendTxt}</div>
+      </div>
+      ${bars}
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:#94a3b8;margin-top:3px;padding:0 58px 0 58px">
+        <span>${pts[0].date.slice(0,7)}</span><span style="font-size:10px">← 時間 →</span><span>${pts[pts.length-1].date.slice(0,7)}</span>
+      </div>
+    </div>`;
+}
+
 function fac_inspectionLinkage(f) {
   const inspections = fac_linkedInspections(f);
   // 只有明確「待處理」或「處理中」才算未結案件
@@ -1457,6 +1520,8 @@ function renderFacilities() {
 
     ${renderFacilityPrimaryCategories()}
 
+    ${typeof renderHistoricalImageryPanel === 'function' ? renderHistoricalImageryPanel('facilities') : ''}
+
     <!-- 篩選列 -->
 
 
@@ -1710,6 +1775,7 @@ function loadFacilitiesTable() {
                 ${facDetailRow('風險等級', link.riskLevel.label)}
                 ${facDetailRow('維護策略', assessment.strategy || f.maintenanceStrategy || '-')}
                 <div style="margin-top:10px;font-size:13px;color:#475569;border-left:3px solid ${stc};padding-left:9px;line-height:1.65">${assessment.basis || f.evaluationNotes || ''}</div>
+                ${fac_renderHistoryHealthChart(f)}
               </div>
             </div>
 
