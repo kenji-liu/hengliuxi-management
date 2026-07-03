@@ -363,8 +363,16 @@ function fac_sortAuthoritativeInspections(rows = []) {
 }
 
 function fac_isProfessionalInspection(item = {}) {
-  const t = fac_inspectionType(item);
+  // 維護完工 / 已改善閉合紀錄：一律視為代表性表徵
   if (item.formType === 'maintenance_completion' || fac_isRestoredInspection(item)) return true;
+  // 有明確 formType 時，以 formType 為權威判定（不用文字關鍵字），
+  // 避免一般巡查 findings 內含「專業技師評估」「結構外觀破損」等字樣被誤判為專業巡查，
+  // 進而錯誤地成為「最新專業巡查」代表評分來源。
+  if (item.formType) {
+    return item.formType === 'professional_structure' || item.formType === 'professional_fishway';
+  }
+  // 僅對「無 formType」的舊版/匯入資料採文字啟發式判斷
+  const t = fac_inspectionType(item);
   if (t === 'professional' || t === 'fishway') return true;
   const text = fac_inspectionText(item);
   return /技士|技師|專業|構造物|魚道檢核|DER&U|工程檢核|外觀檢視/.test(text)
@@ -1424,10 +1432,20 @@ function renderFacilityInspectionDataSection(f) {
         }).join('')}
       </div>
       ${inspections.length ? `
-        <div style="display:grid;gap:7px">
-          ${inspections.slice(0, 5).map(item => {
+        <div style="display:grid;gap:12px">
+          ${groups.map(g => {
+            const rows = inspections.filter(item => fac_inspectionType(item) === g.type);
+            if (!rows.length) return '';
+            const shown = rows.slice(0, 6);
+            return `
+            <div>
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+                <span style="font-size:12px;font-weight:900;color:${g.color}"><i class="fas ${g.icon}" style="margin-right:4px"></i>${g.label}</span>
+                <span style="font-size:11px;color:#64748b;background:${g.bg};border:1px solid ${g.border};border-radius:999px;padding:1px 8px;font-weight:700">${rows.length} 筆${rows.length > shown.length ? `・顯示最新 ${shown.length} 筆` : ''}</span>
+              </div>
+              <div style="display:grid;gap:7px">
+          ${shown.map(item => {
             const t = fac_inspectionType(item);
-            const g = groups.find(x => x.type === t) || groups[0];
             return `
             <div style="background:#fff;border:1px solid ${g.border};border-left:3px solid ${g.color};border-radius:8px;padding:10px 12px;font-size:12px">
               <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap;margin-bottom:4px">
@@ -1456,6 +1474,9 @@ function renderFacilityInspectionDataSection(f) {
               })()}
             </div>
           `}).join('')}
+              </div>
+            </div>`;
+          }).join('')}
         </div>
       ` : '<div style="background:#fff;border:1px dashed #bfdbfe;border-radius:8px;padding:12px;font-size:12px;color:#64748b">尚無巡查資料，建議建立一般巡查紀錄並補齊現況照片。</div>'}
       <div style="margin-top:10px;padding:8px 12px;background:#dcfce7;border-radius:8px;font-size:11px;color:#166534">
