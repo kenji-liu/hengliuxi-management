@@ -49,6 +49,8 @@ function renderGISEnhanced() {
       </div>
     </div>
 
+    ${typeof renderHistoricalImageryPanel === 'function' ? renderHistoricalImageryPanel('gis-enhanced') : ''}
+
     <!-- 地圖容器 -->
     <div id="gisMapContainer" style="width:100%;height:700px;border-radius:8px;border:1px solid #e8ecf0;background:#f9fafb;margin-bottom:16px;position:relative;overflow:hidden">
       <div id="gisLeafletMap" style="width:100%;height:100%;border-radius:8px"></div>
