@@ -371,7 +371,7 @@ const DB = {
           note: '護岸（0K+400~1K+400），混凝土/塊石材質，保護溪岸免受洪水侵蝕；全段定期巡查，注意岩塊移位及坡腳侵蝕',
           photos: ['/webapp/assets/report-photos/hugan-revetment-2026.jpg'] },
 
-        { id: 16, name: '步道', type: '步道', subType: '溪濱步道', code: 'T1', stationKm: '0K+000~1K+290', location: '步道 0K+000~1K+290', twd97x: null, twd97y: null, lat: 24.184011, lng: 120.909671, km_num: 0,
+        { id: 16, name: '步道', type: '步道', subType: '溪濱步道', code: 'T1', stationKm: '0K+000~1K+290', location: '步道 0K+000~1K+290', twd97x: null, twd97y: null, lat: 24.183807, lng: 120.909745, km_num: 0,
           year: 108, status: '需維護', material: 'PC路面/碎石路面', length: 1290, width: 1.5, condition: 3, lastInspect: '2025-03-15', source: '維護管理計畫 表4-1',
           derLevel: 'C3', assessmentDate: '2025-03-15', riskScore: 38, maintenanceStrategy: '反應式', retirementEligible: false, evaluationNotes: 'PC路面段整體良好；碎石路面段局部有沉陷及碎石流失，雨季後積水，建議安排補充碎石及路面修補',
           river_segment: '橫流溪全段', anomaly_type: '沉陷|破損', anomaly_level: '中', maintenance_priority: '中',
