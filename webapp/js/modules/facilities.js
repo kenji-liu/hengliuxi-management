@@ -128,6 +128,15 @@ const FACILITY_PRIMARY_CATEGORIES = [
     bg: '#f8fafc',
     border: '#cbd5e1',
     description: '管理混凝土護岸與塊石護岸，追蹤坡腳沖刷、塊石位移與局部裂縫狀況。'
+  },
+  {
+    key: 'trail',
+    label: '步道設施',
+    icon: 'fa-route',
+    color: '#6d4c41',
+    bg: '#fdf8f6',
+    border: '#d7ccc8',
+    description: '管理溪濱步道路面狀況，追蹤PC路面裂縫、碎石流失、積水沉陷與邊坡穩定性。'
   }
 ];
 
@@ -1169,6 +1178,8 @@ function fac_primaryCategoryOf(f) {
   if (/^P\d+$/.test(code) || /平台|平臺/.test(text)) return 'platform';
   // 護岸（RA 或含「護岸」）
   if (code === 'RA' || /護岸/.test(text)) return 'revetment';
+  // 步道（T1 或含「步道」）
+  if (/^T\d+$/.test(code) || /步道/.test(text)) return 'trail';
   // 文字比對備援
   if (/魚道/.test(text)) return 'fishway';
   if (/防砂|壩堰/.test(text)) return 'checkdam';
