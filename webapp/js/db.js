@@ -14,7 +14,7 @@ const DB = {
   },
 
   // 資料版本（每次重大更新設施資料時遞增）
-  VERSION: '5.10',  // 附錄三巡查表正規化：一般巡查／專業巡查／魚道巡查分類、來源PDF、日期與照片標註
+  VERSION: '5.11',  // 步道座標校正 + 匯入114~115年一般性定期巡查；遷移時座標欄位強制採官方seed值
 
   _suppressCloudPush: false,
 
@@ -183,7 +183,14 @@ const DB = {
           if (!userFac) return defFac;
           const userNewer = userFac.updatedAt ||
             (userFac.assessmentDate && userFac.assessmentDate > (defFac.assessmentDate || ''));
-          return userNewer ? { ...defFac, ...userFac } : { ...defFac };
+          // 座標為實測官方資料（非UI可編輯欄位），一律以最新 seed 為準，
+          // 避免舊版 localStorage 快取座標覆蓋校正後的點位
+          if (!userNewer) return { ...defFac };
+          return {
+            ...defFac, ...userFac,
+            lat: defFac.lat, lng: defFac.lng,
+            twd97x: defFac.twd97x, twd97y: defFac.twd97y
+          };
         });
 
         const merged = {
