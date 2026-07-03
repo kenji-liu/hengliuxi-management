@@ -1696,8 +1696,6 @@ function renderFacilities() {
 
     ${renderFacilityPrimaryCategories()}
 
-    ${typeof renderHistoricalImageryPanel === 'function' ? renderHistoricalImageryPanel('facilities') : ''}
-
     <!-- 篩選列 -->
 
 
