@@ -369,7 +369,7 @@ const DB = {
           sourceTableNo: '維護管理表', facilityNo: '-', tableLocation: '橫流溪 0K+400~1K+400',
           judgement_basis: '依維護管理表，護岸範圍為橫流溪0K+400~1K+400，使用材質為混凝土/塊石，TWD97座標未列點位，採線性設施管理。',
           note: '護岸（0K+400~1K+400），混凝土/塊石材質，保護溪岸免受洪水侵蝕；全段定期巡查，注意岩塊移位及坡腳侵蝕',
-          photos: ['/webapp/assets/report-photos/manual-p39-05-665x498.jpg'] },
+          photos: ['/webapp/assets/report-photos/hugan-revetment-2026.jpg'] },
 
         { id: 16, name: '步道', type: '步道', subType: '溪濱步道', code: 'T1', stationKm: '0K+000~1K+290', location: '步道 0K+000~1K+290', twd97x: null, twd97y: null, lat: 24.182000, lng: 120.909200, km_num: 0,
           year: 108, status: '需維護', material: 'PC路面/碎石路面', length: 1290, width: 1.5, condition: 3, lastInspect: '2025-03-15', source: '維護管理計畫 表4-1',
