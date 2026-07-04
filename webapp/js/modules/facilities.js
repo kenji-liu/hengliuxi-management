@@ -365,6 +365,7 @@ function fac_isRestoredInspection(item = {}) {
 function fac_authorityRank(item = {}) {
   if (fac_isRestoredInspection(item)) return 90;
   if (item.formType === 'maintenance_completion') return 80;
+  if (item.dataClass === 'maintenance' || item.managementClass === 'maintenance') return 75;
   if (item.formType === 'professional_fishway') return 70;
   if (item.formType === 'professional_structure') return 65;
   if (item.type === 'deru_assessment') return 60;
@@ -386,6 +387,7 @@ function fac_sortAuthoritativeInspections(rows = []) {
 
 function fac_isProfessionalInspection(item = {}) {
   // 維護完工 / 已改善閉合紀錄：一律視為代表性表徵
+  if (item.dataClass === 'maintenance' || item.managementClass === 'maintenance') return true;
   if (item.formType === 'maintenance_completion' || fac_isRestoredInspection(item)) return true;
   // 有明確 formType 時，以 formType 為權威判定（不用文字關鍵字），
   // 避免一般巡查 findings 內含「專業技師評估」「結構外觀破損」等字樣被誤判為專業巡查，
@@ -1291,6 +1293,7 @@ function fac_filterPrimaryCategory(data) {
 }
 
 function fac_inspectionType(item = {}) {
+  if (item.dataClass === 'maintenance' || item.managementClass === 'maintenance') return 'maintenance';
   if (item.formType === 'maintenance_completion') return 'maintenance';
   if (item.formType === 'general_periodic') return 'general';
   if (item.formType === 'professional_structure') return 'professional';
@@ -1307,7 +1310,7 @@ function fac_inspectionTypeLabel(type) {
     general: '一般巡查紀錄',
     professional: '專業巡查紀錄',
     fishway: '魚道檢核表',
-    maintenance: '維護完工回報',
+    maintenance: '維護管理資料',
     ranger: '護管員巡查紀錄'
   }[type] || '一般巡查紀錄';
 }
@@ -1315,10 +1318,14 @@ function fac_inspectionTypeLabel(type) {
 function fac_facilityLinkedMaintenanceCases(f) {
   const inspections = fac_linkedInspections(f);
   // 維護完工回報單獨顯示
-  const completionRecs = inspections.filter(i => i.formType === 'maintenance_completion');
+  const completionRecs = inspections.filter(i =>
+    i.formType === 'maintenance_completion' || i.dataClass === 'maintenance' || i.managementClass === 'maintenance'
+  );
   // 待處理/高優先異常巡查
   const anomalyRecs = inspections.filter(item =>
     item.formType !== 'maintenance_completion' &&
+    item.dataClass !== 'maintenance' &&
+    item.managementClass !== 'maintenance' &&
     (item.status !== '完成' || item.priority === '高' || item.priority === '緊急' || item.aiImageAnalysis || item.deru_u >= 2)
   );
   const all = [...anomalyRecs, ...completionRecs];
@@ -1326,9 +1333,13 @@ function fac_facilityLinkedMaintenanceCases(f) {
     id: item.formType === 'maintenance_completion'
       ? `MC-${String(f.id).padStart(2,'0')}-${String(index+1).padStart(2,'0')}`
       : `M-${String(f.id).padStart(2,'0')}-${String(index+1).padStart(2,'0')}`,
-    source: item.formType === 'maintenance_completion' ? '維護完工回報' : (item.sourceType || (item.type === 'deru_assessment' ? 'DER&U評估' : '巡查資料')),
+    source: item.formType === 'maintenance_completion'
+      ? '維護完工回報'
+      : (item.maintenanceType || item.sourceType || (item.type === 'deru_assessment' ? 'DER&U評估' : '巡查資料')),
     reportDate: item.date || f.lastInspect || '-',
-    type: item.formType === 'maintenance_completion' ? '維護完工回報' : (item.aiImageAnalysis ? 'AI影像輔助判釋' : (item.deru_u >= 3 ? '補強或修復評估' : '例行追蹤處理')),
+    type: item.formType === 'maintenance_completion'
+      ? '維護完工回報'
+      : (item.maintenanceType || item.inspectionItem || (item.aiImageAnalysis ? 'AI影像輔助判釋' : (item.deru_u >= 3 ? '補強或修復評估' : '例行追蹤處理'))),
     action: item.formType === 'maintenance_completion'
       ? `【工法】${item.method || item.action || ''}　【完工後】${item.afterDesc || item.findings || ''}`
       : (item.action || item.recommendation || item.aiImageAnalysis?.actionSuggestion || f.evaluationNotes || f.maintenanceStrategy || '建議由巡查結果建立維護處理紀錄。'),
@@ -1488,6 +1499,7 @@ function renderFacilityInspectionDataSection(f) {
                   ${item.cloudSyncStatus ? `<span style="font-size:10px;background:#dcfce7;color:${syncColor(item.cloudSyncStatus)};border:1px solid #86efac;border-radius:999px;padding:1px 6px;font-weight:700"><i class="fas fa-cloud"></i> ${item.cloudSyncStatus}</span>` : ''}
                   <span style="color:#64748b;font-size:11px">${item.inspector || '-'}｜${item.priority || '未分級'}</span>
                   <button onclick="event.stopPropagation();fac_editInspection(${item.id},${f.id})" style="font-size:11px;color:#1565c0;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:2px 8px;cursor:pointer;font-weight:700"><i class="fas fa-edit"></i> 編輯</button>
+                  <button onclick="event.stopPropagation();openInspectionReclassificationForm(${item.id},${f.id})" style="font-size:11px;color:#7c3aed;background:#faf5ff;border:1px solid #ddd6fe;border-radius:6px;padding:2px 8px;cursor:pointer;font-weight:700"><i class="fas fa-random"></i> 重新歸類</button>
                 </div>
               </div>
               <div style="color:#334155;line-height:1.55">${String(item.findings || item.note || '尚無發現事項摘要。').slice(0, 130)}</div>
@@ -1548,6 +1560,9 @@ function renderFacilityMaintenanceDataSection(f) {
                   <span style="background:${item.status==='完成'?'#dcfce7':item.status==='處理中'?'#fef9c3':'#fee2e2'};color:${item.status==='完成'?'#166534':item.status==='處理中'?'#92400e':'#b91c1c'};border-radius:999px;padding:2px 8px;font-weight:800">${item.status}</span>
                   <button onclick="fac_editMaintenanceCase(${item.itemId},${f.id})" style="font-size:11px;color:${item.isCompletion?'#7c3aed':'#1565c0'};background:${item.isCompletion?'#faf5ff':'#eff6ff'};border:1px solid ${item.isCompletion?'#ddd6fe':'#bfdbfe'};border-radius:5px;padding:2px 7px;cursor:pointer;font-weight:700">
                     <i class="fas fa-edit"></i> 編輯工程
+                  </button>
+                  <button onclick="openInspectionReclassificationForm(${item.itemId},${f.id})" style="font-size:11px;color:#7c3aed;background:#faf5ff;border:1px solid #ddd6fe;border-radius:5px;padding:2px 7px;cursor:pointer;font-weight:700">
+                    <i class="fas fa-random"></i> 重新歸類
                   </button>
                 </div>
               </div>

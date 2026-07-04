@@ -8,6 +8,7 @@ const DB = {
     fish: [],
     habitats: [],
     inspections: [],
+    reclassificationLogs: [],
     reports: [],  // 107~108年成果報告
     feedback: [],  // Phase 2.2: RAG 答覆反饋
     settings: { lastUpdate: null }
@@ -234,6 +235,7 @@ const DB = {
             });
             return add.length ? [...enriched, ...add] : enriched;
           })(),
+          reclassificationLogs: Array.isArray(data.reclassificationLogs) ? data.reclassificationLogs : defaults.reclassificationLogs,
           fish:        userFish.length        ? userFish        : defaults.fish,
           habitats:    userHabitats.length    ? userHabitats    : defaults.habitats,
           reports:     userReports.length     ? userReports     : defaults.reports,
@@ -505,6 +507,7 @@ const DB = {
         { id: 5, name: '水質監測站 0K+460', type: '水質調查', surveyMethod: '水質採樣', location: '橫流溪 0K+460', stationKm: '0K+460', lat: 24.17602, lng: 120.90860, twd97x: 240716, twd97y: 2675003, area: null, depth: null, substrate: '礫石', vegetation: '低', quality: 4, date: '2019-04-17', source: '107-108成果報告', note: '108年水質監測點（TWD97：240716, 2675003）；檢測項目含DO、BOD5、SS、NH3-N；河川污染指數RPI良好' },
         { id: 6, name: '115年溪流生態調查點 S1', type: '急流', surveyMethod: '電魚', location: '橫流溪 1K+225附近', stationKm: '1K+225', lat: 24.2254, lng: 120.9100, twd97x: null, twd97y: null, area: 430, depth: 0.45, substrate: '礫石', vegetation: '低', quality: 5, date: '2025-03-10', source: '115年魚類調查', note: '溪構6附近急流段，臺灣白甲魚及纓口臺鰍密度較高，符合保育棲地標準' }
       ],
+      reclassificationLogs: [],
       reports: [],
       inspections: [
         { id: 1, facilityId: 7, facilityName: '溪構5-2 潛越式魚道', date: '2025-01-10', inspector: '張技士', weather: '晴', findings: '入口遭颱風帶入土石完全堵塞，魚類無法通行，池壁左側出現縱向裂縫約20cm', action: '提報緊急維護計畫，申請預算清除堵塞土石', status: '完成', priority: '低', photos: [], maintenanceStart: '2025-01-10', expectedCompletion: '', completedAt: '', deru_d: 0, deru_e: 1, deru_r: 1, deru_u: 1, deru_label: 'U1 定期巡查', deru_score: 0 },

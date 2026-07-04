@@ -299,6 +299,283 @@ function inspectionPdfFileName(item, meta) {
   return `${date}_${facility}_${label}.pdf`;
 }
 
+function inspectionDataClass(item = {}) {
+  if (item.dataClass === 'maintenance' || item.managementClass === 'maintenance' || item.formType === 'maintenance_completion') return 'maintenance';
+  return 'inspection';
+}
+
+function inspectionReclassSnapshot(item = {}) {
+  return {
+    id: item.id,
+    dataClass: inspectionDataClass(item),
+    formType: item.formType || '',
+    inspectionCategory: item.inspectionCategory || '',
+    linkedInspectionCategory: item.linkedInspectionCategory || item.sourceInspectionCategory || '',
+    inspectionSubcategory: item.inspectionSubcategory || '',
+    maintenanceCategory: item.maintenanceCategory || '',
+    maintenanceType: item.maintenanceType || '',
+    facilityId: item.facilityId || item.facility_id || null,
+    facilityName: item.facilityName || item.facility_name || '',
+    facilityType: item.facilityType || '',
+    sourceType: item.sourceType || '',
+    inspectionItem: item.inspectionItem || '',
+    date: item.date || '',
+    status: item.status || '',
+    priority: item.priority || ''
+  };
+}
+
+function inspectionCategoryMeta(category) {
+  return {
+    general: {
+      formType: 'general_periodic',
+      label: '一般巡查紀錄',
+      sourceType: '一般巡查表單',
+      classLabel: '一般巡查',
+      subcategory: '一般巡查紀錄'
+    },
+    professional: {
+      formType: 'professional_structure',
+      label: '構造物調查表',
+      sourceType: '專業巡查-構造物調查表',
+      classLabel: '專業巡查',
+      subcategory: '專業巡查紀錄'
+    },
+    fishway: {
+      formType: 'professional_fishway',
+      label: '魚道檢核表',
+      sourceType: '專業巡查-魚道檢核表',
+      classLabel: '魚道巡查資料',
+      subcategory: '魚道巡查資料'
+    },
+    ranger: {
+      formType: 'general_periodic',
+      label: '護管員巡查紀錄',
+      sourceType: '護管員巡查紀錄',
+      classLabel: '護管員巡查',
+      subcategory: '護管員巡查紀錄'
+    }
+  }[category] || {
+    formType: 'general_periodic',
+    label: '一般巡查紀錄',
+    sourceType: '一般巡查表單',
+    classLabel: '一般巡查',
+    subcategory: '一般巡查紀錄'
+  };
+}
+
+function inspectionMaintenanceCategoryLabel(category) {
+  return {
+    maintenance_case: '維護案件紀錄',
+    improvement: '改善處理紀錄',
+    dredging_reinforcement: '清淤或補強紀錄',
+    maintenance_completion: '維護完工回報',
+    follow_up: '後續追蹤紀錄'
+  }[category] || '維護案件紀錄';
+}
+
+function inspectionFacilityTypeOptions(selectedType = '') {
+  const standard = ['魚道', '防砂壩', '固床工', '平台', '護岸', '步道', '排水設施', '邊坡保護工', '其他'];
+  const fromDb = DB.getAll('facilities').map(f => f.type).filter(Boolean);
+  const types = Array.from(new Set([...standard, ...fromDb]));
+  return types.map(type => `<option value="${inspectionEscape(type)}" ${type === selectedType ? 'selected' : ''}>${inspectionEscape(type)}</option>`).join('');
+}
+
+function openInspectionReclassificationForm(id, returnFacilityId = null) {
+  const item = DB.getById('inspections', Number(id));
+  if (!item) {
+    showToast('找不到要重新歸類的資料', 'error');
+    return;
+  }
+  const facilities = DB.getAll('facilities')
+    .slice()
+    .sort((a, b) => String(a.type || '').localeCompare(String(b.type || '')) || String(a.stationKm || '').localeCompare(String(b.stationKm || '')) || String(a.name || '').localeCompare(String(b.name || '')));
+  const currentClass = inspectionDataClass(item);
+  const currentType = inspectionRecordType(item);
+  const currentInspectionCategory = item.linkedInspectionCategory || item.sourceInspectionCategory ||
+    (item.formType === 'professional_structure' ? 'professional' :
+     item.formType === 'professional_fishway' ? 'fishway' :
+     item.formType === 'general_periodic' ? 'general' :
+     currentType === 'maintenance' ? 'professional' : currentType);
+  const currentFacilityId = Number(item.facilityId || item.facility_id || returnFacilityId || 0);
+  const selectedFacility = DB.getById('facilities', currentFacilityId) || null;
+  const currentFacilityType = item.facilityType || selectedFacility?.type || '';
+  const currentMaintenanceCategory = item.maintenanceCategory || (item.formType === 'maintenance_completion' ? 'maintenance_completion' : 'maintenance_case');
+  const history = Array.isArray(item.reclassificationHistory) ? item.reclassificationHistory : [];
+
+  document.getElementById('modalTitle').textContent = `資料重新歸類 — ${item.facilityName || selectedFacility?.name || '未指定設施'}`;
+  document.getElementById('modalBody').innerHTML = `
+    <div style="display:grid;gap:14px">
+      <div style="background:#eff6ff;border:1px solid #bfdbfe;border-left:4px solid #1565c0;border-radius:10px;padding:12px;color:#1e3a8a;line-height:1.7;font-size:14px">
+        <b>用途：</b>當表單放錯在「巡查資料」或「維護管理資料」時，可重新指定資料大類、巡查類別、維護類別、設施類型與對應工程設施。儲存後會同步更新設施履歷、照片與最新狀態評估。
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group">
+          <label>資料大類 *</label>
+          <select id="rc_data_class">
+            <option value="inspection" ${currentClass === 'inspection' ? 'selected' : ''}>巡查資料</option>
+            <option value="maintenance" ${currentClass === 'maintenance' ? 'selected' : ''}>維護管理資料</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>對應工程設施 facility_id *</label>
+          <select id="rc_facility" onchange="inspectionReclassFacilityChanged(this.value)">
+            <option value="">請選擇設施</option>
+            ${facilities.map(f => `<option value="${f.id}" ${Number(f.id) === currentFacilityId ? 'selected' : ''}>${inspectionEscape(f.name)}｜${inspectionEscape(f.type || '-')}｜${inspectionEscape(f.stationKm || '-')}｜id:${f.id}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>巡查類別</label>
+          <select id="rc_inspection_category">
+            <option value="general" ${currentInspectionCategory === 'general' ? 'selected' : ''}>一般巡查</option>
+            <option value="professional" ${currentInspectionCategory === 'professional' ? 'selected' : ''}>專業巡查－構造物調查表</option>
+            <option value="fishway" ${currentInspectionCategory === 'fishway' ? 'selected' : ''}>專業巡查－魚道檢核表</option>
+            <option value="ranger" ${currentInspectionCategory === 'ranger' ? 'selected' : ''}>護管員巡查</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>維護類別</label>
+          <select id="rc_maintenance_category">
+            <option value="maintenance_case" ${currentMaintenanceCategory === 'maintenance_case' ? 'selected' : ''}>維護案件紀錄</option>
+            <option value="improvement" ${currentMaintenanceCategory === 'improvement' ? 'selected' : ''}>改善處理紀錄</option>
+            <option value="dredging_reinforcement" ${currentMaintenanceCategory === 'dredging_reinforcement' ? 'selected' : ''}>清淤或補強紀錄</option>
+            <option value="maintenance_completion" ${currentMaintenanceCategory === 'maintenance_completion' ? 'selected' : ''}>維護完工回報</option>
+            <option value="follow_up" ${currentMaintenanceCategory === 'follow_up' ? 'selected' : ''}>後續追蹤紀錄</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>設施類型</label>
+          <select id="rc_facility_type">
+            ${inspectionFacilityTypeOptions(currentFacilityType)}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>異動原因</label>
+          <input id="rc_reason" type="text" value="表單位置歸類修正" placeholder="例如：專業巡查誤放於維護資料">
+        </div>
+      </div>
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;font-size:13px;color:#334155;line-height:1.7">
+        <b>目前資料：</b>${inspectionEscape(item.inspectionItem || inspectionRecordTypeLabel(currentType))}｜
+        日期 ${inspectionEscape(item.date || '-')}｜
+        狀態 ${inspectionEscape(getInspectionStatus(item))}｜
+        優先度 ${inspectionEscape(getInspectionPriority(item))}
+        <div style="margin-top:6px;color:#64748b">${inspectionEscape(String(item.findings || item.action || '尚無摘要').slice(0, 160))}</div>
+      </div>
+      <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:12px;font-size:13px;color:#9a3412;line-height:1.7">
+        <b>可追溯紀錄：</b>本筆已累計 ${history.length} 次重新歸類。此次儲存後會新增一筆前後差異快照，並將本筆資料標記為「待上傳」。
+      </div>
+    </div>
+  `;
+  document.getElementById('modalFooter').innerHTML = `
+    <button class="btn btn-outline" onclick="closeModal()">取消</button>
+    <button class="btn btn-primary" onclick="saveInspectionReclassification(${Number(id)}, ${returnFacilityId ? Number(returnFacilityId) : 'null'})">
+      <i class="fas fa-save"></i> 儲存重新歸類
+    </button>
+  `;
+  openModal();
+}
+
+function inspectionReclassFacilityChanged(facilityId) {
+  const facility = DB.getById('facilities', Number(facilityId));
+  const typeSelect = document.getElementById('rc_facility_type');
+  if (facility?.type && typeSelect) typeSelect.value = facility.type;
+}
+
+function saveInspectionReclassification(id, returnFacilityId = null) {
+  const item = DB.getById('inspections', Number(id));
+  if (!item) {
+    showToast('找不到要更新的資料', 'error');
+    return;
+  }
+  const dataClass = document.getElementById('rc_data_class')?.value || 'inspection';
+  const inspectionCategory = document.getElementById('rc_inspection_category')?.value || 'general';
+  const maintenanceCategory = document.getElementById('rc_maintenance_category')?.value || 'maintenance_case';
+  const facilityId = Number(document.getElementById('rc_facility')?.value || 0);
+  const facilityType = document.getElementById('rc_facility_type')?.value || '';
+  const reason = document.getElementById('rc_reason')?.value || '表單位置歸類修正';
+  const facility = DB.getById('facilities', facilityId);
+  if (!facility) {
+    showToast('請選擇有效的工程設施 facility_id', 'warning');
+    return;
+  }
+
+  const before = inspectionReclassSnapshot(item);
+  const now = new Date().toISOString();
+  const categoryMeta = inspectionCategoryMeta(inspectionCategory);
+  const maintenanceLabel = inspectionMaintenanceCategoryLabel(maintenanceCategory);
+  const nextFormType = dataClass === 'maintenance' && maintenanceCategory === 'maintenance_completion'
+    ? 'maintenance_completion'
+    : categoryMeta.formType;
+  const syncMeta = inspectionFormSyncMeta(nextFormType);
+  const dataClassLabel = dataClass === 'maintenance' ? '維護管理資料' : '巡查資料';
+
+  const updates = {
+    dataClass,
+    dataClassLabel,
+    managementClass: dataClass,
+    formType: nextFormType,
+    facilityId,
+    facility_id: facilityId,
+    facilityName: facility.name,
+    facility_name: facility.name,
+    facilityType: facilityType || facility.type || '',
+    stationKm: facility.stationKm || item.stationKm || '',
+    inspectionCategory: dataClass === 'maintenance' ? 'maintenance' : inspectionCategory,
+    linkedInspectionCategory: inspectionCategory,
+    sourceInspectionCategory: inspectionCategory,
+    inspectionClassLabel: dataClass === 'maintenance' ? '維護管理資料' : categoryMeta.classLabel,
+    inspectionSubcategory: dataClass === 'maintenance' ? maintenanceLabel : categoryMeta.subcategory,
+    inspectionItem: dataClass === 'maintenance' ? maintenanceLabel : categoryMeta.label,
+    maintenanceCategory: dataClass === 'maintenance' ? maintenanceCategory : '',
+    maintenanceType: dataClass === 'maintenance' ? maintenanceLabel : '',
+    sourceType: dataClass === 'maintenance' ? maintenanceLabel : categoryMeta.sourceType,
+    pdfTemplate: dataClass === 'maintenance' ? maintenanceLabel : (syncMeta.label || categoryMeta.label),
+    cloudTarget: dataClass === 'maintenance'
+      ? `巡查資料管理/維護管理資料/${maintenanceLabel}`
+      : syncMeta.cloudFolder,
+    cloudSyncStatus: '待上傳',
+    reclassifiedAt: now,
+    reclassificationReason: reason
+  };
+  if (!item.pdfFileName) {
+    updates.pdfFileName = inspectionPdfFileName({ ...item, ...updates }, syncMeta);
+  }
+
+  const after = inspectionReclassSnapshot({ ...item, ...updates });
+  const historyItem = { changedAt: now, reason, before, after };
+  updates.reclassificationHistory = [
+    ...(Array.isArray(item.reclassificationHistory) ? item.reclassificationHistory : []),
+    historyItem
+  ];
+
+  const saved = DB.update('inspections', Number(id), updates);
+  DB.insert('reclassificationLogs', {
+    inspectionId: Number(id),
+    changedAt: now,
+    reason,
+    before,
+    after,
+    operator: '平台使用者',
+    sourcePage: returnFacilityId ? '工程設施詳細資訊' : '巡查資料管理'
+  });
+
+  if (saved) {
+    syncInspectionRecordToFacility(saved);
+    const affected = Array.from(new Set([Number(before.facilityId || 0), facilityId].filter(Boolean)));
+    affected.forEach(fid => {
+      const fac = DB.getById('facilities', fid);
+      if (fac && typeof fac_syncLatestProfessionalAssessment === 'function') fac_syncLatestProfessionalAssessment(fac);
+    });
+  }
+  showToast('資料重新歸類完成，已同步更新設施狀態評估', 'success');
+  closeModal();
+  if (returnFacilityId && typeof viewFacility === 'function') {
+    setTimeout(() => viewFacility(Number(returnFacilityId)), 120);
+  } else if (typeof renderInspection === 'function') {
+    renderInspection();
+  }
+}
+
 function prepareInspectionRecordForSync(item, formType = item?.formType, refreshSyncAt = false) {
   const meta = inspectionFormSyncMeta(formType);
   const now = new Date().toISOString();
@@ -342,6 +619,7 @@ function inspectionIsRestoredRecord(item = {}) {
 function inspectionAuthorityRank(item = {}) {
   if (inspectionIsRestoredRecord(item)) return 90;
   if (item.formType === 'maintenance_completion') return 80;
+  if (inspectionDataClass(item) === 'maintenance') return 75;
   if (item.formType === 'professional_fishway') return 70;
   if (item.formType === 'professional_structure') return 65;
   if (item.type === 'deru_assessment') return 60;
@@ -350,6 +628,7 @@ function inspectionAuthorityRank(item = {}) {
 }
 
 function inspectionIsFacilityStatusCandidate(row = {}) {
+  if (inspectionDataClass(row) === 'maintenance') return true;
   return [
     'maintenance_completion',
     'professional_structure',
@@ -1009,6 +1288,7 @@ function inspectionStatusClass(status) {
 }
 
 function inspectionRecordType(item = {}) {
+  if (inspectionDataClass(item) === 'maintenance') return 'maintenance';
   if (item.formType === 'general_periodic') return 'general';
   if (item.formType === 'professional_structure') return 'professional';
   if (item.formType === 'professional_fishway') return 'fishway';
@@ -1025,6 +1305,7 @@ function inspectionRecordTypeLabel(type) {
     general: '一般巡查紀錄',
     professional: '專業巡查紀錄',
     fishway: '魚道檢核表',
+    maintenance: '維護管理資料',
     ranger: '護管員巡查紀錄'
   }[type] || '一般巡查紀錄';
 }
@@ -1801,7 +2082,7 @@ const INSP_TYPE_META = {
   fishway:      { label:'魚道檢核表', color:'#0f766e', bg:'#f0fdfa', border:'#99f6e4', icon:'fa-fish' },
   ranger:       { label:'護管員巡查', color:'#166534', bg:'#f0fdf4', border:'#bbf7d0', icon:'fa-shield-halved' },
   forestry:     { label:'林業巡護',   color:'#0f766e', bg:'#f0fdfa', border:'#99f6e4', icon:'fa-tree' },
-  maintenance:  { label:'維護完工回報', color:'#7c3aed', bg:'#faf5ff', border:'#ddd6fe', icon:'fa-screwdriver-wrench' }
+  maintenance:  { label:'維護管理資料', color:'#7c3aed', bg:'#faf5ff', border:'#ddd6fe', icon:'fa-screwdriver-wrench' }
 };
 
 /* ══════════════════════════════════════════════════════════════
@@ -2674,6 +2955,7 @@ function renderInspDataList(data) {
               ${item.inspectionItem ? inspDetailRow('巡查項目', item.inspectionItem) : ''}
               ${pdfLabel ? inspDetailRow('PDF表單', pdfLabel) : ''}
               ${item.sourcePdf ? inspDetailRow('來源PDF', item.sourcePdf) : ''}
+              ${Array.isArray(item.reclassificationHistory) && item.reclassificationHistory.length ? inspDetailRow('重新歸類紀錄', `${item.reclassificationHistory.length} 次｜最近 ${String(item.reclassifiedAt || item.reclassificationHistory[item.reclassificationHistory.length - 1]?.changedAt || '').slice(0, 16).replace('T', ' ')}｜${item.reclassificationReason || item.reclassificationHistory[item.reclassificationHistory.length - 1]?.reason || ''}`) : ''}
               ${item.recordDateLabel ? inspDetailRow('表單日期標註', item.recordDateLabel) : ''}
               ${item.photoGroup ? inspDetailRow('照片整理分類', item.photoGroup) : ''}
               ${item.photoDateLabel ? inspDetailRow('照片日期', item.photoDateLabel) : ''}
@@ -2788,6 +3070,10 @@ function renderInspDataList(data) {
             </button>
             <button class="btn btn-outline" onclick="openInspectionForm(${item.id})" style="font-size:14px;padding:8px 18px">
               <i class="fas fa-edit"></i> 編輯
+            </button>
+            <button class="btn btn-outline" onclick="openInspectionReclassificationForm(${item.id})"
+              style="font-size:14px;padding:8px 18px;background:#faf5ff;color:#7c3aed;border-color:#ddd6fe;font-weight:700">
+              <i class="fas fa-random"></i> 重新歸類
             </button>
             <button class="btn btn-outline" onclick="deleteInspection(${item.id})"
               style="font-size:14px;padding:8px 14px;color:var(--danger);border-color:var(--danger)">
@@ -2972,6 +3258,7 @@ function viewInspectionRecord(id) {
         <div style="background:#f8fafc;border-radius:10px;padding:18px">
           ${inspDetailRow('類型', m.label)}
           ${inspDetailRow('來源', item.sourceType)}
+          ${Array.isArray(item.reclassificationHistory) && item.reclassificationHistory.length ? inspDetailRow('重新歸類', `${item.reclassificationHistory.length} 次｜${item.reclassificationReason || '分類修正'}`) : ''}
           ${item.deru_d !== undefined ? inspDetailRow('DER&U', `D${item.deru_d}/E${item.deru_e}/R${item.deru_r} U${item.deru_u}`) : ''}
           ${item.deru_score !== undefined ? inspDetailRow('加權分數', item.deru_score) : ''}
           ${item.deru_label ? inspDetailRow('急迫等級', item.deru_label) : ''}
@@ -2988,6 +3275,7 @@ function viewInspectionRecord(id) {
     </div>`;
   document.getElementById('modalFooter').innerHTML = `
     <button class="btn btn-outline" onclick="closeModal()">關閉</button>
+    <button class="btn btn-outline" onclick="openInspectionReclassificationForm(${item.id})" style="color:#7c3aed;border-color:#ddd6fe;background:#faf5ff"><i class="fas fa-random"></i> 重新歸類</button>
     <button class="btn btn-primary" onclick="closeModal();openInspectionForm(${item.id})"><i class="fas fa-edit"></i> 編輯</button>
   `;
   openModal();
@@ -3846,6 +4134,7 @@ function loadInspectionTable() {
               <td>
                 <button class="btn btn-sm btn-outline btn-icon" onclick="viewInspection(${item.id})" title="查看"><i class="fas fa-eye"></i></button>
                 <button class="btn btn-sm btn-outline btn-icon" onclick="openInspectionForm(${item.id})" title="編輯"><i class="fas fa-edit"></i></button>
+                <button class="btn btn-sm btn-outline btn-icon" onclick="openInspectionReclassificationForm(${item.id})" title="資料重新歸類" style="color:#7c3aed"><i class="fas fa-random"></i></button>
                 <button class="btn btn-sm btn-outline btn-icon" onclick="deleteInspection(${item.id})" title="刪除" style="color:var(--danger)"><i class="fas fa-trash"></i></button>
               </td>
             </tr>
@@ -3861,6 +4150,7 @@ function openInspectionForm(id = null, preFacilityId = null) {
   if (id && ins?.formType === 'general_periodic') return openGeneralPeriodicForm(ins.facilityId || null, id);
   if (id && ins?.formType === 'professional_structure') return openStructureInspectionForm(ins.facilityId || null, id);
   if (id && ins?.formType === 'professional_fishway') return openFishwayForm(ins.facilityId || null, id);
+  if (id && ins?.formType === 'maintenance_completion') return openMaintenanceCompletionForm(ins.facilityId || null, id);
   const facilities = DB.getAll('facilities');
   const _preFacId = preFacilityId ? Number(preFacilityId) : null;
   currentInspectionAiImage = null;
@@ -5084,7 +5374,8 @@ function viewInspection(id) {
           ['優先度', `<span class="badge badge-${inspectionPriorityClass(priority)}">${priority}</span>`],
           ['處理狀態', `<span class="badge badge-${inspectionStatusClass(status)}">${status}</span>`],
           ['維護開始時間', item.maintenanceStart || item.date || '-'],
-          ['預計/完成時間', inspectionExpectedCompletion(item)]
+          ['預計/完成時間', inspectionExpectedCompletion(item)],
+          ['資料歸類', inspectionDataClass(item) === 'maintenance' ? (item.maintenanceType || '維護管理資料') : inspectionRecordTypeLabel(inspectionRecordType(item))]
         ].map(([k, v]) => `<div><div class="text-muted" style="margin-bottom:4px">${k}</div><div class="fw-600">${v}</div></div>`).join('')}
       </div>
       <div><div class="text-muted" style="margin-bottom:4px">發現事項</div><div style="padding:10px;background:var(--surface2);border-radius:6px">${inspectionEscape(item.findings)}</div></div>
@@ -5099,6 +5390,7 @@ function viewInspection(id) {
     <button class="btn btn-outline" onclick="closeModal()">關閉</button>
     <button class="btn btn-outline" onclick="closeModal();navigateTo('facilities');viewFacility(${item.facilityId})"><i class="fas fa-hard-hat"></i> 查看工程設施連動分析</button>
     ${item.aiImageAnalysis ? `<button class="btn btn-primary" onclick="persistInspectionAiAssessment(${id})"><i class="fas fa-save"></i> 儲存AI評估結果</button>` : ''}
+    <button class="btn btn-outline" onclick="openInspectionReclassificationForm(${id})" style="color:#7c3aed;border-color:#ddd6fe;background:#faf5ff"><i class="fas fa-random"></i> 重新歸類</button>
     <button class="btn btn-primary" onclick="closeModal();openInspectionForm(${id})"><i class="fas fa-edit"></i> 編輯</button>
   `;
   openModal();
