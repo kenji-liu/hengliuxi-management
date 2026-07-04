@@ -5958,6 +5958,17 @@ function openStructureInspectionForm(facilityId = null, id = null) {
           ${['不影響','有影響（需填魚道檢核表）'].map(v=>`<option ${(saved.sf_corridor||'不影響')===v?'selected':''}>${v}</option>`).join('')}
         </select>
       </div>
+      <div class="form-group"><label>維護優先度</label>
+        <select id="sf_priority">
+          ${INSPECTION_PRIORITY.map(p=>`<option value="${p}" ${getInspectionPriority(saved)===p?'selected':''}>${p}</option>`).join('')}
+        </select>
+        <small style="color:#64748b;font-size:11px">預設依評級推算（A級→低），可人工覆核調整。</small>
+      </div>
+      <div class="form-group"><label>處理狀態</label>
+        <select id="sf_status">
+          ${INSPECTION_STATUS.map(s=>`<option value="${s}" ${getInspectionStatus(saved)===s?'selected':''}>${s}</option>`).join('')}
+        </select>
+      </div>
     </div>
 
     <!-- DER&U 三點檢查表 -->
@@ -6181,8 +6192,11 @@ function saveStructureInspectionForm(id) {
     sf_description: document.getElementById('sf_description')?.value.trim(),
     findings: document.getElementById('sf_description')?.value.trim() || `構造物調查—${grade}級`,
     action: document.getElementById('sf_treatment')?.value,
-    status: ['C1','C2','C3'].includes(grade) ? '待處理' : 'A'===grade ? '完成' : '處理中',
-    priority: ['C1','C2'].includes(grade) ? '緊急' : ['C3','B1'].includes(grade) ? '高' : '中',
+    // 優先度／狀態：優先採人工於表單選定值；未提供時依評級推算（A級良好→低，B2/B3→中，C3/B1→高，C1/C2→緊急）
+    status: document.getElementById('sf_status')?.value
+      || (['C1','C2','C3'].includes(grade) ? '待處理' : 'A'===grade ? '完成' : '處理中'),
+    priority: document.getElementById('sf_priority')?.value
+      || (['C1','C2'].includes(grade) ? '緊急' : ['C3','B1'].includes(grade) ? '高' : ['B2','B3'].includes(grade) ? '中' : '低'),
     deru_d: gradeAdjD, deru_e: gradeAdjE, deru_r: gradeAdjR, deru_u: gradeAdjU,
     sourceType: '專業巡查',
     photoDataUrls: _inspGetMultiPhotos('sf'),

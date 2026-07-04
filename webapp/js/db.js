@@ -106,6 +106,17 @@ const DB = {
       out.photos = [];
       out.photoCount = 0;
     }
+
+    // 自癒：修正舊版構造物調查表存檔 bug——A級（外觀良好、D0/E1/R1/U1）卻被誤設為「中」優先度。
+    // 該情境（良好且已完成）邏輯上不可能為中優先，故還原為「低」；不動非A級或人工升級之記錄。
+    if (out.formType === 'professional_structure'
+        && (out.level === 'A級' || out.sf_grade === 'A')
+        && Number(out.deru_u || 0) <= 1
+        && out.priority === '中'
+        && (out.status === '完成' || !out.status)) {
+      out.priority = '低';
+      out.priorityAutoFixed = true;
+    }
     return out;
   },
 
