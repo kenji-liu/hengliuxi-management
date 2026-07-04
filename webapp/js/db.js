@@ -14,7 +14,7 @@ const DB = {
   },
 
   // 資料版本（每次重大更新設施資料時遞增）
-  VERSION: '5.15',  // 補齊剩餘5筆現況照：溪構9(#1)/溪構10(#2)/溪構11-71(階梯固床)/平臺3/平臺4，16筆113全面檢測全數有照
+  VERSION: '5.17',  // 更換護岸、步道設施縮圖為實景照片；設施遷移照片改以seed為準
 
   _suppressCloudPush: false,
 
@@ -183,13 +183,13 @@ const DB = {
           if (!userFac) return defFac;
           const userNewer = userFac.updatedAt ||
             (userFac.assessmentDate && userFac.assessmentDate > (defFac.assessmentDate || ''));
-          // 座標為實測官方資料（非UI可編輯欄位），一律以最新 seed 為準，
-          // 避免舊版 localStorage 快取座標覆蓋校正後的點位
+          // 座標、照片為系統管理資料（非UI可編輯欄位），一律以最新 seed 為準
           if (!userNewer) return { ...defFac };
           return {
             ...defFac, ...userFac,
             lat: defFac.lat, lng: defFac.lng,
-            twd97x: defFac.twd97x, twd97y: defFac.twd97y
+            twd97x: defFac.twd97x, twd97y: defFac.twd97y,
+            photos: defFac.photos
           };
         });
 
@@ -392,7 +392,7 @@ const DB = {
           sourceTableNo: '維護管理表', facilityNo: '-', tableLocation: '橫流溪 0K+400~1K+400',
           judgement_basis: '依維護管理表，護岸範圍為橫流溪0K+400~1K+400，使用材質為混凝土/塊石，TWD97座標未列點位，採線性設施管理。',
           note: '護岸（0K+400~1K+400），混凝土/塊石材質，保護溪岸免受洪水侵蝕；全段定期巡查，注意岩塊移位及坡腳侵蝕',
-          photos: ['/webapp/assets/report-photos/hugan-revetment-2026.jpg'] },
+          photos: ['/webapp/assets/report-photos/hugan-revetment-main.jpg'] },
 
         { id: 16, name: '步道', type: '步道', subType: '溪濱步道', code: 'T1', stationKm: '0K+000~1K+290', location: '步道 0K+000~1K+290', twd97x: null, twd97y: null, lat: 24.183807, lng: 120.909745, km_num: 0,
           year: 108, status: '需維護', material: 'PC路面/碎石路面', length: 1290, width: 1.5, condition: 3, lastInspect: '2025-03-15', source: '維護管理計畫 表4-1',
@@ -401,7 +401,7 @@ const DB = {
           sourceTableNo: '維護管理表', facilityNo: '-', tableLocation: '步道 0K+000~1K+290',
           judgement_basis: '依維護管理表，步道範圍為0K+000~1K+290，使用材質為PC路面/碎石路面，TWD97座標未列點位，採線性設施管理。',
           note: '步道（0K+000~1K+290），PC路面及碎石路面混合，全長約1290m；連接全區工程設施供維護人員及生態調查使用；碎石段局部破損需修補',
-          photos: ['/webapp/assets/report-photos/manual-p39-06-665x498.jpg'] },
+          photos: ['/webapp/assets/report-photos/trail-main.jpg'] },
 
         { id: 17, name: '平臺1', type: '平台', subType: '維護平台', code: 'P1', stationKm: '步道1K+290', location: '平臺1', twd97x: 240789, twd97y: 2675725, lat: 24.186900, lng: 120.909335, km_num: 1290,
           year: null, status: '正常', material: '木材/鋼材', condition: 4, lastInspect: null, source: '維護管理計畫 表4-1',
