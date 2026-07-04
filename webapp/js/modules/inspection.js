@@ -1551,6 +1551,20 @@ function renderManualInspectionGuide() {
 }
 
 let inspDataTab = 'professional'; // 'all' | 'general' | 'professional' | 'fishway' | 'ranger'
+let inspDataPage = 1;              // 目前頁碼（1 起算）
+let inspDataPageSize = 30;         // 每頁筆數；0 = 全部不分頁
+
+function inspDataGoToPage(p) {
+  inspDataPage = Math.max(1, Number(p) || 1);
+  inspDataMgmtRender();
+  const wrap = document.getElementById('inspDbListWrapper');
+  if (wrap && wrap.scrollIntoView) wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+function inspDataSetPageSize(size) {
+  inspDataPageSize = Number(size) || 0; // 0 代表「全部」
+  inspDataPage = 1;
+  inspDataMgmtRender();
+}
 
 /* ══════════════════════════════════════════════════════════════
    護管員巡查日誌（梁技正橫流溪巡查日誌，民國109-113年）
@@ -2367,13 +2381,13 @@ function renderInspectionDataManagement(standalone = false) {
             </span>
           </button>`).join('')}
         <div style="margin-left:auto;display:flex;gap:8px;align-items:center;padding-bottom:4px">
-          <select id="inspDataStatusFilter" onchange="inspDataMgmtRender()" style="padding:9px 14px;border:1px solid #d5dde7;border-radius:8px;font-size:18px">
+          <select id="inspDataStatusFilter" onchange="inspDataPage=1;inspDataMgmtRender()" style="padding:9px 14px;border:1px solid #d5dde7;border-radius:8px;font-size:18px">
             <option value="">全部狀態</option>
             <option value="待處理">待處理</option>
             <option value="處理中">處理中</option>
             <option value="完成">完成</option>
           </select>
-          <select id="inspDataPriorityFilter" onchange="inspDataMgmtRender()" style="padding:9px 14px;border:1px solid #d5dde7;border-radius:8px;font-size:18px">
+          <select id="inspDataPriorityFilter" onchange="inspDataPage=1;inspDataMgmtRender()" style="padding:9px 14px;border:1px solid #d5dde7;border-radius:8px;font-size:18px">
             <option value="">全部優先度</option>
             <option value="緊急">緊急</option>
             <option value="高">高</option>
@@ -2426,6 +2440,7 @@ function inspSumCard(label, value, unit, color, bg, icon) {
 
 function inspSwitchTab(tab) {
   inspDataTab = tab;
+  inspDataPage = 1; // 切換表單類型時回到第 1 頁，並重新取得該類型完整總筆數
   inspDataMgmtRender();
   // 更新分頁籤高亮
   const card = document.getElementById('inspDataMgmtCard');
@@ -2496,6 +2511,49 @@ function inspDataMgmtRender() {
   listEl.innerHTML = renderInspDataList(data);
 }
 
+function renderInspDataPager(total) {
+  const sizeOptions = [10, 30, 50, 100, 0]; // 0 = 全部
+  const sizeSel = `
+    <select onchange="inspDataSetPageSize(this.value)" style="padding:6px 10px;border:1px solid #d5dde7;border-radius:8px;font-size:15px">
+      ${sizeOptions.map(s => `<option value="${s}" ${inspDataPageSize===s?'selected':''}>${s===0?'全部':`每頁 ${s} 筆`}</option>`).join('')}
+    </select>`;
+
+  const pageSize = inspDataPageSize > 0 ? inspDataPageSize : total;
+  const totalPages = pageSize > 0 ? Math.max(1, Math.ceil(total / pageSize)) : 1;
+  const page = Math.min(Math.max(1, inspDataPage), totalPages);
+  const start = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const end = Math.min(total, page * pageSize);
+
+  // 頁碼按鈕（最多顯示目前頁 ±2）
+  let nums = '';
+  if (inspDataPageSize > 0 && totalPages > 1) {
+    const from = Math.max(1, page - 2), to = Math.min(totalPages, page + 2);
+    const btn = (p, label = p, active = false, disabled = false) =>
+      `<button ${disabled?'disabled':''} onclick="inspDataGoToPage(${p})"
+        style="min-width:38px;padding:7px 11px;border:1px solid ${active?'#9a3412':'#d5dde7'};border-radius:8px;
+               background:${active?'#9a3412':'#fff'};color:${active?'#fff':disabled?'#cbd5e1':'#334155'};
+               font-size:15px;font-weight:${active?'800':'600'};cursor:${disabled?'not-allowed':'pointer'}">${label}</button>`;
+    nums += btn(page - 1, '‹ 上一頁', false, page <= 1);
+    if (from > 1) { nums += btn(1); if (from > 2) nums += `<span style="color:#94a3b8;padding:0 2px">…</span>`; }
+    for (let p = from; p <= to; p++) nums += btn(p, p, p === page);
+    if (to < totalPages) { if (to < totalPages - 1) nums += `<span style="color:#94a3b8;padding:0 2px">…</span>`; nums += btn(totalPages); }
+    nums += btn(page + 1, '下一頁 ›', false, page >= totalPages);
+  }
+
+  return `
+    <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;
+                padding:14px 6px;border-top:1px solid #eef2f7;margin-top:6px">
+      <div style="font-size:15px;color:#475569;font-weight:600">
+        顯示第 <b style="color:#0f172a">${start}</b> – <b style="color:#0f172a">${end}</b> 筆，共 <b style="color:#9a3412">${total}</b> 筆
+        ${inspDataPageSize>0 && totalPages>1 ? `（第 ${page} / ${totalPages} 頁）` : ''}
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        ${nums}
+        ${sizeSel}
+      </div>
+    </div>`;
+}
+
 function renderInspDataList(data) {
   if (!data.length) return `
     <div style="text-align:center;padding:44px;color:#94a3b8">
@@ -2503,7 +2561,15 @@ function renderInspDataList(data) {
       <div style="font-size:22px">查無巡查紀錄</div>
     </div>`;
 
-  return data.slice(0, 30).map((item, idx) => {
+  const total = data.length;
+  const pageSize = inspDataPageSize > 0 ? inspDataPageSize : total;
+  const totalPages = pageSize > 0 ? Math.max(1, Math.ceil(total / pageSize)) : 1;
+  const page = Math.min(Math.max(1, inspDataPage), totalPages);
+  const pageData = inspDataPageSize > 0 ? data.slice((page - 1) * pageSize, page * pageSize) : data;
+
+  const topPager = renderInspDataPager(total);
+
+  return topPager + pageData.map((item, idx) => {
     const m    = INSP_TYPE_META[item.uiType] || INSP_TYPE_META.general;
     const sc   = item.uiStatus==='完成'?'#16a34a':item.uiStatus==='處理中'?'#d97706':'#b91c1c';
     const sbg  = item.uiStatus==='完成'?'#dcfce7':item.uiStatus==='處理中'?'#fef9c3':'#fee2e2';
@@ -2731,7 +2797,7 @@ function renderInspDataList(data) {
         })()}
       </div>
     </div>`;
-  }).join('') + (data.length > 30 ? `<div style="text-align:center;padding:12px;font-size:14px;color:#64748b">顯示前 30 筆（共 ${data.length} 筆）</div>` : '');
+  }).join('') + renderInspDataPager(total);
 }
 
 function inspDetailRow(label, value) {
