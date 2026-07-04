@@ -5001,11 +5001,14 @@ function saveInspection(id) {
     })
   };
 
+  const savedItem = id
+    ? DB.update('inspections', id, item)
+    : DB.insert('inspections', item);
+  syncInspectionRecordToFacility(savedItem || item);
+
   if (id) {
-    DB.update('inspections', id, item);
     showToast('巡查紀錄已更新', 'success');
   } else {
-    DB.insert('inspections', item);
     showToast('巡查紀錄已新增', 'success');
   }
   closeModal();
@@ -6494,6 +6497,7 @@ function openMaintenanceCompletionForm(facilityId = null, id = null) {
   const facs = DB.getAll('facilities');
   const _preFacId = facilityId ? Number(facilityId) : null;
   const mc = rec || {};
+  const _activeFacId = _preFacId || Number(mc.facilityId || 0) || null;
 
   const overlay = document.getElementById('modalOverlay');
   const titleEl = document.getElementById('modalTitle');
@@ -6505,8 +6509,8 @@ function openMaintenanceCompletionForm(facilityId = null, id = null) {
   if (titleEl) titleEl.innerHTML = '<i class="fas fa-screwdriver-wrench" style="color:#7c3aed;margin-right:8px"></i>維護完工回報表單';
 
   // 對應待處理的巡查異常（選設施後列出 U≥2 的巡查）
-  const relatedInsp = _preFacId
-    ? DB.getAll('inspections').filter(i => Number(i.facilityId) === _preFacId && (i.deru_u >= 2 || i.status !== '完成'))
+  const relatedInsp = _activeFacId
+    ? DB.getAll('inspections').filter(i => Number(i.facilityId) === _activeFacId && (i.deru_u >= 2 || i.status !== '完成'))
     : [];
 
   bodyEl.innerHTML = `
@@ -6519,7 +6523,7 @@ function openMaintenanceCompletionForm(facilityId = null, id = null) {
         <label>設施名稱 *</label>
         <select id="mc_facility" onchange="_mcLoadRelated(this.value)">
           <option value="">請選擇設施</option>
-          ${facs.map(f => `<option value="${f.id}" ${Number(_preFacId) === f.id ? 'selected' : ''}>${inspectionEscape(f.name)}</option>`).join('')}
+          ${facs.map(f => `<option value="${f.id}" ${Number(_activeFacId) === f.id ? 'selected' : ''}>${inspectionEscape(f.name)}</option>`).join('')}
         </select>
       </div>
       <div class="form-group"><label>維護完工日期 *</label><input id="mc_date" type="date" value="${mc.date || new Date().toISOString().split('T')[0]}"></div>
@@ -6563,15 +6567,18 @@ function openMaintenanceCompletionForm(facilityId = null, id = null) {
         <span style="font-size:11px;font-weight:400;color:#94a3b8;margin-left:8px">U=1 → 設施狀態自動更新為「正常」</span>
       </div>
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
-        ${[['D','deru_d','損壞程度',['D0 無明顯損壞','D1 輕微劣化','D2 中度損壞','D3 明顯損壞','D4 嚴重損壞']],
-           ['E','deru_e','影響範圍',['E1 局部','E2 較大範圍','E3 大範圍','E4 全面']],
-           ['R','deru_r','風險影響',['R1 低','R2 中低','R3 中高','R4 高']],
-           ['U','deru_u','急迫程度',['U1 定期巡查','U2 優先維護','U3 儘速處理','U4 緊急搶修']]
+        ${[['D','deru_d','損壞程度',[[0,'D0 無明顯損壞'],[1,'D1 輕微劣化'],[2,'D2 中度損壞'],[3,'D3 明顯損壞'],[4,'D4 嚴重損壞']]],
+           ['E','deru_e','影響範圍',[[1,'E1 局部'],[2,'E2 較大範圍'],[3,'E3 大範圍'],[4,'E4 全面']]],
+           ['R','deru_r','風險影響',[[1,'R1 低'],[2,'R2 中低'],[3,'R3 中高'],[4,'R4 高']]],
+           ['U','deru_u','急迫程度',[[1,'U1 定期巡查'],[2,'U2 優先維護'],[3,'U3 儘速處理'],[4,'U4 緊急搶修']]]
           ].map(([lbl,id,desc,opts]) => `
           <div>
             <label style="font-size:13px;font-weight:700;color:#6d28d9">${lbl}（${desc}）</label>
             <select id="mc_${id}" style="width:100%;margin-top:4px;font-size:13px">
-              ${opts.map((o,i) => `<option value="${i}" ${Number(mc[id]??0)===i?'selected':''}>${o}</option>`).join('')}
+              ${opts.map(([value, label]) => {
+                const selectedValue = Number(mc[id] ?? (id === 'deru_d' ? 0 : 1));
+                return `<option value="${value}" ${selectedValue === Number(value) ? 'selected' : ''}>${label}</option>`;
+              }).join('')}
             </select>
           </div>`).join('')}
       </div>

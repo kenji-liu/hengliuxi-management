@@ -263,6 +263,28 @@ function fac_editInspection(inspectionId, facilityId) {
   openInspectionForm(inspectionId);
 }
 
+/* 從維護管理資料清單編輯巡查/維護案件，儲存後返回同一座設施詳情 */
+function fac_editMaintenanceCase(inspectionId, facilityId) {
+  const item = DB.getById('inspections', inspectionId);
+  if (!item) {
+    showToast('找不到對應的維護或巡查資料', 'error');
+    return;
+  }
+  window._facAfterInspectionSave = () => {
+    const freshFacility = DB.getById('facilities', facilityId);
+    if (freshFacility) fac_syncLatestProfessionalAssessment(freshFacility);
+    viewFacility(facilityId);
+  };
+  closeModal();
+  setTimeout(() => {
+    if (item.formType === 'maintenance_completion') openMaintenanceCompletionForm(null, inspectionId);
+    else if (item.formType === 'professional_structure') openStructureInspectionForm(facilityId, inspectionId);
+    else if (item.formType === 'professional_fishway') openFishwayForm(facilityId, inspectionId);
+    else if (item.formType === 'general_periodic') openGeneralPeriodicForm(facilityId, inspectionId);
+    else openInspectionForm(inspectionId, facilityId);
+  }, 120);
+}
+
 /* DER 等級顏色對照 */
 function fac_derColor(level) {
   if (!level || level === '-') return { text: '#94a3b8', bg: '#f1f5f9', border: '#e2e8f0', label: '未評估' };
@@ -1524,7 +1546,9 @@ function renderFacilityMaintenanceDataSection(f) {
                 <b style="color:${item.isCompletion?'#6d28d9':'#9a3412'}">${item.id}｜${item.type}</b>
                 <div style="display:flex;align-items:center;gap:6px">
                   <span style="background:${item.status==='完成'?'#dcfce7':item.status==='處理中'?'#fef9c3':'#fee2e2'};color:${item.status==='完成'?'#166534':item.status==='處理中'?'#92400e':'#b91c1c'};border-radius:999px;padding:2px 8px;font-weight:800">${item.status}</span>
-                  ${item.isCompletion ? `<button onclick="openMaintenanceCompletionForm(null,${item.itemId})" style="font-size:11px;color:#7c3aed;background:#faf5ff;border:1px solid #ddd6fe;border-radius:5px;padding:2px 7px;cursor:pointer"><i class="fas fa-edit"></i> 編輯</button>` : ''}
+                  <button onclick="fac_editMaintenanceCase(${item.itemId},${f.id})" style="font-size:11px;color:${item.isCompletion?'#7c3aed':'#1565c0'};background:${item.isCompletion?'#faf5ff':'#eff6ff'};border:1px solid ${item.isCompletion?'#ddd6fe':'#bfdbfe'};border-radius:5px;padding:2px 7px;cursor:pointer;font-weight:700">
+                    <i class="fas fa-edit"></i> 編輯工程
+                  </button>
                 </div>
               </div>
               <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:6px;color:#475569">
