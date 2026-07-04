@@ -532,6 +532,12 @@ const DB = {
         { id: 9004, facilityId: 16, facilityName: '橫流溪全段（步道0K+000~1K+290）', formType: 'general_periodic', date: '2026-02-24', inspector: '張森源、陳英吉', inspectUnit: '林業保育署臺中分署麗陽工作站', weather: '', findings: '步道正常；邊坡正常；平臺/護欄正常；護岸正常；魚道/防砂設施正常；告示牌/解說牌正常；救生圈正常', action: '繼續定期巡查', status: '完成', priority: '低', photos: [] },
         { id: 9005, facilityId: 16, facilityName: '橫流溪全段（步道0K+000~1K+290）', formType: 'general_periodic', date: '2026-03-31', inspector: '張森源、汪竣泰', inspectUnit: '林業保育署臺中分署麗陽工作站', weather: '', findings: '步道正常；邊坡正常；平臺/護欄正常；護岸正常；魚道/防砂設施正常；告示牌/解說牌正常；救生圈正常', action: '繼續定期巡查', status: '完成', priority: '低', photos: [] },
         { id: 9006, facilityId: 16, facilityName: '橫流溪全段（步道0K+000~1K+290）', formType: 'general_periodic', date: '2026-04-29', inspector: '張森源、汪竣泰', inspectUnit: '林業保育署臺中分署麗陽工作站', weather: '', findings: '步道正常；邊坡正常；平臺/護欄正常；護岸正常；魚道/防砂設施正常；告示牌/解說牌正常；救生圈正常', action: '繼續定期巡查', status: '完成', priority: '低', photos: [] },
+        // ── OCR 補匯入（影像型 PDF 判讀）──
+        { id: 9007, facilityId: 16, facilityName: '橫流溪全段（步道0K+000~1K+290）', formType: 'general_periodic', date: '2025-10-27', inspector: '張森源、汪竣泰', inspectUnit: '林業保育署臺中分署麗陽工作站', weather: '', findings: '步道正常；邊坡正常；平臺/護欄正常；護岸正常；魚道/防砂設施正常；告示牌/解說牌正常；救生圈其他：補正中', action: '繼續定期巡查；救生圈補正中', status: '完成', priority: '低', sourcePdf: '一般性定期巡查表單114.1027.pdf（影像型，OCR判讀）', photos: [] },
+        // ── 橫流溪野溪周邊環境狀況 115年4月份巡查（環境清理事項）──
+        { id: 9008, facilityId: 16, facilityName: '橫流溪野溪周邊環境（步道沿線）', formType: 'general_periodic', inspectionCategory: '環境巡查', date: '2026-04-29', inspector: '張森源、汪竣泰', inspectUnit: '林業保育署臺中分署麗陽工作站', weather: '', findings: '周邊環境狀況：①廢棄鐵皮約0.5立方公尺（24.185272,120.909250）②廢棄水管約200公尺（24.185944,120.909152）③路基淘空（24.178047,120.908523，海拔582.8m，水管裸露、路基掏刷）', action: '清理廢棄鐵皮與廢棄水管；路基淘空段安排評估與修復', status: '待處理', priority: '中', sourcePdf: '橫流溪野溪周邊環境狀況115年4月份巡查紀錄.pdf（影像型，OCR判讀）', photos: [] },
+        // ── 破損異常複查案件（源自 9003 / 115.01.29 一般巡查異常通報）──
+        { id: 9009, facilityId: 13, facilityName: '溪構1-1 粗石斜曲面式魚道', formType: 'professional_structure', date: '2026-01-29', inspector: '待指派（專業技師複查）', inspectUnit: '林業保育署臺中分署', inspectNo: '橫流溪－115－複查－魚道防砂破損', position: '1K+400 上游魚道群', findings: '複查案件：源自115.01.29一般性定期巡查異常通報，魚道/防砂設施結構外觀破損（座標24.186274,120.909574）。該點鄰近溪構1-1／1-2／溪構2魚道群（相距<50m），暫掛溪構1-1，待現地確認實際破損標的與範圍。', action: '安排專業技師現地複查，確認破損設施、範圍與DER&U評級後更新', status: '待處理', priority: '中', deru_d: 2, deru_e: 2, deru_r: 2, needsFieldConfirm: true, sourcePdf: '一般性定期巡查表單11501.pdf', photos: [] },
       ],
       settings: {
         lastUpdate: new Date().toISOString(),
