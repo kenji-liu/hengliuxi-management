@@ -5074,7 +5074,13 @@ function renderInspectionDeruDetail(item) {
 function deleteInspection(id) {
   const item = DB.getById('inspections', id);
   if (!confirm(`確定要刪除「${item?.facilityName || ''}」的巡查紀錄嗎？`)) return;
+  const facilityId = item?.facilityId;
   DB.delete('inspections', id);
+  // 刪除後重新同步所屬設施的最新巡查日期與評估狀態
+  if (facilityId && typeof fac_syncLatestProfessionalAssessment === 'function') {
+    const fac = DB.getById('facilities', Number(facilityId));
+    if (fac) fac_syncLatestProfessionalAssessment(fac);
+  }
   showToast('巡查紀錄已刪除', 'info');
   renderInspection();
 }

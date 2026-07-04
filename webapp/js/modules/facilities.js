@@ -577,10 +577,21 @@ function fac_latestProfessionalAssessment(f) {
 }
 
 function fac_syncLatestProfessionalAssessment(f) {
+  if (!f?.id) return fac_latestProfessionalAssessment(f);
   const assessment = fac_latestProfessionalAssessment(f);
-  if (!assessment.hasProfessional || !f?.id) return assessment;
+  // 取所有類型巡查最新日期，不限專業巡查（避免一般巡查日期被舊的專業巡查日期覆蓋）
+  const allLinked = fac_linkedInspections(f);
+  const latestAnyDate = allLinked[0]?.date || assessment.assessmentDate || '';
+
+  if (!assessment.hasProfessional) {
+    // 無專業巡查：僅更新 lastInspect，不觸動 DER/status 等專業評分欄位
+    if (latestAnyDate && f.lastInspect !== latestAnyDate) {
+      DB.update('facilities', f.id, { lastInspect: latestAnyDate });
+    }
+    return assessment;
+  }
   const updates = {
-    lastInspect: assessment.assessmentDate,
+    lastInspect: latestAnyDate,
     assessmentDate: assessment.assessmentDate,
     status: assessment.status,
     condition: assessment.condition,
