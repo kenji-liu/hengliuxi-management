@@ -991,21 +991,36 @@ function ensureInspectionSyncMetadata() {
     if (Object.keys(updates).length) DB.update('inspections', row.id, updates);
   });
 
-  // ② 每個設施只用最新且最具權威的巡查/維護紀錄同步至工程設施盤點。
-  //    同日優先序：維護完工/改善完成 > 魚道檢核 > 構造物專業巡查 > 一般巡查。
-  const latestByFacility = {};
-  rows.forEach(row => {
-    if (!inspectionIsFacilityStatusCandidate(row)) return;
-    const fid = Number(row.facilityId || row.facility_id);
-    if (!fid) return;
-    const cur = latestByFacility[fid];
-    if (!cur || inspectionCompareForFacilityStatus(row, cur) >= 0) {
-      latestByFacility[fid] = row;
-    }
-  });
-  Object.values(latestByFacility).forEach(latest => {
-    syncInspectionRecordToFacility(latest, false);
-  });
+  // ② 設施狀態同步統一由 fac_syncAllLatestProfessionalAssessments 負責（單一權威）。
+  //    以前這裡另以 syncInspectionRecordToFacility 迴圈寫入設施狀態，與盤點頁的
+  //    fac_ 推導公式不同，導致兩頁互相覆寫、狀態震盪、且每次 render 都判定為 dirty
+  //    而重複寫入 → 效能低落。改為只在此補齊巡查中繼資料，狀態交由 fac_ 統一推導。
+  if (typeof fac_syncAllLatestProfessionalAssessments === 'function') {
+    fac_syncAllLatestProfessionalAssessments();
+  }
+}
+
+/* ── 巡查資料同步的版本閘門 ──────────────────────────────────────────
+   ensureInspectionSyncMetadata / fac_syncAllLatestProfessionalAssessments
+   都是「資料變異」而非「純渲染」操作，過去在每次 render（甚至一次頁面載入
+   跑兩次）都執行，77 筆資料就吃掉 ~240ms。改為以資料簽章（筆數＋最新時間戳）
+   判斷是否真的有變動，只在變動後同步一次，其餘 render 直接略過。          */
+let _inspDataSyncSig = null;
+function inspDataSyncSignature() {
+  const ins = DB.getAll('inspections');
+  const fac = DB.getAll('facilities');
+  let insMax = '', facMax = '';
+  for (const r of ins) { const t = String(r.updatedAt || r.date || r.id || ''); if (t > insMax) insMax = t; }
+  for (const r of fac) { const t = String(r.professionalAssessmentSyncAt || r.updatedAt || r.id || ''); if (t > facMax) facMax = t; }
+  return `${ins.length}|${insMax}|${fac.length}|${facMax}`;
+}
+function inspDataEnsureSynced(force = false) {
+  const sig = inspDataSyncSignature();
+  if (!force && sig === _inspDataSyncSig) return;
+  syncDeruHistoryIntoInspectionRecords();
+  ensureInspectionSyncMetadata(); // 內含 fac_syncAllLatestProfessionalAssessments（唯一狀態權威）
+  // 同步過程可能推進時間戳，重算簽章後才穩定；下次 render 若無外部變動即略過。
+  _inspDataSyncSig = inspDataSyncSignature();
 }
 
 function inspectionCloudSyncColor(status) {
@@ -1341,7 +1356,8 @@ async function batchUploadPendingToDrive() {
 async function fullInspectionSync() {
   showToast('🔄 正在執行全面同步修正…', 'info');
 
-  // ① 同步設施狀態 + 清除舊誤標
+  // ① 以巡查為主軸強制重算設施狀態（單一權威）＋清除舊誤標
+  inspDataEnsureSynced(true);
   const { updated, cleaned } = syncFacilityStatusToInspections(true);
 
   // ② 批量上傳近期待上傳記錄（2026-06-01 後的）
@@ -1509,10 +1525,7 @@ function inspectionRecordTypeLabel(type) {
    ══════════════════════════════════════════════════════════════ */
 
 function renderInspectionMgmtPage() {
-  syncDeruHistoryIntoInspectionRecords();
-  ensureInspectionSyncMetadata();
-  // 反向同步：設施「正常/A1」→ 巡查記錄自動標記為完成
-  syncFacilityStatusToInspections(true);
+  // 同步統一由 renderInspectionDataManagement 內的版本閘門處理，避免一次載入同步兩次。
   document.getElementById('contentArea').innerHTML =
     renderManualInspectionGuide() +
     renderInspectionDataManagement(true);
@@ -2578,8 +2591,7 @@ function renderGeneralInspRecords() {
 }
 
 function renderInspectionDataManagement(standalone = false) {
-  ensureInspectionSyncMetadata();
-  syncFacilityStatusToInspections(true); // 靜默反向同步
+  inspDataEnsureSynced(); // 版本閘門：僅在資料變動時才同步一次（見 inspDataEnsureSynced）
   const allInsp = DB.getAll('inspections');
   const facilities = DB.getAll('facilities');
 

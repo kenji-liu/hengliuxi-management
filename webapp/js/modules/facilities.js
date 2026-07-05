@@ -576,7 +576,20 @@ function fac_inferDeruFromInspection(item = {}) {
 
 function fac_latestProfessionalAssessment(f) {
   const professionalRows = fac_professionalInspectionRows(f);
-  const latestProfessional = professionalRows[0] || null;
+  // 以巡查資料管理為主軸：只要仍有未結案（待處理／處理中）的專業巡查，
+  // 設施即應反映「最嚴重的未處理項目」，避免同日其他已完成紀錄（依 id 排序）
+  // 蓋掉真正需要維護的損壞項目（例：步道 U4 落石段被同日完成段落覆蓋成正常）。
+  const openProfessionalRows = professionalRows.filter(r =>
+    r.status === '待處理' || r.status === '處理中'
+  );
+  const latestProfessional = openProfessionalRows.length
+    ? openProfessionalRows.slice().sort((a, b) => {
+        const ua = fac_inferDeruFromInspection(a).u || 0;
+        const ub = fac_inferDeruFromInspection(b).u || 0;
+        if (ub !== ua) return ub - ua;                              // 先取最嚴重
+        return String(b.date || '').localeCompare(String(a.date || '')); // 同嚴重取最新
+      })[0]
+    : (professionalRows[0] || null);
   if (!latestProfessional) {
     const health = fac_health(f);
     return {
@@ -601,7 +614,9 @@ function fac_latestProfessionalAssessment(f) {
   const action = String(latestProfessional.action || latestProfessional.recommendation || '').trim();
   const basisPrefix = fac_isRestoredInspection(latestProfessional)
     ? '採最新維護完成或改善完成紀錄作為最後表徵'
-    : '採最新專業巡查作為最後表徵';
+    : (openProfessionalRows.length
+        ? '採未結案專業巡查中最嚴重待處理項目作為現況表徵'
+        : '採最新專業巡查作為最後表徵');
   const basis = `${basisPrefix}：${latestProfessional.date || '-'} ${typeLabel}（${latestProfessional.inspector || latestProfessional.executor || '未填巡查人員'}），${deru.source}，判定 ${deru.derLevel}、${deru.label}，代表健康分數 ${deru.health} 分。${finding ? `主要發現：${finding}` : ''}`;
 
   return {
