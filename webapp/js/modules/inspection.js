@@ -2619,9 +2619,9 @@ function renderInspectionDataManagement(standalone = false) {
   const rs   = typeStats(byType.ranger);
 
   // ── 需維護設施速覽（橋接設施層與表單層統計口徑） ──
+  // 僅依 status 篩選，對齊「工程設施盤點」的計數口徑（不含僅有 priority 高但狀態正常的設施）
   const needMaintFacs = facilities.filter(f =>
-    f.status === '需維護' || f.status === '損壞' ||
-    f.maintenance_priority === '高' || f.maintenance_priority === '緊急'
+    f.status === '需維護' || f.status === '損壞'
   );
   const facPendingMap = {};
   enriched.filter(i => i.uiStatus === '待處理' || i.uiStatus === '處理中').forEach(i => {
@@ -2632,7 +2632,10 @@ function renderInspectionDataManagement(standalone = false) {
     facPendingMap[fid].tabs.add(i.uiType);
   });
   const tabLabelMap = { general:'一般巡查', professional:'專業巡查', fishway:'魚道檢核', maintenance:'維護完工', ranger:'護管員' };
-  const totalPendingInspCount = enriched.filter(i => i.uiStatus === '待處理' || i.uiStatus === '處理中').length;
+  // 只統計 needMaintFacs 設施的待處理筆數，與工程設施盤點口徑一致
+  const totalPendingInspCount = needMaintFacs.reduce((sum, f) => sum + (facPendingMap[f.id]?.count || 0), 0);
+  // 尚無對應待處理表單的需維護設施（需優先關注）
+  const facsWithNoPending = needMaintFacs.filter(f => !(facPendingMap[f.id]?.count > 0));
 
   // ── 趨勢（近 6 個月）──
   function monthTrend(arr) {
@@ -2717,7 +2720,7 @@ function renderInspectionDataManagement(standalone = false) {
         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;flex-wrap:wrap">
           <div style="font-size:14px;font-weight:900;color:#9a3412">
             <i class="fas fa-exclamation-triangle" style="margin-right:7px"></i>需維護設施速覽
-            <span style="font-size:12px;font-weight:500;color:#78350f;margin-left:8px">工程設施盤點：${needMaintFacs.length} 座需維護／損壞 ｜ 對應待處理巡查：${totalPendingInspCount} 筆（各表單類型合計）</span>
+            <span style="font-size:12px;font-weight:500;color:#78350f;margin-left:8px">工程設施盤點：${needMaintFacs.length} 座需維護／損壞 ｜ 對應待處理巡查：${totalPendingInspCount} 筆${facsWithNoPending.length > 0 ? `　<span style="color:#dc2626;font-weight:800">⚠ ${facsWithNoPending.length} 座尚無待處理表單</span>` : '　✅ 各設施均有對應表單'}</span>
           </div>
           <span style="font-size:11px;color:#92400e;background:#fef3c7;border-radius:5px;padding:3px 8px">
             <i class="fas fa-info-circle" style="margin-right:4px"></i>魚道設施若用構造物調查表，待處理出現在「專業巡查」tab 而非「魚道檢核」tab
@@ -2741,9 +2744,10 @@ function renderInspectionDataManagement(standalone = false) {
                 const stColor = f.status === '損壞' ? '#dc2626' : f.status === '需維護' ? '#d97706' : '#0369a1';
                 const stBg    = f.status === '損壞' ? '#fee2e2' : f.status === '需維護' ? '#fef9c3' : '#eff6ff';
                 const prColor = f.maintenance_priority === '緊急' ? '#dc2626' : f.maintenance_priority === '高' ? '#ea580c' : '#64748b';
+                const noPending = pm.count === 0;
                 return `
-                <tr style="border-bottom:1px solid #fed7aa22;background:#fff">
-                  <td style="padding:7px 10px;font-weight:700;color:#0f172a">${f.name}</td>
+                <tr style="border-bottom:1px solid #fed7aa22;background:${noPending ? '#fff1f2' : '#fff'}">
+                  <td style="padding:7px 10px;font-weight:700;color:#0f172a">${f.name}${noPending ? ' <span style="font-size:10px;color:#dc2626;font-weight:800">缺表單</span>' : ''}</td>
                   <td style="padding:7px 10px;text-align:center">
                     <span style="background:${stBg};color:${stColor};border-radius:999px;padding:2px 8px;font-weight:700;font-size:11px">${f.status}</span>
                   </td>
@@ -2751,9 +2755,13 @@ function renderInspectionDataManagement(standalone = false) {
                   <td style="padding:7px 10px;text-align:center">
                     ${pm.count > 0
                       ? `<span style="background:#fee2e2;color:#b91c1c;border-radius:999px;padding:2px 10px;font-weight:800">${pm.count} 筆</span>`
-                      : `<span style="color:#94a3b8">—</span>`}
+                      : `<span style="background:#fef2f2;color:#991b1b;border-radius:999px;padding:2px 10px;font-weight:800;border:1px dashed #fca5a5">⚠ 尚無</span>`}
                   </td>
-                  <td style="padding:7px 10px;color:#475569">${tabLabels || '（巡查記錄中無待處理筆數）'}</td>
+                  <td style="padding:7px 10px;color:#475569;font-size:11px">
+                    ${pm.count > 0
+                      ? tabLabels
+                      : `<span style="color:#dc2626;font-weight:700">尚無待處理表單——請新增巡查表單，或執行「全面同步修正」確認設施狀態是否仍需維護</span>`}
+                  </td>
                 </tr>`;
               }).join('')}
             </tbody>
