@@ -450,10 +450,12 @@ function fac_derLevelFromDeru(d, e, r, u) {
 }
 
 function fac_healthFromDeru(d, e, r, text = '') {
-  const severity = Number(d || 0) * 0.45 + Number(e || 1) * 0.2 + Number(r || 1) * 0.35;
+  const dNum = Number(d || 0);
+  const severity = dNum * 0.45 + Number(e || 1) * 0.2 + Number(r || 1) * 0.35;
   let health = Math.round(100 - severity * 21);
   if (/完全堵塞|無法通行|喪失通行|嚴重淘空|嚴重淘刷|危及安全|崩塌|倒塌|緊急/.test(text)) health = Math.min(health, 25);
-  if (/淘空|淘刷|基礎受.*侵蝕|基礎裸露|導流牆偏移|位移/.test(text)) health = Math.min(health, 45);
+  // 位移/淘空文字上限僅在結構損壞 d≥2 時套用，避免 A 級設施（d=0）因文字提及「位移」被誤壓低至 45
+  if (dNum >= 2 && /淘空|淘刷|基礎受.*侵蝕|基礎裸露|導流牆偏移|位移/.test(text)) health = Math.min(health, 45);
   if (/水流正常|結構完整|坡面完整|成功通行|符合通行標準/.test(text)) health = Math.max(health, 86);
   return Math.max(15, Math.min(95, health));
 }
