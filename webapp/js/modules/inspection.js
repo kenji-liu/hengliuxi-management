@@ -2618,6 +2618,22 @@ function renderInspectionDataManagement(standalone = false) {
   const fs   = typeStats(byType.fishway);
   const rs   = typeStats(byType.ranger);
 
+  // ── 需維護設施速覽（橋接設施層與表單層統計口徑） ──
+  const needMaintFacs = facilities.filter(f =>
+    f.status === '需維護' || f.status === '損壞' ||
+    f.maintenance_priority === '高' || f.maintenance_priority === '緊急'
+  );
+  const facPendingMap = {};
+  enriched.filter(i => i.uiStatus === '待處理' || i.uiStatus === '處理中').forEach(i => {
+    const fid = Number(i.facilityId);
+    if (!fid) return;
+    if (!facPendingMap[fid]) facPendingMap[fid] = { count: 0, tabs: new Set() };
+    facPendingMap[fid].count++;
+    facPendingMap[fid].tabs.add(i.uiType);
+  });
+  const tabLabelMap = { general:'一般巡查', professional:'專業巡查', fishway:'魚道檢核', maintenance:'維護完工', ranger:'護管員' };
+  const totalPendingInspCount = enriched.filter(i => i.uiStatus === '待處理' || i.uiStatus === '處理中').length;
+
   // ── 趨勢（近 6 個月）──
   function monthTrend(arr) {
     const months = {};
@@ -2694,6 +2710,56 @@ function renderInspectionDataManagement(standalone = false) {
         </div>
       </div>`}
     <div ${standalone?'':'class="card-body" style="padding:16px"'}>
+
+      <!-- ── 需維護設施速覽（橋接設施層與表單層口徑）── -->
+      ${needMaintFacs.length ? `
+      <div style="background:#fff7ed;border:1px solid #fed7aa;border-left:4px solid #ea580c;border-radius:10px;padding:14px 16px;margin-bottom:18px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;flex-wrap:wrap">
+          <div style="font-size:14px;font-weight:900;color:#9a3412">
+            <i class="fas fa-exclamation-triangle" style="margin-right:7px"></i>需維護設施速覽
+            <span style="font-size:12px;font-weight:500;color:#78350f;margin-left:8px">工程設施盤點：${needMaintFacs.length} 座需維護／損壞 ｜ 對應待處理巡查：${totalPendingInspCount} 筆（各表單類型合計）</span>
+          </div>
+          <span style="font-size:11px;color:#92400e;background:#fef3c7;border-radius:5px;padding:3px 8px">
+            <i class="fas fa-info-circle" style="margin-right:4px"></i>魚道設施若用構造物調查表，待處理出現在「專業巡查」tab 而非「魚道檢核」tab
+          </span>
+        </div>
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:560px">
+            <thead>
+              <tr style="background:#fff3e0">
+                <th style="padding:6px 10px;text-align:left;border-bottom:1px solid #fed7aa;color:#9a3412">設施名稱</th>
+                <th style="padding:6px 10px;text-align:center;border-bottom:1px solid #fed7aa;color:#9a3412">設施狀態</th>
+                <th style="padding:6px 10px;text-align:center;border-bottom:1px solid #fed7aa;color:#9a3412">優先度</th>
+                <th style="padding:6px 10px;text-align:center;border-bottom:1px solid #fed7aa;color:#9a3412;white-space:nowrap">待處理巡查筆數</th>
+                <th style="padding:6px 10px;text-align:left;border-bottom:1px solid #fed7aa;color:#9a3412">所在 Tab</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${needMaintFacs.map(f => {
+                const pm = facPendingMap[f.id] || { count: 0, tabs: new Set() };
+                const tabLabels = [...pm.tabs].map(t => tabLabelMap[t] || t).join('、');
+                const stColor = f.status === '損壞' ? '#dc2626' : f.status === '需維護' ? '#d97706' : '#0369a1';
+                const stBg    = f.status === '損壞' ? '#fee2e2' : f.status === '需維護' ? '#fef9c3' : '#eff6ff';
+                const prColor = f.maintenance_priority === '緊急' ? '#dc2626' : f.maintenance_priority === '高' ? '#ea580c' : '#64748b';
+                return `
+                <tr style="border-bottom:1px solid #fed7aa22;background:#fff">
+                  <td style="padding:7px 10px;font-weight:700;color:#0f172a">${f.name}</td>
+                  <td style="padding:7px 10px;text-align:center">
+                    <span style="background:${stBg};color:${stColor};border-radius:999px;padding:2px 8px;font-weight:700;font-size:11px">${f.status}</span>
+                  </td>
+                  <td style="padding:7px 10px;text-align:center;color:${prColor};font-weight:700">${f.maintenance_priority || '—'}</td>
+                  <td style="padding:7px 10px;text-align:center">
+                    ${pm.count > 0
+                      ? `<span style="background:#fee2e2;color:#b91c1c;border-radius:999px;padding:2px 10px;font-weight:800">${pm.count} 筆</span>`
+                      : `<span style="color:#94a3b8">—</span>`}
+                  </td>
+                  <td style="padding:7px 10px;color:#475569">${tabLabels || '（巡查記錄中無待處理筆數）'}</td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>` : ''}
 
       <!-- ── 四類巡查統計橫排 ── -->
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:22px">
