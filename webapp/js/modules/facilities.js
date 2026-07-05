@@ -478,6 +478,10 @@ function fac_inferDeruFromInspection(item = {}) {
   let e = Number.isFinite(Number(item.deru_e)) ? Number(item.deru_e) : 1;
   let r = Number.isFinite(Number(item.deru_r)) ? Number(item.deru_r) : 1;
   let source = item.deru_d !== undefined ? 'DER&U表單值' : '專業巡查文字判讀';
+  // 三維皆由表單明確填寫：文字判讀僅保留緊急覆寫，不推高表單已評定的 e/r 值
+  const hasAllExplicitDER = Number.isFinite(Number(item.deru_d)) &&
+                             Number.isFinite(Number(item.deru_e)) &&
+                             Number.isFinite(Number(item.deru_r));
 
   const hasSevereText = /完全堵塞|無法通行|喪失通行|嚴重淘空|嚴重淘刷|危及安全|崩塌|倒塌|緊急/.test(text);
   const hasScourText = /淘空|淘刷|基礎受.*侵蝕|基礎裸露|導流牆偏移|位移|偏移|沖刷|下刷/.test(text);
@@ -525,36 +529,44 @@ function fac_inferDeruFromInspection(item = {}) {
       source = `構造物調查${item.sf_grade}級輔助`;
     }
 
-    // 文字推斷（A 級有效時完全跳過，防止舊文字關鍵字誤覆蓋等級分數）
+    // 文字推斷（A 級有效時完全跳過；表單已完整填寫 d/e/r 時，非緊急情況以表單值為準）
     if (!sfGradeProtectedA) {
       if (hasSevereText) {
+        // 緊急情況（完全堵塞、崩塌等）仍可覆蓋表單值
         d = Math.max(d, 4);
         e = Math.max(e, /完全堵塞|喪失通行|崩塌|倒塌/.test(text) ? 4 : 3);
         r = Math.max(r, 4);
         source = item.deru_d !== undefined && item.deru_u > 1 ? source : '專業巡查文字判讀';
-      } else if (hasScourText) {
-        d = Math.max(d, 3);
-        e = Math.max(e, /偏移|裸露|基礎/.test(text) ? 3 : 2);
-        r = Math.max(r, 3);
-        source = item.deru_d !== undefined && item.deru_u > 1 ? source : '專業巡查文字判讀';
-      } else if (hasModerateText && !sfGradeProtectedB) {
-        // B 級也保護：不讓文字推斷超過 B 級上限 d=2
-        d = Math.max(d, 2);
-        e = Math.max(e, 2);
-        r = Math.max(r, /通行|排洪|功能/.test(text) ? 3 : 2);
-        source = item.deru_d !== undefined && item.deru_u > 1 ? source : '專業巡查文字判讀';
-      } else if (hasNormalText && d <= 0) {
-        d = 0; e = 1; r = 1;
+      } else if (!hasAllExplicitDER) {
+        // 表單未完整填寫 d/e/r 時，才用文字判讀補足（防止誤推高已評定的 e/r）
+        if (hasScourText) {
+          d = Math.max(d, 3);
+          e = Math.max(e, /偏移|裸露|基礎/.test(text) ? 3 : 2);
+          r = Math.max(r, 3);
+          source = item.deru_d !== undefined && item.deru_u > 1 ? source : '專業巡查文字判讀';
+        } else if (hasModerateText && !sfGradeProtectedB) {
+          // B 級也保護：不讓文字推斷超過 B 級上限 d=2
+          d = Math.max(d, 2);
+          e = Math.max(e, 2);
+          r = Math.max(r, /通行|排洪|功能/.test(text) ? 3 : 2);
+          source = item.deru_d !== undefined && item.deru_u > 1 ? source : '專業巡查文字判讀';
+        } else if (hasNormalText && d <= 0) {
+          d = 0; e = 1; r = 1;
+        }
       }
     }
   }
 
   const deru = fac_deriveUrgency(d, e, r);
   // 等級保護：A/B級魚道檢核表 → 不讓舊的高 U 值反壓；其他情況保守取 max
+  // 例外：表單已完整填寫 d/e/r 且有明確 deru_u 時，以表單 U 值為準（信任現場評定）
   const isGradeProtected = (item.sf_grade === 'A' || item.fw_grade === 'A') && !hasSevereText;
+  const hasExplicitU = Number.isFinite(Number(item.deru_u));
   const u = isGradeProtected
     ? deru.u
-    : Math.max(Number(item.deru_u || 0), deru.u);
+    : (hasAllExplicitDER && hasExplicitU && !hasSevereText)
+      ? Number(item.deru_u)
+      : Math.max(Number(item.deru_u || 0), deru.u);
   const label = u === deru.u ? deru.label : (item.deru_label || fac_deriveUrgency(d, e, r).label);
   const health = fac_healthFromDeru(d, e, r, text);
   const status = u >= 4 || health < 35 ? '損壞' : u >= 2 || health < 75 ? '需維護' : '正常';
