@@ -263,6 +263,21 @@ function fac_editInspection(inspectionId, facilityId) {
   openInspectionForm(inspectionId);
 }
 
+/* 從維護管理資料清單刪除巡查/維護案件 */
+function fac_deleteMaintenanceCase(inspectionId, facilityId) {
+  const item = DB.getById('inspections', inspectionId);
+  if (!item) { showToast('找不到對應記錄', 'error'); return; }
+  const label = item.facilityName || item.inspectNo || `ID ${inspectionId}`;
+  if (!confirm(`確定要刪除「${label}」的這筆維護案件？此操作無法復原。`)) return;
+  DB.delete('inspections', inspectionId);
+  const fac = DB.getById('facilities', Number(facilityId));
+  if (fac && typeof fac_syncLatestProfessionalAssessment === 'function') {
+    fac_syncLatestProfessionalAssessment(fac);
+  }
+  showToast('維護案件已刪除', 'info');
+  viewFacility(facilityId);
+}
+
 /* 從維護管理資料清單編輯巡查/維護案件，儲存後返回同一座設施詳情 */
 function fac_editMaintenanceCase(inspectionId, facilityId) {
   const item = DB.getById('inspections', inspectionId);
@@ -1570,6 +1585,9 @@ function renderFacilityMaintenanceDataSection(f) {
                   </button>
                   <button onclick="openInspectionReclassificationForm(${item.itemId},${f.id})" style="font-size:11px;color:#7c3aed;background:#faf5ff;border:1px solid #ddd6fe;border-radius:5px;padding:2px 7px;cursor:pointer;font-weight:700">
                     <i class="fas fa-random"></i> 重新歸類
+                  </button>
+                  <button onclick="fac_deleteMaintenanceCase(${item.itemId},${f.id})" style="font-size:11px;color:#b91c1c;background:#fff1f2;border:1px solid #fecaca;border-radius:5px;padding:2px 7px;cursor:pointer;font-weight:700">
+                    <i class="fas fa-trash-alt"></i> 刪除
                   </button>
                 </div>
               </div>
