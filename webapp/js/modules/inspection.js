@@ -6455,6 +6455,13 @@ function openStructureInspectionForm(facilityId = null, id = null) {
           ${INSPECTION_STATUS.map(s=>`<option value="${s}" ${getInspectionStatus(saved)===s?'selected':''}>${s}</option>`).join('')}
         </select>
       </div>
+      <div class="form-group"><label>預計完成時間</label>
+        <input id="sf_expectedCompletion" type="date" value="${saved.expectedCompletion || ''}">
+      </div>
+      <div class="form-group"><label>實際完成時間</label>
+        <input id="sf_completedAt" type="date" value="${saved.completedAt || saved.completionDate || ''}">
+        <small style="color:#64748b;font-size:11px">填寫後請將處理狀態改為「完成」，案件即從待處理清單移除。</small>
+      </div>
     </div>
 
     <!-- DER&U 三點檢查表 -->
@@ -6683,6 +6690,8 @@ function saveStructureInspectionForm(id) {
       || (['C1','C2','C3'].includes(grade) ? '待處理' : 'A'===grade ? '完成' : '處理中'),
     priority: document.getElementById('sf_priority')?.value
       || (['C1','C2'].includes(grade) ? '緊急' : ['C3','B1'].includes(grade) ? '高' : ['B2','B3'].includes(grade) ? '中' : '低'),
+    expectedCompletion: document.getElementById('sf_expectedCompletion')?.value || '',
+    completedAt: document.getElementById('sf_completedAt')?.value || '',
     deru_d: gradeAdjD, deru_e: gradeAdjE, deru_r: gradeAdjR, deru_u: gradeAdjU,
     sourceType: '專業巡查',
     photoDataUrls: _inspGetMultiPhotos('sf'),
