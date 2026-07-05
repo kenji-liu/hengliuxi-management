@@ -529,6 +529,131 @@ function inspectionApplyProfessionalReclassPreset() {
   }
 }
 
+function inspectionProfessionalStructureSourceText(item = {}) {
+  return [
+    item.sourceType,
+    item.inspectionItem,
+    item.inspectionClassLabel,
+    item.inspectionSubcategory,
+    item.pdfTemplate,
+    item.pdfFileName,
+    item.sourcePdf,
+    item.pdfSource,
+    item.cloudFolder,
+    item.cloudTarget,
+    item.structType,
+    item.inspectNo
+  ].filter(Boolean).join(' ');
+}
+
+function inspectionIsMisclassifiedProfessionalStructure(item = {}) {
+  const isMaintenanceBucket = inspectionDataClass(item) === 'maintenance';
+  if (!isMaintenanceBucket) return false;
+  const sourceText = inspectionProfessionalStructureSourceText(item);
+  const sourceLooksStructure = /專業巡查-構造物調查表|構造物調查表|構造物調查|專業性巡查表單.*構造物|附錄二/.test(sourceText);
+  const formLooksStructure = item.formType === 'professional_structure' || item.type === 'professional_structure';
+  return sourceLooksStructure || formLooksStructure;
+}
+
+function inspectionBatchReclassifyProfessionalStructureRecords() {
+  const rows = DB.getAll('inspections');
+  const candidates = rows.filter(inspectionIsMisclassifiedProfessionalStructure);
+  if (!candidates.length) return 0;
+
+  const now = new Date().toISOString();
+  const meta = inspectionFormSyncMeta('professional_structure');
+  const logs = [];
+
+  candidates.forEach(row => {
+    const fid = Number(row.facilityId || row.facility_id);
+    const facility = DB.getById('facilities', fid);
+    const before = inspectionReclassSnapshot(row);
+    const sourcePdf = inspectionSourcePdfLabel(row);
+    const ocrText = inspectionOcrText(row);
+    const inspectionId = inspectionRecordIdentifier(row, 'professional', fid);
+    const updates = {
+      dataClass: 'inspection',
+      dataClassLabel: '巡查資料',
+      managementClass: 'inspection',
+      formType: 'professional_structure',
+      inspectionCategory: 'professional',
+      linkedInspectionCategory: 'professional',
+      sourceInspectionCategory: 'professional',
+      inspectionClassLabel: '專業巡查',
+      inspectionSubcategory: '專業巡查紀錄',
+      inspectionItem: '構造物調查表',
+      sourceType: '專業巡查-構造物調查表',
+      inspection_id: inspectionId,
+      inspectionId,
+      facilityId: fid || row.facilityId || row.facility_id || null,
+      facility_id: fid || row.facilityId || row.facility_id || null,
+      facilityName: facility?.name || row.facilityName || row.facility_name || '',
+      facility_name: facility?.name || row.facility_name || row.facilityName || '',
+      facilityType: row.facilityType || facility?.type || '',
+      stationKm: row.stationKm || facility?.stationKm || '',
+      previousMaintenanceCategory: row.maintenanceCategory || '',
+      previousMaintenanceType: row.maintenanceType || '',
+      previousMaintenanceId: row.maintenance_id || row.maintenanceId || '',
+      maintenanceCategory: '',
+      maintenanceType: '',
+      maintenance_id: '',
+      maintenanceId: '',
+      pdfFormat: 'PDF',
+      pdfTemplate: meta.pdfTitle,
+      pdfSource: sourcePdf,
+      sourcePdf: row.sourcePdf || sourcePdf,
+      cloudTarget: 'Google Drive',
+      cloudFolder: meta.cloudFolder,
+      cloudFolderUrl: INSPECTION_GDRIVE_FOLDER_URL,
+      cloudSyncStatus: row.driveFileId || row.driveWebLink ? (row.cloudSyncStatus || '已上傳') : '待上傳',
+      syncedToInspectionManagement: true,
+      syncedToFacility: true,
+      statusEvaluationSyncedAt: now,
+      reclassifiedAt: now,
+      reclassificationReason: '批次修正：維護管理資料誤歸類，改列巡查資料＞專業巡查＞構造物調查表',
+      updatedAt: now
+    };
+    if (!row.pdfFileName) updates.pdfFileName = inspectionPdfFileName({ ...row, ...updates }, meta);
+    if (ocrText && !row.ocrText) updates.ocrText = ocrText;
+
+    const after = inspectionReclassSnapshot({ ...row, ...updates });
+    const historyItem = {
+      changedAt: now,
+      reason: updates.reclassificationReason,
+      before,
+      after
+    };
+    updates.reclassificationHistory = [
+      ...(Array.isArray(row.reclassificationHistory) ? row.reclassificationHistory : []),
+      historyItem
+    ];
+
+    const saved = DB.update('inspections', row.id, updates);
+    if (saved) {
+      logs.push({
+        inspectionId: row.id,
+        changedAt: now,
+        reason: updates.reclassificationReason,
+        before,
+        after,
+        operator: '系統批次資料治理',
+        sourcePage: '維護管理資料批次移轉'
+      });
+      syncInspectionRecordToFacility(saved, false);
+    }
+  });
+
+  logs.forEach(log => DB.insert('reclassificationLogs', log));
+
+  const affected = Array.from(new Set(candidates.map(row => Number(row.facilityId || row.facility_id)).filter(Boolean)));
+  affected.forEach(fid => {
+    const fac = DB.getById('facilities', fid);
+    if (fac && typeof fac_syncLatestProfessionalAssessment === 'function') fac_syncLatestProfessionalAssessment(fac);
+  });
+
+  return candidates.length;
+}
+
 function saveInspectionReclassification(id, returnFacilityId = null) {
   const item = DB.getById('inspections', Number(id));
   if (!item) {
@@ -847,6 +972,8 @@ function syncFacilityStatusToInspections(silent = false) {
 }
 
 function ensureInspectionSyncMetadata() {
+  inspectionBatchReclassifyProfessionalStructureRecords();
+
   const rows = DB.getAll('inspections');
 
   // ① 補齊每筆巡查記錄的中繼資料（PDF／雲端標記等）

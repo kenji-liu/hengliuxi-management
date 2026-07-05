@@ -1741,6 +1741,9 @@ function renderPlatformRevetmentSummary() {
 
 function renderFacilities() {
   ensurePlatformRevetmentFacilities();
+  if (typeof inspectionBatchReclassifyProfessionalStructureRecords === 'function') {
+    inspectionBatchReclassifyProfessionalStructureRecords();
+  }
   fac_syncAllLatestProfessionalAssessments();
   document.getElementById('contentArea').innerHTML = `
     <!-- 工程設施盤點基本資料標題 -->
@@ -2582,6 +2585,10 @@ function saveHealthEval(facilityId) {
 function viewFacility(id) {
   let f = DB.getById('facilities', id);
   if (!f) return;
+  if (typeof inspectionBatchReclassifyProfessionalStructureRecords === 'function') {
+    inspectionBatchReclassifyProfessionalStructureRecords();
+    f = DB.getById('facilities', id) || f;
+  }
   fac_syncLatestProfessionalAssessment(f);
   f = DB.getById('facilities', id) || f;
   const stars    = n => `<span style="color:#f59e0b">${'★'.repeat(n)}${'☆'.repeat(5-n)}</span>`;
