@@ -300,13 +300,39 @@ function inspectionPdfFileName(item, meta) {
 }
 
 function inspectionDataClass(item = {}) {
+  if (item.dataClass === 'inspection' || item.managementClass === 'inspection') return 'inspection';
   if (item.dataClass === 'maintenance' || item.managementClass === 'maintenance' || item.formType === 'maintenance_completion') return 'maintenance';
   return 'inspection';
+}
+
+function inspectionSourcePdfLabel(item = {}) {
+  return item.sourcePdf || item.pdfSource || item.pdfFileName || item.pdfTemplate || item.cloudFileName || '';
+}
+
+function inspectionOcrText(item = {}) {
+  return item.ocrText || item.ocr_text || item.extractedText || item.rawText || item.textContent || '';
+}
+
+function inspectionRecordIdentifier(item = {}, category = 'general', facilityId = null) {
+  if (item.inspection_id) return item.inspection_id;
+  if (item.inspectionId) return item.inspectionId;
+  if (item.inspectNo) return item.inspectNo;
+  const prefix = {
+    general: 'GEN',
+    professional: 'PRO',
+    fishway: 'FW',
+    ranger: 'RNG'
+  }[category] || 'INS';
+  const date = inspectionSanitizeFileName(item.date || new Date().toISOString().slice(0, 10));
+  const fid = facilityId || item.facilityId || item.facility_id || 'NA';
+  const rid = item.id || Date.now();
+  return `${prefix}-${fid}-${date}-${rid}`;
 }
 
 function inspectionReclassSnapshot(item = {}) {
   return {
     id: item.id,
+    inspection_id: item.inspection_id || item.inspectionId || '',
     dataClass: inspectionDataClass(item),
     formType: item.formType || '',
     inspectionCategory: item.inspectionCategory || '',
@@ -321,7 +347,13 @@ function inspectionReclassSnapshot(item = {}) {
     inspectionItem: item.inspectionItem || '',
     date: item.date || '',
     status: item.status || '',
-    priority: item.priority || ''
+    priority: item.priority || '',
+    sourcePdf: inspectionSourcePdfLabel(item),
+    sourcePage: item.sourcePage || '',
+    pdfFileName: item.pdfFileName || '',
+    cloudFolder: item.cloudFolder || '',
+    ocrTextLength: inspectionOcrText(item).length,
+    photoCount: Array.isArray(item.photos) ? item.photos.length : 0
   };
 }
 
@@ -408,6 +440,11 @@ function openInspectionReclassificationForm(id, returnFacilityId = null) {
     <div style="display:grid;gap:14px">
       <div style="background:#eff6ff;border:1px solid #bfdbfe;border-left:4px solid #1565c0;border-radius:10px;padding:12px;color:#1e3a8a;line-height:1.7;font-size:14px">
         <b>用途：</b>當表單放錯在「巡查資料」或「維護管理資料」時，可重新指定資料大類、巡查類別、維護類別、設施類型與對應工程設施。儲存後會同步更新設施履歷、照片與最新狀態評估。
+        <div style="margin-top:8px">
+          <button type="button" onclick="inspectionApplyProfessionalReclassPreset()" style="border:1px solid #fdba74;background:#fff7ed;color:#9a3412;border-radius:999px;padding:6px 12px;font-size:13px;font-weight:800;cursor:pointer">
+            <i class="fas fa-hard-hat"></i> 套用：巡查資料 ＞ 專業巡查
+          </button>
+        </div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
         <div class="form-group">
@@ -481,6 +518,17 @@ function inspectionReclassFacilityChanged(facilityId) {
   if (facility?.type && typeSelect) typeSelect.value = facility.type;
 }
 
+function inspectionApplyProfessionalReclassPreset() {
+  const dataClass = document.getElementById('rc_data_class');
+  const category = document.getElementById('rc_inspection_category');
+  const reason = document.getElementById('rc_reason');
+  if (dataClass) dataClass.value = 'inspection';
+  if (category) category.value = 'professional';
+  if (reason && !/專業巡查/.test(reason.value || '')) {
+    reason.value = '維護管理資料誤放，改列巡查資料＞專業巡查';
+  }
+}
+
 function saveInspectionReclassification(id, returnFacilityId = null) {
   const item = DB.getById('inspections', Number(id));
   if (!item) {
@@ -503,11 +551,18 @@ function saveInspectionReclassification(id, returnFacilityId = null) {
   const now = new Date().toISOString();
   const categoryMeta = inspectionCategoryMeta(inspectionCategory);
   const maintenanceLabel = inspectionMaintenanceCategoryLabel(maintenanceCategory);
+  const isMaintenance = dataClass === 'maintenance';
   const nextFormType = dataClass === 'maintenance' && maintenanceCategory === 'maintenance_completion'
     ? 'maintenance_completion'
     : categoryMeta.formType;
   const syncMeta = inspectionFormSyncMeta(nextFormType);
-  const dataClassLabel = dataClass === 'maintenance' ? '維護管理資料' : '巡查資料';
+  const dataClassLabel = isMaintenance ? '維護管理資料' : '巡查資料';
+  const sourcePdf = inspectionSourcePdfLabel(item);
+  const ocrText = inspectionOcrText(item);
+  const inspectionId = inspectionRecordIdentifier(item, inspectionCategory, facilityId);
+  const cloudFolder = isMaintenance
+    ? `巡查資料管理/維護管理資料/${maintenanceLabel}`
+    : syncMeta.cloudFolder;
 
   const updates = {
     dataClass,
@@ -520,23 +575,35 @@ function saveInspectionReclassification(id, returnFacilityId = null) {
     facility_name: facility.name,
     facilityType: facilityType || facility.type || '',
     stationKm: facility.stationKm || item.stationKm || '',
-    inspectionCategory: dataClass === 'maintenance' ? 'maintenance' : inspectionCategory,
+    inspectionCategory: isMaintenance ? 'maintenance' : inspectionCategory,
     linkedInspectionCategory: inspectionCategory,
     sourceInspectionCategory: inspectionCategory,
-    inspectionClassLabel: dataClass === 'maintenance' ? '維護管理資料' : categoryMeta.classLabel,
-    inspectionSubcategory: dataClass === 'maintenance' ? maintenanceLabel : categoryMeta.subcategory,
-    inspectionItem: dataClass === 'maintenance' ? maintenanceLabel : categoryMeta.label,
-    maintenanceCategory: dataClass === 'maintenance' ? maintenanceCategory : '',
-    maintenanceType: dataClass === 'maintenance' ? maintenanceLabel : '',
-    sourceType: dataClass === 'maintenance' ? maintenanceLabel : categoryMeta.sourceType,
-    pdfTemplate: dataClass === 'maintenance' ? maintenanceLabel : (syncMeta.label || categoryMeta.label),
-    cloudTarget: dataClass === 'maintenance'
-      ? `巡查資料管理/維護管理資料/${maintenanceLabel}`
-      : syncMeta.cloudFolder,
+    inspectionClassLabel: isMaintenance ? '維護管理資料' : categoryMeta.classLabel,
+    inspectionSubcategory: isMaintenance ? maintenanceLabel : categoryMeta.subcategory,
+    inspectionItem: isMaintenance ? maintenanceLabel : categoryMeta.label,
+    inspection_id: isMaintenance ? '' : inspectionId,
+    inspectionId: isMaintenance ? '' : inspectionId,
+    maintenance_id: isMaintenance ? (item.maintenance_id || item.maintenanceId || `MNT-${facilityId}-${inspectionSanitizeFileName(item.date || now.slice(0, 10))}-${item.id || Date.now()}`) : '',
+    maintenanceId: isMaintenance ? (item.maintenanceId || item.maintenance_id || `MNT-${facilityId}-${inspectionSanitizeFileName(item.date || now.slice(0, 10))}-${item.id || Date.now()}`) : '',
+    maintenanceCategory: isMaintenance ? maintenanceCategory : '',
+    maintenanceType: isMaintenance ? maintenanceLabel : '',
+    sourceType: isMaintenance ? maintenanceLabel : categoryMeta.sourceType,
+    pdfFormat: 'PDF',
+    pdfTemplate: isMaintenance ? `${maintenanceLabel}.pdf` : (syncMeta.pdfTitle || categoryMeta.label),
+    pdfSource: sourcePdf,
+    sourcePdf: item.sourcePdf || sourcePdf,
+    cloudTarget: 'Google Drive',
+    cloudFolder,
+    cloudFolderUrl: INSPECTION_GDRIVE_FOLDER_URL,
     cloudSyncStatus: '待上傳',
+    syncedToInspectionManagement: true,
+    syncedToFacility: true,
+    statusEvaluationSyncedAt: now,
+    updatedAt: now,
     reclassifiedAt: now,
     reclassificationReason: reason
   };
+  if (ocrText && !item.ocrText) updates.ocrText = ocrText;
   if (!item.pdfFileName) {
     updates.pdfFileName = inspectionPdfFileName({ ...item, ...updates }, syncMeta);
   }

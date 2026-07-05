@@ -362,10 +362,16 @@ function fac_isRestoredInspection(item = {}) {
   return hasCompletion && !hasUnclosed;
 }
 
+function fac_recordDataClass(item = {}) {
+  if (item.dataClass === 'inspection' || item.managementClass === 'inspection') return 'inspection';
+  if (item.dataClass === 'maintenance' || item.managementClass === 'maintenance' || item.formType === 'maintenance_completion') return 'maintenance';
+  return 'inspection';
+}
+
 function fac_authorityRank(item = {}) {
   if (fac_isRestoredInspection(item)) return 90;
   if (item.formType === 'maintenance_completion') return 80;
-  if (item.dataClass === 'maintenance' || item.managementClass === 'maintenance') return 75;
+  if (fac_recordDataClass(item) === 'maintenance') return 75;
   if (item.formType === 'professional_fishway') return 70;
   if (item.formType === 'professional_structure') return 65;
   if (item.type === 'deru_assessment') return 60;
@@ -387,8 +393,10 @@ function fac_sortAuthoritativeInspections(rows = []) {
 
 function fac_isProfessionalInspection(item = {}) {
   // 維護完工 / 已改善閉合紀錄：一律視為代表性表徵
-  if (item.dataClass === 'maintenance' || item.managementClass === 'maintenance') return true;
   if (item.formType === 'maintenance_completion' || fac_isRestoredInspection(item)) return true;
+  if (fac_recordDataClass(item) === 'maintenance') {
+    return item.deru_d !== undefined || item.deru_u !== undefined || /DER&U|專業巡查|構造物|魚道檢核|技士|技師/.test(fac_inspectionText(item));
+  }
   // 有明確 formType 時，以 formType 為權威判定（不用文字關鍵字），
   // 避免一般巡查 findings 內含「專業技師評估」「結構外觀破損」等字樣被誤判為專業巡查，
   // 進而錯誤地成為「最新專業巡查」代表評分來源。
@@ -1293,7 +1301,7 @@ function fac_filterPrimaryCategory(data) {
 }
 
 function fac_inspectionType(item = {}) {
-  if (item.dataClass === 'maintenance' || item.managementClass === 'maintenance') return 'maintenance';
+  if (fac_recordDataClass(item) === 'maintenance') return 'maintenance';
   if (item.formType === 'maintenance_completion') return 'maintenance';
   if (item.formType === 'general_periodic') return 'general';
   if (item.formType === 'professional_structure') return 'professional';
@@ -1319,13 +1327,12 @@ function fac_facilityLinkedMaintenanceCases(f) {
   const inspections = fac_linkedInspections(f);
   // 維護完工回報單獨顯示
   const completionRecs = inspections.filter(i =>
-    i.formType === 'maintenance_completion' || i.dataClass === 'maintenance' || i.managementClass === 'maintenance'
+    i.formType === 'maintenance_completion' || fac_recordDataClass(i) === 'maintenance'
   );
   // 待處理/高優先異常巡查
   const anomalyRecs = inspections.filter(item =>
     item.formType !== 'maintenance_completion' &&
-    item.dataClass !== 'maintenance' &&
-    item.managementClass !== 'maintenance' &&
+    fac_recordDataClass(item) !== 'maintenance' &&
     (item.status !== '完成' || item.priority === '高' || item.priority === '緊急' || item.aiImageAnalysis || item.deru_u >= 2)
   );
   const all = [...anomalyRecs, ...completionRecs];
