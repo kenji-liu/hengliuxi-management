@@ -573,8 +573,13 @@ function buildDynamicContext(query) {
           `✓正常 ${normal.length} 座、⚠需追蹤 ${needAttn.length} 座、★緊急 ${blockaded.length} 座。`
         );
 
-        // 列出有問題的魚道
+        // 列出有問題的魚道（若設施最新 professional_structure 表徵已為 A 級則略過，避免舊魚道檢核表蓋過最新判定）
         blockaded.forEach(i => {
+          const fac = facilities.find(f => String(f.id) === String(i.facilityId));
+          if (fac && typeof fac_latestProfessionalAssessment === 'function') {
+            const latestAssess = fac_latestProfessionalAssessment(fac);
+            if (latestAssess?.derLevel && /^A/.test(latestAssess.derLevel)) return;
+          }
           const sediment = i.fw_deruItems?.find(d => d.name?.includes('淤積'));
           parts.push(`★緊急【${i.facilityName}】${i.date}：${i.fw_grade}級，${i.fw_fishPresent || '通行未知'}，` +
             (sediment?.d >= 3 ? `土砂淤積D${sediment.d}/E${sediment.e}/R${sediment.r}，` : '') +
@@ -977,7 +982,12 @@ function _buildWelcomeMessage() {
     stats.fish      = fishRecords.length;
     stats.fishProtected = fishRecords.filter(r => r.conservationStatus && r.conservationStatus !== '一般').length;
     stats.urgentFac = facilities
-      .filter(f => f.riskScore >= 50 || f.status === '損壞' || (f.derLevel && /C|D/.test(f.derLevel)))
+      .filter(f => {
+        const assess = typeof fac_latestProfessionalAssessment === 'function' ? fac_latestProfessionalAssessment(f) : null;
+        const curStatus = assess?.status || f.status || '';
+        const curDer    = assess?.derLevel || f.derLevel || '';
+        return f.riskScore >= 50 || curStatus === '損壞' || /C|D/.test(curDer);
+      })
       .sort((a,b)=>(b.riskScore||0)-(a.riskScore||0))
       .slice(0,2).map(f => f.name);
   } catch(e) {}
@@ -1259,9 +1269,14 @@ function buildAllSectionsContext(query) {
     const needFacDetail = /所有設施|全部設施|設施狀態|健康指數|列出|整體摘要|緊急/.test(q);
     if (needFacDetail) {
       facilities.forEach(f => {
-        const h = typeof fac_health==='function' ? fac_health(f) : (f.healthScore||'-');
+        // 以最新專業巡查表徵為準，避免 DB 快取的舊 derLevel 誤導 AI
+        const assess = typeof fac_latestProfessionalAssessment === 'function' ? fac_latestProfessionalAssessment(f) : null;
+        const curStatus = assess?.status || f.status || '未知';
+        const curDer    = assess?.derLevel || f.derLevel || '-';
+        const curHealth = assess?.health ?? (typeof fac_health === 'function' ? fac_health(f) : (f.healthScore || '-'));
+        const curDate   = assess?.assessmentDate || f.lastInspect || '無';
         parts.push(`  ${f.name}（${f.type||''}${f.subType?'/'+f.subType:''}，${f.stationKm||'-'}）：` +
-          `${f.status||'未知'}，健康${h}%，DER&U ${f.derLevel||'-'}，最後巡查${f.lastInspect||'無'}`);
+          `${curStatus}，健康${curHealth}%，DER&U ${curDer}（最新表徵${curDate}）`);
       });
     }
 
@@ -1325,6 +1340,12 @@ const AI_SYSTEM = `你是「橫流溪工程設施智慧評估平台」的專業 
 3. 【魚道檢核表】→ 引用 D/E/R 評分、通行狀況、維護等級
 4. 【網路補充資料（維基百科）】→ 輔助說明，標示「（參考：…）」
 5. 以上均無時 → 說明「現有資料不足」並提供專業判斷
+
+【最新表徵覆寫規則（強制執行）】
+• 設施的最終判定以「最新專業巡查（最後表徵）」為準，標示格式：最新表徵日期 + DER&U 等級
+• 若某設施「最後表徵」之 DER&U 等級為 A1（或任何 A 開頭等級），該設施一律不得列為「需緊急維護」項目，即使資料中另有舊的魚道檢核表（professional_fishway）記錄過高急迫評分
+• professional_structure 整體判定（A/B/C）的層級高於 professional_fishway 個別項目 DER 評分
+• 判斷「哪些設施需要緊急處理」時，以各設施「最後表徵」欄位的 DER&U 等級為唯一依據
 
 【DER&U 快速判讀標準】
 - D（損壞程度）：0=無損、1=輕微、2=中等、3=嚴重、4=極嚴重
