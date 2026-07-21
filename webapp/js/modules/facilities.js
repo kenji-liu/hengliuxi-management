@@ -2075,6 +2075,31 @@ function loadFacilitiesTable() {
                 <div style="height:10px;background:#e9ecef;border-radius:5px;overflow:hidden;margin-bottom:12px">
                   <div style="height:100%;width:${hp}%;background:${bc};border-radius:5px"></div>
                 </div>
+                ${assessment.hasProfessional && assessment.deru ? (() => {
+                  const _d = assessment.deru.d, _e = assessment.deru.e, _r = assessment.deru.r;
+                  const _u = assessment.deru.u;
+                  const _uScore = assessment.deru.score;
+                  const _sev = (_d*0.45 + _e*0.2 + _r*0.35).toFixed(2);
+                  const _uThr = (_d <= 0 && _r <= 1) ? 'D=0 且 R≤1 → U1' : _u >= 4 ? `${_uScore}≥3.2 → U4` : _u === 3 ? `${_uScore}≥2.5 → U3` : _u === 2 ? `${_uScore}≥1.5 → U2` : `${_uScore}<1.5 → U1`;
+                  return `<details style="margin-bottom:10px">
+                    <summary style="cursor:pointer;font-size:12px;color:#1d4ed8;font-weight:700;list-style:none;display:flex;align-items:center;gap:4px">
+                      <i class="fas fa-calculator"></i> 計算明細（D=${_d}/E=${_e}/R=${_r}）
+                    </summary>
+                    <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 12px;margin-top:6px;font-size:12px;line-height:1.85;color:#1e3a8a">
+                      <div><b>D（損壞）= ${_d}</b>　E（效能）= ${_e}　R（風險）= ${_r}</div>
+                      <div style="border-top:1px solid #bfdbfe;margin:5px 0;padding-top:5px">
+                        <b>健康分數</b> = 100 − (D×0.45 + E×0.2 + R×0.35) × 21，限[15,95]<br>
+                        &nbsp;&nbsp;= 100 − ${_sev} × 21 = <b style="color:#1565c0">${hp} 分</b>
+                      </div>
+                      <div style="border-top:1px solid #bfdbfe;margin:5px 0;padding-top:5px">
+                        <b>U級加權</b> = D×0.4 + E×0.25 + R×0.35 = ${_uScore}　→ ${_uThr}
+                      </div>
+                      <div style="border-top:1px solid #bfdbfe;margin:5px 0;padding-top:5px;color:#475569">
+                        資料來源：${assessment.deru.source || '-'}
+                      </div>
+                    </div>
+                  </details>`;
+                })() : ''}
                 ${facDetailRow('風險等級', link.riskLevel.label)}
                 ${facDetailRow('維護策略', assessment.strategy || f.maintenanceStrategy || '-')}
                 <div style="margin-top:10px;font-size:13px;color:#475569;border-left:3px solid ${stc};padding-left:9px;line-height:1.65">${assessment.basis || f.evaluationNotes || ''}</div>

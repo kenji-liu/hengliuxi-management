@@ -2807,44 +2807,44 @@ function renderFishTrend() {
   const FISHWAY_TYPES = [
     {
       key: 'zigzag', name: '之字形魚道', facilities: '溪構8-2', station: '0K+460',
-      targetKeys: ['bai', 'ying'], color: '#0ea5e9', status: '正常',
-      note: '低落差曲折水路，適合中低流速通行；巡查記錄有臺灣白甲魚及纓口臺鰍通行。',
+      targetKeys: ['bai', 'ying', 'xu'], color: '#0ea5e9', status: '正常',
+      note: '低落差曲折水路，適合中低流速通行；關聯白甲魚、纓口臺鰍及臺灣鬚鱲——後者偏好有覆蓋的緩流底質，與此型式水力條件契合。',
       management: '維持入口清淤與低流速連續水路，作為最下游連通性門檻。'
     },
     {
       key: 'drop', name: '降壩魚道', facilities: '溪構7', station: '0K+560',
       targetKeys: ['bai', 'shi', 'ying'], color: '#f59e0b', status: '正常',
-      note: '利用壩體落差與水躍消能銜接上下游，關聯白甲魚、石魚賓及底棲爬鰍類。',
+      note: '利用壩體落差與水躍消能銜接上下游，關聯白甲魚、石魚賓及底棲纓口臺鰍；石魚賓具較強溯流能力，為此型式代表性指標物種。',
       management: '定期確認水深0.1～0.6m與跌水消能，避免局部沖刷形成過高落差。'
     },
     {
       key: 'pool', name: '階段式魚道', facilities: '溪構6、溪構4、溪構2', station: '0K+740、1K+170、1K+315',
       targetKeys: ['bai', 'ying', 'jian'], color: '#22c55e', status: '多數正常',
-      note: '多級水池消能，適合臺灣白甲魚、纓口臺鰍與臺灣間爬岩鰍分段上溯；溪構4需注意裂縫與基礎侵蝕。',
+      note: '多級水池消能，適合臺灣白甲魚、纓口臺鰍與臺灣間爬岩鰍分段上溯；間爬岩鰍為溪內洄游保育種（II類），是衡量此型式生態效益的關鍵指標。溪構4需注意裂縫與基礎侵蝕。',
       management: '優先維持池間高差、水深與池壁完整性，溪構4列為保全與修繕追蹤點。'
     },
     {
       key: 'submerged', name: '潛越式魚道', facilities: '溪構5-2', station: '1K+000',
       targetKeys: ['bai', 'shi', 'jian'], color: '#ef4444', status: '堵塞列管',
-      note: '原設計可提供潛越通道，但現況記錄為入口遭土石堵塞，通行功能受損。',
+      note: '設計關聯白甲魚、石魚賓與間爬岩鰍，三者合計構成最多元的魚種組合；但現況入口遭土石堵塞，通行功能受損，指標物種無從通過。',
       management: '應列入緊急清淤與入口斷面復原，否則中游連通性會成為瓶頸。'
     },
     {
       key: 'slope', name: '斜坡式魚道', facilities: '溪構3', station: '1K+225',
-      targetKeys: ['bai', 'ying'], color: '#8b5cf6', status: '正常',
-      note: '斜坡面營造連續水流，報告記錄纓口臺鰍及臺灣白甲魚可通行。',
+      targetKeys: ['bai', 'ying', 'xu'], color: '#8b5cf6', status: '正常',
+      note: '斜坡面營造連續水膜水流，報告記錄纓口臺鰍及臺灣白甲魚可通行；臺灣鬚鱲同樣適應連續坡面緩流，作為補充性關聯指標。',
       management: '維持坡面粗糙度與水膜連續，避免淤積造成局部乾段或集中高速流。'
     },
     {
       key: 'roughstone', name: '粗石斜曲面式魚道', facilities: '溪構1-1', station: '1K+400',
-      targetKeys: ['bai', 'ying', 'jian'], color: '#14b8a6', status: '正常',
-      note: '粗石提供多樣流速帶，對底棲吸附型與游泳能力不同的魚類較友善。',
+      targetKeys: ['bai', 'ying', 'jian', 'min'], color: '#14b8a6', status: '正常',
+      note: '粗石多樣流速帶兼容底棲吸附型（間爬岩鰍）、游泳型（白甲魚、纓口臺鰍）與貼底潛伏型（明潭吻鰕虎），為關聯物種最廣的型式。',
       management: '保留粗石孔隙與緩流避難帶，是上游示範型連通設施。'
     },
     {
       key: 'boat', name: '改良型舟通式魚道', facilities: '溪構1-2', station: '1K+400',
-      targetKeys: ['bai', 'ying'], color: '#6366f1', status: '正常',
-      note: '與粗石斜曲面式魚道併設，形成上游雙通道，已記錄保育魚類成功通行。',
+      targetKeys: ['bai', 'min'], color: '#6366f1', status: '正常',
+      note: '與粗石斜曲面式魚道併設形成上游雙通道；舟型斷面流速集中，以白甲魚（強游型）與明潭吻鰕虎（底棲耐流型）為主要通行指標，已記錄保育魚類成功通行。',
       management: '持續監測結構磨耗與通水斷面，和溪構1-1共同維持上游連通。'
     }
   ];
@@ -3222,6 +3222,7 @@ function renderFishTrend() {
             </div>
             <div style="font-size:14px;color:#475569;line-height:1.75;margin-top:14px">${fw.note}</div>
             <div style="font-size:14px;color:#166534;line-height:1.75;margin-top:10px;background:#f0fdf4;border-radius:12px;padding:12px 14px">${fw.management}</div>
+            <div style="font-size:11px;color:#94a3b8;line-height:1.6;margin-top:8px;border-top:1px dashed #e2e8f0;padding-top:8px">※ CPUE 資料來源為橫流溪全溪電捕調查（非個別魚道實地監測），趨勢反映全溪族群動態，物種組合為該型式通行潛力指標，無法單獨歸因於特定魚道設施效益。</div>
           </div>
         `).join('')}
       </div>
