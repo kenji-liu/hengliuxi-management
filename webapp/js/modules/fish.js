@@ -2936,8 +2936,8 @@ function renderFishTrend() {
         <div style="background:#fff;border:2px solid #e2e8f0;border-radius:14px;padding:18px 20px;transition:box-shadow .2s" onmouseover="this.style.boxShadow='0 4px 20px rgba(0,0,0,.1)'" onmouseout="this.style.boxShadow=''">
           <i class="fas ${c.icon}" style="font-size:20px;color:${c.color};margin-bottom:10px;display:block"></i>
           <div style="font-size:22px;font-weight:900;color:#0f172a;line-height:1.1">${c.val}</div>
-          <div style="font-size:13px;color:#64748b;margin-top:4px">${c.sub}</div>
-          <div style="font-size:12px;color:#94a3b8;margin-top:2px">${c.label}</div>
+          <div style="font-size:17px;color:#64748b;margin-top:5px">${c.sub}</div>
+          <div style="font-size:16px;color:#94a3b8;margin-top:3px">${c.label}</div>
         </div>`).join('')}
     </div>
 
@@ -2946,37 +2946,37 @@ function renderFishTrend() {
       <div style="font-size:20px;font-weight:900;color:#0f172a;margin-bottom:8px">
         <i class="fas fa-circle-info" style="color:#2563eb;margin-right:10px"></i>魚類資料口徑確認與來源補充
       </div>
-      <div style="font-size:14px;color:#475569;line-height:1.8;margin-bottom:14px">
+      <div style="font-size:18px;color:#475569;line-height:1.85;margin-bottom:16px">
         本頁將9種魚類歷年趨勢整合呈現：5種長期指標特有種（臺灣白甲魚等）具103～114年完整調查序列；
         4種次要物種（明潭吻鰕虎、粗首馬口鱲、短臀瘋鱨、短吻紅斑吻鰕虎）整合107～113年有效記錄，統一於下方9種趨勢圖中。
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px">
-        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:14px 16px">
-          <div style="font-size:17px;font-weight:900;color:#1d4ed8;margin-bottom:8px">5種長期指標特有種（103～114年）</div>
-          <div style="font-size:15px;color:#334155;line-height:1.9">${SPECIES.slice(0,5).map(s=>`${s.name}（${s.engName}）`).join('、')}</div>
+        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:16px 18px">
+          <div style="font-size:20px;font-weight:900;color:#1d4ed8;margin-bottom:10px">5種長期指標特有種（103～114年）</div>
+          <div style="font-size:18px;color:#334155;line-height:1.9">${SPECIES.slice(0,5).map(s=>`${s.name}（${s.engName}）`).join('、')}</div>
         </div>
-        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:14px 16px">
-          <div style="font-size:17px;font-weight:900;color:#166534;margin-bottom:8px">4種次要物種（107～113年整合）</div>
-          <div style="font-size:15px;color:#334155;line-height:1.9">${SPECIES.slice(5).map(s=>`${s.name}（${s.engName}）`).join('、')}</div>
+        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:16px 18px">
+          <div style="font-size:20px;font-weight:900;color:#166534;margin-bottom:10px">4種次要物種（107～113年整合）</div>
+          <div style="font-size:18px;color:#334155;line-height:1.9">${SPECIES.slice(5).map(s=>`${s.name}（${s.engName}）`).join('、')}</div>
         </div>
-        <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:14px 16px">
-          <div style="font-size:17px;font-weight:900;color:#c2410c;margin-bottom:8px">橫流溪完整歷史名錄9種</div>
-          <div style="font-size:15px;color:#334155;line-height:1.9">${FULL_FISH_LIST.join('、')}</div>
+        <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:16px 18px">
+          <div style="font-size:20px;font-weight:900;color:#c2410c;margin-bottom:10px">橫流溪完整歷史名錄9種</div>
+          <div style="font-size:18px;color:#334155;line-height:1.9">${FULL_FISH_LIST.join('、')}</div>
         </div>
-        <div style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:12px;padding:14px 16px">
-          <div style="font-size:17px;font-weight:900;color:#334155;margin-bottom:8px">110年樣站電捕（表5-3）</div>
-          <div style="font-size:15px;color:#334155;line-height:1.9">
+        <div style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:12px;padding:16px 18px">
+          <div style="font-size:20px;font-weight:900;color:#334155;margin-bottom:10px">110年樣站電捕（表5-3）</div>
+          <div style="font-size:18px;color:#334155;line-height:1.9">
             第3次4月：<b>${HLX_FISH_110_SUMMARY.springTotal}尾</b>；第4次9月：<b>${HLX_FISH_110_SUMMARY.autumnTotal}尾</b>；全年合計：<b>${HLX_FISH_110_SUMMARY.annualTotal}尾</b>，魚類${HLX_FISH_110_SUMMARY.fishSpecies}種。
           </div>
         </div>
-        <div style="background:#ecfeff;border:1px solid #a5f3fc;border-radius:12px;padding:14px 16px">
-          <div style="font-size:17px;font-weight:900;color:#0e7490;margin-bottom:8px">110年魚道通行口徑</div>
-          <div style="font-size:15px;color:#334155;line-height:1.9">
+        <div style="background:#ecfeff;border:1px solid #a5f3fc;border-radius:12px;padding:16px 18px">
+          <div style="font-size:20px;font-weight:900;color:#0e7490;margin-bottom:10px">110年魚道通行口徑</div>
+          <div style="font-size:18px;color:#334155;line-height:1.9">
             平台逐魚道通行彙整為${HLX_FISH_110_SUMMARY.fishwayPassSpecies}種、${HLX_FISH_110_SUMMARY.fishwayPassTotal}尾；表5-19魚道中捕捉為${HLX_FISH_110_SUMMARY.fishwayCaptureSpecies}種、${HLX_FISH_110_SUMMARY.fishwayCaptureTotal}尾，不與樣站電捕${HLX_FISH_110_SUMMARY.annualTotal}尾混算。
           </div>
         </div>
       </div>
-      <div style="font-size:12px;color:#64748b;margin-top:14px;line-height:1.6">
+      <div style="font-size:16px;color:#64748b;margin-top:14px;line-height:1.6">
         本機資料路徑：C:/Users/kenji-PC/Desktop/橫流溪工程設施維護與資料管理作業 - CLaude/魚/魚
       </div>
     </div>
@@ -3249,13 +3249,13 @@ function renderFishTrend() {
             badge:'水質優良認證' },
         ].map((c,i)=>`
           <div style="border:2px solid ${c.bd};border-radius:14px;padding:20px;background:${c.bg}">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:6px">
-              <div style="font-size:16px;font-weight:900;color:#0f172a;display:flex;align-items:center;gap:8px">
-                <i class="fas ${c.icon}" style="color:${c.color};font-size:18px"></i>${c.title}
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+              <div style="font-size:20px;font-weight:900;color:#0f172a;display:flex;align-items:center;gap:10px">
+                <i class="fas ${c.icon}" style="color:${c.color};font-size:20px"></i>${c.title}
               </div>
-              <span style="background:${c.color};color:#fff;border-radius:20px;padding:4px 12px;font-size:12px;font-weight:700;white-space:nowrap">${c.badge}</span>
+              <span style="background:${c.color};color:#fff;border-radius:20px;padding:5px 14px;font-size:15px;font-weight:700;white-space:nowrap">${c.badge}</span>
             </div>
-            <div style="font-size:14px;color:#334155;line-height:1.8">${c.body}</div>
+            <div style="font-size:18px;color:#334155;line-height:1.85">${c.body}</div>
           </div>`).join('')}
       </div>
     </div>
@@ -3297,13 +3297,13 @@ function renderFishTrend() {
                 <td style="padding:11px 14px;text-align:center">
                   <span style="background:${s.H>=1.5?'#dcfce7':s.H>=0.8?'#fef9c3':'#fee2e2'};color:${s.H>=1.5?'#166534':s.H>=0.8?'#854d0e':'#991b1b'};border-radius:8px;padding:4px 10px;font-weight:800;font-size:14px">${s.H}</span>
                 </td>
-                <td style="padding:11px 14px;font-size:12px;color:#64748b">${s.note}</td>
+                <td style="padding:11px 14px;font-size:16px;color:#64748b">${s.note}</td>
               </tr>`;
             }).join('')}
           </tbody>
         </table>
       </div>
-      <div style="font-size:13px;color:#94a3b8;margin-top:10px">
+      <div style="font-size:17px;color:#94a3b8;margin-top:12px">
         ＊ 109～110年資料引自《東勢林區管理處國有林魚道及生態廊道委託技術服務成果報告（110年）》表5-3，為橫流溪6站電捕合計（非均值）；109年數量偏低係施工期擾動所致；110年第3次4月486尾、第4次9月235尾，全年合計721尾；H' = Shannon–Wiener 生物多樣性指數
       </div>
     </div>
@@ -3313,8 +3313,8 @@ function renderFishTrend() {
       <div style="font-size:20px;font-weight:900;color:#0f172a;margin-bottom:6px">
         <i class="fas fa-info-circle" style="color:#0369a1;margin-right:10px"></i>橫流溪記錄魚種生態特性一覽
       </div>
-      <div style="font-size:14px;color:#64748b;margin-bottom:18px">全9種記錄魚類完整生態特性 ‧ 5種長期指標特有種（含3種保育類II級）＋4種次要物種（含易危・近危保育關注種）</div>
-      <div style="font-size:13px;font-weight:700;color:#0369a1;margin-bottom:10px;display:flex;align-items:center;gap:6px">
+      <div style="font-size:18px;color:#64748b;margin-bottom:20px">全9種記錄魚類完整生態特性 ‧ 5種長期指標特有種（含3種保育類II級）＋4種次要物種（含易危・近危保育關注種）</div>
+      <div style="font-size:17px;font-weight:700;color:#0369a1;margin-bottom:12px;display:flex;align-items:center;gap:6px">
         <i class="fas fa-fish"></i> 長期趨勢指標特有種（5種）
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;margin-bottom:20px">
@@ -3334,21 +3334,21 @@ function renderFishTrend() {
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
               <span style="font-size:28px">${s.icon}</span>
               <div>
-                <div style="font-size:17px;font-weight:900;color:#0f172a">${s.sp}</div>
-                <div style="font-size:12px;font-style:italic;color:#64748b">${s.eng}</div>
+                <div style="font-size:20px;font-weight:900;color:#0f172a">${s.sp}</div>
+                <div style="font-size:15px;font-style:italic;color:#64748b">${s.eng}</div>
               </div>
             </div>
-            <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
-              <span style="font-size:12px;background:${s.color}20;color:${s.color};border-radius:6px;padding:3px 10px;font-weight:700">${s.fam}</span>
-              <span style="font-size:12px;background:#f1f5f9;color:#475569;border-radius:6px;padding:3px 10px">${s.status}</span>
+            <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
+              <span style="font-size:15px;background:${s.color}20;color:${s.color};border-radius:6px;padding:4px 12px;font-weight:700">${s.fam}</span>
+              <span style="font-size:15px;background:#f1f5f9;color:#475569;border-radius:6px;padding:4px 12px">${s.status}</span>
             </div>
-            <div style="font-size:14px;color:#334155;line-height:1.75">${s.desc}</div>
+            <div style="font-size:18px;color:#334155;line-height:1.8">${s.desc}</div>
           </div>`).join('')}
       </div>
 
       <!-- 次要物種分隔線 -->
       <div style="border-top:2px dashed #e2e8f0;margin:20px 0 16px"></div>
-      <div style="font-size:13px;font-weight:700;color:#7c3aed;margin-bottom:10px;display:flex;align-items:center;gap:6px">
+      <div style="font-size:17px;font-weight:700;color:#7c3aed;margin-bottom:12px;display:flex;align-items:center;gap:6px">
         <i class="fas fa-search"></i> 次要物種・保育關注種（4種）
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px">
@@ -3366,15 +3366,15 @@ function renderFishTrend() {
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
               <span style="font-size:28px">${s.icon}</span>
               <div>
-                <div style="font-size:17px;font-weight:900;color:#0f172a">${s.sp}</div>
-                <div style="font-size:12px;font-style:italic;color:#64748b">${s.eng}</div>
+                <div style="font-size:20px;font-weight:900;color:#0f172a">${s.sp}</div>
+                <div style="font-size:15px;font-style:italic;color:#64748b">${s.eng}</div>
               </div>
             </div>
-            <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
-              <span style="font-size:12px;background:${s.color}20;color:${s.color};border-radius:6px;padding:3px 10px;font-weight:700">${s.fam}</span>
-              <span style="font-size:12px;background:#f1f5f9;color:#475569;border-radius:6px;padding:3px 10px">${s.status}</span>
+            <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
+              <span style="font-size:15px;background:${s.color}20;color:${s.color};border-radius:6px;padding:4px 12px;font-weight:700">${s.fam}</span>
+              <span style="font-size:15px;background:#f1f5f9;color:#475569;border-radius:6px;padding:4px 12px">${s.status}</span>
             </div>
-            <div style="font-size:14px;color:#334155;line-height:1.75">${s.desc}</div>
+            <div style="font-size:18px;color:#334155;line-height:1.8">${s.desc}</div>
           </div>`).join('')}
       </div>
     </div>
@@ -3384,7 +3384,7 @@ function renderFishTrend() {
       <div style="font-size:20px;font-weight:900;color:#0f172a;margin-bottom:6px">
         <i class="fas fa-tint" style="color:#0369a1;margin-right:10px"></i>調查期間水質環境監測摘要
       </div>
-      <div style="font-size:14px;color:#64748b;margin-bottom:18px">橫流溪水質長期維持優良，符合保育類淡水魚類生存需求</div>
+      <div style="font-size:18px;color:#64748b;margin-bottom:20px">橫流溪水質長期維持優良，符合保育類淡水魚類生存需求</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px">
         ${[
           { label:'pH 值範圍',    val:'7.87 ～ 8.03', unit:'pH', note:'近中性偏弱鹼，水質優良', icon:'fa-flask', color:'#0e7490' },
@@ -3394,13 +3394,13 @@ function renderFishTrend() {
           { label:'流量（Q）',    val:'5.7 ～ 8.6',   unit:'m³/s', note:'水量充沛，棲地穩定', icon:'fa-water', color:'#22c55e' },
           { label:'棲地型態',     val:'急瀨・平瀨・水潭', unit:'', note:'空間異質高，魚類多樣', icon:'fa-layer-group', color:'#7c3aed' },
         ].map(c=>`
-          <div style="border:1.5px solid #e2e8f0;border-radius:12px;padding:16px">
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
-              <i class="fas ${c.icon}" style="color:${c.color};font-size:18px"></i>
-              <div style="font-size:13px;color:#64748b">${c.label}</div>
+          <div style="border:1.5px solid #e2e8f0;border-radius:12px;padding:18px">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+              <i class="fas ${c.icon}" style="color:${c.color};font-size:20px"></i>
+              <div style="font-size:17px;color:#64748b">${c.label}</div>
             </div>
-            <div style="font-size:20px;font-weight:900;color:#0f172a">${c.val} <span style="font-size:13px;font-weight:400;color:#94a3b8">${c.unit}</span></div>
-            <div style="font-size:13px;color:#64748b;margin-top:4px">${c.note}</div>
+            <div style="font-size:20px;font-weight:900;color:#0f172a">${c.val} <span style="font-size:17px;font-weight:400;color:#94a3b8">${c.unit}</span></div>
+            <div style="font-size:17px;color:#64748b;margin-top:6px">${c.note}</div>
           </div>`).join('')}
       </div>
     </div>
@@ -3413,7 +3413,7 @@ function renderFishTrend() {
           <div style="font-size:20px;font-weight:900;color:#0f172a">
             <i class="fas fa-chart-bar" style="color:#3b82f6;margin-right:8px"></i>9種魚類完整歷年趨勢（明潭吻鰕虎・粗首馬口鱲・短臀瘋鱨・短吻紅斑吻鰕虎）
           </div>
-          <div style="font-size:14px;color:#64748b;margin-top:3px">
+          <div style="font-size:18px;color:#64748b;margin-top:5px">
             上方堆疊圖已整合全9種；本區顯示4種次要物種之個別調查記錄趨勢（DB電捕法資料，107~113年）
           </div>
         </div>
@@ -3434,25 +3434,25 @@ function renderFishTrend() {
         ].map(sp => `
           <div style="background:#fff;border:2px solid ${sp.borderCol};border-top:4px solid ${sp.topCol};border-radius:14px;overflow:hidden">
             <div style="background:${sp.badge};padding:12px 16px 10px">
-              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-                <div style="font-size:19px;font-weight:800;color:#0f172a">${sp.name}</div>
-                <span style="background:${sp.badge};color:${sp.badgeTxt};border:1.5px solid ${sp.borderCol};font-size:13px;padding:3px 10px;border-radius:20px;font-weight:700">${sp.cons}</span>
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+                <div style="font-size:21px;font-weight:800;color:#0f172a">${sp.name}</div>
+                <span style="background:${sp.badge};color:${sp.badgeTxt};border:1.5px solid ${sp.borderCol};font-size:16px;padding:4px 12px;border-radius:20px;font-weight:700">${sp.cons}</span>
               </div>
-              <div style="font-size:13px;font-style:italic;color:#64748b">${sp.sci}</div>
-              <div style="font-size:13px;color:${sp.badgeTxt};margin-top:4px;font-weight:600">${sp.note}</div>
+              <div style="font-size:16px;font-style:italic;color:#64748b">${sp.sci}</div>
+              <div style="font-size:16px;color:${sp.badgeTxt};margin-top:5px;font-weight:600">${sp.note}</div>
             </div>
             <div style="padding:12px 14px">
               <div style="position:relative;height:160px">
                 <canvas id="${sp.id}"></canvas>
               </div>
-              <div id="${sp.id}_nodata" style="display:none;text-align:center;padding:20px;color:#94a3b8;font-size:13px">
+              <div id="${sp.id}_nodata" style="display:none;text-align:center;padding:20px;color:#94a3b8;font-size:17px">
                 <i class="fas fa-chart-bar" style="font-size:24px;margin-bottom:8px;display:block"></i>尚無足夠調查記錄
               </div>
             </div>
           </div>
         `).join('')}
       </div>
-      <div style="margin-top:14px;padding:16px 20px;background:#f8fafc;border-radius:10px;font-size:15px;color:#475569;line-height:1.8;border-left:4px solid #3b82f6">
+      <div style="margin-top:14px;padding:18px 22px;background:#f8fafc;border-radius:10px;font-size:18px;color:#475569;line-height:1.85;border-left:4px solid #3b82f6">
         <strong>整合說明：</strong>上方堆疊柱狀圖已納入全9種魚類。107~108年度數據依據《107~108年度橫流溪整治規劃設計監造與監測調查委託技術服務案成果報告》表4-16完整補充4季調查（107年5月/7月、108年4月/10月）。
         各次要物種首次記錄：短臀瘋鱨（107年5月，1尾）；短吻紅斑吻鰕虎（107年7月，2尾）。108年4月族群最豐，短吻紅斑吻鰕虎達6尾、短臀瘋鱨達3尾；
         明潭吻鰕虎在108年4月達133尾（歷年最高），是次要4種中最穩健的物種。粗首馬口鱲依107年5月代表調查記錄為32尾，112年6月4尾、113年6月6尾，平台採同一核對口徑累計42尾。
@@ -3460,14 +3460,14 @@ function renderFishTrend() {
 
       <!-- 次要物種族群趨勢因素分析 -->
       <div style="margin-top:18px">
-        <div style="font-size:19px;font-weight:800;color:#1e293b;margin-bottom:14px;display:flex;align-items:center;gap:8px">
+        <div style="font-size:22px;font-weight:800;color:#1e293b;margin-bottom:16px;display:flex;align-items:center;gap:8px">
           <i class="fas fa-microscope" style="color:#6366f1"></i> 次要4種族群趨勢・影響因素分析
         </div>
 
         <!-- 共通因素 -->
         <div style="background:#fefce8;border:1px solid #fde68a;border-left:4px solid #f59e0b;border-radius:10px;padding:14px 18px;margin-bottom:14px">
-          <div style="font-size:16px;font-weight:700;color:#92400e;margin-bottom:10px"><i class="fas fa-layer-group" style="margin-right:6px"></i>共通影響因素</div>
-          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;font-size:15px;color:#78350f">
+          <div style="font-size:20px;font-weight:700;color:#92400e;margin-bottom:12px"><i class="fas fa-layer-group" style="margin-right:6px"></i>共通影響因素</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;font-size:18px;color:#78350f">
             <div style="background:#fff8e1;border-radius:8px;padding:10px">
               <i class="fas fa-calendar-alt" style="color:#d97706;margin-right:5px"></i><strong>調查季節不固定</strong>
               <div style="margin-top:4px;color:#92400e">各年調查月份差異大（4月至10月），魚類活動與分布隨季節大幅波動，不同月份捕獲率難以直接比較</div>
@@ -3494,11 +3494,11 @@ function renderFishTrend() {
           <div style="background:#fffbeb;border:1px solid #fde68a;border-left:4px solid #f59e0b;border-radius:10px;padding:12px 14px">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
               <div style="width:10px;height:10px;border-radius:50%;background:#f59e0b;flex-shrink:0"></div>
-              <div style="font-size:16px;font-weight:800;color:#0f172a">粗首馬口鱲</div>
-              <div style="font-size:14px;color:#64748b">107年30尾 → 112年3尾</div>
-              <span style="background:#fef3c7;color:#b45309;border-radius:999px;padding:3px 10px;font-size:13px;font-weight:700;margin-left:auto">下降最顯著</span>
+              <div style="font-size:20px;font-weight:800;color:#0f172a">粗首馬口鱲</div>
+              <div style="font-size:17px;color:#64748b">107年30尾 → 112年3尾</div>
+              <span style="background:#fef3c7;color:#b45309;border-radius:999px;padding:4px 12px;font-size:16px;font-weight:700;margin-left:auto">下降最顯著</span>
             </div>
-            <ul style="margin:0;padding-left:18px;font-size:15px;color:#475569;line-height:1.9">
+            <ul style="margin:0;padding-left:18px;font-size:18px;color:#475569;line-height:1.9">
               <li><strong>急流棲地縮減：</strong>馬口鱲偏好急流砂礫底，工程施作後若底質淤積或流速趨緩，適棲地縮減</li>
               <li><strong>白甲魚食物競爭：</strong>兩者均在急流段底棲覓食，白甲魚個體較大且數量龐大，競爭力佔優</li>
               <li><strong>電捕捕獲率偏低：</strong>馬口鱲游速快，電捕時逃逸率高，數字可能低估實際族群量</li>
@@ -3509,11 +3509,11 @@ function renderFishTrend() {
           <div style="background:#eff6ff;border:1px solid #bfdbfe;border-left:4px solid #3b82f6;border-radius:10px;padding:12px 14px">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
               <div style="width:10px;height:10px;border-radius:50%;background:#3b82f6;flex-shrink:0"></div>
-              <div style="font-size:16px;font-weight:800;color:#0f172a">明潭吻鰕虎</div>
-              <div style="font-size:14px;color:#64748b">110年130尾 → 113年27尾</div>
-              <span style="background:#dbeafe;color:#1d4ed8;border-radius:999px;padding:3px 10px;font-size:13px;font-weight:700;margin-left:auto">輕微下降</span>
+              <div style="font-size:20px;font-weight:800;color:#0f172a">明潭吻鰕虎</div>
+              <div style="font-size:17px;color:#64748b">110年130尾 → 113年27尾</div>
+              <span style="background:#dbeafe;color:#1d4ed8;border-radius:999px;padding:4px 12px;font-size:16px;font-weight:700;margin-left:auto">輕微下降</span>
             </div>
-            <ul style="margin:0;padding-left:18px;font-size:15px;color:#475569;line-height:1.9">
+            <ul style="margin:0;padding-left:18px;font-size:18px;color:#475569;line-height:1.9">
               <li><strong>礫石縫隙棲地壓縮：</strong>鰕虎高度依賴礫石縫隙，水道整治若底床均一化（護坡或人工砌石），縫隙棲地減少</li>
               <li><strong>族群自然波動：</strong>小型底棲魚類年際變動本就較大，25尾仍屬正常監測範圍，並非警報性下降</li>
               <li><strong>4種中族群最穩健：</strong>累計317尾為次要4種中最多，整體族群仍屬健康</li>
@@ -3524,11 +3524,11 @@ function renderFishTrend() {
           <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-left:4px solid #059669;border-radius:10px;padding:12px 14px">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
               <div style="width:10px;height:10px;border-radius:50%;background:#059669;flex-shrink:0"></div>
-              <div style="font-size:16px;font-weight:800;color:#0f172a">短吻紅斑吻鰕虎</div>
-              <div style="font-size:14px;color:#64748b">108年2尾 → 113年1尾</div>
-              <span style="background:#dcfce7;color:#166534;border-radius:999px;padding:3px 10px;font-size:13px;font-weight:700;margin-left:auto">IUCN近危</span>
+              <div style="font-size:20px;font-weight:800;color:#0f172a">短吻紅斑吻鰕虎</div>
+              <div style="font-size:17px;color:#64748b">108年2尾 → 113年1尾</div>
+              <span style="background:#dcfce7;color:#166534;border-radius:999px;padding:4px 12px;font-size:16px;font-weight:700;margin-left:auto">IUCN近危</span>
             </div>
-            <ul style="margin:0;padding-left:18px;font-size:15px;color:#475569;line-height:1.9">
+            <ul style="margin:0;padding-left:18px;font-size:18px;color:#475569;line-height:1.9">
               <li><strong>族群基數極小：</strong>天然密度本就低，調查區域內可能只有穩定的「維持性小族群」，個位數波動屬正常</li>
               <li><strong>水質水文要求嚴苛：</strong>偏好高溶氧、低濁度清澈急流，汛期後沉積物增加即不適定居</li>
               <li><strong>繁殖成效保守：</strong>繁殖速率較低，族群擴增緩慢，對棲地干擾敏感度高</li>
@@ -3539,11 +3539,11 @@ function renderFishTrend() {
           <div style="background:#fef2f2;border:1px solid #fecaca;border-left:4px solid #dc2626;border-radius:10px;padding:12px 14px">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
               <div style="width:10px;height:10px;border-radius:50%;background:#dc2626;flex-shrink:0"></div>
-              <div style="font-size:16px;font-weight:800;color:#0f172a">短臀瘋鱨</div>
-              <div style="font-size:14px;color:#64748b">108年4尾 → 112年5尾</div>
-              <span style="background:#fee2e2;color:#b91c1c;border-radius:999px;padding:3px 10px;font-size:13px;font-weight:700;margin-left:auto">第三級保育・易危</span>
+              <div style="font-size:20px;font-weight:800;color:#0f172a">短臀瘋鱨</div>
+              <div style="font-size:17px;color:#64748b">108年4尾 → 112年5尾</div>
+              <span style="background:#fee2e2;color:#b91c1c;border-radius:999px;padding:4px 12px;font-size:16px;font-weight:700;margin-left:auto">第三級保育・易危</span>
             </div>
-            <ul style="margin:0;padding-left:18px;font-size:15px;color:#475569;line-height:1.9">
+            <ul style="margin:0;padding-left:18px;font-size:18px;color:#475569;line-height:1.9">
               <li><strong>趨勢尚無法判定：</strong>目前僅2個有效數據點，統計上不足以判定真實趨勢走向，需更多調查年度</li>
               <li><strong>夜行底棲難以電捕：</strong>電捕法對夜行性底棲魚捕獲率低，實際族群量可能被嚴重低估</li>
               <li><strong>建議加強夜間監測：</strong>保育第三級，應加入夜間蹲點目視計數，確認族群規模與繁殖成效</li>
@@ -3552,9 +3552,9 @@ function renderFishTrend() {
         </div>
 
         <!-- 監測建議 -->
-        <div style="background:#f5f3ff;border:1px solid #ddd6fe;border-left:4px solid #8b5cf6;border-radius:10px;padding:16px 20px;font-size:15px;color:#4c1d95">
-          <div style="font-weight:700;margin-bottom:10px;font-size:17px"><i class="fas fa-lightbulb" style="color:#7c3aed;margin-right:6px"></i>後續監測建議</div>
-          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;color:#5b21b6;line-height:1.8">
+        <div style="background:#f5f3ff;border:1px solid #ddd6fe;border-left:4px solid #8b5cf6;border-radius:10px;padding:18px 22px;font-size:18px;color:#4c1d95">
+          <div style="font-weight:700;margin-bottom:12px;font-size:21px"><i class="fas fa-lightbulb" style="color:#7c3aed;margin-right:6px"></i>後續監測建議</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;color:#5b21b6;line-height:1.85">
             <div>📅 <strong>固定調查時間：</strong>春季（5月）＋秋季（10月），確保年度間數據可比性</div>
             <div>🌙 <strong>夜間補充調查：</strong>對鰕虎科與短臀瘋鱨加入夜間蹲點觀察，補充電捕不足</div>
             <div>📍 <strong>設定固定樣區：</strong>減少站位差異對數據的影響，提高長期趨勢可靠度</div>
