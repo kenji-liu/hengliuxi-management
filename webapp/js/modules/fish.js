@@ -125,7 +125,7 @@ function renderFishList() {
           <div style="font-size:24px;color:${col}"><i class="fas ${ic}"></i></div>
           <div>
             <div style="font-size:22px;font-weight:900;color:${col};line-height:1">${val}</div>
-            <div style="font-size:13px;color:#64748b">${lbl}</div>
+            <div style="font-size:18px;color:#64748b">${lbl}</div>
           </div>
         </div>
       `).join('')}
@@ -140,7 +140,7 @@ function renderFishList() {
           style="border:none;outline:none;font-size:17px;width:100%;color:#0f172a;background:transparent">
       </div>
       <select id="fishConservationFilter" onchange="loadFishTable()"
-        style="padding:10px 16px;border:2px solid #e2e8f0;border-radius:10px;font-size:16px;color:#334155;background:#fff;min-width:150px">
+        style="padding:10px 16px;border:2px solid #e2e8f0;border-radius:10px;font-size:20px;color:#334155;background:#fff;min-width:150px">
         <option value="">全部保育等級</option>
         <option value="瀕危">瀕危</option>
         <option value="易危">易危</option>
@@ -148,7 +148,7 @@ function renderFishList() {
         <option value="一般">一般</option>
       </select>
       <button onclick="openFishForm()"
-        style="padding:10px 20px;background:var(--primary,#1a6b3c);color:#fff;border:none;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer;white-space:nowrap">
+        style="padding:10px 20px;background:var(--primary,#1a6b3c);color:#fff;border:none;border-radius:10px;font-size:20px;font-weight:700;cursor:pointer;white-space:nowrap">
         <i class="fas fa-plus"></i> 新增記錄
       </button>
     </div>
@@ -200,58 +200,58 @@ function loadFishTable() {
                 onmouseover="this.style.transform='scale(1.04)'" onmouseout="this.style.transform='scale(1)'"
                 onclick="event.stopPropagation();fishPhotoLightbox('${photo.image}','${fish_escape(s.species)}','${fish_escape(photo.caption||'')}')"
                 title="點擊放大">
-              <div style="position:absolute;bottom:8px;left:8px;background:rgba(0,0,0,.5);color:#fff;font-size:11px;border-radius:4px;padding:2px 7px;pointer-events:none">🔍 點擊放大</div>
+              <div style="position:absolute;bottom:8px;left:8px;background:rgba(0,0,0,.5);color:#fff;font-size:19px;border-radius:4px;padding:2px 7px;pointer-events:none">🔍 點擊放大</div>
               <div style="position:absolute;top:12px;right:12px">
-                <span style="background:${ccl};color:#fff;font-size:15px;font-weight:800;padding:5px 14px;border-radius:999px;box-shadow:0 2px 8px rgba(0,0,0,.25)">${s.conservation||'一般'}</span>
+                <span style="background:${ccl};color:#fff;font-size:19px;font-weight:800;padding:5px 14px;border-radius:999px;box-shadow:0 2px 8px rgba(0,0,0,.25)">${s.conservation||'一般'}</span>
               </div>
               <div style="position:absolute;top:12px;left:12px">
-                <span style="background:rgba(15,23,42,.72);color:#fff;font-size:13px;padding:4px 10px;border-radius:999px">${s.family||'-'}</span>
+                <span style="background:rgba(15,23,42,.72);color:#fff;font-size:18px;padding:4px 10px;border-radius:999px">${s.family||'-'}</span>
               </div>
-              ${displaySurveyCount > 1 ? `<div style="position:absolute;bottom:10px;right:12px"><span style="background:rgba(15,23,42,.72);color:#fff;font-size:12px;padding:3px 10px;border-radius:999px"><i class="fas fa-layer-group" style="margin-right:4px"></i>${displaySurveyCount} 次調查</span></div>` : ''}
+              ${displaySurveyCount > 1 ? `<div style="position:absolute;bottom:10px;right:12px"><span style="background:rgba(15,23,42,.72);color:#fff;font-size:20px;padding:3px 10px;border-radius:999px"><i class="fas fa-layer-group" style="margin-right:4px"></i>${displaySurveyCount} 次調查</span></div>` : ''}
             </div>
             <div style="padding:16px 18px 12px;flex:1;cursor:pointer" onclick="openFishSpeciesDetail(this.dataset.species)" data-species="${fish_escape(s.species)}">
               <div style="font-size:22px;font-weight:800;color:#0f172a;margin-bottom:4px;line-height:1.2">${fish_escape(s.species)}</div>
-              <div style="font-size:14px;font-style:italic;color:#64748b;margin-bottom:12px">${fish_escape(s.scientificName||'')}</div>
+              <div style="font-size:19px;font-style:italic;color:#64748b;margin-bottom:12px">${fish_escape(s.scientificName||'')}</div>
               <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">
                 <div style="background:#f0fdfa;border-radius:8px;padding:10px 8px;text-align:center" ${s.reconciled ? `title="完整歷年電捕累計 ${displayTotal} 尾（103~114年・26次調查，與歷年趨勢分析一致）；資料庫代表性快照已同步完整序列"` : ''}>
-                  <div style="font-size:26px;font-weight:900;color:#0e7490;line-height:1">${displayTotal}${s.reconciled ? '<span style="font-size:11px;color:#0e7490;vertical-align:super;margin-left:2px">✓</span>' : ''}</div>
-                  <div style="font-size:12px;color:#64748b;margin-top:2px">累計尾數${s.totalSource ? '<i class="fas fa-circle-info" style="color:#0e7490;margin-left:3px;font-size:10px"></i>' : ''}</div>
+                  <div style="font-size:26px;font-weight:900;color:#0e7490;line-height:1">${displayTotal}${s.reconciled ? '<span style="font-size:19px;color:#0e7490;vertical-align:super;margin-left:2px">✓</span>' : ''}</div>
+                  <div style="font-size:20px;color:#64748b;margin-top:2px">累計尾數${s.totalSource ? '<i class="fas fa-circle-info" style="color:#0e7490;margin-left:3px;font-size:19px"></i>' : ''}</div>
                 </div>
                 <div style="background:#f8fafc;border-radius:8px;padding:10px 8px;text-align:center">
                   <div style="font-size:22px;font-weight:900;color:#334155;line-height:1">${displaySurveyCount}</div>
-                  <div style="font-size:12px;color:#64748b;margin-top:2px">調查次數</div>
+                  <div style="font-size:20px;color:#64748b;margin-top:2px">調查次數</div>
                 </div>
                 <div style="background:#f8fafc;border-radius:8px;padding:10px 8px;text-align:center">
-                  <div style="font-size:13px;font-weight:700;color:#0f172a;line-height:1.3">${fish_escape(latestDateLabel)}</div>
-                  <div style="font-size:12px;color:#64748b;margin-top:2px">最近調查</div>
+                  <div style="font-size:18px;font-weight:700;color:#0f172a;line-height:1.3">${fish_escape(latestDateLabel)}</div>
+                  <div style="font-size:20px;color:#64748b;margin-top:2px">最近調查</div>
                 </div>
               </div>
-              <div style="font-size:14px;color:#334155;background:#f8fafc;border-left:3px solid #0e7490;padding:8px 12px;border-radius:0 6px 6px 0;line-height:1.5">
+              <div style="font-size:19px;color:#334155;background:#f8fafc;border-left:3px solid #0e7490;padding:8px 12px;border-radius:0 6px 6px 0;line-height:1.5">
                 <i class="fas fa-map-marker-alt" style="color:#0e7490;margin-right:4px"></i>${allLocs.join('、') || '-'}
               </div>
               <div style="display:flex;gap:8px;margin-top:10px">
                 ${inTrend ? `
                 <button onclick="event.stopPropagation();fish_jumpToTrend('${fish_escape(s.species)}')"
-                  style="flex:1;padding:8px;border:1px solid #b45309;border-radius:8px;background:#fef3c7;color:#92400e;font-size:14px;font-weight:700;cursor:pointer">
+                  style="flex:1;padding:8px;border:1px solid #b45309;border-radius:8px;background:#fef3c7;color:#92400e;font-size:19px;font-weight:700;cursor:pointer">
                   <i class="fas fa-chart-line"></i> 歷年趨勢
                 </button>` : ''}
                 <button
                   data-q="橫流溪 ${fish_escape(s.species)}（${fish_escape(s.scientificName||'')}）的生態習性、族群現況（累計${displayTotal}尾 / ${displaySurveyCount}次調查）與保育建議"
                   onclick="event.stopPropagation();fish_openAIQA(this.getAttribute('data-q'))"
-                  style="${inTrend ? '' : 'width:100%;'}padding:8px;border:1.5px solid #6366f1;border-radius:8px;background:#f5f3ff;color:#4f46e5;font-size:14px;font-weight:700;cursor:pointer;flex-shrink:0">
+                  style="${inTrend ? '' : 'width:100%;'}padding:8px;border:1.5px solid #6366f1;border-radius:8px;background:#f5f3ff;color:#4f46e5;font-size:19px;font-weight:700;cursor:pointer;flex-shrink:0">
                   <i class="fas fa-robot"></i> AI問答
                 </button>
               </div>
-              <div style="text-align:center;margin-top:10px;color:#94a3b8;font-size:13px">
+              <div style="text-align:center;margin-top:10px;color:#94a3b8;font-size:18px">
                 <span id="${cardId}_hint"><i class="fas fa-up-right-from-square"></i> 點選開啟完整物種資料（${displaySurveyCount} 次調查）</span>
               </div>
             </div>
             <div id="${cardId}" style="display:none;border-top:1px solid #e2e8f0;padding:14px 18px;background:#f8fafc">
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:13px;margin-bottom:12px">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:18px;margin-bottom:12px">
                 <div><span style="color:#94a3b8">科別：</span><b>${fish_escape(s.family||'-')}</b></div>
                 <div><span style="color:#94a3b8">保育等級：</span><span style="color:${ccl};font-weight:700">${fish_escape(s.conservation||'-')}${s.redlistCode?`（${s.redlistCode}）`:''}</span></div>
                 <div style="grid-column:1/-1"><span style="color:#94a3b8">學名：</span><em>${fish_escape(s.scientificName||'-')}</em></div>
-                ${s.redlistNote ? `<div style="grid-column:1/-1;color:#b45309;font-size:12px">ℹ ${fish_escape(s.redlistNote)}</div>` : ''}
+                ${s.redlistNote ? `<div style="grid-column:1/-1;color:#b45309;font-size:20px">ℹ ${fish_escape(s.redlistNote)}</div>` : ''}
               </div>
               ${(() => {
                 const sr = Array.isArray(s.surveyRecords) ? s.surveyRecords : [];
@@ -259,11 +259,11 @@ function loadFishTable() {
                 const sum = sr.reduce((a, r) => a + (r.count || 0), 0);
                 const ok = sum === s.totalCount;
                 return `
-                <div style="font-size:13px;color:#0e7490;margin-bottom:8px;font-weight:700">
+                <div style="font-size:18px;color:#0e7490;margin-bottom:8px;font-weight:700">
                   <i class="fas fa-chart-line"></i> 完整歷年調查序列（與「歷年趨勢分析」同步・共 ${sr.length} 次出現）
                 </div>
                 <div style="overflow-x:auto;margin-bottom:8px">
-                  <table style="width:100%;border-collapse:collapse;font-size:13px">
+                  <table style="width:100%;border-collapse:collapse;font-size:18px">
                     <thead><tr style="background:#e0f7fa;color:#0e7490">
                       <th style="padding:6px 8px;text-align:left;border:1px solid #b2ebf2">調查場次</th>
                       <th style="padding:6px 8px;text-align:center;border:1px solid #b2ebf2">捕獲尾數</th>
@@ -273,12 +273,12 @@ function loadFishTable() {
                       ${sr.map(r => `<tr>
                         <td style="padding:6px 8px;border:1px solid #e2e8f0;font-weight:600">${fish_escape(r.label)}</td>
                         <td style="padding:6px 8px;border:1px solid #e2e8f0;text-align:center;font-weight:800;color:#0e7490">${r.count}</td>
-                        <td style="padding:6px 8px;border:1px solid #e2e8f0;color:#64748b;font-size:12px">${fish_escape(r.source)}</td>
+                        <td style="padding:6px 8px;border:1px solid #e2e8f0;color:#64748b;font-size:20px">${fish_escape(r.source)}</td>
                       </tr>`).join('')}
                       <tr style="background:#f0fdfa;font-weight:800">
                         <td style="padding:6px 8px;border:1px solid #b2ebf2;color:#0f172a">完整歷年累計</td>
                         <td style="padding:6px 8px;border:1px solid #b2ebf2;text-align:center;color:#0e7490">${sum}</td>
-                        <td style="padding:6px 8px;border:1px solid #b2ebf2;font-size:12px;color:${ok?'#15803d':'#b91c1c'}">
+                        <td style="padding:6px 8px;border:1px solid #b2ebf2;font-size:20px;color:${ok?'#15803d':'#b91c1c'}">
                           ${ok ? '✓ 與卡片累計尾數一致' : `⚠ 與累計 ${s.totalCount} 不符，請檢查`}
                         </td>
                       </tr>
@@ -286,29 +286,29 @@ function loadFishTable() {
                   </table>
                 </div>`;
               })()}
-              <div style="font-size:13px;color:#64748b;margin:10px 0 6px;font-weight:600">
+              <div style="font-size:18px;color:#64748b;margin:10px 0 6px;font-weight:600">
                 <i class="fas fa-database"></i> 資料庫代表調查紀錄（已同步完整序列・共 ${displayRecords.length} 筆，累計 ${displayTotal} 尾）
               </div>
               <div style="display:flex;flex-direction:column;gap:8px">
                 ${displayRecords.map((r,i) => `
                   <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px">
                     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-                      <span style="font-size:13px;font-weight:700;color:#0e7490">第 ${i+1} 筆記錄</span>
-                      <span style="font-size:12px;color:#94a3b8">${fish_escape(r.date || r.label || '-')}</span>
+                      <span style="font-size:18px;font-weight:700;color:#0e7490">第 ${i+1} 筆記錄</span>
+                      <span style="font-size:20px;color:#94a3b8">${fish_escape(r.date || r.label || '-')}</span>
                     </div>
-                    <div style="font-size:13px;color:#334155;display:grid;grid-template-columns:1fr 1fr;gap:4px">
+                    <div style="font-size:18px;color:#334155;display:grid;grid-template-columns:1fr 1fr;gap:4px">
                       <div><span style="color:#94a3b8">尾數：</span><b style="color:#0e7490">${r.count}</b></div>
                       <div><span style="color:#94a3b8">來源：</span>${fish_escape((r.recorder || r.source || '-').replace('成果報告','').replace('生態調查','').trim())}</div>
                       <div style="grid-column:1/-1"><span style="color:#94a3b8">位置：</span>${fish_escape(r.location||'橫流溪電捕監測樣站')}</div>
-                      ${r.note ? `<div style="grid-column:1/-1;font-size:12px;color:#64748b;margin-top:2px">${fish_escape(r.note)}</div>` : ''}
+                      ${r.note ? `<div style="grid-column:1/-1;font-size:20px;color:#64748b;margin-top:2px">${fish_escape(r.note)}</div>` : ''}
                     </div>
                     ${r.id ? `<div style="display:flex;gap:8px;margin-top:8px">
                       <button onclick="openFishForm(${r.id})"
-                        style="flex:1;padding:6px;border:none;background:#0e7490;color:#fff;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer">
+                        style="flex:1;padding:6px;border:none;background:#0e7490;color:#fff;border-radius:6px;font-size:18px;font-weight:700;cursor:pointer">
                         <i class="fas fa-edit"></i> 編輯
                       </button>
                       <button onclick="deleteFish(${r.id})"
-                        style="flex:1;padding:6px;border:none;background:#fee2e2;color:#b91c1c;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer">
+                        style="flex:1;padding:6px;border:none;background:#fee2e2;color:#b91c1c;border-radius:6px;font-size:18px;font-weight:700;cursor:pointer">
                         <i class="fas fa-trash"></i> 刪除
                       </button>
                     </div>` : ''}
@@ -366,7 +366,7 @@ function openFishSpeciesDetail(speciesName) {
   document.getElementById('modalTitle').innerHTML = `
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
       <span style="font-size:22px;font-weight:900;color:#0f172a">${fish_escape(target.species)}</span>
-      <span style="background:${cbg};color:${ccl};border:1px solid ${ccl}44;border-radius:999px;padding:4px 12px;font-size:13px;font-weight:800">
+      <span style="background:${cbg};color:${ccl};border:1px solid ${ccl}44;border-radius:999px;padding:4px 12px;font-size:18px;font-weight:800">
         ${fish_escape(target.conservation || '一般')}${target.redlistCode ? `（${fish_escape(target.redlistCode)}）` : ''}
       </span>
     </div>
@@ -375,11 +375,11 @@ function openFishSpeciesDetail(speciesName) {
   const fullSurveyHtml = surveyRecords.length ? `
     <div style="border:1px solid #b2ebf2;border-radius:12px;overflow:hidden;background:#fff">
       <div style="padding:12px 14px;background:#ecfeff;border-bottom:1px solid #b2ebf2;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">
-        <div style="font-size:15px;font-weight:900;color:#0e7490"><i class="fas fa-chart-line"></i> 完整歷年調查序列</div>
-        <div style="font-size:13px;color:#0f766e;font-weight:800">共 ${surveyRecords.length} 次出現，累計 ${surveySum} 尾</div>
+        <div style="font-size:19px;font-weight:900;color:#0e7490"><i class="fas fa-chart-line"></i> 完整歷年調查序列</div>
+        <div style="font-size:18px;color:#0f766e;font-weight:800">共 ${surveyRecords.length} 次出現，累計 ${surveySum} 尾</div>
       </div>
       <div style="overflow-x:auto">
-        <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <table style="width:100%;border-collapse:collapse;font-size:18px">
           <thead>
             <tr style="background:#f8fafc;color:#334155">
               <th style="padding:9px 10px;text-align:left;border-bottom:1px solid #e2e8f0">調查場次</th>
@@ -411,17 +411,17 @@ function openFishSpeciesDetail(speciesName) {
   const dbRecordsHtml = records.length ? `
     <div style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;background:#fff">
       <div style="padding:12px 14px;background:#f8fafc;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">
-        <div style="font-size:15px;font-weight:900;color:#0f172a"><i class="fas fa-database"></i> 資料庫代表調查紀錄</div>
-        <div style="font-size:13px;color:#64748b">共 ${dbDisplayRecords.length} 筆，累計 ${dbSum} 尾</div>
+        <div style="font-size:19px;font-weight:900;color:#0f172a"><i class="fas fa-database"></i> 資料庫代表調查紀錄</div>
+        <div style="font-size:18px;color:#64748b">共 ${dbDisplayRecords.length} 筆，累計 ${dbSum} 尾</div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;padding:12px">
         ${dbDisplayRecords.map((row, idx) => `
           <div style="border:1px solid #e2e8f0;border-left:4px solid ${ccl};border-radius:10px;padding:11px 12px;background:#fff">
             <div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:8px">
               <b style="color:#0f172a">第 ${idx + 1} 筆</b>
-              <span style="color:#64748b;font-size:12px">${fish_escape(row.date || row.label || '-')}</span>
+              <span style="color:#64748b;font-size:20px">${fish_escape(row.date || row.label || '-')}</span>
             </div>
-            <div style="font-size:13px;line-height:1.7;color:#334155">
+            <div style="font-size:18px;line-height:1.7;color:#334155">
               <div><span style="color:#94a3b8">尾數：</span><b style="color:#0e7490">${Number(row.count) || 0}</b></div>
               <div><span style="color:#94a3b8">位置：</span>${fish_escape(row.location || '橫流溪電捕監測樣站')}</div>
               <div><span style="color:#94a3b8">方法：</span>${fish_escape(row.method || '電捕')}</div>
@@ -443,25 +443,25 @@ function openFishSpeciesDetail(speciesName) {
           <img src="${photo.image}" alt="${fish_escape(target.species)}" style="width:100%;height:210px;object-fit:cover;object-position:${fish_escape(photo.position || 'center center')}" onerror="this.src='/webapp/assets/fish-photos/field-measurement.jpg'">
           <div style="padding:12px;background:#fff">
             <div style="font-size:18px;font-weight:900;color:#0f172a">${fish_escape(target.species)}</div>
-            <div style="font-size:13px;color:#64748b;font-style:italic;margin-top:2px">${fish_escape(target.scientificName || '-')}</div>
-            <div style="font-size:12px;color:#64748b;margin-top:8px;line-height:1.6"><i class="fas fa-camera"></i> ${fish_escape(photo.source || '魚類調查影像')}</div>
+            <div style="font-size:18px;color:#64748b;font-style:italic;margin-top:2px">${fish_escape(target.scientificName || '-')}</div>
+            <div style="font-size:20px;color:#64748b;margin-top:8px;line-height:1.6"><i class="fas fa-camera"></i> ${fish_escape(photo.source || '魚類調查影像')}</div>
           </div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">
           <div style="background:#f0fdfa;border:1px solid #ccfbf1;border-radius:10px;padding:10px;text-align:center">
             <div style="font-size:24px;font-weight:900;color:#0e7490">${adoptedTotal}</div>
-            <div style="font-size:12px;color:#64748b">累計尾數</div>
+            <div style="font-size:20px;color:#64748b">累計尾數</div>
           </div>
           <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:10px;text-align:center">
             <div style="font-size:24px;font-weight:900;color:#334155">${effectiveSurveyCount}</div>
-            <div style="font-size:12px;color:#64748b">有效調查</div>
+            <div style="font-size:20px;color:#64748b">有效調查</div>
           </div>
         </div>
       </div>
 
       <div style="display:flex;flex-direction:column;gap:14px">
         <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px">
-          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;font-size:14px;color:#334155">
+          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;font-size:19px;color:#334155">
             <div><span style="color:#94a3b8">科別：</span><b>${fish_escape(target.family || '-')}</b></div>
             <div><span style="color:#94a3b8">最近調查：</span><b>${fish_escape(latestDateLabel)}</b></div>
             <div style="grid-column:1/-1"><span style="color:#94a3b8">主要分布：</span>${fish_escape(allLocs.join('、') || target.location || '-')}</div>
@@ -690,7 +690,7 @@ function renderFishNews() {
         <div style="width:5px;height:36px;background:linear-gradient(180deg,#0369a1,#0f766e);border-radius:4px;flex-shrink:0"></div>
         <div>
           <div style="font-size:22px;font-weight:900;color:#0f172a;line-height:1.1">生態改善・媒體報導</div>
-          <div style="font-size:13px;color:#64748b;margin-top:3px">橫流溪及大甲溪流域相關報導・保育政策・學術研究</div>
+          <div style="font-size:18px;color:#64748b;margin-top:3px">橫流溪及大甲溪流域相關報導・保育政策・學術研究</div>
         </div>
       </div>
 
@@ -713,20 +713,20 @@ function renderFishNews() {
               </div>
               <div>
                 <span style="background:${n.tagColor};color:#fff;border-radius:6px;
-                  padding:2px 10px;font-size:12px;font-weight:800;letter-spacing:.5px">${n.tag}</span>
-                <div style="font-size:12px;color:#64748b;margin-top:4px">
-                  <i class="fas fa-newspaper" style="font-size:11px"></i> ${n.source}
-                  <span style="margin-left:8px"><i class="fas fa-calendar-alt" style="font-size:11px"></i> ${n.date}</span>
+                  padding:2px 10px;font-size:20px;font-weight:800;letter-spacing:.5px">${n.tag}</span>
+                <div style="font-size:20px;color:#64748b;margin-top:4px">
+                  <i class="fas fa-newspaper" style="font-size:19px"></i> ${n.source}
+                  <span style="margin-left:8px"><i class="fas fa-calendar-alt" style="font-size:19px"></i> ${n.date}</span>
                 </div>
               </div>
             </div>
             <!-- 內文 -->
             <div style="padding:16px 18px 18px;flex:1;display:flex;flex-direction:column;gap:8px">
-              <div style="font-size:16px;font-weight:800;color:#0f172a;line-height:1.45">${n.title}</div>
-              <div style="font-size:14px;color:#374151;line-height:1.7;flex:1">${n.summary}</div>
+              <div style="font-size:20px;font-weight:800;color:#0f172a;line-height:1.45">${n.title}</div>
+              <div style="font-size:19px;color:#374151;line-height:1.7;flex:1">${n.summary}</div>
               <div style="display:flex;align-items:center;gap:6px;margin-top:4px;
-                   color:${n.tagColor};font-size:13px;font-weight:700">
-                <i class="fas fa-arrow-up-right-from-square" style="font-size:12px"></i> 閱讀完整報導
+                   color:${n.tagColor};font-size:18px;font-weight:700">
+                <i class="fas fa-arrow-up-right-from-square" style="font-size:20px"></i> 閱讀完整報導
               </div>
             </div>
           </a>`).join('')}
@@ -1927,16 +1927,16 @@ function renderLandLife() {
           <div style="font-size:26px;color:${col}"><i class="fas ${ic}"></i></div>
           <div>
             <div style="font-size:24px;font-weight:900;color:${col};line-height:1">${val}</div>
-            <div style="font-size:13px;color:#64748b">${lbl}</div>
+            <div style="font-size:18px;color:#64748b">${lbl}</div>
           </div>
         </div>`).join('')}
     </div>
 
     <!-- 來源說明 -->
-    <div style="background:#f8faff;border:1px solid #c7d2fe;border-left:4px solid #6366f1;border-radius:10px;padding:12px 16px;margin-bottom:20px;font-size:14px;color:#4338ca">
+    <div style="background:#f8faff;border:1px solid #c7d2fe;border-left:4px solid #6366f1;border-radius:10px;padding:12px 16px;margin-bottom:20px;font-size:19px;color:#4338ca">
       <i class="fas fa-book-open" style="margin-right:7px"></i>
       <strong>資料來源：</strong>橫流溪動物通道及周邊設施檢查效能智慧評估 第三次期中報告書（114年）— 陸域生態調查章節<br>
-      <span style="font-size:12px;color:#6366f1"><i class="fas fa-landmark" style="margin:0 5px 0 1px"></i>物種分類與官方物種頁：TaiCOL 台灣物種名錄（農業部生物多樣性研究所）｜政府資料開放授權條款第1版；卡片照片為物種辨識代表影像</span>
+      <span style="font-size:20px;color:#6366f1"><i class="fas fa-landmark" style="margin:0 5px 0 1px"></i>物種分類與官方物種頁：TaiCOL 台灣物種名錄（農業部生物多樣性研究所）｜政府資料開放授權條款第1版；卡片照片為物種辨識代表影像</span>
     </div>
 
     <!-- 物種分類卡 -->
@@ -1951,13 +1951,13 @@ function renderLandLife() {
           </div>
           <div style="flex:1">
             <div style="font-size:22px;font-weight:900;color:#0f172a">${cat.category}</div>
-            <div style="font-size:13px;color:#64748b;margin-top:2px">${cat.summary}</div>
+            <div style="font-size:18px;color:#64748b;margin-top:2px">${cat.summary}</div>
           </div>
           <div style="text-align:right">
             <div style="font-size:28px;font-weight:900;color:${cat.color}">${cat.count} 種</div>
-            <div id="landcat_${catIdx}_arrow" style="font-size:12px;color:#94a3b8">▲ 收合</div>
+            <div id="landcat_${catIdx}_arrow" style="font-size:20px;color:#94a3b8">▲ 收合</div>
           </div>
-          <button data-q="${fish_escape('橫流溪'+cat.category+'：'+cat.summary+'的物種組成、生態特色與保育重點')}" onclick="event.stopPropagation();fish_openAIQA(this.getAttribute('data-q'))" style="margin-left:4px;padding:6px 10px;border:1.5px solid #6366f1;border-radius:8px;background:#f5f3ff;color:#4f46e5;font-size:13px;font-weight:700;cursor:pointer;flex-shrink:0"><i class="fas fa-robot"></i> AI</button>
+          <button data-q="${fish_escape('橫流溪'+cat.category+'：'+cat.summary+'的物種組成、生態特色與保育重點')}" onclick="event.stopPropagation();fish_openAIQA(this.getAttribute('data-q'))" style="margin-left:4px;padding:6px 10px;border:1.5px solid #6366f1;border-radius:8px;background:#f5f3ff;color:#4f46e5;font-size:18px;font-weight:700;cursor:pointer;flex-shrink:0"><i class="fas fa-robot"></i> AI</button>
         </div>
         <!-- 物種列表（預設展開） -->
         <div id="landcat_${catIdx}" style="padding:0 16px 16px;display:block">
@@ -1984,7 +1984,7 @@ function renderLandLife() {
             <i class="fas ${cat.icon}" style="position:absolute;right:54%;top:50%;transform:translateY(-50%);
               font-size:120px;color:${cat.color};opacity:0.06;pointer-events:none"></i>
           </div>
-          <div style="font-size:12px;color:#94a3b8;margin-bottom:10px">
+          <div style="font-size:20px;color:#94a3b8;margin-bottom:10px">
             <i class="fas fa-database" style="margin-right:4px"></i>${cat.source}
           </div>
           <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px">
@@ -2011,7 +2011,7 @@ function renderLandLife() {
                       <img ${wk ? `data-wiki="${wk}"` : ''} alt="${item.name}" title="${item.name}"
                         src="${dp ? dp.src : ''}" style="width:100%;height:100%;object-fit:cover;display:${dp ? 'block' : 'none'}">
                       <div style="position:absolute;bottom:6px;right:8px;pointer-events:none">
-                        <i class="fas fa-search-plus" style="color:rgba(255,255,255,0.85);font-size:11px;text-shadow:0 1px 3px rgba(0,0,0,.6)"></i>
+                        <i class="fas fa-search-plus" style="color:rgba(255,255,255,0.85);font-size:19px;text-shadow:0 1px 3px rgba(0,0,0,.6)"></i>
                       </div>
                     </div>`;
                   })()}
@@ -2019,12 +2019,12 @@ function renderLandLife() {
                     <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px">
                       <div style="flex:1">
                         <div style="font-size:22px;font-weight:800;color:#0f172a">${item.name}</div>
-                        ${item.sci && item.sci !== '-' ? `<div style="font-size:13px;font-style:italic;color:#94a3b8;margin-top:2px">${item.sci}</div>` : ''}
+                        ${item.sci && item.sci !== '-' ? `<div style="font-size:18px;font-style:italic;color:#94a3b8;margin-top:2px">${item.sci}</div>` : ''}
                       </div>
-                      <span style="background:${tbg};color:${tcl};border-radius:999px;padding:3px 10px;font-size:13px;font-weight:700;white-space:nowrap;flex-shrink:0">${item.tag}</span>
+                      <span style="background:${tbg};color:${tcl};border-radius:999px;padding:3px 10px;font-size:18px;font-weight:700;white-space:nowrap;flex-shrink:0">${item.tag}</span>
                     </div>
-                    <div style="font-size:15px;color:#64748b;border-top:1px solid #f1f5f9;padding-top:6px">${item.note}</div>
-                    <button data-q="${fish_escape(item.name+'的生態特性、在橫流溪的分布現況與保育意義')}" onclick="event.stopPropagation();fish_openAIQA(this.getAttribute('data-q'))" style="margin-top:8px;width:100%;padding:6px;border:1px solid #6366f1;border-radius:7px;background:#f5f3ff;color:#4f46e5;font-size:13px;font-weight:700;cursor:pointer">💬 AI問答</button>
+                    <div style="font-size:19px;color:#64748b;border-top:1px solid #f1f5f9;padding-top:6px">${item.note}</div>
+                    <button data-q="${fish_escape(item.name+'的生態特性、在橫流溪的分布現況與保育意義')}" onclick="event.stopPropagation();fish_openAIQA(this.getAttribute('data-q'))" style="margin-top:8px;width:100%;padding:6px;border:1px solid #6366f1;border-radius:7px;background:#f5f3ff;color:#4f46e5;font-size:18px;font-weight:700;cursor:pointer">💬 AI問答</button>
                   </div>
                 </div>`;
             }).join('')}
@@ -2035,10 +2035,10 @@ function renderLandLife() {
 
     <!-- 調查方法說明 -->
     <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px 20px;margin-top:4px;margin-bottom:20px">
-      <div style="font-size:15px;font-weight:700;color:#334155;margin-bottom:10px">
+      <div style="font-size:19px;font-weight:700;color:#334155;margin-bottom:10px">
         <i class="fas fa-info-circle" style="color:#6366f1;margin-right:7px"></i>調查方法說明
       </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;font-size:14px;color:#475569">
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;font-size:19px;color:#475569">
         <div><i class="fas fa-binoculars" style="color:#1d4ed8;margin-right:5px"></i><strong>鳥類：</strong>樣點計數法＋穿越線法</div>
         <div><i class="fas fa-moon" style="color:#0f766e;margin-right:5px"></i><strong>兩棲爬蟲：</strong>夜間穿越線調查法</div>
         <div><i class="fas fa-camera" style="color:#92400e;margin-right:5px"></i><strong>哺乳類：</strong>紅外線自動相機 ×6 台</div>
@@ -2058,7 +2058,7 @@ function renderLandLife() {
     lb.innerHTML = `
       <button id="landLightboxCloseBtn" style="position:absolute;top:14px;right:18px;background:rgba(255,255,255,0.12);border:none;color:#fff;font-size:26px;cursor:pointer;width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center">&times;</button>
       <img id="landLightboxImg" src="" alt="" style="max-width:90vw;max-height:76vh;object-fit:contain;border-radius:10px;box-shadow:0 8px 48px rgba(0,0,0,0.7)">
-      <div id="landLightboxCaption" style="color:#e2e8f0;font-size:15px;text-align:center;max-width:620px;line-height:1.6"></div>`;
+      <div id="landLightboxCaption" style="color:#e2e8f0;font-size:19px;text-align:center;max-width:620px;line-height:1.6"></div>`;
     lb.addEventListener('click', e => { if (e.target === lb) landLightboxClose(); });
     lb.querySelector('#landLightboxCloseBtn').addEventListener('click', landLightboxClose);
     document.body.appendChild(lb);
@@ -2131,11 +2131,11 @@ function _initLandLifeMap() {
     });
 
     L.marker([pt.lat, pt.lng], { icon: markerIcon }).addTo(landLifeMap).bindPopup(`
-      <div style="min-width:210px;font-size:13px;line-height:1.7">
-        <div style="font-weight:900;font-size:14px;color:#0f172a;margin-bottom:6px">
+      <div style="min-width:210px;font-size:18px;line-height:1.7">
+        <div style="font-weight:900;font-size:19px;color:#0f172a;margin-bottom:6px">
           <i class="fas ${pt.icon}" style="color:${pt.color};margin-right:5px"></i>${pt.name}
         </div>
-        <table style="width:100%;font-size:12px;border-collapse:collapse">
+        <table style="width:100%;font-size:20px;border-collapse:collapse">
           <tr><td style="color:#64748b;padding:2px 0;white-space:nowrap">記錄物種</td><td style="font-weight:600;padding-left:8px">${pt.species}</td></tr>
           <tr><td style="color:#64748b;padding:2px 0;white-space:nowrap">調查方法</td><td style="padding-left:8px">${pt.method}</td></tr>
           <tr><td style="color:#64748b;padding:2px 0;white-space:nowrap">主要季節</td><td style="padding-left:8px">${pt.season}</td></tr>
@@ -2155,7 +2155,7 @@ function _initLandLifeMap() {
   L.marker([24.1840, 120.9098], {
     icon: L.divIcon({
       className: '',
-      html: `<div style="background:#7c3aed;color:#fff;border-radius:8px;padding:5px 9px;font-size:12px;font-weight:800;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.3)">🐾 動物通道</div>`,
+      html: `<div style="background:#7c3aed;color:#fff;border-radius:8px;padding:5px 9px;font-size:20px;font-weight:800;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.3)">🐾 動物通道</div>`,
       iconAnchor: [40, 18]
     })
   }).addTo(landLifeMap);
@@ -2347,7 +2347,7 @@ function renderVegetation() {
       <div style="font-size:32px;color:#16a34a"><i class="fas fa-book-open"></i></div>
       <div>
         <div style="font-size:18px;font-weight:900;color:#14532d">橫流溪動物通道及周邊設施檢查效能智慧評估 第三次期中報告書</div>
-        <div style="font-size:13px;color:#166534;margin-top:3px">陸域植生調查 ｜ 114年4月21日、9月19日 ｜ 沿線調查法 ｜ 資料節錄自 p.233–238</div>
+        <div style="font-size:18px;color:#166534;margin-top:3px">陸域植生調查 ｜ 114年4月21日、9月19日 ｜ 沿線調查法 ｜ 資料節錄自 p.233–238</div>
       </div>
     </div>
 
@@ -2365,7 +2365,7 @@ function renderVegetation() {
           <div style="font-size:24px;color:${col}"><i class="fas ${ic}"></i></div>
           <div>
             <div style="font-size:24px;font-weight:900;color:${col};line-height:1">${val}</div>
-            <div style="font-size:12px;color:#64748b">${lbl}</div>
+            <div style="font-size:20px;color:#64748b">${lbl}</div>
           </div>
         </div>`).join('')}
     </div>
@@ -2375,7 +2375,7 @@ function renderVegetation() {
       <div style="font-size:17px;font-weight:800;color:#14532d;margin-bottom:12px">
         <i class="fas fa-info-circle" style="color:#16a34a;margin-right:7px"></i>植被概況說明
       </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;font-size:14px;color:#334155">
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;font-size:19px;color:#334155">
         <div style="background:#fef9c3;border-radius:8px;padding:12px 14px">
           <div style="font-weight:700;color:#854d0e;margin-bottom:4px"><i class="fas fa-water" style="margin-right:5px"></i>溪流濱溪帶</div>
           五節芒優勢植群（相對豐度31.82%），伴生大花咸豐草（歸化）、山黃麻、九芎、水柳等濱溪植物
@@ -2397,7 +2397,7 @@ function renderVegetation() {
         <i class="fas fa-chart-bar" style="color:#16a34a;margin-right:7px"></i>主要植被統計表（表6-36 ｜ 前16優勢種）
       </div>
       <div style="overflow-x:auto">
-        <table style="width:100%;border-collapse:collapse;font-size:15px;min-width:500px">
+        <table style="width:100%;border-collapse:collapse;font-size:19px;min-width:500px">
           <thead>
             <tr style="background:#f0fdf4">
               <th style="padding:11px 14px;text-align:left;font-weight:800;color:#166534;border-bottom:2px solid #86efac">植物名稱</th>
@@ -2412,16 +2412,16 @@ function renderVegetation() {
               const barW = Math.round((v.pct / 31.82) * 100);
               const barColor = v.invasive ? '#dc2626' : v.endemic ? '#92400e' : '#16a34a';
               const badgeHtml = v.invasive
-                ? '<span style="background:#fee2e2;color:#b91c1c;border-radius:999px;padding:2px 7px;font-size:11px;font-weight:700">外來入侵</span>'
+                ? '<span style="background:#fee2e2;color:#b91c1c;border-radius:999px;padding:2px 7px;font-size:19px;font-weight:700">外來入侵</span>'
                 : v.endemic
-                ? '<span style="background:#fef9c3;color:#92400e;border-radius:999px;padding:2px 7px;font-size:11px;font-weight:700">特有種</span>'
-                : '<span style="background:#f1f5f9;color:#475569;border-radius:999px;padding:2px 7px;font-size:11px;font-weight:700">原生</span>';
+                ? '<span style="background:#fef9c3;color:#92400e;border-radius:999px;padding:2px 7px;font-size:19px;font-weight:700">特有種</span>'
+                : '<span style="background:#f1f5f9;color:#475569;border-radius:999px;padding:2px 7px;font-size:19px;font-weight:700">原生</span>';
               return `
                 <tr style="border-bottom:1px solid #f1f5f9;${i % 2 === 1 ? 'background:#fafcff' : ''}">
-                  <td style="padding:10px 14px;font-weight:800;font-size:16px;color:#0f172a">${v.name}</td>
-                  <td style="padding:10px 14px;font-size:14px;color:#475569">${v.family}</td>
+                  <td style="padding:10px 14px;font-weight:800;font-size:20px;color:#0f172a">${v.name}</td>
+                  <td style="padding:10px 14px;font-size:19px;color:#475569">${v.family}</td>
                   <td style="padding:10px 14px;text-align:center">${badgeHtml}</td>
-                  <td style="padding:10px 14px;text-align:right;font-size:16px;font-weight:900;color:${barColor}">${v.pct}%</td>
+                  <td style="padding:10px 14px;text-align:right;font-size:20px;font-weight:900;color:${barColor}">${v.pct}%</td>
                   <td style="padding:10px 14px">
                     <div style="height:16px;background:#e2e8f0;border-radius:999px;overflow:hidden">
                       <div style="height:100%;width:${barW}%;background:${barColor};border-radius:999px;transition:width 0.6s ease"></div>
@@ -2432,7 +2432,7 @@ function renderVegetation() {
           </tbody>
         </table>
       </div>
-      <div style="margin-top:10px;font-size:12px;color:#94a3b8">
+      <div style="margin-top:10px;font-size:20px;color:#94a3b8">
         * 標示外來入侵種（紅色）；# 標示臺灣特有種（橙色）｜資料來源：期中報告書 p.234
       </div>
     </div>
@@ -2443,9 +2443,9 @@ function renderVegetation() {
         <div style="font-size:17px;font-weight:800;color:#0f172a">
           <i class="fas fa-images" style="color:#16a34a;margin-right:7px"></i>優勢植種圖鑑
         </div>
-        <div style="font-size:12px;color:#64748b;text-align:right">出處：橫流溪調查資料（豐度）／物種分類與影像連結 TaiCOL 台灣物種名錄</div>
+        <div style="font-size:20px;color:#64748b;text-align:right">出處：橫流溪調查資料（豐度）／物種分類與影像連結 TaiCOL 台灣物種名錄</div>
       </div>
-      <div style="font-size:13px;color:#64748b;margin-bottom:16px">
+      <div style="font-size:18px;color:#64748b;margin-bottom:16px">
         物種組成與相對豐度以橫流溪陸域植生調查成果為準；卡片照片為物種辨識代表影像，並連結至 TaiCOL 台灣物種名錄（農業部生物多樣性研究所，政府資料開放授權）查看官方分類與分布。
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px">
@@ -2465,21 +2465,21 @@ function renderVegetation() {
                   onerror="this.style.display='none'"
                   onmouseover="this.style.transform='scale(1.07)'" onmouseout="this.style.transform='scale(1)'">` : ''}
                 <div style="position:absolute;top:8px;right:8px">
-                  <span style="background:${ccl};color:#fff;font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px">${badge}</span>
+                  <span style="background:${ccl};color:#fff;font-size:19px;font-weight:700;padding:3px 8px;border-radius:999px">${badge}</span>
                 </div>
                 <div style="position:absolute;bottom:8px;left:8px">
-                  <span style="background:rgba(15,23,42,.72);color:#fff;font-size:11px;padding:2px 8px;border-radius:999px;font-weight:700">${v.pct}%</span>
+                  <span style="background:rgba(15,23,42,.72);color:#fff;font-size:19px;padding:2px 8px;border-radius:999px;font-weight:700">${v.pct}%</span>
                 </div>
                 <div style="position:absolute;bottom:8px;right:8px">
-                  <i class="fas fa-expand-alt" style="color:rgba(255,255,255,.8);font-size:13px"></i>
+                  <i class="fas fa-expand-alt" style="color:rgba(255,255,255,.8);font-size:18px"></i>
                 </div>
               </div>
               <div style="padding:10px 12px;background:#fff">
-                <div style="font-size:15px;font-weight:800;color:#0f172a;margin-bottom:2px">${v.name}</div>
-                <div style="font-size:11px;font-style:italic;color:#64748b;margin-bottom:3px">${photo.sci}</div>
-                <div style="font-size:12px;color:#64748b;margin-bottom:6px">${v.family}</div>
-                <div style="font-size:12px;color:#334155;line-height:1.55;background:#f8fafc;border-radius:7px;padding:7px 8px;margin-bottom:7px">${fish_escape(photo.expertNote || '')}</div>
-                <div style="display:flex;gap:8px;flex-wrap:wrap;font-size:11px;line-height:1.4">
+                <div style="font-size:19px;font-weight:800;color:#0f172a;margin-bottom:2px">${v.name}</div>
+                <div style="font-size:19px;font-style:italic;color:#64748b;margin-bottom:3px">${photo.sci}</div>
+                <div style="font-size:20px;color:#64748b;margin-bottom:6px">${v.family}</div>
+                <div style="font-size:20px;color:#334155;line-height:1.55;background:#f8fafc;border-radius:7px;padding:7px 8px;margin-bottom:7px">${fish_escape(photo.expertNote || '')}</div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;font-size:19px;line-height:1.4">
                   ${(GOV_SPECIES[v.name]||{}).code ? `<a href="${govSpeciesPage((GOV_SPECIES[v.name]).code)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" style="color:#15803d;text-decoration:none;font-weight:700"><i class="fas fa-landmark" style="margin-right:3px"></i>TaiCOL 官方物種頁</a>` : ''}
                   <span style="color:#94a3b8">政府開放資料</span>
                 </div>
@@ -2493,9 +2493,9 @@ function renderVegetation() {
                 : `<div style="width:min(520px,86vw);border-radius:12px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,.6)">${govSpeciesCard(v.name, (GOV_SPECIES[v.name]||{}).code, 220)}</div>`}
               <div style="text-align:center;color:#fff">
                 <div style="font-size:20px;font-weight:800">${v.name}</div>
-                <div style="font-size:14px;font-style:italic;opacity:.8;margin-top:4px">${photo.sci}　｜　${v.family}　｜　相對豐度 ${v.pct}%</div>
-                <div style="font-size:13px;opacity:.85;margin-top:8px;max-width:760px;line-height:1.6">${fish_escape(photo.expertNote || '')}</div>
-                <div style="font-size:12px;opacity:.72;margin-top:6px">
+                <div style="font-size:19px;font-style:italic;opacity:.8;margin-top:4px">${photo.sci}　｜　${v.family}　｜　相對豐度 ${v.pct}%</div>
+                <div style="font-size:18px;opacity:.85;margin-top:8px;max-width:760px;line-height:1.6">${fish_escape(photo.expertNote || '')}</div>
+                <div style="font-size:20px;opacity:.72;margin-top:6px">
                   ${(GOV_SPECIES[v.name]||{}).code ? `<a href="${govSpeciesPage((GOV_SPECIES[v.name]).code)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" style="color:#86efac">前往官方物種頁</a>　` : ''}點擊背景關閉
                 </div>
               </div>
@@ -2516,14 +2516,14 @@ function renderVegetation() {
             <i class="fas ${grp.icon}" style="color:${grp.color};font-size:22px;width:24px"></i>
             <div style="flex:1">
               <span style="font-size:18px;font-weight:900;color:#0f172a">${grp.group}</span>
-              <span style="font-size:14px;color:#64748b;margin-left:8px">${grp.count} 種</span>
+              <span style="font-size:19px;color:#64748b;margin-left:8px">${grp.count} 種</span>
             </div>
-            <i class="fas fa-chevron-down" style="color:#94a3b8;font-size:14px;transition:transform 0.2s"></i>
+            <i class="fas fa-chevron-down" style="color:#94a3b8;font-size:19px;transition:transform 0.2s"></i>
           </button>
           <div class="veg-group-body" style="display:none;padding:4px 16px 14px">
             ${grp.families.map(fam => `
               <div style="margin-bottom:10px">
-                <div style="font-size:14px;font-weight:700;color:${grp.color};margin-bottom:6px;padding-left:4px;border-left:3px solid ${grp.color}">${fam.name}</div>
+                <div style="font-size:19px;font-weight:700;color:${grp.color};margin-bottom:6px;padding-left:4px;border-left:3px solid ${grp.color}">${fam.name}</div>
                 <div style="display:flex;flex-wrap:wrap;gap:6px">
                   ${fam.items.map(sp => {
                     const isInvasive = sp.endsWith('*') || sp.includes('*');
@@ -2532,7 +2532,7 @@ function renderVegetation() {
                     const tagStyle = isInvasive ? 'background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5'
                                     : isEndemic ? 'background:#fef9c3;color:#92400e;border:1px solid #fde68a'
                                     : 'background:#f1f5f9;color:#334155;border:1px solid #e2e8f0';
-                    return `<span style="${tagStyle};border-radius:8px;padding:4px 10px;font-size:14px;font-weight:600">${sp}</span>`;
+                    return `<span style="${tagStyle};border-radius:8px;padding:4px 10px;font-size:19px;font-weight:600">${sp}</span>`;
                   }).join('')}
                 </div>
               </div>
@@ -2540,9 +2540,9 @@ function renderVegetation() {
           </div>
         </div>
       `).join('')}
-      <div style="font-size:12px;color:#94a3b8;margin-top:8px">
-        凡例：<span style="background:#fee2e2;color:#b91c1c;border-radius:4px;padding:1px 5px;font-size:12px">* 外來入侵種</span>
-        <span style="background:#fef9c3;color:#92400e;border-radius:4px;padding:1px 5px;font-size:12px;margin-left:4px"># 臺灣特有種</span>
+      <div style="font-size:20px;color:#94a3b8;margin-top:8px">
+        凡例：<span style="background:#fee2e2;color:#b91c1c;border-radius:4px;padding:1px 5px;font-size:20px">* 外來入侵種</span>
+        <span style="background:#fef9c3;color:#92400e;border-radius:4px;padding:1px 5px;font-size:20px;margin-left:4px"># 臺灣特有種</span>
         （黑字為原生種）
       </div>
     </div>
@@ -2552,28 +2552,28 @@ function renderVegetation() {
       <div style="font-size:17px;font-weight:800;color:#0f172a;margin-bottom:6px">
         <i class="fas fa-map-marked-alt" style="color:#16a34a;margin-right:7px"></i>植被分布互動地圖
       </div>
-      <div style="font-size:13px;color:#64748b;margin-bottom:14px">
+      <div style="font-size:18px;color:#64748b;margin-bottom:14px">
         橫流溪沿岸植被調查樣點、優勢植群帶及周邊環境比對 ｜ 點選標記查看詳細植被資訊
       </div>
       <!-- 圖例 -->
-      <div style="display:flex;flex-wrap:wrap;gap:14px;margin-bottom:12px;font-size:13px;align-items:center">
+      <div style="display:flex;flex-wrap:wrap;gap:14px;margin-bottom:12px;font-size:18px;align-items:center">
         <div style="display:flex;align-items:center;gap:7px">
           <div style="width:22px;height:22px;background:#16a34a;border:2.5px solid #14532d;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">
-            <i class="fas fa-seedling" style="color:#fff;font-size:10px"></i>
+            <i class="fas fa-seedling" style="color:#fff;font-size:19px"></i>
           </div>
           <span>濱溪帶樣區（五節芒優勢）</span>
         </div>
         <div style="display:flex;align-items:center;gap:7px">
           <div style="position:relative;width:24px;height:22px;flex-shrink:0">
             <div style="width:0;height:0;border-left:12px solid transparent;border-right:12px solid transparent;border-bottom:22px solid #dc2626"></div>
-            <i class="fas fa-cannabis" style="color:#fff;font-size:9px;position:absolute;top:8px;left:0;width:100%;text-align:center"></i>
+            <i class="fas fa-cannabis" style="color:#fff;font-size:18px;position:absolute;top:8px;left:0;width:100%;text-align:center"></i>
           </div>
           <span>外來植物警示區</span>
         </div>
         <div style="display:flex;align-items:center;gap:7px">
           <div style="width:22px;height:22px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
             <div style="width:16px;height:16px;background:#0d9488;border:2.5px solid #134e4a;transform:rotate(45deg);display:flex;align-items:center;justify-content:center">
-              <i class="fas fa-spa" style="color:#fff;font-size:8px;transform:rotate(-45deg)"></i>
+              <i class="fas fa-spa" style="color:#fff;font-size:18px;transform:rotate(-45deg)"></i>
             </div>
           </div>
           <span>蕨類植物豐富區</span>
@@ -2661,19 +2661,19 @@ function _initVegMap() {
     let html;
     if (c.shape === 'circle') {
       html = `<div style="width:${s}px;height:${s}px;background:${c.bg};border:3px solid ${c.dark};border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(0,0,0,.45)">
-        <i class="fas ${c.fa}" style="color:#fff;font-size:15px"></i></div>`;
+        <i class="fas ${c.fa}" style="color:#fff;font-size:19px"></i></div>`;
     } else if (c.shape === 'square') {
       html = `<div style="width:${s}px;height:${s}px;background:${c.bg};border:3px solid ${c.dark};border-radius:7px;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(0,0,0,.45)">
-        <i class="fas ${c.fa}" style="color:#fff;font-size:15px"></i></div>`;
+        <i class="fas ${c.fa}" style="color:#fff;font-size:19px"></i></div>`;
     } else if (c.shape === 'triangle') {
       html = `<div style="position:relative;width:${s+4}px;height:${s}px;filter:drop-shadow(0 3px 5px rgba(0,0,0,.4))">
         <div style="width:0;height:0;border-left:${(s+4)/2}px solid transparent;border-right:${(s+4)/2}px solid transparent;border-bottom:${s}px solid ${c.bg}"></div>
-        <i class="fas ${c.fa}" style="color:#fff;font-size:14px;position:absolute;top:12px;left:0;width:100%;text-align:center"></i></div>`;
+        <i class="fas ${c.fa}" style="color:#fff;font-size:19px;position:absolute;top:12px;left:0;width:100%;text-align:center"></i></div>`;
     } else {
       const ds = Math.round(s * 0.72);
       html = `<div style="width:${s}px;height:${s}px;display:flex;align-items:center;justify-content:center">
         <div style="width:${ds}px;height:${ds}px;background:${c.bg};border:3px solid ${c.dark};transform:rotate(45deg);display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(0,0,0,.45)">
-          <i class="fas ${c.fa}" style="color:#fff;font-size:13px;transform:rotate(-45deg)"></i></div></div>`;
+          <i class="fas ${c.fa}" style="color:#fff;font-size:18px;transform:rotate(-45deg)"></i></div></div>`;
     }
     const w = c.shape === 'triangle' ? s + 4 : s;
     return L.divIcon({ className: '', html, iconSize: [w, s], iconAnchor: [w / 2, s / 2] });
@@ -2684,19 +2684,19 @@ function _initVegMap() {
     const marker = L.marker([pt.lat, pt.lng], { icon: makeVegDivIcon(pt.type) }).addTo(vegMap);
 
     marker.bindPopup(`
-      <div style="min-width:230px;font-size:13px;line-height:1.7">
-        <div style="font-weight:900;font-size:15px;color:#0f172a;margin-bottom:5px">
+      <div style="min-width:230px;font-size:18px;line-height:1.7">
+        <div style="font-weight:900;font-size:19px;color:#0f172a;margin-bottom:5px">
           <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${col};margin-right:6px;vertical-align:middle"></span>
           ${pt.zone}
         </div>
-        <table style="width:100%;font-size:12px;border-collapse:collapse">
+        <table style="width:100%;font-size:20px;border-collapse:collapse">
           <tr><td style="color:#64748b;padding:2px 0;white-space:nowrap">優勢植物</td><td style="font-weight:700;padding-left:8px">${pt.dominant}</td></tr>
           <tr><td style="color:#64748b;padding:2px 0;white-space:nowrap">伴生植物</td><td style="padding-left:8px">${pt.companion}</td></tr>
           <tr><td style="color:#64748b;padding:2px 0;white-space:nowrap">入侵植物</td><td style="padding-left:8px;color:${pt.invasive==='無'?'#16a34a':'#dc2626'};font-weight:600">${pt.invasive}</td></tr>
           <tr><td style="color:#64748b;padding:2px 0;white-space:nowrap">植被覆蓋</td><td style="padding-left:8px">${pt.cover}</td></tr>
           <tr><td style="color:#64748b;padding:2px 0;white-space:nowrap">NDVI</td><td style="padding-left:8px;font-weight:700;color:${pt.ndvi>0.7?'#16a34a':pt.ndvi>0.55?'#854d0e':'#dc2626'}">${pt.ndvi}</td></tr>
         </table>
-        <div style="margin-top:7px;font-size:11px;color:#475569;border-left:3px solid ${col};padding-left:7px">
+        <div style="margin-top:7px;font-size:19px;color:#475569;border-left:3px solid ${col};padding-left:7px">
           植被分類：<strong>${labelMap[pt.type]}</strong>
         </div>
       </div>
@@ -2707,7 +2707,7 @@ function _initVegMap() {
   L.marker([24.1840, 120.9098], {
     icon: L.divIcon({
       className: '',
-      html: `<div style="background:#7c3aed;color:#fff;border-radius:8px;padding:5px 9px;font-size:12px;font-weight:800;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.3)">🐾 動物通道</div>`,
+      html: `<div style="background:#7c3aed;color:#fff;border-radius:8px;padding:5px 9px;font-size:20px;font-weight:800;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.3)">🐾 動物通道</div>`,
       iconAnchor: [40, 18]
     })
   }).addTo(vegMap);
@@ -4136,15 +4136,15 @@ function renderFishBioMap() {
 
       <!-- ══ 頁面標題 ══ -->
       <div style="margin-bottom:20px">
-        <div style="font-size:13px;color:#94a3b8;margin-bottom:4px">
+        <div style="font-size:18px;color:#94a3b8;margin-bottom:4px">
           資料來源：東勢處水域友善監測追蹤報告 · 橫流溪魚類資料庫 · 112年6月植物調查
         </div>
         <h2 style="margin:0 0 4px;font-size:28px;font-weight:900;color:#0f172a;letter-spacing:-.5px">
           橫流溪陸域・水域生物分布圖
         </h2>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
-          <span style="background:#dcfce7;color:#166534;border:1px solid #bbf7d0;border-radius:6px;padding:4px 12px;font-size:14px;font-weight:700"><i class="fas fa-mountain-sun"></i> 陸域生態 6 大類</span>
-          <span style="background:#cffafe;color:#0e7490;border:1px solid #a5f3fc;border-radius:6px;padding:4px 12px;font-size:14px;font-weight:700"><i class="fas fa-water"></i> 水域生態 3 大類</span>
+          <span style="background:#dcfce7;color:#166534;border:1px solid #bbf7d0;border-radius:6px;padding:4px 12px;font-size:19px;font-weight:700"><i class="fas fa-mountain-sun"></i> 陸域生態 6 大類</span>
+          <span style="background:#cffafe;color:#0e7490;border:1px solid #a5f3fc;border-radius:6px;padding:4px 12px;font-size:19px;font-weight:700"><i class="fas fa-water"></i> 水域生態 3 大類</span>
         </div>
       </div>
 
@@ -4163,14 +4163,14 @@ function renderFishBioMap() {
       <div class="card" style="margin-bottom:28px">
         <div class="card-header" style="flex-wrap:wrap;gap:8px;background:#f0f9ff;border-bottom:1px solid #bae6fd">
           <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-            <span style="font-size:14px;font-weight:700;color:#0369a1;margin-right:6px">底圖：</span>
+            <span style="font-size:19px;font-weight:700;color:#0369a1;margin-right:6px">底圖：</span>
             <select id="bioBaseMapSel" onchange="biogisChangeBase(this.value)"
-              style="padding:6px 12px;border:1px solid #bae6fd;border-radius:8px;font-size:14px;color:#0369a1;background:#fff">
+              style="padding:6px 12px;border:1px solid #bae6fd;border-radius:8px;font-size:19px;color:#0369a1;background:#fff">
               <option value="hybrid">🛰️ 衛星+地名</option>
               <option value="satellite">🛰️ 衛星影像</option>
               <option value="road">🗺️ 道路圖</option>
             </select>
-            <span style="font-size:14px;font-weight:700;color:#0369a1;margin-left:8px">圖層：</span>
+            <span style="font-size:19px;font-weight:700;color:#0369a1;margin-left:8px">圖層：</span>
             ${biogisLayerToggle('facilities','hard-hat','#1565c0','工程設施')}
             ${biogisLayerToggle('landanimals','mountain-sun','#166634','陸域動物')}
             ${biogisLayerToggle('fishwayDist','fish','#0e7490','魚道魚種分布')}
@@ -4190,8 +4190,8 @@ function renderFishBioMap() {
 
             <!-- ① 陸域動物 -->
             <div style="margin-bottom:20px">
-              <div style="font-size:16px;font-weight:900;color:#166534;margin-bottom:10px;display:flex;align-items:center;gap:7px;border-bottom:3px solid #bbf7d0;padding-bottom:6px">
-                <i class="fas fa-mountain-sun" style="font-size:15px"></i> 陸域動物
+              <div style="font-size:20px;font-weight:900;color:#166534;margin-bottom:10px;display:flex;align-items:center;gap:7px;border-bottom:3px solid #bbf7d0;padding-bottom:6px">
+                <i class="fas fa-mountain-sun" style="font-size:19px"></i> 陸域動物
               </div>
               ${[
                 ['fa-dove', '#1d4ed8','鳥　　類','藍腹鷳・翠鳥・鉛色水鶇'],
@@ -4206,16 +4206,16 @@ function renderFishBioMap() {
                     <i class="fas ${ic}" style="color:${col};font-size:18px"></i>
                   </div>
                   <div>
-                    <div style="font-size:15px;font-weight:800;color:#0f172a">${name}</div>
-                    <div style="font-size:13px;color:#64748b;margin-top:2px;line-height:1.4">${sub}</div>
+                    <div style="font-size:19px;font-weight:800;color:#0f172a">${name}</div>
+                    <div style="font-size:18px;color:#64748b;margin-top:2px;line-height:1.4">${sub}</div>
                   </div>
                 </div>`).join('')}
             </div>
 
             <!-- ② 水域魚類 -->
             <div style="margin-bottom:20px">
-              <div style="font-size:16px;font-weight:900;color:#0e7490;margin-bottom:10px;display:flex;align-items:center;gap:7px;border-bottom:3px solid #a5f3fc;padding-bottom:6px">
-                <i class="fas fa-fish" style="font-size:15px"></i> 水域魚類
+              <div style="font-size:20px;font-weight:900;color:#0e7490;margin-bottom:10px;display:flex;align-items:center;gap:7px;border-bottom:3px solid #a5f3fc;padding-bottom:6px">
+                <i class="fas fa-fish" style="font-size:19px"></i> 水域魚類
               </div>
               ${[
                 ['carp',  '#dc2626','瀕　　危','本區調查魚種目前無瀕危紀錄'],
@@ -4228,16 +4228,16 @@ function renderFishBioMap() {
                     ${fish_speciesSvg(shape)}
                   </div>
                   <div>
-                    <div style="font-size:15px;font-weight:800;color:${col}">${tag}</div>
-                    <div style="font-size:13px;color:#64748b;margin-top:2px;line-height:1.4">${ex}</div>
+                    <div style="font-size:19px;font-weight:800;color:${col}">${tag}</div>
+                    <div style="font-size:18px;color:#64748b;margin-top:2px;line-height:1.4">${ex}</div>
                   </div>
                 </div>`).join('')}
             </div>
 
             <!-- ③ 工程構造物 -->
             <div>
-              <div style="font-size:16px;font-weight:900;color:#1565c0;margin-bottom:10px;display:flex;align-items:center;gap:7px;border-bottom:3px solid #bfdbfe;padding-bottom:6px">
-                <i class="fas fa-hard-hat" style="font-size:15px"></i> 工程構造物
+              <div style="font-size:20px;font-weight:900;color:#1565c0;margin-bottom:10px;display:flex;align-items:center;gap:7px;border-bottom:3px solid #bfdbfe;padding-bottom:6px">
+                <i class="fas fa-hard-hat" style="font-size:19px"></i> 工程構造物
               </div>
               ${[
                 ['#1565c0','fa-fish',        '魚道設施','之字形・階梯式・斜坡式'],
@@ -4253,8 +4253,8 @@ function renderFishBioMap() {
                     <i class="fas ${ic}" style="color:#fff;font-size:18px"></i>
                   </div>
                   <div>
-                    <div style="font-size:15px;font-weight:800;color:#0f172a">${name}</div>
-                    <div style="font-size:13px;color:#64748b;margin-top:2px;line-height:1.4">${sub}</div>
+                    <div style="font-size:19px;font-weight:800;color:#0f172a">${name}</div>
+                    <div style="font-size:18px;color:#64748b;margin-top:2px;line-height:1.4">${sub}</div>
                   </div>
                 </div>`).join('')}
             </div>
@@ -4285,7 +4285,7 @@ function renderFishBioMap() {
 
       <!-- ══ SECTION 5：水域魚類清單 ══ -->
       ${bioSecHead('5','fa-fish','水域魚類清單','點擊任一列可展開詳細資訊・尾數反映歷年累計','#0e7490')}
-      <div style="background:#ecfeff;border:1px solid #a5f3fc;border-left:4px solid #0e7490;border-radius:8px;padding:11px 14px;margin:0 0 12px;font-size:13px;color:#155e75;line-height:1.6">
+      <div style="background:#ecfeff;border:1px solid #a5f3fc;border-left:4px solid #0e7490;border-radius:8px;padding:11px 14px;margin:0 0 12px;font-size:18px;color:#155e75;line-height:1.6">
         <i class="fas fa-circle-check" style="margin-right:5px"></i><b>資料統籌核對說明</b>：本清單「尾次」已與
         <b>歷年趨勢分析</b>統一，採完整歷年電捕調查序列（103~114年・${HLX_FISH_SURVEY_EVENTS}次季調查・成果報告表4-16／表5-3）逐筆合計，9種合計
         <b>${HLX_FISH_GRAND_TOTAL.toLocaleString()}</b> 尾次。
@@ -4294,18 +4294,18 @@ function renderFishBioMap() {
       <div class="card" style="margin-top:0;border-top:4px solid #0284c7">
         <div class="card-header" style="background:#f0f9ff">
           <span class="card-title" style="font-size:18px"><i class="fas fa-fish" style="color:#0e7490"></i> 水域魚類清單（${fishSpecies.length} 種）</span>
-          <span style="font-size:14px;color:#64748b">點擊列展開詳情</span>
+          <span style="font-size:19px;color:#64748b">點擊列展開詳情</span>
         </div>
         <div class="card-body" style="padding:0">
-          <table class="bio-table" style="width:100%;border-collapse:collapse;font-size:15px">
+          <table class="bio-table" style="width:100%;border-collapse:collapse;font-size:19px">
             <thead>
               <tr style="background:#f0f9ff;border-bottom:2px solid #bae6fd">
-                <th style="padding:12px 16px;text-align:left;color:#0369a1;font-size:14px">物種</th>
-                <th style="padding:12px 10px;text-align:center;color:#0369a1;font-size:14px">保育</th>
-                <th style="padding:12px 10px;text-align:center;color:#0369a1;font-size:14px">尾次</th>
-                <th style="padding:12px 10px;text-align:center;color:#0369a1;font-size:14px">位置</th>
-                <th style="padding:12px 10px;text-align:center;color:#0369a1;font-size:14px">地圖</th>
-                <th style="padding:12px 10px;text-align:center;color:#0369a1;font-size:14px">詳情</th>
+                <th style="padding:12px 16px;text-align:left;color:#0369a1;font-size:19px">物種</th>
+                <th style="padding:12px 10px;text-align:center;color:#0369a1;font-size:19px">保育</th>
+                <th style="padding:12px 10px;text-align:center;color:#0369a1;font-size:19px">尾次</th>
+                <th style="padding:12px 10px;text-align:center;color:#0369a1;font-size:19px">位置</th>
+                <th style="padding:12px 10px;text-align:center;color:#0369a1;font-size:19px">地圖</th>
+                <th style="padding:12px 10px;text-align:center;color:#0369a1;font-size:19px">詳情</th>
               </tr>
             </thead>
             <tbody>
@@ -4321,31 +4321,31 @@ function renderFishBioMap() {
                   <tr style="border-bottom:1px solid #e5e7eb;${i%2===1?'background:#fafcff':''}" onclick="bioFishRowToggle('${rid}')">
                     <td style="padding:12px 16px;font-weight:700;color:#0f172a">${fish_escape(sp.species)}</td>
                     <td style="padding:12px 10px;text-align:center">
-                      <span style="background:${cbg};color:${ccl};padding:4px 10px;border-radius:999px;font-size:13px;font-weight:700">${fish_escape(sp.conservation)}</span>
+                      <span style="background:${cbg};color:${ccl};padding:4px 10px;border-radius:999px;font-size:18px;font-weight:700">${fish_escape(sp.conservation)}</span>
                     </td>
                     <td style="padding:12px 10px;text-align:center;font-weight:800;font-size:17px;color:#0e7490">${sp.totalCount}</td>
                     <td style="padding:12px 10px;text-align:center">
-                      <span style="background:#e0f2fe;color:#0369a1;padding:4px 10px;border-radius:999px;font-size:13px;font-weight:600">${zoneLabel}</span>
+                      <span style="background:#e0f2fe;color:#0369a1;padding:4px 10px;border-radius:999px;font-size:18px;font-weight:600">${zoneLabel}</span>
                     </td>
                     <td style="padding:12px 10px;text-align:center" onclick="event.stopPropagation()">
                       <button onclick="biogisLocate(${zoneLat},120.9092,'${fish_escape(sp.species)}')"
-                        style="border:none;background:#0369a1;color:#fff;border-radius:8px;padding:6px 10px;font-size:13px;cursor:pointer">
+                        style="border:none;background:#0369a1;color:#fff;border-radius:8px;padding:6px 10px;font-size:18px;cursor:pointer">
                         <i class="fas fa-map-pin"></i>
                       </button>
                     </td>
                     <td style="padding:12px 10px;text-align:center">
-                      <span id="${rid}_btn" style="color:#94a3b8;font-size:14px"><i class="fas fa-chevron-down"></i></span>
+                      <span id="${rid}_btn" style="color:#94a3b8;font-size:19px"><i class="fas fa-chevron-down"></i></span>
                     </td>
                   </tr>
                   <tr id="${rid}" style="display:none" class="bio-detail-row">
                     <td colspan="6" style="padding:14px 20px;background:#f8fafc;border-bottom:2px solid #e0f2fe">
-                      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;font-size:14px">
+                      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;font-size:19px">
                         <div><span style="color:#64748b">學名：</span><em>${fish_escape(sp.scientificName||'-')}</em></div>
                         <div><span style="color:#64748b">科別：</span>${fish_escape(sp.family||'-')}</div>
                         <div><span style="color:#64748b">調查筆數：</span><b>${sp.surveys} 筆</b></div>
                         <div><span style="color:#64748b">位置：</span>${fish_escape(sp.location||'-')}</div>
                         ${habitatHint ? `<div style="grid-column:1/-1;color:#475569;border-left:3px solid #0e7490;padding-left:10px;line-height:1.6">${fish_escape(habitatHint)}</div>` : ''}
-                        ${sp.note && sp.note !== habitatHint ? `<div style="grid-column:1/-1;font-size:13px;color:#64748b;line-height:1.6">${fish_escape(sp.note.split('；').slice(0,2).join('；'))}</div>` : ''}
+                        ${sp.note && sp.note !== habitatHint ? `<div style="grid-column:1/-1;font-size:18px;color:#64748b;line-height:1.6">${fish_escape(sp.note.split('；').slice(0,2).join('；'))}</div>` : ''}
                       </div>
                     </td>
                   </tr>`;
@@ -4362,7 +4362,7 @@ function renderFishBioMap() {
             <i class="fas fa-route" style="color:#0369a1"></i>
             9種魚道通行與樣站電捕成效彙整（110年）
           </span>
-          <span style="font-size:13px;color:#64748b">資料來源：110年東勢林區管理處國有林魚道及生態廊道成效追蹤報告</span>
+          <span style="font-size:18px;color:#64748b">資料來源：110年東勢林區管理處國有林魚道及生態廊道成效追蹤報告</span>
         </div>
         <div class="card-body">
 
@@ -4377,14 +4377,14 @@ function renderFishBioMap() {
             ].map(([ic,col,bg,label,val,sub])=>`
               <div style="background:${bg};border-radius:10px;padding:14px 16px;text-align:center">
                 <div style="font-size:20px;color:${col};margin-bottom:4px"><i class="fas ${ic}"></i></div>
-                <div style="font-size:13px;color:#64748b">${label}</div>
+                <div style="font-size:18px;color:#64748b">${label}</div>
                 <div style="font-size:19px;font-weight:800;color:${col};line-height:1.2">${val}</div>
-                <div style="font-size:12px;color:#94a3b8;margin-top:2px">${sub}</div>
+                <div style="font-size:20px;color:#94a3b8;margin-top:2px">${sub}</div>
               </div>
             `).join('')}
           </div>
 
-          <div style="background:#fff7ed;border:1px solid #fed7aa;border-left:4px solid #f97316;border-radius:10px;padding:12px 14px;margin:-4px 0 18px;font-size:13px;line-height:1.75;color:#7c2d12">
+          <div style="background:#fff7ed;border:1px solid #fed7aa;border-left:4px solid #f97316;border-radius:10px;padding:12px 14px;margin:-4px 0 18px;font-size:18px;line-height:1.75;color:#7c2d12">
             <b>資料口徑校正：</b>本區「74尾」為平台逐魚道通行彙整，表列魚類為5種；110年樣站電捕資料則依表5-3為第3次486尾、第4次235尾、全年合計721尾。
             表5-21顯示109年形質測量為7種，
             表5-22顯示110年形質測量為8種：明潭吻鰕虎、短吻紅斑吻鰕虎、臺灣白甲魚、臺灣石魚賓、臺灣間爬岩鰍、臺灣鬚鱲、纓口臺鰍、短臀瘋鱨。
@@ -4394,7 +4394,7 @@ function renderFishBioMap() {
 
           <!-- 魚道成效表 -->
           <div style="overflow-x:auto;margin-bottom:18px">
-            <table style="width:100%;border-collapse:collapse;font-size:14px;min-width:680px">
+            <table style="width:100%;border-collapse:collapse;font-size:19px;min-width:680px">
               <thead>
                 <tr style="background:#e0f2fe">
                   <th style="padding:10px 12px;border:1px solid #bae6fd;color:#0369a1;text-align:left;width:90px">魚道編號</th>
@@ -4419,20 +4419,20 @@ function renderFishBioMap() {
                 ].map((r,i)=>`
                   <tr style="${i%2===0?'background:#f8fafc':'background:#fff'}">
                     <td style="padding:9px 12px;border:1px solid #e0f2fe;font-weight:800;color:#0369a1">${r.code}</td>
-                    <td style="padding:9px 12px;border:1px solid #e0f2fe;font-size:13px">${r.type}</td>
-                    <td style="padding:9px 12px;border:1px solid #e0f2fe;font-size:13px;color:#64748b">${r.km}</td>
-                    <td style="padding:9px 12px;border:1px solid #e0f2fe;text-align:center;font-weight:800;font-size:16px;color:${r.n>10?'#0369a1':'#334155'}">${r.n||'—'}</td>
-                    <td style="padding:9px 12px;border:1px solid #e0f2fe;font-size:13px;color:#334155">${r.species}</td>
+                    <td style="padding:9px 12px;border:1px solid #e0f2fe;font-size:18px">${r.type}</td>
+                    <td style="padding:9px 12px;border:1px solid #e0f2fe;font-size:18px;color:#64748b">${r.km}</td>
+                    <td style="padding:9px 12px;border:1px solid #e0f2fe;text-align:center;font-weight:800;font-size:20px;color:${r.n>10?'#0369a1':'#334155'}">${r.n||'—'}</td>
+                    <td style="padding:9px 12px;border:1px solid #e0f2fe;font-size:18px;color:#334155">${r.species}</td>
                     <td style="padding:9px 12px;border:1px solid #e0f2fe;text-align:center">
-                      <span style="background:${r.color};color:${r.tcolor};font-weight:800;font-size:13px;padding:3px 10px;border-radius:999px">${r.grade}</span>
+                      <span style="background:${r.color};color:${r.tcolor};font-weight:800;font-size:18px;padding:3px 10px;border-radius:999px">${r.grade}</span>
                     </td>
                   </tr>
                 `).join('')}
                 <tr style="background:#e0f2fe;font-weight:800">
                   <td colspan="3" style="padding:9px 12px;border:1px solid #bae6fd;color:#0369a1">合計（9種魚道）</td>
                   <td style="padding:9px 12px;border:1px solid #bae6fd;text-align:center;font-size:18px;color:#0369a1">74</td>
-                  <td style="padding:9px 12px;border:1px solid #bae6fd;font-size:13px;color:#0f172a">明潭吻鰕虎(30)・臺灣白甲魚(25)・臺灣石魚賓(14)・臺灣間爬岩鰍(2)・纓口臺鰍(2)</td>
-                  <td style="padding:9px 12px;border:1px solid #bae6fd;text-align:center;font-size:13px;color:#166534">整體優</td>
+                  <td style="padding:9px 12px;border:1px solid #bae6fd;font-size:18px;color:#0f172a">明潭吻鰕虎(30)・臺灣白甲魚(25)・臺灣石魚賓(14)・臺灣間爬岩鰍(2)・纓口臺鰍(2)</td>
+                  <td style="padding:9px 12px;border:1px solid #bae6fd;text-align:center;font-size:18px;color:#166534">整體優</td>
                 </tr>
               </tbody>
             </table>
@@ -4441,16 +4441,16 @@ function renderFishBioMap() {
           <!-- 魚道型式推薦 -->
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-bottom:8px">
             <div style="background:#e0f2fe;border-radius:10px;padding:14px 16px;border-left:4px solid #0369a1">
-              <div style="font-size:14px;font-weight:800;color:#0369a1;margin-bottom:8px"><i class="fas fa-star" style="margin-right:6px"></i>保育種通行（吻鰕虎、纓口臺鰍）</div>
-              <div style="font-size:13px;color:#334155;line-height:1.7">優先採用<b>潛越式</b>（溪構5-2）或<b>斜坡式</b>（溪構3）<br>通行效率：明潭吻鰕虎 FPE &gt;86%</div>
+              <div style="font-size:19px;font-weight:800;color:#0369a1;margin-bottom:8px"><i class="fas fa-star" style="margin-right:6px"></i>保育種通行（吻鰕虎、纓口臺鰍）</div>
+              <div style="font-size:18px;color:#334155;line-height:1.7">優先採用<b>潛越式</b>（溪構5-2）或<b>斜坡式</b>（溪構3）<br>通行效率：明潭吻鰕虎 FPE &gt;86%</div>
             </div>
             <div style="background:#f0fdf4;border-radius:10px;padding:14px 16px;border-left:4px solid #16a34a">
-              <div style="font-size:14px;font-weight:800;color:#166534;margin-bottom:8px"><i class="fas fa-arrow-up" style="margin-right:6px"></i>強游泳能力種（白甲魚）</div>
-              <div style="font-size:13px;color:#334155;line-height:1.7">降壩式（溪構7）、梯狀階段式（溪構8-2）<br>最長通行距離確認：710m 以上（0K+460→1K+170）</div>
+              <div style="font-size:19px;font-weight:800;color:#166534;margin-bottom:8px"><i class="fas fa-arrow-up" style="margin-right:6px"></i>強游泳能力種（白甲魚）</div>
+              <div style="font-size:18px;color:#334155;line-height:1.7">降壩式（溪構7）、梯狀階段式（溪構8-2）<br>最長通行距離確認：710m 以上（0K+460→1K+170）</div>
             </div>
             <div style="background:#fef3c7;border-radius:10px;padding:14px 16px;border-left:4px solid #d97706">
-              <div style="font-size:14px;font-weight:800;color:#b45309;margin-bottom:8px"><i class="fas fa-layer-group" style="margin-right:6px"></i>多樣性最佳組合</div>
-              <div style="font-size:13px;color:#334155;line-height:1.7">溪構4（階段式）：4種物種・11尾<br>潛越式+粗石斜曲面 組合提供最廣物種覆蓋</div>
+              <div style="font-size:19px;font-weight:800;color:#b45309;margin-bottom:8px"><i class="fas fa-layer-group" style="margin-right:6px"></i>多樣性最佳組合</div>
+              <div style="font-size:18px;color:#334155;line-height:1.7">溪構4（階段式）：4種物種・11尾<br>潛越式+粗石斜曲面 組合提供最廣物種覆蓋</div>
             </div>
           </div>
 
@@ -4461,16 +4461,16 @@ function renderFishBioMap() {
       <div class="card" style="margin-top:16px">
         <div class="card-header">
           <span class="card-title" style="font-size:17px"><i class="fas fa-chart-bar" style="color:#7c3aed"></i> 魚道建置前後族群比較</span>
-          <span style="font-size:13px;color:#64748b">103年（2014）基準 vs 110年（2021）魚道通行／樣站電捕成效・物種組成對比</span>
+          <span style="font-size:18px;color:#64748b">103年（2014）基準 vs 110年（2021）魚道通行／樣站電捕成效・物種組成對比</span>
         </div>
         <div class="card-body">
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
             <!-- 建置前（103年） -->
             <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:16px">
-              <div style="font-size:15px;font-weight:800;color:#92400e;margin-bottom:12px">
+              <div style="font-size:19px;font-weight:800;color:#92400e;margin-bottom:12px">
                 <i class="fas fa-clock-rotate-left" style="margin-right:6px"></i>建置前（103年 / 2014）
               </div>
-              <div style="font-size:13px;color:#334155;margin-bottom:8px">調查地點：橫流溪下游（豐林橋附近）</div>
+              <div style="font-size:18px;color:#334155;margin-bottom:8px">調查地點：橫流溪下游（豐林橋附近）</div>
               ${[
                 { sp:'臺灣石魚賓', n:22, pct:73, col:'#f97316' },
                 { sp:'臺灣間爬岩鰍', n:8,  pct:27, col:'#f43f5e' },
@@ -4478,7 +4478,7 @@ function renderFishBioMap() {
                 { sp:'明潭吻鰕虎', n:0,  pct:0,  col:'#22c55e' }
               ].map(r=>`
                 <div style="margin-bottom:10px">
-                  <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:3px">
+                  <div style="display:flex;justify-content:space-between;font-size:18px;margin-bottom:3px">
                     <span style="font-weight:700;color:#0f172a">${r.sp}</span>
                     <span style="color:${r.col};font-weight:800">${r.n} 尾</span>
                   </div>
@@ -4487,17 +4487,17 @@ function renderFishBioMap() {
                   </div>
                 </div>
               `).join('')}
-              <div style="font-size:12px;color:#92400e;margin-top:8px;background:#fef3c7;padding:8px 10px;border-radius:6px">
+              <div style="font-size:20px;color:#92400e;margin-top:8px;background:#fef3c7;padding:8px 10px;border-radius:6px">
                 ⚠️ 臺灣白甲魚稀少，石魚賓單一優勢，物種多樣性偏低
               </div>
             </div>
 
             <!-- 建置後（110年） -->
             <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:16px">
-              <div style="font-size:15px;font-weight:800;color:#166534;margin-bottom:12px">
+              <div style="font-size:19px;font-weight:800;color:#166534;margin-bottom:12px">
                 <i class="fas fa-arrow-trend-up" style="margin-right:6px"></i>建置後（110年 / 2021）
               </div>
-              <div style="font-size:13px;color:#334155;margin-bottom:8px">調查口徑：逐魚道通行彙整（9座魚道，全流域）</div>
+              <div style="font-size:18px;color:#334155;margin-bottom:8px">調查口徑：逐魚道通行彙整（9座魚道，全流域）</div>
               ${[
                 { sp:'明潭吻鰕虎',  n:30, pct:100, col:'#22c55e' },
                 { sp:'臺灣白甲魚',  n:25, pct:83,  col:'#0ea5e9' },
@@ -4505,7 +4505,7 @@ function renderFishBioMap() {
                 { sp:'臺灣間爬岩鰍',n:2,  pct:7,   col:'#f43f5e' }
               ].map(r=>`
                 <div style="margin-bottom:10px">
-                  <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:3px">
+                  <div style="display:flex;justify-content:space-between;font-size:18px;margin-bottom:3px">
                     <span style="font-weight:700;color:#0f172a">${r.sp}</span>
                     <span style="color:${r.col};font-weight:800">${r.n} 尾</span>
                   </div>
@@ -4514,7 +4514,7 @@ function renderFishBioMap() {
                   </div>
                 </div>
               `).join('')}
-              <div style="font-size:12px;color:#166534;margin-top:8px;background:#dcfce7;padding:8px 10px;border-radius:6px">
+              <div style="font-size:20px;color:#166534;margin-top:8px;background:#dcfce7;padding:8px 10px;border-radius:6px">
                 ✅ 多物種均衡記錄，臺灣白甲魚族群大幅恢復；另表5-3樣站電捕為4月486尾、9月235尾，全年721尾
               </div>
             </div>
@@ -4526,7 +4526,7 @@ function renderFishBioMap() {
       <div class="card" style="margin-top:16px">
         <div class="card-header">
           <span class="card-title" style="font-size:17px"><i class="fas fa-camera" style="color:#92400e"></i> 紅外線自動相機記錄物種</span>
-          <span style="font-size:13px;color:#64748b">場域生態資源保全・農業部林業及自然保育署臺中分署</span>
+          <span style="font-size:18px;color:#64748b">場域生態資源保全・農業部林業及自然保育署臺中分署</span>
         </div>
         <div class="card-body">
           <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px">
@@ -4540,14 +4540,14 @@ function renderFishBioMap() {
             ].map(sp => `
               <div style="background:${sp.bg};border:1px solid ${sp.border};border-radius:10px;padding:14px 12px;text-align:center">
                 <div style="font-size:30px;color:${sp.color};margin-bottom:8px"><i class="fas ${sp.icon}"></i></div>
-                <div style="font-size:16px;font-weight:800;color:#0f172a;margin-bottom:3px">${sp.name}</div>
-                <div style="font-size:11px;font-style:italic;color:#64748b;margin-bottom:8px">${sp.sci}</div>
-                <span style="font-size:11px;background:${sp.color};color:#fff;border-radius:999px;padding:2px 8px;font-weight:700">${sp.tag}</span>
-                <div style="font-size:12px;color:#475569;margin-top:8px;line-height:1.4">${sp.note}</div>
+                <div style="font-size:20px;font-weight:800;color:#0f172a;margin-bottom:3px">${sp.name}</div>
+                <div style="font-size:19px;font-style:italic;color:#64748b;margin-bottom:8px">${sp.sci}</div>
+                <span style="font-size:19px;background:${sp.color};color:#fff;border-radius:999px;padding:2px 8px;font-weight:700">${sp.tag}</span>
+                <div style="font-size:20px;color:#475569;margin-top:8px;line-height:1.4">${sp.note}</div>
               </div>
             `).join('')}
           </div>
-          <div style="margin-top:14px;padding:10px 14px;background:#f8fafc;border-left:4px solid #92400e;border-radius:0 8px 8px 0;font-size:13px;color:#475569;line-height:1.6">
+          <div style="margin-top:14px;padding:10px 14px;background:#f8fafc;border-left:4px solid #92400e;border-radius:0 8px 8px 0;font-size:18px;color:#475569;line-height:1.6">
             <i class="fas fa-info-circle" style="color:#92400e"></i>
             <strong style="color:#92400e"> 說明：</strong>以上物種均由紅外線自動相機記錄，無外來或入侵物種，顯示橫流溪場域生態資源豐富，長期調查監測持續進行中。
           </div>
@@ -4612,7 +4612,7 @@ function initBioGISMap(fishSpecies, facilities) {
                  box-shadow:0 3px 12px rgba(0,0,0,.30)">
                  <i class="fas ${def.icon}" style="color:${def.color};font-size:22px"></i>
                </div>
-               <div style="font-size:14px;font-weight:900;color:#0f172a;white-space:nowrap;
+               <div style="font-size:19px;font-weight:900;color:#0f172a;white-space:nowrap;
                  background:rgba(255,255,255,.96);border-radius:6px;padding:3px 9px;margin-top:3px;
                  border:2px solid ${def.color};line-height:1.5;box-shadow:0 2px 6px rgba(0,0,0,.20)">
                  ${def.name}
@@ -4621,11 +4621,11 @@ function initBioGISMap(fishSpecies, facilities) {
       iconSize:[48,72], iconAnchor:[24,24]
     });
     L.marker([def.lat, def.lng], { icon })
-      .bindPopup(`<div style="min-width:190px;font-size:13px">
-        <div style="font-weight:900;font-size:15px;color:${def.color};margin-bottom:5px">
+      .bindPopup(`<div style="min-width:190px;font-size:18px">
+        <div style="font-weight:900;font-size:19px;color:${def.color};margin-bottom:5px">
           <i class="fas ${def.icon}"></i> ${def.name}</div>
         <div style="color:#334155;margin-bottom:6px;line-height:1.6">${def.sub}</div>
-        <div style="font-size:11px;color:#64748b">📷 紅外線相機・現地調查記錄</div>
+        <div style="font-size:19px;color:#64748b">📷 紅外線相機・現地調查記錄</div>
       </div>`, { maxWidth:240 })
       .addTo(bioLayerGroups.landanimals);
   });
@@ -4660,7 +4660,7 @@ function initBioGISMap(fishSpecies, facilities) {
       html: `<div style="display:flex;flex-direction:column;align-items:center;cursor:pointer;
                filter:drop-shadow(0 3px 8px rgba(0,0,0,.50))">
                <div style="width:${sz}px;height:${Math.round(sz*0.62)}px">${fish_speciesSvg(def.shape)}</div>
-               <div style="font-size:14px;font-weight:900;color:#0f172a;white-space:nowrap;
+               <div style="font-size:19px;font-weight:900;color:#0f172a;white-space:nowrap;
                  background:rgba(255,255,255,.96);border-radius:6px;padding:3px 9px;margin-top:2px;
                  border:2px solid ${col};line-height:1.5;box-shadow:0 2px 6px rgba(0,0,0,.20)">
                  ${fish_escape(def.species)}
@@ -4671,17 +4671,17 @@ function initBioGISMap(fishSpecies, facilities) {
     // popup：與 GIS整合地圖 createFishGisPopup() 相同內容
     const popupHtml = (typeof createFishGisPopup === 'function')
       ? createFishGisPopup(def)
-      : `<div style="min-width:200px;font-size:13px">
+      : `<div style="min-width:200px;font-size:18px">
            ${photo ? `<img src="${photo.image}" onerror="this.onerror=null;this.src='/webapp/assets/fish-photos/field-measurement.jpg'" style="width:100%;height:110px;object-fit:cover;border-radius:6px;margin-bottom:8px">` : ''}
-           <div style="font-weight:900;font-size:15px;color:#0f172a;margin-bottom:2px">${fish_escape(def.species)}</div>
-           <div style="font-size:12px;color:#64748b;font-style:italic;margin-bottom:8px">${fish_escape(def.scientificName||'')}</div>
-           <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:8px;font-size:12px">
+           <div style="font-weight:900;font-size:19px;color:#0f172a;margin-bottom:2px">${fish_escape(def.species)}</div>
+           <div style="font-size:20px;color:#64748b;font-style:italic;margin-bottom:8px">${fish_escape(def.scientificName||'')}</div>
+           <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:8px;font-size:20px">
              <div><b>保育：</b><span style="color:${col};font-weight:700">${cons}</span></div>
              <div><b>區域：</b>${zoneLabel}水域</div>
              <div><b>累計：</b>${Number(def.totalCount)||0} 尾次</div>
              <div><b>記錄：</b>${def.surveys||0} 筆</div>
            </div>
-           <div style="background:#f0fdfa;border-left:3px solid #0e7490;padding:7px 8px;border-radius:0 5px 5px 0;font-size:12px">
+           <div style="background:#f0fdfa;border-left:3px solid #0e7490;padding:7px 8px;border-radius:0 5px 5px 0;font-size:20px">
              <b>位置：</b>${fish_escape(def.location||'-')}
            </div>
          </div>`;
@@ -4726,7 +4726,7 @@ function initBioGISMap(fishSpecies, facilities) {
                  box-shadow:0 3px 10px rgba(0,0,0,.35)">
                  <i class="fas ${facIc}" style="color:#fff;font-size:18px"></i>
                </div>
-               <div style="font-size:13px;font-weight:900;color:#0f172a;white-space:nowrap;
+               <div style="font-size:18px;font-weight:900;color:#0f172a;white-space:nowrap;
                  background:rgba(255,255,255,.96);border-radius:6px;padding:3px 8px;margin-top:3px;
                  border:2px solid ${facColorMap(f)};line-height:1.5;box-shadow:0 2px 6px rgba(0,0,0,.20)">
                  ${facLabel}
@@ -4798,7 +4798,7 @@ function initBioGISMap(fishSpecies, facilities) {
                  <i class="fas fa-fish" style="color:#fff;font-size:22px"></i>
                </div>
                <!-- 魚道代碼標籤 -->
-               <div style="font-size:13px;font-weight:900;color:#0f172a;white-space:nowrap;
+               <div style="font-size:18px;font-weight:900;color:#0f172a;white-space:nowrap;
                  background:rgba(255,255,255,.97);border-radius:7px;padding:3px 10px;margin-top:3px;
                  border:2px solid ${fw.typeColor};box-shadow:0 2px 8px rgba(0,0,0,.22);line-height:1.5">
                  ${fw.code}
@@ -4813,29 +4813,29 @@ function initBioGISMap(fishSpecies, facilities) {
     });
 
     const popupHtml = `
-      <div style="min-width:240px;font-size:13px">
-        <div style="font-weight:900;font-size:16px;color:${fw.typeColor};margin-bottom:6px;border-bottom:2px solid ${fw.typeColor};padding-bottom:5px">
+      <div style="min-width:240px;font-size:18px">
+        <div style="font-weight:900;font-size:20px;color:${fw.typeColor};margin-bottom:6px;border-bottom:2px solid ${fw.typeColor};padding-bottom:5px">
           ${_statusBadge(fw.status)} ${fw.code}　${fw.typeName}
         </div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px;font-size:12px">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px;font-size:20px">
           <span><b>樁號：</b>${fw.km}</span>
           <span><b>狀態：</b><span style="color:${fw.status==='堵塞列管'?'#dc2626':fw.status==='需維護'?'#d97706':'#16a34a'};font-weight:700">${fw.status}</span></span>
         </div>
-        <div style="font-size:13px;font-weight:700;color:#0f172a;margin-bottom:6px">114年聯關尾數：
-          <span style="color:${fw.typeColor};font-size:15px;font-weight:900">${fw.count114}</span>
-          <span style="font-size:12px;color:#16a34a;font-weight:700">&nbsp;${fw.delta} 較106年</span>
+        <div style="font-size:18px;font-weight:700;color:#0f172a;margin-bottom:6px">114年聯關尾數：
+          <span style="color:${fw.typeColor};font-size:19px;font-weight:900">${fw.count114}</span>
+          <span style="font-size:20px;color:#16a34a;font-weight:700">&nbsp;${fw.delta} 較106年</span>
         </div>
-        <div style="font-weight:700;font-size:12px;color:#475569;margin-bottom:5px">🐟 關聯保育魚種（110年電捕調查）：</div>
+        <div style="font-weight:700;font-size:20px;color:#475569;margin-bottom:5px">🐟 關聯保育魚種（110年電捕調查）：</div>
         ${fw.species.map(sp=>`
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;
             background:#f8fafc;border-radius:6px;padding:5px 8px;border-left:3px solid ${sp.color}">
             <div style="width:38px;height:24px;flex-shrink:0">${fish_speciesSvg(sp.shape)}</div>
             <div>
-              <div style="font-weight:700;font-size:13px;color:#0f172a">${sp.name}</div>
-              <div style="font-size:11px;color:${_consColor(sp.cons)}">● ${sp.cons}&nbsp;&nbsp;110年電捕：${sp.count110>0?sp.count110+'尾':'微量'}</div>
+              <div style="font-weight:700;font-size:18px;color:#0f172a">${sp.name}</div>
+              <div style="font-size:19px;color:${_consColor(sp.cons)}">● ${sp.cons}&nbsp;&nbsp;110年電捕：${sp.count110>0?sp.count110+'尾':'微量'}</div>
             </div>
           </div>`).join('')}
-        <div style="font-size:11px;color:#94a3b8;margin-top:6px;border-top:1px solid #e2e8f0;padding-top:5px">
+        <div style="font-size:19px;color:#94a3b8;margin-top:6px;border-top:1px solid #e2e8f0;padding-top:5px">
           資料來源：110年東勢處魚道成效追蹤報告（電捕法）‧ 歷年巡查記錄
         </div>
       </div>`;
@@ -4865,7 +4865,7 @@ function initBioGISMap(fishSpecies, facilities) {
                    ${sp.name}
                  </div>
                  <!-- 保育等級 -->
-                 <div style="font-size:10px;font-weight:700;color:${_consColor(sp.cons)};
+                 <div style="font-size:19px;font-weight:700;color:${_consColor(sp.cons)};
                    background:rgba(255,255,255,.88);border-radius:4px;padding:1px 5px;margin-top:1px">
                    ${sp.cons}
                  </div>
@@ -4874,18 +4874,18 @@ function initBioGISMap(fishSpecies, facilities) {
       });
 
       const spPopup = `
-        <div style="min-width:190px;font-size:13px">
-          <div style="font-weight:900;font-size:14px;color:${sp.color};margin-bottom:4px">
+        <div style="min-width:190px;font-size:18px">
+          <div style="font-weight:900;font-size:19px;color:${sp.color};margin-bottom:4px">
             ${sp.name}</div>
-          <div style="color:#64748b;font-style:italic;font-size:11px;margin-bottom:6px">
+          <div style="color:#64748b;font-style:italic;font-size:19px;margin-bottom:6px">
             保育等級：<span style="color:${_consColor(sp.cons)};font-weight:700">${sp.cons}</span>
           </div>
           <div style="background:#f0fdfa;border-left:3px solid ${fw.typeColor};
-            border-radius:0 5px 5px 0;padding:6px 8px;font-size:12px;margin-bottom:6px">
+            border-radius:0 5px 5px 0;padding:6px 8px;font-size:20px;margin-bottom:6px">
             <b>分布魚道：</b>${fw.code} ${fw.typeName}<br>
             <b>樁號：</b>${fw.km}
           </div>
-          <div style="font-size:12px">
+          <div style="font-size:20px">
             <b>110年電捕記錄：</b>${sp.count110>0?'<span style="color:#16a34a;font-weight:700">'+sp.count110+'尾</span>':'<span style="color:#94a3b8">微量記錄</span>'}
           </div>
         </div>`;
@@ -4907,7 +4907,7 @@ function initBioGISMap(fishSpecies, facilities) {
       'background:rgba(255,255,255,.96)',
       'padding:8px 12px',
       'border-radius:8px',
-      'font-size:13px',
+      'font-size:18px',
       'border:2px solid #0e7490',
       'display:none',
       'min-width:220px',
@@ -4925,24 +4925,24 @@ function initBioGISMap(fishSpecies, facilities) {
     if (!box) return;
     box.style.display = 'block';
     box.innerHTML = `
-      <div style="font-weight:900;color:#0e7490;margin-bottom:4px;font-size:13px">
+      <div style="font-weight:900;color:#0e7490;margin-bottom:4px;font-size:18px">
         <i class="fas fa-map-pin"></i> 點擊座標
       </div>
-      <div style="font-size:14px;color:#0f172a;line-height:1.8">
+      <div style="font-size:19px;color:#0f172a;line-height:1.8">
         lat: <b>${lat}</b><br>
         lng: <b>${lng}</b>
       </div>
       <div style="display:flex;gap:6px;margin-top:8px">
         <button onclick="navigator.clipboard.writeText('${lat},${lng}').then(()=>{this.textContent='✓ 已複製';setTimeout(()=>{this.textContent='複製'},1500)})"
-          style="flex:1;border:none;background:#0e7490;color:#fff;border-radius:5px;padding:4px 0;cursor:pointer;font-size:12px;font-weight:700">
+          style="flex:1;border:none;background:#0e7490;color:#fff;border-radius:5px;padding:4px 0;cursor:pointer;font-size:20px;font-weight:700">
           複製
         </button>
         <button onclick="document.getElementById('biogisCoordBox').style.display='none'"
-          style="border:none;background:#e2e8f0;color:#475569;border-radius:5px;padding:4px 10px;cursor:pointer;font-size:12px">
+          style="border:none;background:#e2e8f0;color:#475569;border-radius:5px;padding:4px 10px;cursor:pointer;font-size:20px">
           ✕
         </button>
       </div>
-      <div style="font-size:11px;color:#94a3b8;margin-top:6px">點擊地圖任意位置可取得座標</div>
+      <div style="font-size:19px;color:#94a3b8;margin-top:6px">點擊地圖任意位置可取得座標</div>
     `;
   });
 
@@ -4951,7 +4951,7 @@ function initBioGISMap(fishSpecies, facilities) {
 
 /* ── 地圖輔助函式 ──────────────────────────────────────────────────────────── */
 function biogisLayerToggle(key, icon, color, label) {
-  return `<label style="display:flex;align-items:center;gap:5px;padding:5px 9px;border:1px solid #d5dde7;border-radius:6px;background:#fff;font-size:12px;cursor:pointer;white-space:nowrap">
+  return `<label style="display:flex;align-items:center;gap:5px;padding:5px 9px;border:1px solid #d5dde7;border-radius:6px;background:#fff;font-size:20px;cursor:pointer;white-space:nowrap">
     <input type="checkbox" checked onchange="biogisToggleLayer('${key}',this.checked)" style="accent-color:${color}">
     <i class="fas fa-${icon}" style="color:${color}"></i>${label}
   </label>`;
@@ -4988,19 +4988,19 @@ function biogisLocate(lat, lng, name) {
 function biogisFactPopup(f) {
   const statusColor = f.status==='損壞'?'#dc2626':f.status==='需維護'?'#f59e0b':'#16a34a';
   const cond = f.condition ? `${f.condition}/5` : '-';
-  return `<div style="min-width:220px;font-size:13px;line-height:1.7">
-    <div style="font-weight:800;font-size:14px;color:#0f172a;margin-bottom:6px">${fish_escape(f.name)}</div>
+  return `<div style="min-width:220px;font-size:18px;line-height:1.7">
+    <div style="font-weight:800;font-size:19px;color:#0f172a;margin-bottom:6px">${fish_escape(f.name)}</div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
-      <span style="background:#dbeafe;color:#1e40af;padding:2px 7px;border-radius:999px;font-size:11px;font-weight:700">${fish_escape(f.type)}</span>
-      <span style="background:${statusColor}22;color:${statusColor};padding:2px 7px;border-radius:999px;font-size:11px;font-weight:700;border:1px solid ${statusColor}44">${fish_escape(f.status)}</span>
+      <span style="background:#dbeafe;color:#1e40af;padding:2px 7px;border-radius:999px;font-size:19px;font-weight:700">${fish_escape(f.type)}</span>
+      <span style="background:${statusColor}22;color:${statusColor};padding:2px 7px;border-radius:999px;font-size:19px;font-weight:700;border:1px solid ${statusColor}44">${fish_escape(f.status)}</span>
     </div>
-    <table style="width:100%;font-size:12px;border-collapse:collapse">
+    <table style="width:100%;font-size:20px;border-collapse:collapse">
       <tr><td style="color:#64748b;padding:2px 0">里程</td><td style="font-weight:600">${fish_escape(f.stationKm||'-')}</td></tr>
       <tr><td style="color:#64748b;padding:2px 0">健康指數</td><td style="font-weight:600">${cond}</td></tr>
       <tr><td style="color:#64748b;padding:2px 0">上次巡查</td><td style="font-weight:600">${fish_escape(f.lastInspect||'-')}</td></tr>
       <tr><td style="color:#64748b;padding:2px 0">維護優先</td><td style="font-weight:600">${fish_escape(f.maintenance_priority||'-')}</td></tr>
     </table>
-    ${f.evaluationNotes ? `<div style="margin-top:7px;font-size:11px;color:#475569;border-left:3px solid #1565c0;padding-left:7px;line-height:1.55">${fish_escape(f.evaluationNotes)}</div>` : ''}
+    ${f.evaluationNotes ? `<div style="margin-top:7px;font-size:19px;color:#475569;border-left:3px solid #1565c0;padding-left:7px;line-height:1.55">${fish_escape(f.evaluationNotes)}</div>` : ''}
   </div>`;
 }
 
@@ -5008,43 +5008,43 @@ function biogisSpeciesPopup(sp) {
   const cMap = { '瀕危':['#fee2e2','#b91c1c'],'易危':['#fef9c3','#854d0e'],'近危':['#dbeafe','#1d4ed8'],'一般':['#dcfce7','#166534'] };
   const [cbg, ccl] = cMap[sp.conservation] || ['#f1f5f9','#475569'];
   const habitat = (sp.note||'').split('；').find(p => p.includes('偏好')||p.includes('底質')||p.includes('礫石')||p.includes('急流')) || '';
-  return `<div style="min-width:200px;font-size:13px;line-height:1.7">
-    <div style="font-weight:800;font-size:14px;color:#0f172a;margin-bottom:4px">${fish_escape(sp.species)}</div>
-    <div style="font-style:italic;font-size:11px;color:#64748b;margin-bottom:8px">${fish_escape(sp.scientificName||'')}</div>
+  return `<div style="min-width:200px;font-size:18px;line-height:1.7">
+    <div style="font-weight:800;font-size:19px;color:#0f172a;margin-bottom:4px">${fish_escape(sp.species)}</div>
+    <div style="font-style:italic;font-size:19px;color:#64748b;margin-bottom:8px">${fish_escape(sp.scientificName||'')}</div>
     <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px">
-      <span style="background:${cbg};color:${ccl};padding:2px 7px;border-radius:999px;font-size:11px;font-weight:700">${fish_escape(sp.conservation)}</span>
-      <span style="background:#f0f9ff;color:#0369a1;padding:2px 7px;border-radius:999px;font-size:11px">${fish_escape(sp.family||'')}</span>
+      <span style="background:${cbg};color:${ccl};padding:2px 7px;border-radius:999px;font-size:19px;font-weight:700">${fish_escape(sp.conservation)}</span>
+      <span style="background:#f0f9ff;color:#0369a1;padding:2px 7px;border-radius:999px;font-size:19px">${fish_escape(sp.family||'')}</span>
     </div>
-    <table style="width:100%;font-size:12px;border-collapse:collapse">
+    <table style="width:100%;font-size:20px;border-collapse:collapse">
       <tr><td style="color:#64748b;padding:2px 0">調查尾次</td><td style="font-weight:700;color:#0e7490">${sp.totalCount} 尾</td></tr>
       <tr><td style="color:#64748b;padding:2px 0">調查筆數</td><td>${sp.surveys} 筆</td></tr>
-      <tr><td style="color:#64748b;padding:2px 0">分布位置</td><td style="font-size:11px">${fish_escape(sp.location||'')}</td></tr>
+      <tr><td style="color:#64748b;padding:2px 0">分布位置</td><td style="font-size:19px">${fish_escape(sp.location||'')}</td></tr>
     </table>
-    ${habitat ? `<div style="margin-top:7px;font-size:11px;color:#475569;border-left:3px solid #0e7490;padding-left:7px;line-height:1.55">${fish_escape(habitat)}</div>` : ''}
+    ${habitat ? `<div style="margin-top:7px;font-size:19px;color:#475569;border-left:3px solid #0e7490;padding-left:7px;line-height:1.55">${fish_escape(habitat)}</div>` : ''}
   </div>`;
 }
 
 function biogisZonePopup(zd, zoneSpecies) {
   const total = zoneSpecies.reduce((s,x)=>s+(Number(x.totalCount)||0), 0);
   const conserved = zoneSpecies.filter(x=>x.conservation&&x.conservation!=='一般');
-  return `<div style="min-width:210px;font-size:13px;line-height:1.7">
-    <div style="font-weight:800;font-size:14px;color:#0f172a;margin-bottom:4px">${fish_escape(zd.name)}</div>
-    <div style="font-size:11px;color:#64748b;margin-bottom:8px">${fish_escape(zd.range)}</div>
-    <table style="width:100%;font-size:12px;border-collapse:collapse">
+  return `<div style="min-width:210px;font-size:18px;line-height:1.7">
+    <div style="font-weight:800;font-size:19px;color:#0f172a;margin-bottom:4px">${fish_escape(zd.name)}</div>
+    <div style="font-size:19px;color:#64748b;margin-bottom:8px">${fish_escape(zd.range)}</div>
+    <table style="width:100%;font-size:20px;border-collapse:collapse">
       <tr><td style="color:#64748b;padding:2px 0">物種數</td><td style="font-weight:700;color:#0369a1">${zoneSpecies.length} 種</td></tr>
       <tr><td style="color:#64748b;padding:2px 0">累計尾次</td><td style="font-weight:700;color:#0e7490">${total} 尾</td></tr>
       <tr><td style="color:#64748b;padding:2px 0">保育魚類</td><td style="font-weight:700;color:#dc2626">${conserved.length} 種</td></tr>
     </table>
-    ${zoneSpecies.length ? `<div style="margin-top:8px;font-size:11px;color:#334155">
+    ${zoneSpecies.length ? `<div style="margin-top:8px;font-size:19px;color:#334155">
       <b>主要物種：</b>${zoneSpecies.slice(0,3).map(x=>fish_escape(x.species)).join('、')}
     </div>` : ''}
   </div>`;
 }
 
 function biogisLandPopup() {
-  return `<div style="min-width:200px;font-size:13px;line-height:1.7">
-    <div style="font-weight:800;font-size:14px;color:#166534;margin-bottom:6px"><i class="fas fa-tree"></i> 陸域濱溪帶</div>
-    <table style="width:100%;font-size:12px;border-collapse:collapse">
+  return `<div style="min-width:200px;font-size:18px;line-height:1.7">
+    <div style="font-weight:800;font-size:19px;color:#166534;margin-bottom:6px"><i class="fas fa-tree"></i> 陸域濱溪帶</div>
+    <table style="width:100%;font-size:20px;border-collapse:collapse">
       <tr><td style="color:#64748b;padding:2px 0">植物科數</td><td style="font-weight:700;color:#166534">37 科</td></tr>
       <tr><td style="color:#64748b;padding:2px 0">植物種數</td><td style="font-weight:700;color:#166534">90 種</td></tr>
       <tr><td style="color:#64748b;padding:2px 0">原生種</td><td>60 種</td></tr>
@@ -5052,7 +5052,7 @@ function biogisLandPopup() {
       <tr><td style="color:#64748b;padding:2px 0">歸化種</td><td>30 種</td></tr>
       <tr><td style="color:#64748b;padding:2px 0">調查時間</td><td>112年6月</td></tr>
     </table>
-    <div style="margin-top:7px;font-size:11px;color:#475569;border-left:3px solid #16a34a;padding-left:7px;line-height:1.55">
+    <div style="margin-top:7px;font-size:19px;color:#475569;border-left:3px solid #16a34a;padding-left:7px;line-height:1.55">
       包含魚蛉科、石蠅科、春蜓科等偏好清澈水質的濱溪昆蟲，顯示棲地品質優良。
     </div>
   </div>`;
@@ -5067,7 +5067,7 @@ function bioSecHead(num, icon, title, sub, color) {
         <i class="fas ${icon}" style="color:${color};font-size:24px"></i>
         <div>
           <div style="font-size:24px;font-weight:900;color:#0f172a;line-height:1.1">${title}</div>
-          <div style="font-size:13px;color:#64748b;margin-top:3px">${sub}</div>
+          <div style="font-size:18px;color:#64748b;margin-top:3px">${sub}</div>
         </div>
       </div>
     </div>`;
@@ -5082,7 +5082,7 @@ function bioStat(label, value, sub, color, bg, icon) {
       <div>
         <div style="font-size:34px;font-weight:900;color:${color};line-height:1">${value}</div>
         <div style="font-size:17px;font-weight:800;color:#0f172a;margin-top:4px">${label}</div>
-        <div style="font-size:13px;color:#64748b;margin-top:3px">${sub}</div>
+        <div style="font-size:18px;color:#64748b;margin-top:3px">${sub}</div>
       </div>
     </div>`;
 }
@@ -5121,15 +5121,15 @@ function bioCategoryBlock(cat, fishSpecies) {
           </div>
           <div style="flex:1;text-align:left">
             <div style="font-weight:800;font-size:18px;color:${cat.color};line-height:1.2">${cat.category}</div>
-            <div style="font-size:13px;color:#64748b;margin-top:2px">${items.length} 項記錄・點擊展開</div>
+            <div style="font-size:18px;color:#64748b;margin-top:2px">${items.length} 項記錄・點擊展開</div>
           </div>
-          <span style="background:#fff;border:2px solid ${cat.color}66;color:${cat.color};border-radius:999px;padding:4px 13px;font-size:16px;font-weight:800;min-width:36px;text-align:center">${items.length}</span>
+          <span style="background:#fff;border:2px solid ${cat.color}66;color:${cat.color};border-radius:999px;padding:4px 13px;font-size:20px;font-weight:800;min-width:36px;text-align:center">${items.length}</span>
           <i id="${id}_arrow" class="fas fa-chevron-down" style="color:${cat.color};font-size:18px;transition:transform .25s;flex-shrink:0;margin-right:4px"></i>
         </button>
         <button data-q="${catQ}"
           onclick="fish_openAIQA(this.getAttribute('data-q'))"
           title="AI問答：${cat.category}"
-          style="flex-shrink:0;background:#f5f3ff;border:1.5px solid #818cf8;color:#4f46e5;border-radius:10px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;margin-right:4px">
+          style="flex-shrink:0;background:#f5f3ff;border:1.5px solid #818cf8;color:#4f46e5;border-radius:10px;padding:6px 10px;font-size:20px;font-weight:700;cursor:pointer;white-space:nowrap;margin-right:4px">
           <i class="fas fa-robot"></i> AI
         </button>
       </div>
@@ -5142,14 +5142,14 @@ function bioCategoryBlock(cat, fishSpecies) {
             <div style="width:8px;height:8px;border-radius:50%;background:${cat.color};margin-top:7px;flex-shrink:0"></div>
             <div style="flex:1;min-width:0">
               <div style="font-weight:800;font-size:17px;color:#0f172a;margin-bottom:4px">${fish_escape(item.name)}</div>
-              ${item.detail ? `<div style="font-size:15px;color:#334155;line-height:1.5">${fish_escape(item.detail)}</div>` : ''}
-              ${item.extra ? `<div style="font-size:13px;color:#94a3b8;margin-top:3px">${fish_escape(item.extra)}</div>` : ''}
+              ${item.detail ? `<div style="font-size:19px;color:#334155;line-height:1.5">${fish_escape(item.detail)}</div>` : ''}
+              ${item.extra ? `<div style="font-size:18px;color:#94a3b8;margin-top:3px">${fish_escape(item.extra)}</div>` : ''}
             </div>
-            ${item.tag ? `<span style="${tagStyle(item.tag)};font-size:13px;font-weight:700;padding:5px 12px;border-radius:999px;white-space:nowrap;flex-shrink:0">${fish_escape(item.tag)}</span>` : ''}
+            ${item.tag ? `<span style="${tagStyle(item.tag)};font-size:18px;font-weight:700;padding:5px 12px;border-radius:999px;white-space:nowrap;flex-shrink:0">${fish_escape(item.tag)}</span>` : ''}
             <button data-q="${itemQ}"
               onclick="event.stopPropagation();fish_openAIQA(this.getAttribute('data-q'))"
               title="AI問答：${fish_escape(item.name)}"
-              style="flex-shrink:0;background:#f5f3ff;border:1.5px solid #818cf8;color:#4f46e5;border-radius:8px;padding:5px 9px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;align-self:center">
+              style="flex-shrink:0;background:#f5f3ff;border:1.5px solid #818cf8;color:#4f46e5;border-radius:8px;padding:5px 9px;font-size:20px;font-weight:700;cursor:pointer;white-space:nowrap;align-self:center">
               💬
             </button>
           </div>`;
@@ -5195,10 +5195,10 @@ function bioLandSceneSvg() {
       <g transform="translate(720,20)"><path d="M0 0 Q10-13,20 0 Q10-6,0 0" fill="#1d4ed8" opacity=".9"/></g>
       <g transform="translate(950,34)"><path d="M0 0 Q7-9,14 0 Q7-4.5,0 0" fill="#1d4ed8" opacity=".9"/></g>
       <text x="330" y="46" style="font-size:18px">🦋</text>
-      <text x="570" y="40" style="font-size:16px">🦗</text>
+      <text x="570" y="40" style="font-size:20px">🦗</text>
       <text x="810" y="52" style="font-size:18px">🦗</text>
-      <text x="16" y="22" style="font-size:14px;font-weight:700;fill:#166534">陸域植被帶</text>
-      <text x="16" y="38" style="font-size:12px;fill:#4b7c59">豐林橋沿線 38科 91種植物</text>
+      <text x="16" y="22" style="font-size:19px;font-weight:700;fill:#166534">陸域植被帶</text>
+      <text x="16" y="38" style="font-size:20px;fill:#4b7c59">豐林橋沿線 38科 91種植物</text>
     </svg>`;
 }
 
@@ -5214,20 +5214,20 @@ function bioWaterSceneSvg(fishSpecies) {
         <ellipse cx="${x}" cy="${108+(i%2)*8}" rx="${24+(i%3)*9}" ry="${12+(i%2)*4}" fill="#94a3b8" opacity=".6"/>`).join('')}
       ${[50,180,320,470,600,740,860,1000].map((x,i) => `
         <circle cx="${x}" cy="${22+(i%4)*18}" r="${3+(i%3)}" fill="#fff" opacity=".45"/>`).join('')}
-      <text x="240" y="82" style="font-size:15px" opacity=".9">🪲</text>
-      <text x="420" y="94" style="font-size:15px" opacity=".9">🪲</text>
-      <text x="650" y="79" style="font-size:15px" opacity=".9">🪲</text>
-      <text x="830" y="90" style="font-size:15px" opacity=".9">🪲</text>
-      <text x="970" y="98" style="font-size:16px">🦐</text>
+      <text x="240" y="82" style="font-size:19px" opacity=".9">🪲</text>
+      <text x="420" y="94" style="font-size:19px" opacity=".9">🪲</text>
+      <text x="650" y="79" style="font-size:19px" opacity=".9">🪲</text>
+      <text x="830" y="90" style="font-size:19px" opacity=".9">🪲</text>
+      <text x="970" y="98" style="font-size:20px">🦐</text>
       ${xs.slice(0, Math.min(xs.length, fishSpecies.length)).map((x, i) => {
         const sp = fishSpecies[i];
         return `<g>
           <text x="${x}" y="${ys[i]}" style="font-size:20px">${fishIcons[i%fishIcons.length]}</text>
-          <text x="${x-18}" y="${ys[i]+18}" style="font-size:11px;font-weight:700;fill:#0369a1;stroke:#fff;stroke-width:3px;paint-order:stroke">${fish_escape((sp?.species||'').slice(0,4))}</text>
+          <text x="${x-18}" y="${ys[i]+18}" style="font-size:19px;font-weight:700;fill:#0369a1;stroke:#fff;stroke-width:3px;paint-order:stroke">${fish_escape((sp?.species||'').slice(0,4))}</text>
         </g>`;
       }).join('')}
-      <text x="16" y="22" style="font-size:14px;font-weight:700;fill:#0369a1">水域帶</text>
-      <text x="16" y="38" style="font-size:12px;fill:#0369a1;opacity:.85">魚類・水棲昆蟲・甲殼類</text>
+      <text x="16" y="22" style="font-size:19px;font-weight:700;fill:#0369a1">水域帶</text>
+      <text x="16" y="38" style="font-size:20px;fill:#0369a1;opacity:.85">魚類・水棲昆蟲・甲殼類</text>
     </svg>`;
 }
 
@@ -5248,7 +5248,7 @@ function injectBioMapStyles() {
     @media(max-width:680px){.biomap-org-grid{grid-template-columns:1fr}}
     .bio-gis-legend{display:none}
     .bio-legend-side{width:280px;flex-shrink:0;overflow-y:auto;max-height:580px;
-      background:#fafcff;border-left:2px solid #e2e8f0;padding:20px 18px;font-size:14px}
+      background:#fafcff;border-left:2px solid #e2e8f0;padding:20px 18px;font-size:19px}
     .bio-legend-side::-webkit-scrollbar{width:4px}
     .bio-legend-side::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px}
   `;
@@ -5289,8 +5289,8 @@ function fishPhotoLightbox(src, name, caption) {
     </div>
     <div style="margin-top:14px;text-align:center;color:#fff">
       <div style="font-size:20px;font-weight:800;margin-bottom:4px">${name}</div>
-      ${caption ? `<div style="font-size:13px;color:#cbd5e1;max-width:500px;line-height:1.5">${caption}</div>` : ''}
-      <div style="font-size:12px;color:#64748b;margin-top:8px">點擊任意處關閉</div>
+      ${caption ? `<div style="font-size:18px;color:#cbd5e1;max-width:500px;line-height:1.5">${caption}</div>` : ''}
+      <div style="font-size:20px;color:#64748b;margin-top:8px">點擊任意處關閉</div>
     </div>
   `;
 
