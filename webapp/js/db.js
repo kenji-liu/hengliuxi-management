@@ -335,11 +335,11 @@ const DB = {
           photos: ['/webapp/assets/report-photos/manual-p38-04-665x374.jpg', '/02_魚類與棲地資料庫/工作站魚類調查/7D9946A5-D2E6-4F60-8668-3AE056A2931D.jpg'] },
 
         { id: 7, name: '溪構5-2 潛越式魚道', type: '魚道', subType: '潛越式', code: '5-2', stationKm: '1K+000', location: '溪構5-2', twd97x: 240812, twd97y: 2675353, lat: 24.183541, lng: 120.909564, km_num: 1000,
-          year: 105, status: '損壞', material: '混凝土', length: 18, width: 1.0, condition: 1, lastInspect: '2025-01-10', source: '107-108成果報告 / 維護管理手冊表5-1',
-          derLevel: 'A1', assessmentDate: '2025-01-10', riskScore: 95, maintenanceStrategy: '升級式', retirementEligible: true, evaluationNotes: '颱風後入口完全堵塞，喪失魚道通行功能；棲地連通性嚴重受損，需評估升級改造或更新',
-          river_segment: '橫流溪中游', anomaly_type: '魚道阻塞|淘空|淤積', anomaly_level: '高', maintenance_priority: '緊急',
-          judgement_basis: '颱風入口完全堵塞，喪失通行功能，棲地連通性嚴重受損，健康指數15分，需緊急清除堵塞並評估結構安全，優先進行升級改造',
-          note: '潛越式魚道（溪構5-2），颱風後入口遭土石堵塞完全阻塞，喪失通行功能；需緊急清除土石並評估結構安全；為棲地連通性優先修復項目',
+          year: 105, status: '正常', material: '混凝土', length: 18, width: 1.0, condition: 3, lastInspect: '2025-06-15', source: '107-108成果報告 / 114年田野巡查',
+          derLevel: 'B1', assessmentDate: '2025-06-15', riskScore: 25, maintenanceStrategy: '定期式', retirementEligible: false, evaluationNotes: '113年崩塌土石清理工程完成後恢復通行功能；114年全溪電捕潛越式 CPUE 達97尾/站訪次（7型式最高），明潭吻鰕虎電捕佔比最高，通行效能確認',
+          river_segment: '橫流溪中游', anomaly_type: null, anomaly_level: '正常', maintenance_priority: '低',
+          judgement_basis: '113年清淤工程後入口暢通；110年魚道電捕17尾（溪構5-2佔全段最高），114年 CPUE 97（全型式最高）；通行效能恢復並超越清淤前水準，定期巡查即可',
+          note: '潛越式魚道（溪構5-2），1K+000節點；113年崩塌土石清理後入口恢復暢通；明潭吻鰕虎偏好此型式低流速潛越區，為保育旗艦種主要通道；定期巡查維持入口斷面即可',
           photos: ['/webapp/assets/report-photos/manual-p38-05-665x498.jpg', '/02_魚類與棲地資料庫/解說牌/潛越式魚道_0.png'] },
 
         { id: 8, name: '溪構10 固床工', type: '固床工', subType: '隔梳式', code: '10', stationKm: '1K+040', location: '溪構10', twd97x: 240802, twd97y: 2675390, lat: 24.183875, lng: 120.909465, km_num: 1040,

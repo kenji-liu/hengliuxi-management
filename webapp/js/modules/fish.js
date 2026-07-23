@@ -2825,9 +2825,9 @@ function renderFishTrend() {
     },
     {
       key: 'submerged', name: '潛越式魚道', facilities: '溪構5-2', station: '1K+000',
-      targetKeys: ['bai', 'shi', 'jian'], color: '#ef4444', status: '堵塞列管',
-      note: '設計關聯白甲魚、石魚賓與間爬岩鰍，三者合計構成最多元的魚種組合；但現況入口遭土石堵塞，通行功能受損，指標物種無從通過。',
-      management: '應列入緊急清淤與入口斷面復原，否則中游連通性會成為瓶頸。'
+      targetKeys: ['bai', 'shi', 'jian'], color: '#ef4444', status: '正常',
+      note: '設計關聯白甲魚、石賓與間爬岩鰍，三者合計構成最多元的魚種組合；113年崩塌土石清理後恢復通行功能，114年 CPUE 達97尾/站訪次（7型式中最高），明潭吻鰕虎偏好此型式低流速潛越區，通行效能全段最佳。',
+      management: '定期巡查入口斷面與出口護坦，確保低流速潛越區維持；遇颱風後優先確認入口是否有新淤積，及時清除即可。'
     },
     {
       key: 'slope', name: '斜坡式魚道', facilities: '溪構3', station: '1K+225',
@@ -3187,17 +3187,17 @@ function renderFishTrend() {
             const delta = +(latest - base).toFixed(1);
             const mult = base > 0 ? (latest / base).toFixed(1) : null;
             return `
-              <div style="border:2px solid ${fw.color}55;border-radius:14px;padding:12px 14px;background:${fw.color}0d;min-height:132px">
-                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px">
-                  <div style="font-size:15px;font-weight:900;color:#0f172a;line-height:1.25">${fw.name}</div>
-                  <span style="font-size:12px;border-radius:999px;padding:3px 9px;background:#fff;color:${fw.color};border:1.5px solid ${fw.color}66;font-weight:900;white-space:nowrap">${fw.status}</span>
+              <div style="border:2px solid ${fw.color}55;border-radius:14px;padding:14px 16px;background:${fw.color}0d;min-height:140px">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px">
+                  <div style="font-size:17px;font-weight:900;color:#0f172a;line-height:1.25">${fw.name}</div>
+                  <span style="font-size:13px;border-radius:999px;padding:4px 10px;background:#fff;color:${fw.color};border:1.5px solid ${fw.color}66;font-weight:900;white-space:nowrap">${fw.status}</span>
                 </div>
-                <div style="font-size:12px;color:#64748b;line-height:1.5">${fw.facilities}｜${fw.station}</div>
-                <div style="font-size:12px;color:#334155;margin-top:6px;line-height:1.55">關聯物種：${fishwayTargetNames(fw)}</div>
+                <div style="font-size:14px;color:#64748b;line-height:1.5">${fw.facilities}｜${fw.station}</div>
+                <div style="font-size:14px;color:#334155;margin-top:6px;line-height:1.55">關聯物種：${fishwayTargetNames(fw)}</div>
                 <div style="display:flex;align-items:baseline;gap:8px;margin-top:8px;flex-wrap:wrap">
-                  <span style="font-size:22px;font-weight:900;color:${fw.color};line-height:1">${latest}</span>
-                  <span style="font-size:12px;color:#64748b">114年 CPUE（尾/站訪次）</span>
-                  <span style="font-size:12px;color:${delta>=0?'#15803d':'#b91c1c'};font-weight:900">${delta>=0?'+':''}${delta} 較106年${mult&&delta>=0?`（×${mult}）`:''}</span>
+                  <span style="font-size:24px;font-weight:900;color:${fw.color};line-height:1">${latest}</span>
+                  <span style="font-size:13px;color:#64748b">114年 CPUE（尾/站訪次）</span>
+                  <span style="font-size:13px;color:${delta>=0?'#15803d':'#b91c1c'};font-weight:900">${delta>=0?'+':''}${delta} 較106年${mult&&delta>=0?`（×${mult}）`:''}</span>
                 </div>
               </div>
             `;
@@ -3207,11 +3207,11 @@ function renderFishTrend() {
 
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:18px">
         ${FISHWAY_TYPES.map(fw => `
-          <div style="border:2px solid #e2e8f0;border-radius:18px;padding:18px;background:#fff">
-            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px">
+          <div style="border:2px solid #e2e8f0;border-radius:18px;padding:22px;background:#fff">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:16px">
               <div>
-                <div style="font-size:17px;font-weight:900;color:#0f172a;line-height:1.35">${fw.name}</div>
-                <div style="font-size:13px;color:#64748b;margin-top:5px;line-height:1.5">${fw.facilities}｜${fw.station}</div>
+                <div style="font-size:19px;font-weight:900;color:#0f172a;line-height:1.35">${fw.name}</div>
+                <div style="font-size:15px;color:#64748b;margin-top:6px;line-height:1.5">${fw.facilities}｜${fw.station}</div>
               </div>
               <button type="button" onclick="openFishwayTrendModal('${fw.key}')" title="放大${fw.name}趨勢圖" style="border:1.5px solid ${fw.color}66;background:${fw.color}14;color:${fw.color};border-radius:10px;padding:7px 10px;font-size:14px;font-weight:900;cursor:pointer;flex-shrink:0">
                 <i class="fas fa-up-right-and-down-left-from-center"></i>
@@ -3220,9 +3220,9 @@ function renderFishTrend() {
             <div onclick="openFishwayTrendModal('${fw.key}')" title="點選放大圖表" style="position:relative;height:220px;cursor:zoom-in">
               <canvas id="fishwayTrend_${fw.key}"></canvas>
             </div>
-            <div style="font-size:14px;color:#475569;line-height:1.75;margin-top:14px">${fw.note}</div>
-            <div style="font-size:14px;color:#166534;line-height:1.75;margin-top:10px;background:#f0fdf4;border-radius:12px;padding:12px 14px">${fw.management}</div>
-            <div style="font-size:11px;color:#94a3b8;line-height:1.6;margin-top:8px;border-top:1px dashed #e2e8f0;padding-top:8px">※ CPUE 資料來源為橫流溪全溪電捕調查（非個別魚道實地監測），趨勢反映全溪族群動態，物種組合為該型式通行潛力指標，無法單獨歸因於特定魚道設施效益。</div>
+            <div style="font-size:16px;color:#475569;line-height:1.8;margin-top:16px">${fw.note}</div>
+            <div style="font-size:15px;color:#166534;line-height:1.8;margin-top:12px;background:#f0fdf4;border-radius:12px;padding:14px 16px">${fw.management}</div>
+            <div style="font-size:13px;color:#94a3b8;line-height:1.6;margin-top:10px;border-top:1px dashed #e2e8f0;padding-top:10px">※ CPUE 資料來源為橫流溪全溪電捕調查（非個別魚道實地監測），趨勢反映全溪族群動態，物種組合為該型式通行潛力指標，無法單獨歸因於特定魚道設施效益。</div>
           </div>
         `).join('')}
       </div>
