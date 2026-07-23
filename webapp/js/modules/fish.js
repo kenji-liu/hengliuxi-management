@@ -3187,17 +3187,17 @@ function renderFishTrend() {
             const delta = +(latest - base).toFixed(1);
             const mult = base > 0 ? (latest / base).toFixed(1) : null;
             return `
-              <div style="border:2px solid ${fw.color}55;border-radius:14px;padding:16px 18px;background:${fw.color}0d;min-height:150px">
-                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px">
-                  <div style="font-size:20px;font-weight:900;color:#0f172a;line-height:1.25">${fw.name}</div>
-                  <span style="font-size:15px;border-radius:999px;padding:4px 12px;background:#fff;color:${fw.color};border:1.5px solid ${fw.color}66;font-weight:900;white-space:nowrap">${fw.status}</span>
+              <div style="border:2px solid ${fw.color}55;border-radius:14px;padding:18px 20px;background:${fw.color}0d;min-height:160px">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px">
+                  <div style="font-size:24px;font-weight:900;color:#0f172a;line-height:1.25">${fw.name}</div>
+                  <span style="font-size:17px;border-radius:999px;padding:5px 13px;background:#fff;color:${fw.color};border:1.5px solid ${fw.color}66;font-weight:900;white-space:nowrap">${fw.status}</span>
                 </div>
-                <div style="font-size:16px;color:#64748b;line-height:1.5">${fw.facilities}｜${fw.station}</div>
-                <div style="font-size:16px;color:#334155;margin-top:7px;line-height:1.55">關聯物種：${fishwayTargetNames(fw)}</div>
-                <div style="display:flex;align-items:baseline;gap:8px;margin-top:10px;flex-wrap:wrap">
-                  <span style="font-size:28px;font-weight:900;color:${fw.color};line-height:1">${latest}</span>
-                  <span style="font-size:15px;color:#64748b">114年 CPUE（尾/站訪次）</span>
-                  <span style="font-size:15px;color:${delta>=0?'#15803d':'#b91c1c'};font-weight:900">${delta>=0?'+':''}${delta} 較106年${mult&&delta>=0?`（×${mult}）`:''}</span>
+                <div style="font-size:18px;color:#64748b;line-height:1.5">${fw.facilities}｜${fw.station}</div>
+                <div style="font-size:18px;color:#334155;margin-top:8px;line-height:1.6">關聯物種：${fishwayTargetNames(fw)}</div>
+                <div style="display:flex;align-items:baseline;gap:10px;margin-top:12px;flex-wrap:wrap">
+                  <span style="font-size:32px;font-weight:900;color:${fw.color};line-height:1">${latest}</span>
+                  <span style="font-size:17px;color:#64748b">114年 CPUE（尾/站訪次）</span>
+                  <span style="font-size:17px;color:${delta>=0?'#15803d':'#b91c1c'};font-weight:900">${delta>=0?'+':''}${delta} 較106年${mult&&delta>=0?`（×${mult}）`:''}</span>
                 </div>
               </div>
             `;
@@ -3207,22 +3207,22 @@ function renderFishTrend() {
 
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:18px">
         ${FISHWAY_TYPES.map(fw => `
-          <div style="border:2px solid #e2e8f0;border-radius:18px;padding:24px;background:#fff">
-            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:18px">
+          <div style="border:2px solid #e2e8f0;border-radius:18px;padding:26px;background:#fff">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:20px">
               <div>
-                <div style="font-size:22px;font-weight:900;color:#0f172a;line-height:1.35">${fw.name}</div>
-                <div style="font-size:17px;color:#64748b;margin-top:7px;line-height:1.5">${fw.facilities}｜${fw.station}</div>
+                <div style="font-size:26px;font-weight:900;color:#0f172a;line-height:1.35">${fw.name}</div>
+                <div style="font-size:19px;color:#64748b;margin-top:8px;line-height:1.5">${fw.facilities}｜${fw.station}</div>
               </div>
-              <button type="button" onclick="openFishwayTrendModal('${fw.key}')" title="放大${fw.name}趨勢圖" style="border:1.5px solid ${fw.color}66;background:${fw.color}14;color:${fw.color};border-radius:10px;padding:8px 12px;font-size:16px;font-weight:900;cursor:pointer;flex-shrink:0">
+              <button type="button" onclick="openFishwayTrendModal('${fw.key}')" title="放大${fw.name}趨勢圖" style="border:1.5px solid ${fw.color}66;background:${fw.color}14;color:${fw.color};border-radius:10px;padding:9px 14px;font-size:17px;font-weight:900;cursor:pointer;flex-shrink:0">
                 <i class="fas fa-up-right-and-down-left-from-center"></i>
               </button>
             </div>
             <div onclick="openFishwayTrendModal('${fw.key}')" title="點選放大圖表" style="position:relative;height:220px;cursor:zoom-in">
               <canvas id="fishwayTrend_${fw.key}"></canvas>
             </div>
-            <div style="font-size:18px;color:#475569;line-height:1.85;margin-top:18px">${fw.note}</div>
-            <div style="font-size:17px;color:#166534;line-height:1.85;margin-top:14px;background:#f0fdf4;border-radius:12px;padding:16px 18px">${fw.management}</div>
-            <div style="font-size:15px;color:#94a3b8;line-height:1.65;margin-top:12px;border-top:1px dashed #e2e8f0;padding-top:12px">※ CPUE 資料來源為橫流溪全溪電捕調查（非個別魚道實地監測），趨勢反映全溪族群動態，物種組合為該型式通行潛力指標，無法單獨歸因於特定魚道設施效益。</div>
+            <div style="font-size:21px;color:#475569;line-height:1.9;margin-top:20px">${fw.note}</div>
+            <div style="font-size:20px;color:#166534;line-height:1.9;margin-top:16px;background:#f0fdf4;border-radius:12px;padding:18px 20px">${fw.management}</div>
+            <div style="font-size:17px;color:#94a3b8;line-height:1.7;margin-top:14px;border-top:1px dashed #e2e8f0;padding-top:14px">※ CPUE 資料來源為橫流溪全溪電捕調查（非個別魚道實地監測），趨勢反映全溪族群動態，物種組合為該型式通行潛力指標，無法單獨歸因於特定魚道設施效益。</div>
           </div>
         `).join('')}
       </div>
