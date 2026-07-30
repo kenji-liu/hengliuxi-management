@@ -103,21 +103,23 @@ function switchFishTab(tab, btn) {
 
 function renderFishStory() {
   const SP = '/webapp/assets/story';
+  // 共用 text-panel 樣式（讓文字區可在高度不足時內部捲動，不影響主頁）
+  const TP = 'display:flex;flex-direction:column;justify-content:center;gap:18px;overflow-y:auto;';
   const pages = [
     // ── 封面 ──────────────────────────────────────────────
     {
       render: () => `
-        <div style="position:relative;width:100%;min-height:700px;overflow:hidden">
+        <div style="position:relative;width:100%;height:100%;overflow:hidden">
           <img src="${SP}/image3.jpg" loading="eager"
                style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:top center" alt="">
           <div style="position:absolute;inset:0;background:linear-gradient(160deg,rgba(12,28,18,.80),rgba(12,28,18,.58))"></div>
-          <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px;text-align:center;gap:22px">
-            <div style="color:#86efac;font-size:20px;font-weight:800;letter-spacing:3px">與野共生 · 林務局 2022</div>
-            <div style="color:#fff;font-size:68px;font-weight:900;line-height:1.1;text-shadow:0 2px 32px rgba(0,0,0,.5)">橫流溪的故事</div>
-            <div style="width:64px;height:4px;background:#4ade80;border-radius:2px"></div>
-            <div style="color:#d1fae5;font-size:24px;line-height:1.7;max-width:560px">台灣首座粗石斜曲面魚道誕生記<br>一條溪、一場地震、一個生態承諾</div>
+          <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:36px;text-align:center;gap:16px">
+            <div style="color:#86efac;font-size:16px;font-weight:800;letter-spacing:3px">與野共生 · 林務局 2022</div>
+            <div style="color:#fff;font-size:clamp(36px,5vw,60px);font-weight:900;line-height:1.1;text-shadow:0 2px 32px rgba(0,0,0,.5)">橫流溪的故事</div>
+            <div style="width:56px;height:4px;background:#4ade80;border-radius:2px"></div>
+            <div style="color:#d1fae5;font-size:clamp(15px,1.6vw,20px);line-height:1.6;max-width:520px">台灣首座粗石斜曲面魚道誕生記<br>一條溪、一場地震、一個生態承諾</div>
             <button onclick="storyGoTo(1)"
-              style="margin-top:10px;background:#1a6b3c;color:#fff;border:none;border-radius:999px;padding:16px 44px;font-size:22px;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:12px;box-shadow:0 6px 24px rgba(26,107,60,.45)">
+              style="margin-top:6px;background:#1a6b3c;color:#fff;border:none;border-radius:999px;padding:12px 36px;font-size:18px;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:10px;box-shadow:0 6px 24px rgba(26,107,60,.45)">
               開始閱讀 <i class="fas fa-arrow-right"></i>
             </button>
           </div>
@@ -127,22 +129,22 @@ function renderFishStory() {
     // ── 第一章：基因寶庫 ────────────────────────────────────
     {
       render: () => `
-        <div style="display:grid;grid-template-columns:1fr 1fr;min-height:680px">
-          <div style="background:#faf7f2;padding:60px 52px;display:flex;flex-direction:column;justify-content:center;gap:26px">
-            <div style="color:#1a6b3c;font-size:18px;font-weight:800;letter-spacing:2px">第一章</div>
-            <div style="font-size:42px;font-weight:900;color:#1c2d1e;line-height:1.2">台灣魚種的<br>基因寶庫</div>
-            <div style="width:48px;height:4px;background:#1a6b3c;border-radius:2px"></div>
-            <div style="font-size:20px;color:#374151;line-height:1.9">由雪山山脈傾流而下的大甲溪支流橫流溪，水質清澈、流量豐沛；溪床大石激起朵朵水花，營造出深潭、淺灘等型態多樣的水域，孕育豐富的魚類生態資源。</div>
-            <div style="background:#f0fdf4;border-left:5px solid #1a6b3c;padding:20px 24px;border-radius:0 12px 12px 0">
-              <div style="font-size:19px;color:#15803d;line-height:1.8;font-style:italic">「橫流溪是臺灣第一條由民間自主發起封溪護魚行動的溪流，透過中坑村居民與政府單位攜手守護，保存珍貴的特有魚種族群。」</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;height:100%">
+          <div style="background:#faf7f2;padding:32px 40px;${TP}">
+            <div style="color:#1a6b3c;font-size:14px;font-weight:800;letter-spacing:2px">第一章</div>
+            <div style="font-size:clamp(26px,3vw,38px);font-weight:900;color:#1c2d1e;line-height:1.2">台灣魚種的<br>基因寶庫</div>
+            <div style="width:40px;height:3px;background:#1a6b3c;border-radius:2px"></div>
+            <div style="font-size:clamp(14px,1.3vw,17px);color:#374151;line-height:1.85">由雪山山脈傾流而下的大甲溪支流橫流溪，水質清澈、流量豐沛；溪床大石激起朵朵水花，營造出深潭、淺灘等型態多樣的水域，孕育豐富的魚類生態資源。</div>
+            <div style="background:#f0fdf4;border-left:4px solid #1a6b3c;padding:14px 18px;border-radius:0 10px 10px 0">
+              <div style="font-size:clamp(13px,1.2vw,16px);color:#15803d;line-height:1.75;font-style:italic">「橫流溪是臺灣第一條由民間自主發起封溪護魚行動的溪流，透過中坑村居民與政府單位攜手守護，保存珍貴的特有魚種族群。」</div>
             </div>
-            <div style="font-size:19px;color:#374151;line-height:1.85">臺灣白甲魚、臺灣石魚賓、臺灣鬚鱲、明潭吻鰕虎、粗首馬口鱲……多種特有種在此都有穩定繁衍的族群。</div>
+            <div style="font-size:clamp(13px,1.2vw,16px);color:#374151;line-height:1.8">臺灣白甲魚、臺灣石魚賓、臺灣鬚鱲、明潭吻鰕虎、粗首馬口鱲……多種特有種在此都有穩定繁衍的族群。</div>
           </div>
           <div style="position:relative;overflow:hidden">
             <img src="${SP}/image3.jpg" loading="lazy"
                  style="width:100%;height:100%;object-fit:cover;object-position:center 30%" alt="橫流溪山林鳥瞰">
-            <div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(10,28,16,.80));padding:24px 28px">
-              <div style="color:#d1fae5;font-size:17px">橫流溪山林鳥瞰 — 台8線沿線生態走廊</div>
+            <div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(10,28,16,.80));padding:18px 22px">
+              <div style="color:#d1fae5;font-size:14px">橫流溪山林鳥瞰 — 台8線沿線生態走廊</div>
             </div>
           </div>
         </div>
@@ -151,18 +153,18 @@ function renderFishStory() {
     // ── 第二章：防砂壩的難題 ────────────────────────────────
     {
       render: () => `
-        <div style="position:relative;min-height:680px;overflow:hidden">
+        <div style="position:relative;height:100%;overflow:hidden">
           <img src="${SP}/image2.jpg" loading="lazy"
                style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:right center" alt="">
           <div style="position:absolute;inset:0;background:linear-gradient(90deg,rgba(12,28,18,.94) 46%,rgba(12,28,18,.25) 100%)"></div>
-          <div style="position:relative;padding:60px 56px;max-width:54%;display:flex;flex-direction:column;justify-content:center;gap:26px;min-height:680px">
-            <div style="color:#86efac;font-size:18px;font-weight:800;letter-spacing:2px">第二章</div>
-            <div style="font-size:40px;font-weight:900;color:#fff;line-height:1.25">為何防砂壩<br>讓魚消失了？</div>
-            <div style="width:48px;height:4px;background:#86efac;border-radius:2px"></div>
-            <div style="font-size:20px;color:#d1fae5;line-height:1.9">防砂壩是固定河床、防止土石崩塌的重要設施。然而壩體在河道中形成垂直落差——對人類只是幾公尺的工程結構，對魚類卻是難以跨越的高牆。</div>
-            <div style="background:rgba(255,255,255,.1);border:1px solid rgba(134,239,172,.35);border-radius:14px;padding:22px 26px">
-              <div style="color:#86efac;font-size:18px;font-weight:700;margin-bottom:10px"><i class="fas fa-exclamation-triangle"></i> 洄游路徑中斷</div>
-              <div style="font-size:19px;color:#d1fae5;line-height:1.85">臺灣白甲魚、石魚賓等降海洄游性魚種，幼魚孵化後需順流入海，成熟後再逆流回溪繁殖。壩體阻斷了這段旅程，族群因此長期面臨衰退壓力。</div>
+          <div style="position:relative;height:100%;max-width:52%;padding:32px 44px;${TP}">
+            <div style="color:#86efac;font-size:14px;font-weight:800;letter-spacing:2px">第二章</div>
+            <div style="font-size:clamp(24px,2.8vw,36px);font-weight:900;color:#fff;line-height:1.25">為何防砂壩<br>讓魚消失了？</div>
+            <div style="width:40px;height:3px;background:#86efac;border-radius:2px"></div>
+            <div style="font-size:clamp(14px,1.3vw,17px);color:#d1fae5;line-height:1.85">防砂壩是固定河床、防止土石崩塌的重要設施。然而壩體在河道中形成垂直落差——對人類只是幾公尺的工程結構，對魚類卻是難以跨越的高牆。</div>
+            <div style="background:rgba(255,255,255,.1);border:1px solid rgba(134,239,172,.35);border-radius:12px;padding:16px 20px">
+              <div style="color:#86efac;font-size:15px;font-weight:700;margin-bottom:8px"><i class="fas fa-exclamation-triangle"></i> 洄游路徑中斷</div>
+              <div style="font-size:clamp(13px,1.2vw,16px);color:#d1fae5;line-height:1.8">臺灣白甲魚、石魚賓等降海洄游性魚種，幼魚孵化後需順流入海，成熟後再逆流回溪繁殖。壩體阻斷了這段旅程，族群因此長期面臨衰退壓力。</div>
             </div>
           </div>
         </div>
@@ -171,22 +173,22 @@ function renderFishStory() {
     // ── 第三章：九二一之後 ──────────────────────────────────
     {
       render: () => `
-        <div style="display:grid;grid-template-columns:1fr 1fr;min-height:680px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;height:100%">
           <div style="position:relative;overflow:hidden">
             <img src="${SP}/image5.jpg" loading="lazy"
                  style="width:100%;height:100%;object-fit:cover;object-position:center" alt="921震後土石崩塌">
-            <div style="position:absolute;top:22px;left:22px;background:rgba(15,23,42,.85);border-radius:8px;padding:8px 16px">
-              <div style="color:#fca5a5;font-size:16px;font-weight:700">921震後橫流溪土石崩塌（圖／林務局）</div>
+            <div style="position:absolute;top:16px;left:16px;background:rgba(15,23,42,.85);border-radius:8px;padding:6px 14px">
+              <div style="color:#fca5a5;font-size:13px;font-weight:700">921震後橫流溪土石崩塌（圖／林務局）</div>
             </div>
           </div>
-          <div style="background:#1c2d1e;padding:60px 52px;display:flex;flex-direction:column;justify-content:center;gap:26px">
-            <div style="color:#86efac;font-size:18px;font-weight:800;letter-spacing:2px">第三章</div>
-            <div style="font-size:40px;font-weight:900;color:#fff;line-height:1.25">九二一之後，<br>魚道斷了</div>
-            <div style="width:48px;height:4px;background:#86efac;border-radius:2px"></div>
-            <div style="font-size:20px;color:#d1fae5;line-height:1.9">1999年九二一大地震後，橫流溪上游土石鬆動下移。東勢林管處隨後建設防砂壩以攔阻土石、確保下游安全，卻也讓魚類洄游路徑更形受阻。</div>
-            <div style="font-size:20px;color:#d1fae5;line-height:1.9">2012年蘇拉颱風再度重創橫流溪，大量土砂崩落，阻斷河道，也迫使林管處展開大規模修復工程。</div>
-            <div style="background:rgba(255,255,255,.08);border-left:4px solid #86efac;padding:16px 22px;border-radius:0 10px 10px 0">
-              <div style="color:#86efac;font-size:18px;line-height:1.8;font-style:italic">「防砂壩對溪流魚類造成的生態衝擊，更需要謹慎以待。」<br>— 東勢林管處，2013</div>
+          <div style="background:#1c2d1e;padding:32px 40px;${TP}">
+            <div style="color:#86efac;font-size:14px;font-weight:800;letter-spacing:2px">第三章</div>
+            <div style="font-size:clamp(24px,2.8vw,36px);font-weight:900;color:#fff;line-height:1.25">九二一之後，<br>魚道斷了</div>
+            <div style="width:40px;height:3px;background:#86efac;border-radius:2px"></div>
+            <div style="font-size:clamp(14px,1.3vw,17px);color:#d1fae5;line-height:1.85">1999年九二一大地震後，橫流溪上游土石鬆動下移。東勢林管處隨後建設防砂壩以攔阻土石、確保下游安全，卻也讓魚類洄游路徑更形受阻。</div>
+            <div style="font-size:clamp(14px,1.3vw,17px);color:#d1fae5;line-height:1.85">2012年蘇拉颱風再度重創橫流溪，大量土砂崩落，阻斷河道，也迫使林管處展開大規模修復工程。</div>
+            <div style="background:rgba(255,255,255,.08);border-left:3px solid #86efac;padding:12px 16px;border-radius:0 8px 8px 0">
+              <div style="color:#86efac;font-size:clamp(13px,1.2vw,15px);line-height:1.75;font-style:italic">「防砂壩對溪流魚類造成的生態衝擊，更需要謹慎以待。」<br>— 東勢林管處，2013</div>
             </div>
           </div>
         </div>
@@ -195,56 +197,50 @@ function renderFishStory() {
     // ── 第四章：台灣首座粗石斜曲面魚道 ────────────────────────
     {
       render: () => `
-        <div style="background:#faf7f2;min-height:680px;padding:60px 72px;display:flex;flex-direction:column;gap:32px">
+        <div style="background:#faf7f2;height:100%;padding:24px 48px;display:flex;flex-direction:column;gap:16px;overflow-y:auto">
           <div>
-            <div style="color:#1a6b3c;font-size:18px;font-weight:800;letter-spacing:2px;margin-bottom:12px">第四章</div>
-            <div style="font-size:46px;font-weight:900;color:#1c2d1e;line-height:1.15">像以雙掌捧住水流</div>
-            <div style="font-size:24px;color:#1a6b3c;font-weight:700;margin-top:8px">台灣首座粗石斜曲面魚道誕生</div>
+            <div style="color:#1a6b3c;font-size:14px;font-weight:800;letter-spacing:2px;margin-bottom:8px">第四章</div>
+            <div style="font-size:clamp(24px,2.8vw,38px);font-weight:900;color:#1c2d1e;line-height:1.15">像以雙掌捧住水流</div>
+            <div style="font-size:clamp(15px,1.4vw,18px);color:#1a6b3c;font-weight:700;margin-top:4px">台灣首座粗石斜曲面魚道誕生</div>
           </div>
-          <div style="width:48px;height:4px;background:#1a6b3c;border-radius:2px"></div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
-            <div style="background:#fee2e2;border:2px solid #fca5a5;border-radius:16px;padding:28px 30px">
-              <div style="font-size:17px;font-weight:800;color:#b91c1c;margin-bottom:14px"><i class="fas fa-times-circle"></i> 改善前（傳統梯式魚道）</div>
-              <div style="font-size:19px;color:#7f1d1d;line-height:1.85">
-                施工前既有梯式魚道落差達五公尺，水流急速、泥沙淤積，造成魚道通水不足，洄游魚類幾乎無法通行。洪枯水量變化大，流速流心急劇改變，更不利魚類溯游。
-              </div>
+          <div style="width:40px;height:3px;background:#1a6b3c;border-radius:2px"></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;flex-shrink:0">
+            <div style="background:#fee2e2;border:2px solid #fca5a5;border-radius:14px;padding:20px 22px">
+              <div style="font-size:14px;font-weight:800;color:#b91c1c;margin-bottom:10px"><i class="fas fa-times-circle"></i> 改善前（傳統梯式魚道）</div>
+              <div style="font-size:clamp(13px,1.2vw,15px);color:#7f1d1d;line-height:1.8">施工前既有梯式魚道落差達五公尺，水流急速、泥沙淤積，造成魚道通水不足，洄游魚類幾乎無法通行。洪枯水量變化大，流速流心急劇改變，更不利魚類溯游。</div>
             </div>
-            <div style="background:#dcfce7;border:2px solid #86efac;border-radius:16px;padding:28px 30px">
-              <div style="font-size:17px;font-weight:800;color:#15803d;margin-bottom:14px"><i class="fas fa-check-circle"></i> 改善後（粗石斜曲面）</div>
-              <div style="font-size:19px;color:#14532d;line-height:1.85">
-                改設粗石斜曲面（埋石深度 83 cm），以自然曲線引導水流聚集；低流量時仍維持足夠水深與流速。細顆粒泥沙得以通過，減少後續維護成本。
-              </div>
+            <div style="background:#dcfce7;border:2px solid #86efac;border-radius:14px;padding:20px 22px">
+              <div style="font-size:14px;font-weight:800;color:#15803d;margin-bottom:10px"><i class="fas fa-check-circle"></i> 改善後（粗石斜曲面）</div>
+              <div style="font-size:clamp(13px,1.2vw,15px);color:#14532d;line-height:1.8">改設粗石斜曲面（埋石深度 83 cm），以自然曲線引導水流聚集；低流量時仍維持足夠水深與流速。細顆粒泥沙得以通過，減少後續維護成本。</div>
             </div>
           </div>
-          <div style="font-size:20px;color:#374151;line-height:1.9">
-            2013年修復工程中，東勢林管處首次將河川生態整體價值納入目標，依據橫流溪不同河段的地形、水量、安全需求，因地制宜設計各式方便魚類通行的魚道設施，改善壩體因落差而阻礙魚群洄游的問題。
-          </div>
+          <div style="font-size:clamp(14px,1.3vw,16px);color:#374151;line-height:1.85">2013年修復工程中，東勢林管處首次將河川生態整體價值納入目標，依據橫流溪不同河段的地形、水量、安全需求，因地制宜設計各式方便魚類通行的魚道設施，改善壩體因落差而阻礙魚群洄游的問題。</div>
         </div>
       `
     },
     // ── 第五章：魚道現場 ───────────────────────────────────
     {
       render: () => `
-        <div style="position:relative;min-height:680px;overflow:hidden">
+        <div style="position:relative;height:100%;overflow:hidden">
           <img src="${SP}/image8.jpg" loading="lazy"
                style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center" alt="粗石斜曲面魚道現場">
-          <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,20,12,.28) 0%,rgba(10,20,12,.90) 100%)"></div>
-          <div style="position:absolute;bottom:0;left:0;right:0;padding:48px 72px">
-            <div style="color:#86efac;font-size:18px;font-weight:800;letter-spacing:2px;margin-bottom:12px">第五章</div>
-            <div style="font-size:50px;font-weight:900;color:#fff;line-height:1.15;margin-bottom:24px">整治完成，<br>水流新生</div>
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:18px;max-width:780px;margin-bottom:20px">
+          <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,20,12,.28) 0%,rgba(10,20,12,.92) 100%)"></div>
+          <div style="position:absolute;bottom:0;left:0;right:0;padding:28px 56px">
+            <div style="color:#86efac;font-size:14px;font-weight:800;letter-spacing:2px;margin-bottom:8px">第五章</div>
+            <div style="font-size:clamp(28px,3.5vw,44px);font-weight:900;color:#fff;line-height:1.15;margin-bottom:16px">整治完成，<br>水流新生</div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;max-width:680px;margin-bottom:14px">
               ${[
                 ['台灣首座','粗石斜曲面魚道'],
                 ['83 cm','埋入石頭深度'],
                 ['97 尾/站','114年CPUE（七型式最高）']
               ].map(([val,lbl]) => `
-                <div style="background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.25);border-radius:12px;padding:18px 22px;backdrop-filter:blur(4px)">
-                  <div style="color:#4ade80;font-size:26px;font-weight:900">${val}</div>
-                  <div style="color:#d1fae5;font-size:17px;margin-top:6px">${lbl}</div>
+                <div style="background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.25);border-radius:10px;padding:14px 18px;backdrop-filter:blur(4px)">
+                  <div style="color:#4ade80;font-size:clamp(16px,1.6vw,22px);font-weight:900">${val}</div>
+                  <div style="color:#d1fae5;font-size:14px;margin-top:4px">${lbl}</div>
                 </div>
               `).join('')}
             </div>
-            <div style="color:#94a3b8;font-size:17px">攝影／林務局東勢林管處</div>
+            <div style="color:#94a3b8;font-size:14px">攝影／林務局東勢林管處</div>
           </div>
         </div>
       `
@@ -252,25 +248,24 @@ function renderFishStory() {
     // ── 尾聲：魚兒回來了 ─────────────────────────────────
     {
       render: () => `
-        <div style="display:grid;grid-template-columns:1fr 1fr;min-height:680px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;height:100%">
           <div style="position:relative;overflow:hidden">
             <img src="${SP}/image9.jpg" loading="lazy"
                  style="width:100%;height:100%;object-fit:cover;object-position:center top" alt="明潭吻鰕虎電捕調查">
-            <div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(10,28,16,.88));padding:24px 28px">
-              <div style="color:#d1fae5;font-size:17px;font-style:italic">明潭吻鰕虎 Rhinogobius candidianus<br>攝影／周銘泰</div>
+            <div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(10,28,16,.88));padding:18px 22px">
+              <div style="color:#d1fae5;font-size:14px;font-style:italic">明潭吻鰕虎 Rhinogobius candidianus<br>攝影／周銘泰</div>
             </div>
           </div>
-          <div style="background:#1c3829;padding:60px 52px;display:flex;flex-direction:column;justify-content:center;gap:26px">
-            <div style="color:#86efac;font-size:18px;font-weight:800;letter-spacing:2px">尾聲</div>
-            <div style="font-size:46px;font-weight:900;color:#fff;line-height:1.2">魚兒，<br>回來了</div>
-            <div style="width:48px;height:4px;background:#4ade80;border-radius:2px"></div>
-            <div style="background:rgba(255,255,255,.08);border-radius:16px;padding:26px;text-align:center">
-              <div style="font-size:88px;font-weight:900;color:#4ade80;line-height:1">97</div>
-              <div style="font-size:20px;color:#86efac;margin-top:8px">尾／站訪次 CPUE</div>
-              <div style="font-size:17px;color:#6ee7b7;margin-top:5px">114年粗石斜曲面・七型式最高</div>
+          <div style="background:#1c3829;padding:32px 40px;${TP}">
+            <div style="color:#86efac;font-size:14px;font-weight:800;letter-spacing:2px">尾聲</div>
+            <div style="font-size:clamp(28px,3vw,42px);font-weight:900;color:#fff;line-height:1.2">魚兒，<br>回來了</div>
+            <div style="width:40px;height:3px;background:#4ade80;border-radius:2px"></div>
+            <div style="background:rgba(255,255,255,.08);border-radius:14px;padding:18px;text-align:center;flex-shrink:0">
+              <div style="font-size:clamp(48px,7vw,76px);font-weight:900;color:#4ade80;line-height:1">97</div>
+              <div style="font-size:16px;color:#86efac;margin-top:6px">尾／站訪次 CPUE</div>
+              <div style="font-size:13px;color:#6ee7b7;margin-top:3px">114年粗石斜曲面・七型式最高</div>
             </div>
-            <div style="font-size:19px;color:#d1fae5;line-height:1.9">改善工程後，東勢林管處委託生態團隊進行長期電捕調查，觀察到臺灣白甲魚、臺灣鬚鱲、明潭吻鰕虎等多種魚類成功利用魚道溯游。</div>
-            <div style="font-size:19px;color:#86efac;font-weight:700;line-height:1.8">這些長期生態調查資料，成為友善措施持續改善精進的科學依據，也佐證了防災與生態可以並存共生。</div>
+            <div style="font-size:clamp(13px,1.2vw,16px);color:#d1fae5;line-height:1.85">改善工程後，觀察到臺灣白甲魚、臺灣鬚鱲、明潭吻鰕虎等多種魚類成功利用魚道溯游。這些長期調查資料佐證了防災與生態可以並存共生。</div>
           </div>
         </div>
       `
@@ -280,25 +275,40 @@ function renderFishStory() {
   const TOTAL = pages.length;
 
   document.getElementById('fishTabContent').innerHTML = `
-    <div style="margin:0;overflow:hidden;box-shadow:0 4px 32px rgba(15,23,42,.18);border-top:2px solid #d1fae5">
-      <div id="storyPageArea" style="transition:opacity .25s"></div>
-      <div style="background:#1c3829;padding:22px 40px;display:flex;align-items:center;justify-content:space-between;gap:16px">
+    <div id="storyShell" style="display:flex;flex-direction:column;overflow:hidden;box-shadow:0 4px 32px rgba(15,23,42,.18);border-top:2px solid #d1fae5">
+      <div id="storyPageArea" style="flex:1;min-height:0;overflow:hidden;transition:opacity .15s"></div>
+      <div style="background:#1c3829;padding:14px 32px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-shrink:0">
         <button id="storyPrev"
           onclick="storyGoTo(window._fishStoryPage-1)"
           style="background:rgba(255,255,255,.1);color:#d1fae5;border:1px solid rgba(255,255,255,.22);border-radius:999px;
-                 padding:13px 30px;font-size:20px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:10px">
+                 padding:10px 24px;font-size:17px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:8px">
           <i class="fas fa-arrow-left"></i> 上一頁
         </button>
         <div id="storyDots" style="display:flex;align-items:center;gap:10px"></div>
         <button id="storyNext"
           onclick="storyGoTo(window._fishStoryPage+1)"
           style="background:#1a6b3c;color:#fff;border:none;border-radius:999px;
-                 padding:13px 30px;font-size:20px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:10px">
+                 padding:10px 24px;font-size:17px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:8px">
           下一頁 <i class="fas fa-arrow-right"></i>
         </button>
       </div>
     </div>
   `;
+
+  // 讓外殼精確填滿 fishTabContent 可用視窗高度，不產生主頁捲動
+  function _storyFit() {
+    const fc = document.getElementById('fishTabContent');
+    const shell = document.getElementById('storyShell');
+    if (!fc || !shell) return;
+    const top = fc.getBoundingClientRect().top;
+    const parentPB = parseInt(window.getComputedStyle(fc.parentElement || document.body).paddingBottom) || 0;
+    shell.style.height = Math.max(320, window.innerHeight - top - parentPB) + 'px';
+  }
+  if (window._storyResizeOff) { window._storyResizeOff(); window._storyResizeOff = null; }
+  const _srh = () => _storyFit();
+  window.addEventListener('resize', _srh);
+  window._storyResizeOff = () => window.removeEventListener('resize', _srh);
+  _storyFit();
 
   window._fishStoryPages = pages;
   window.storyGoTo = function(n) {
@@ -313,7 +323,7 @@ function renderFishStory() {
     }, 150);
     document.getElementById('storyDots').innerHTML = pages.map((_, i) => `
       <button onclick="storyGoTo(${i})"
-        style="width:${i===n?32:10}px;height:10px;border-radius:999px;
+        style="width:${i===n?28:9}px;height:9px;border-radius:999px;
                background:${i===n?'#4ade80':'rgba(255,255,255,.28)'};
                border:none;cursor:pointer;transition:all .25s;padding:0"></button>
     `).join('');
