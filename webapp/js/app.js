@@ -5,8 +5,14 @@ const pages = {
     title: '溪流故事',
     render: function() {
       renderFish();
-      const tabs = document.querySelector('#contentArea .tabs');
-      if (tabs) tabs.remove();
+      // 在此入口顯示隱藏的溪流故事分頁，並設為 active
+      const storyBtn = document.querySelector('#contentArea .tab-btn[onclick*="story"]');
+      if (storyBtn) {
+        storyBtn.style.display = '';
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        storyBtn.classList.add('active');
+      }
+      renderFishStory();
     }
   },
   facilities: { title: '工程設施管理', render: renderFacilities },
