@@ -59,10 +59,10 @@ const FISH_PHOTO_LIBRARY = {
 function renderFish() {
   document.getElementById('contentArea').innerHTML = `
     <div class="tabs">
-      <button class="tab-btn active" onclick="switchFishTab('story', this)" style="font-size:22px;padding:14px 26px;font-weight:700">
+      <button class="tab-btn" onclick="switchFishTab('story', this)" style="display:none;font-size:22px;padding:14px 26px;font-weight:700">
         <i class="fas fa-book-open" style="margin-right:8px;color:#1a6b3c;font-size:20px"></i>溪流故事
       </button>
-      <button class="tab-btn" onclick="switchFishTab('list', this)" style="font-size:22px;padding:14px 26px;font-weight:700">
+      <button class="tab-btn active" onclick="switchFishTab('list', this)" style="font-size:22px;padding:14px 26px;font-weight:700">
         <i class="fas fa-fish" style="margin-right:8px;color:#0e7490;font-size:20px"></i>水域生物
       </button>
       <button class="tab-btn" onclick="switchFishTab('landlife', this)" style="font-size:22px;padding:14px 26px;font-weight:700">
@@ -85,7 +85,7 @@ function renderFish() {
   `;
   injectFishNewsStyles();
   injectBioMapStyles();
-  renderFishStory();
+  renderFishList();
 }
 
 function switchFishTab(tab, btn) {
