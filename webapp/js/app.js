@@ -1,6 +1,7 @@
 // Main application navigation and shared UI helpers.
 const pages = {
   dashboard: { title: '儀表板', render: renderDashboard },
+  story: { title: '溪流故事', render: renderFish },
   facilities: { title: '工程設施管理', render: renderFacilities },
   'design-library': { title: '工程設計書架', render: renderEngineeringBookshelf },
   fish: { title: '生態資料庫', render: renderFish },
