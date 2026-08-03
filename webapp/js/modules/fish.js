@@ -102,11 +102,246 @@ function switchFishTab(tab, btn) {
 }
 
 function renderFishStory() {
-  const SP = '/webapp/assets/story';
-  // 共用 text-panel 樣式（讓文字區可在高度不足時內部捲動，不影響主頁）
-  const TP = 'display:flex;flex-direction:column;justify-content:center;gap:18px;overflow-y:auto;';
+  const SP = window.location.protocol === 'file:' ? 'assets/story' : '/webapp/assets/story';
+
+  injectFishStoryStyles();
+
+  const esc = (v = '') => String(v ?? '').replace(/[&<>"']/g, m => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[m]));
+
+  function _storyFacilities() {
+    try { return (typeof DB !== 'undefined' && DB.getAll ? DB.getAll('facilities') || [] : []); }
+    catch(e) { return []; }
+  }
+
+  function _storyFishGroups() {
+    try {
+      if (typeof fish_groupSpecies === 'function') return Object.values(fish_groupSpecies());
+      const rows = (typeof DB !== 'undefined' && DB.getAll ? DB.getAll('fish') || [] : []);
+      const grouped = {};
+      rows.forEach(row => {
+        const key = row.species || row.chineseName || '未知魚種';
+        if (!grouped[key]) grouped[key] = { ...row, species: key, totalCount: 0 };
+        grouped[key].totalCount += Number(row.count) || Number(row.totalCount) || 0;
+      });
+      return Object.values(grouped);
+    } catch(e) { return []; }
+  }
+
+  function _storyFacilityClass(f) {
+    const text = `${f?.type || ''}${f?.subType || ''}${f?.name || ''}`;
+    if (/魚道|魚梯|過魚|仿自然/.test(text)) return '魚道';
+    if (/防砂壩|防砂/.test(text)) return '防砂壩';
+    if (/固床/.test(text)) return '固床工';
+    if (/平台|平臺/.test(text)) return '平台';
+    if (/護岸/.test(text)) return '護岸';
+    if (/步道/.test(text)) return '步道';
+    return f?.type || '其他';
+  }
+
+  function _storyFishwayType(f) {
+    const text = `${f?.subType || ''}${f?.name || ''}`;
+    if (/粗石斜曲/.test(text)) return '粗石斜曲面式魚道';
+    if (/舟通/.test(text)) return '改良型舟通式魚道';
+    if (/之字/.test(text)) return '之字形魚道';
+    if (/降壩/.test(text)) return '降壩魚道';
+    if (/潛越/.test(text)) return '潛越式魚道';
+    if (/斜坡/.test(text)) return '斜坡式魚道';
+    if (/階段|階梯/.test(text)) return '階段式魚道';
+    return f?.subType ? `${f.subType}魚道` : '其他魚道';
+  }
+
+  function _storyStats() {
+    const facilities = _storyFacilities();
+    const fishGroups = _storyFishGroups();
+    const byClass = facilities.reduce((acc, f) => {
+      const key = _storyFacilityClass(f);
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {});
+    const fishways = facilities.filter(f => _storyFacilityClass(f) === '魚道')
+      .sort((a,b) => (Number(a.km_num) || 0) - (Number(b.km_num) || 0));
+    const byType = fishways.reduce((acc, f) => {
+      const key = _storyFishwayType(f);
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(f);
+      return acc;
+    }, {});
+    const topFish = fishGroups
+      .slice()
+      .sort((a,b) => (Number(b.totalCount) || 0) - (Number(a.totalCount) || 0))
+      .slice(0, 5);
+    return {
+      facilities,
+      fishGroups,
+      fishways,
+      byClass,
+      byType,
+      topFish,
+      facilityTotal: facilities.length,
+      fishwayTotal: byClass['魚道'] || 0,
+      fishwayTypeTotal: Object.keys(byType).length,
+      damTotal: byClass['防砂壩'] || 0,
+      bedTotal: byClass['固床工'] || 0,
+      platformTotal: byClass['平台'] || 0,
+      revetmentTotal: byClass['護岸'] || 0,
+      trailTotal: byClass['步道'] || 0,
+      fishTotal: fishGroups.reduce((s, g) => s + (Number(g.totalCount) || 0), 0)
+    };
+  }
+
+  const story = _storyStats();
+  const storyFeatureFacility = story.facilities.find(f => /溪構1-1|粗石斜曲/.test(`${f.name || ''}${f.subType || ''}`)) || story.fishways[0] || {};
+
+  const media = (src, title, caption, position = 'center center', extraClass = '') => `
+    <figure class="story-media ${esc(extraClass)}">
+      <button class="story-image-btn" onclick="fishStoryOpenImage('${esc(src)}','${esc(title)}','${esc(caption)}')" title="點擊放大圖面">
+        <img src="${src}" loading="lazy" style="object-position:${position}" alt="${esc(title)}">
+      </button>
+      <figcaption>${esc(caption)}</figcaption>
+    </figure>
+  `;
+
+  const sourceCollage = (src, title, caption) => `
+    <figure class="story-source-collage">
+      <button class="story-source-crop story-source-crop--text"
+        style="background-image:url('${esc(src)}')"
+        onclick="fishStoryOpenImage('${esc(src)}','${esc(title)}','${esc(caption)}')"
+        aria-label="放大閱讀完整報告原文">
+        <span><i class="fas fa-magnifying-glass-plus"></i> 原文重點，點擊閱讀完整頁面</span>
+      </button>
+      <button class="story-source-crop story-source-crop--photo"
+        style="background-image:url('${esc(src)}')"
+        onclick="fishStoryOpenImage('${esc(src)}','${esc(title)}','${esc(caption)}')"
+        aria-label="放大檢視橫流溪崩塌現地照片">
+        <span><i class="fas fa-camera"></i> 橫流溪上游崩塌與河道現況</span>
+      </button>
+      <figcaption>${esc(caption)}</figcaption>
+    </figure>
+  `;
+
+  const kpi = (value, label, icon = 'fa-circle-info') => `
+    <div class="story-kpi">
+      <i class="fas ${icon}"></i>
+      <strong>${esc(value)}</strong>
+      <span>${esc(label)}</span>
+    </div>
+  `;
+
+  function designCards() {
+    const desc = {
+      '粗石斜曲面式魚道': '利用粗石與曲面坡道形成多樣流速帶，兼具通行與棲地機能。',
+      '改良型舟通式魚道': '以較緩水路銜接落差，降低局部水位差對中大型魚類的阻隔。',
+      '之字形魚道': '透過折線式路徑延長水流距離，降低坡降並提供休息水域。',
+      '降壩魚道': '利用壩體落差消能，改善下游至上游的連續通行路徑。',
+      '潛越式魚道': '以低流速、潛越水路提供底棲與小型魚類通過空間。',
+      '斜坡式魚道': '以連續坡面減少階差，適合不同游泳能力魚類逐段上溯。',
+      '階段式魚道': '多級水池逐段消能，降低單一落差並增加暫歇棲地。'
+    };
+    const types = Object.entries(story.byType);
+    if (!types.length) return '<div class="story-note">目前資料庫尚未讀取到魚道型式資料。</div>';
+    return types.map(([type, rows]) => {
+      const names = rows.map(f => `${f.location || f.name}｜${f.stationKm || ''}`).join('、');
+      return `
+        <div class="story-design-card">
+          <div class="story-design-head">
+            <i class="fas fa-water"></i>
+            <b>${esc(type)}</b>
+            <span>${rows.length} 座</span>
+          </div>
+          <p>${esc(desc[type] || '依現地落差、流速與空間條件調整配置，作為橫流溪縱向連通改善措施。')}</p>
+          <small>${esc(names)}</small>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function facilityTicks() {
+    const points = story.facilities
+      .filter(f => Number.isFinite(Number(f.km_num)))
+      .sort((a,b) => (Number(a.km_num) || 0) - (Number(b.km_num) || 0))
+      .slice(0, 14);
+    return points.map(f => {
+      const left = Math.max(2, Math.min(96, ((Number(f.km_num) || 0) - 400) / 1000 * 94 + 2));
+      const cls = _storyFacilityClass(f);
+      return `
+        <div class="story-river-point story-${cls}" style="left:${left}%">
+          <span>${esc(f.location || f.name)}</span>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function topFishRows() {
+    return story.topFish.map((f, i) => `
+      <div class="story-fish-row">
+        <span>${i + 1}</span>
+        <b>${esc(f.species || f.chineseName || '魚種')}</b>
+        <em>${Number(f.totalCount) || 0} 尾次</em>
+      </div>
+    `).join('');
+  }
+
+  function storyInitMap() {
+    const el = document.getElementById('hlxStoryMap');
+    if (!el || typeof L === 'undefined' || el._leaflet_id) return;
+    const pts = story.facilities.filter(f => Number(f.lat) && Number(f.lng));
+    const map = L.map(el, { scrollWheelZoom: false, zoomControl: true });
+    const center = pts.length
+      ? [pts.reduce((s,f)=>s+Number(f.lat),0)/pts.length, pts.reduce((s,f)=>s+Number(f.lng),0)/pts.length]
+      : [24.1835, 120.9092];
+    map.setView(center, 15);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap', maxZoom: 19
+    }).addTo(map);
+    const riverPts = pts
+      .slice()
+      .sort((a,b) => (Number(a.km_num) || 0) - (Number(b.km_num) || 0))
+      .map(f => [Number(f.lat), Number(f.lng)]);
+    if (riverPts.length > 1) {
+      L.polyline(riverPts, { color: '#22c55e', weight: 5, opacity: .85 }).addTo(map)
+        .bindPopup('<b>橫流溪工程設施軸線</b><br>依資料庫設施座標串接');
+    }
+    const colors = { '魚道': '#1565c0', '防砂壩': '#795548', '固床工': '#827717', '平台': '#7c3aed', '護岸': '#546e7a', '步道': '#6d4c41' };
+    pts.forEach(f => {
+      const cls = _storyFacilityClass(f);
+      const color = colors[cls] || '#0f766e';
+      const icon = L.divIcon({
+        className: '',
+        html: `<div class="story-map-pin" style="--pin:${color}"><i class="fas ${cls === '魚道' ? 'fa-fish' : cls === '平台' ? 'fa-vector-square' : cls === '防砂壩' ? 'fa-water' : 'fa-layer-group'}"></i><span>${esc(f.location || f.name || '')}</span></div>`,
+        iconSize: [92, 28],
+        iconAnchor: [46, 14]
+      });
+      L.marker([Number(f.lat), Number(f.lng)], { icon }).addTo(map)
+        .bindPopup(`<b>${esc(f.name || '')}</b><br>${esc(cls)}｜${esc(f.stationKm || '')}<br>${esc(f.note || '')}`);
+    });
+    if (riverPts.length) map.fitBounds(riverPts, { padding: [24, 24], maxZoom: 17 });
+    setTimeout(() => map.invalidateSize(), 180);
+  }
+
+  window.fishStoryOpenImage = function(src, title, caption) {
+    const body = document.getElementById('modalBody');
+    const titleEl = document.getElementById('modalTitle');
+    const footer = document.getElementById('modalFooter');
+    const modal = document.getElementById('modal');
+    if (!body || !titleEl || !footer || !modal || typeof openModal !== 'function') return;
+    titleEl.textContent = title || '圖面檢視';
+    modal.style.maxWidth = 'min(1200px,94vw)';
+    modal.style.width = '94vw';
+    modal.style.maxHeight = '94vh';
+    body.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <img src="${esc(src)}" alt="${esc(title)}" style="max-width:100%;max-height:72vh;object-fit:contain;border-radius:8px;background:#0f172a">
+        <div style="font-size:18px;color:#334155;line-height:1.7;background:#f8fafc;border-left:4px solid #0f766e;border-radius:8px;padding:12px 16px">${esc(caption || '')}</div>
+      </div>
+    `;
+    footer.innerHTML = `<button class="btn btn-outline" onclick="closeModal()">關閉</button>`;
+    openModal();
+  };
+
   const pages = [
-    // ── 封面 ──────────────────────────────────────────────
+    // ── 0：封面 ────────────────────────────────────────────
     {
       render: () => `
         <div style="position:relative;width:100%;height:100%;overflow:hidden">
@@ -114,7 +349,7 @@ function renderFishStory() {
                style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:top center" alt="">
           <div style="position:absolute;inset:0;background:linear-gradient(160deg,rgba(12,28,18,.80),rgba(12,28,18,.58))"></div>
           <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:36px;text-align:center;gap:16px">
-            <div style="color:#86efac;font-size:16px;font-weight:800;letter-spacing:3px">與野共生 · 林務局 2022</div>
+            <div style="color:#86efac;font-size:16px;font-weight:800;letter-spacing:3px">與野共生 · 林務局</div>
             <div style="color:#fff;font-size:clamp(36px,5vw,60px);font-weight:900;line-height:1.1;text-shadow:0 2px 32px rgba(0,0,0,.5)">橫流溪的故事</div>
             <div style="width:56px;height:4px;background:#4ade80;border-radius:2px"></div>
             <div style="color:#d1fae5;font-size:clamp(15px,1.6vw,20px);line-height:1.6;max-width:520px">台灣首座粗石斜曲面魚道誕生記<br>一條溪、一場地震、一個生態承諾</div>
@@ -126,150 +361,189 @@ function renderFishStory() {
         </div>
       `
     },
-    // ── 第一章：基因寶庫 ────────────────────────────────────
+    // ── 1：圖冊封面介紹 ──────────────────────────────────────
     {
       render: () => `
-        <div style="display:grid;grid-template-columns:1fr 1fr;height:100%">
-          <div style="background:#faf7f2;padding:32px 40px;${TP}">
-            <div style="color:#1a6b3c;font-size:14px;font-weight:800;letter-spacing:2px">第一章</div>
-            <div style="font-size:clamp(26px,3vw,38px);font-weight:900;color:#1c2d1e;line-height:1.2">台灣魚種的<br>基因寶庫</div>
-            <div style="width:40px;height:3px;background:#1a6b3c;border-radius:2px"></div>
-            <div style="font-size:clamp(14px,1.3vw,17px);color:#374151;line-height:1.85">由雪山山脈傾流而下的大甲溪支流橫流溪，水質清澈、流量豐沛；溪床大石激起朵朵水花，營造出深潭、淺灘等型態多樣的水域，孕育豐富的魚類生態資源。</div>
-            <div style="background:#f0fdf4;border-left:4px solid #1a6b3c;padding:14px 18px;border-radius:0 10px 10px 0">
-              <div style="font-size:clamp(13px,1.2vw,16px);color:#15803d;line-height:1.75;font-style:italic">「橫流溪是臺灣第一條由民間自主發起封溪護魚行動的溪流，透過中坑村居民與政府單位攜手守護，保存珍貴的特有魚種族群。」</div>
-            </div>
-            <div style="font-size:clamp(13px,1.2vw,16px);color:#374151;line-height:1.8">臺灣白甲魚、臺灣石魚賓、臺灣鬚鱲、明潭吻鰕虎、粗首馬口鱲……多種特有種在此都有穩定繁衍的族群。</div>
-          </div>
-          <div style="position:relative;overflow:hidden">
-            <img src="${SP}/image3.jpg" loading="lazy"
-                 style="width:100%;height:100%;object-fit:cover;object-position:center 30%" alt="橫流溪山林鳥瞰">
-            <div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(10,28,16,.80));padding:18px 22px">
-              <div style="color:#d1fae5;font-size:14px">橫流溪山林鳥瞰 — 台8線沿線生態走廊</div>
+        <div class="story-spread story-dark" style="grid-template-columns:64% 36%">
+          ${media(`${SP}/image1.jpg`, '與野共生圖冊封面', '圖說：國有林區治理工程友善生態圖輯，以橫流溪魚道改善為主軸；本頁採完整封面圖，不裁切。')}
+          <div class="story-panel">
+            <div class="story-kicker">第 1 頁 · 出版緣起</div>
+            <div class="story-title">與野共生</div>
+            <div class="story-subtitle">國有林區治理工程友善生態圖輯</div>
+            <p class="story-body">本圖輯以橫流溪為主角，說明治理工程如何在防災安全與魚類縱向連通之間取得平衡。</p>
+            <div class="story-source-box">
+              <b>資料庫摘要</b>
+              <span>目前平台已納管 ${story.facilityTotal || '—'} 筆工程設施，其中魚道 ${story.fishwayTotal || '—'} 座、防砂壩 ${story.damTotal || '—'} 座、固床工 ${story.bedTotal || '—'} 座、平台 ${story.platformTotal || '—'} 座。</span>
             </div>
           </div>
         </div>
       `
     },
-    // ── 第二章：防砂壩的難題 ────────────────────────────────
+    // ── 2：橫流溪流域意象 ────────────────────────────────────
     {
       render: () => `
-        <div style="position:relative;height:100%;overflow:hidden">
-          <img src="${SP}/image2.jpg" loading="lazy"
-               style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:right center" alt="">
-          <div style="position:absolute;inset:0;background:linear-gradient(90deg,rgba(12,28,18,.94) 46%,rgba(12,28,18,.25) 100%)"></div>
-          <div style="position:relative;height:100%;max-width:52%;padding:32px 44px;${TP}">
-            <div style="color:#86efac;font-size:14px;font-weight:800;letter-spacing:2px">第二章</div>
-            <div style="font-size:clamp(24px,2.8vw,36px);font-weight:900;color:#fff;line-height:1.25">為何防砂壩<br>讓魚消失了？</div>
-            <div style="width:40px;height:3px;background:#86efac;border-radius:2px"></div>
-            <div style="font-size:clamp(14px,1.3vw,17px);color:#d1fae5;line-height:1.85">防砂壩是固定河床、防止土石崩塌的重要設施。然而壩體在河道中形成垂直落差——對人類只是幾公尺的工程結構，對魚類卻是難以跨越的高牆。</div>
-            <div style="background:rgba(255,255,255,.1);border:1px solid rgba(134,239,172,.35);border-radius:12px;padding:16px 20px">
-              <div style="color:#86efac;font-size:15px;font-weight:700;margin-bottom:8px"><i class="fas fa-exclamation-triangle"></i> 洄游路徑中斷</div>
-              <div style="font-size:clamp(13px,1.2vw,16px);color:#d1fae5;line-height:1.8">臺灣白甲魚、石魚賓等降海洄游性魚種，幼魚孵化後需順流入海，成熟後再逆流回溪繁殖。壩體阻斷了這段旅程，族群因此長期面臨衰退壓力。</div>
+        <div class="story-spread story-dark" style="grid-template-columns:64% 36%">
+          ${media(`${SP}/hengliuxi-watershed-concept.png`, '橫流溪流域生態意象', '圖說：以山林溪谷、友善魚道與魚群上溯，呈現橫流溪由治理工程走向生態連通的流域意象；本圖為敘事示意，非精確位置圖。', 'center center', 'story-media--cover')}
+          <div class="story-panel story-panel--concept">
+            <div class="story-kicker">第 2 頁 · 流域意象</div>
+            <div class="story-title">山林水脈<br>相互連結</div>
+            <p class="story-body">橫流溪穿越森林溪谷，治理設施除穩定河床與土砂，也透過不同型式魚道維持水域生物移動路徑。</p>
+            <div class="story-kpi-grid">
+              ${kpi('0K+460～1K+400', '故事核心河段', 'fa-route')}
+              ${kpi(`${story.fishwayTotal} 座`, '資料庫魚道設施', 'fa-fish')}
+              ${kpi(`${story.damTotal + story.bedTotal} 座`, '防砂壩與固床工', 'fa-layer-group')}
+              ${kpi('工程 × 生態', '流域整合管理', 'fa-water')}
+            </div>
+            <div class="story-source-box">
+              <b>圖像定位</b>
+              <span>本頁用於說明山林、溪流、治理設施與魚類通行的關係；精確設施位置與坐標請至 GIS 整合地圖查詢。</span>
             </div>
           </div>
         </div>
       `
     },
-    // ── 第三章：九二一之後 ──────────────────────────────────
+    // ── 3：防砂壩功能與河川連通改善 (p.48) ──────────────────
     {
       render: () => `
-        <div style="display:grid;grid-template-columns:1fr 1fr;height:100%">
-          <div style="position:relative;overflow:hidden">
-            <img src="${SP}/image5.jpg" loading="lazy"
-                 style="width:100%;height:100%;object-fit:cover;object-position:center" alt="921震後土石崩塌">
-            <div style="position:absolute;top:16px;left:16px;background:rgba(15,23,42,.85);border-radius:8px;padding:6px 14px">
-              <div style="color:#fca5a5;font-size:13px;font-weight:700">921震後橫流溪土石崩塌（圖／林務局）</div>
+        <div class="story-spread story-dark" style="grid-template-columns:58% 42%">
+          ${media(`${SP}/image2.jpg`, '防砂壩與河川生態示意', '圖說：防砂壩具攔砂與穩定河床功能；當構造物形成明顯落差時，需配合魚道或友善通道維持魚類移動條件。')}
+          <div class="story-panel">
+            <div class="story-kicker">第 3 頁 · 工程與生態課題</div>
+            <div class="story-title">防砂壩功能<br>與河川連通改善</div>
+            <p class="story-body">防砂壩用於穩定河床與攔阻土砂；若壩體落差降低魚類上溯能力，則透過魚道、緩坡或多孔隙通道改善縱向連通，兼顧防災功能與棲地需求。</p>
+            <div class="story-kpi-grid">
+              ${kpi(`${story.damTotal} 座`, '防砂壩納管', 'fa-water')}
+              ${kpi(`${story.fishwayTotal} 座`, '魚道改善連通', 'fa-fish')}
             </div>
-          </div>
-          <div style="background:#1c2d1e;padding:32px 40px;${TP}">
-            <div style="color:#86efac;font-size:14px;font-weight:800;letter-spacing:2px">第三章</div>
-            <div style="font-size:clamp(24px,2.8vw,36px);font-weight:900;color:#fff;line-height:1.25">九二一之後，<br>魚道斷了</div>
-            <div style="width:40px;height:3px;background:#86efac;border-radius:2px"></div>
-            <div style="font-size:clamp(14px,1.3vw,17px);color:#d1fae5;line-height:1.85">1999年九二一大地震後，橫流溪上游土石鬆動下移。東勢林管處隨後建設防砂壩以攔阻土石、確保下游安全，卻也讓魚類洄游路徑更形受阻。</div>
-            <div style="font-size:clamp(14px,1.3vw,17px);color:#d1fae5;line-height:1.85">2012年蘇拉颱風再度重創橫流溪，大量土砂崩落，阻斷河道，也迫使林管處展開大規模修復工程。</div>
-            <div style="background:rgba(255,255,255,.08);border-left:3px solid #86efac;padding:12px 16px;border-radius:0 8px 8px 0">
-              <div style="color:#86efac;font-size:clamp(13px,1.2vw,15px);line-height:1.75;font-style:italic">「防砂壩對溪流魚類造成的生態衝擊，更需要謹慎以待。」<br>— 東勢林管處，2013</div>
+            <div class="story-source-box">
+              <b>平台判讀</b>
+              <span>壩體、魚道與固床工應在同一圖台套疊，但健康評分仍以工程巡查與專業巡查為主，不直接以魚類數量計入。</span>
             </div>
           </div>
         </div>
       `
     },
-    // ── 第四章：台灣首座粗石斜曲面魚道 ────────────────────────
+    // ── 第4頁：基因寶庫 (p.50) ─────────────────────────────
     {
       render: () => `
-        <div style="background:#faf7f2;height:100%;padding:24px 48px;display:flex;flex-direction:column;gap:16px;overflow-y:auto">
-          <div>
-            <div style="color:#1a6b3c;font-size:14px;font-weight:800;letter-spacing:2px;margin-bottom:8px">第四章</div>
-            <div style="font-size:clamp(24px,2.8vw,38px);font-weight:900;color:#1c2d1e;line-height:1.15">像以雙掌捧住水流</div>
-            <div style="font-size:clamp(15px,1.4vw,18px);color:#1a6b3c;font-weight:700;margin-top:4px">台灣首座粗石斜曲面魚道誕生</div>
-          </div>
-          <div style="width:40px;height:3px;background:#1a6b3c;border-radius:2px"></div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;flex-shrink:0">
-            <div style="background:#fee2e2;border:2px solid #fca5a5;border-radius:14px;padding:20px 22px">
-              <div style="font-size:14px;font-weight:800;color:#b91c1c;margin-bottom:10px"><i class="fas fa-times-circle"></i> 改善前（傳統梯式魚道）</div>
-              <div style="font-size:clamp(13px,1.2vw,15px);color:#7f1d1d;line-height:1.8">施工前既有梯式魚道落差達五公尺，水流急速、泥沙淤積，造成魚道通水不足，洄游魚類幾乎無法通行。洪枯水量變化大，流速流心急劇改變，更不利魚類溯游。</div>
+        <div class="story-spread story-light" style="grid-template-columns:47% 53%">
+          <div class="story-panel">
+            <div class="story-kicker">第 4 頁 · 水域生態</div>
+            <div class="story-title">臺灣魚種的<br>基因寶庫</div>
+            <p class="story-body">橫流溪具有深潭、淺瀨、急流與礫石底質等多樣微棲地。平台魚類資料庫目前整合 ${story.fishGroups.length || '—'} 種物種，累計 ${story.fishTotal || '—'} 尾次。</p>
+            <div class="story-fish-table">
+              <div class="story-table-title">資料庫累計前五物種</div>
+              ${topFishRows()}
             </div>
-            <div style="background:#dcfce7;border:2px solid #86efac;border-radius:14px;padding:20px 22px">
-              <div style="font-size:14px;font-weight:800;color:#15803d;margin-bottom:10px"><i class="fas fa-check-circle"></i> 改善後（粗石斜曲面）</div>
-              <div style="font-size:clamp(13px,1.2vw,15px);color:#14532d;line-height:1.8">改設粗石斜曲面（埋石深度 83 cm），以自然曲線引導水流聚集；低流量時仍維持足夠水深與流速。細顆粒泥沙得以通過，減少後續維護成本。</div>
+            <div class="story-source-box light">
+              <b>圖說重點</b>
+              <span>本頁不以長文字敘述，改以物種名錄與累計尾次說明橫流溪魚類資源量體。</span>
             </div>
           </div>
-          <div style="font-size:clamp(14px,1.3vw,16px);color:#374151;line-height:1.85">2013年修復工程中，東勢林管處首次將河川生態整體價值納入目標，依據橫流溪不同河段的地形、水量、安全需求，因地制宜設計各式方便魚類通行的魚道設施，改善壩體因落差而阻礙魚群洄游的問題。</div>
+          ${media(`${SP}/image4.png`, '橫流溪魚類棲地與代表物種', '圖說：溪床大石、淺瀨與深槽構成多樣棲地，支撐臺灣白甲魚、纓口臺鰍、明潭吻鰕虎等指標魚種。')}
         </div>
       `
     },
-    // ── 第五章：魚道現場 ───────────────────────────────────
+    // ── 第5頁：災後治理與生態連通 (p.51) ────────────────────
     {
       render: () => `
-        <div style="position:relative;height:100%;overflow:hidden">
+        <div class="story-spread story-dark story-evidence-spread" style="grid-template-columns:minmax(0,55%) minmax(420px,45%)">
+          ${sourceCollage(`${SP}/image5.jpg`, '橫流溪災後治理與生態連通報告頁', '資料圖說：報告記錄橫流溪上游崩塌、河道阻塞與後續防砂壩修復背景；完整原文可點圖放大閱讀。')}
+          <div class="story-panel story-panel--evidence">
+            <div class="story-kicker">第 5 頁 · 治理歷程</div>
+            <div class="story-title story-title--compact">災後治理與<br>生態連通</div>
+            <p class="story-body">歷次地震與颱風事件造成上游土石崩落及河道阻塞，治理工作除維持道路與下游安全，也逐步把魚類通行與棲地連續性納入修復設計。</p>
+            <div class="story-timeline" aria-label="橫流溪治理歷程">
+              <div class="story-timeline-item">
+                <b>1999</b>
+                <span><strong>上游土石崩落</strong>河道與道路安全受到影響，後續設置防砂設施穩定土砂與河床。</span>
+              </div>
+              <div class="story-timeline-item">
+                <b>2012</b>
+                <span><strong>颱風造成邊坡崩塌</strong>大量土砂再次進入溪流，河道整理與設施修復需求提高。</span>
+              </div>
+              <div class="story-timeline-item">
+                <b>2013</b>
+                <span><strong>修復納入生態需求</strong>依河段地形、水量與安全條件配置不同魚道型式，改善魚類移動條件。</span>
+              </div>
+            </div>
+            <div class="story-source-box story-source-box--compact">
+              <b>判讀重點</b>
+              <span>工程目標由單一土砂防治，擴充為「河床穩定、通洪安全與縱向生態連通」的整合管理。</span>
+            </div>
+          </div>
+        </div>
+      `
+    },
+    // ── 第6頁：粗石斜曲面魚道 (p.52) ─────────────────────────
+    {
+      render: () => `
+        <div class="story-spread story-light" style="grid-template-columns:50% 50%">
+          <div class="story-panel">
+            <div class="story-kicker">第 6 頁 · 多型式設計</div>
+            <div class="story-title">魚道不是一種<br>而是多型式配置</div>
+            <p class="story-body">依據資料庫，目前橫流溪納管 ${story.fishwayTotal} 座魚道，分成 ${story.fishwayTypeTotal} 種主要型式。不同型式對應不同落差、水深、流速與魚類游泳能力。</p>
+            <div class="story-design-grid">${designCards()}</div>
+          </div>
+          ${media(`${SP}/image6.png`, '粗石斜曲面式魚道設計圖說', `圖說：${storyFeatureFacility.name || '粗石斜曲面式魚道'}位於 ${storyFeatureFacility.stationKm || '1K+400'}，以粗石與斜曲面降低落差阻隔，提供多樣流速帶。`)}
+        </div>
+      `
+    },
+    // ── 第7頁：剖面圖 (p.53) ──────────────────────────────
+    {
+      render: () => `
+        <div class="story-spread story-light" style="grid-template-columns:64% 36%">
+          ${media(`${SP}/image7.png`, '魚道剖面圖與改善對照', '圖說：剖面圖呈現改善前梯式高落差與改善後斜曲面水路差異，作為設計審查與後續維護判讀依據。')}
+          <div class="story-panel">
+            <div class="story-kicker">第 7 頁 · 設計圖說</div>
+            <div class="story-title">剖面圖要能<br>說明設計目的</div>
+            <div class="story-compare-list">
+              <div><b>改善前</b><span>階差集中、水流急、易淤積，魚類缺乏休息區。</span></div>
+              <div><b>改善後</b><span>斜曲面與粗石共同消能，保留中央低流量水路。</span></div>
+              <div><b>管理用途</b><span>後續巡查可比對水流、淤積、淘刷與通行斷面是否改變。</span></div>
+            </div>
+          </div>
+        </div>
+      `
+    },
+    // ── 第8頁：施工現場 ───────────────────────────────────
+    {
+      render: () => `
+        <div class="story-photo-page">
           <img src="${SP}/image8.jpg" loading="lazy"
-               style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center" alt="粗石斜曲面魚道現場">
-          <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,20,12,.28) 0%,rgba(10,20,12,.92) 100%)"></div>
-          <div style="position:absolute;bottom:0;left:0;right:0;padding:28px 56px">
-            <div style="color:#86efac;font-size:14px;font-weight:800;letter-spacing:2px;margin-bottom:8px">第五章</div>
-            <div style="font-size:clamp(28px,3.5vw,44px);font-weight:900;color:#fff;line-height:1.15;margin-bottom:16px">整治完成，<br>水流新生</div>
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;max-width:680px;margin-bottom:14px">
-              ${[
-                ['台灣首座','粗石斜曲面魚道'],
-                ['83 cm','埋入石頭深度'],
-                ['97 尾/站','114年CPUE（七型式最高）']
-              ].map(([val,lbl]) => `
-                <div style="background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.25);border-radius:10px;padding:14px 18px;backdrop-filter:blur(4px)">
-                  <div style="color:#4ade80;font-size:clamp(16px,1.6vw,22px);font-weight:900">${val}</div>
-                  <div style="color:#d1fae5;font-size:14px;margin-top:4px">${lbl}</div>
-                </div>
+               alt="魚道施工現場">
+          <div class="story-photo-overlay">
+            <div class="story-kicker">第 8 頁 · 施工與維護</div>
+            <div class="story-title">工程現場<br>不只是背景照片</div>
+            <div class="story-photo-caption">圖說：施工照片應對應設施、里程、型式與維護目標。平台可用這類影像連結巡查資料、維護管理資料與後續 AI 影像辨識。</div>
+            <div class="story-chip-row">
+              ${[['設施', `${story.facilityTotal} 筆`], ['魚道', `${story.fishwayTotal} 座`], ['型式', `${story.fishwayTypeTotal} 種`]].map(([a,b]) => `
+                <span><b>${a}</b>${b}</span>
               `).join('')}
             </div>
-            <div style="color:#94a3b8;font-size:14px">攝影／林務局東勢林管處</div>
           </div>
         </div>
       `
     },
-    // ── 尾聲：魚兒回來了 ─────────────────────────────────
+    // ── 第9頁：魚兒回來了 ─────────────────────────────────
     {
       render: () => `
-        <div style="display:grid;grid-template-columns:1fr 1fr;height:100%">
-          <div style="position:relative;overflow:hidden">
-            <img src="${SP}/image9.jpg" loading="lazy"
-                 style="width:100%;height:100%;object-fit:cover;object-position:center top" alt="明潭吻鰕虎電捕調查">
-            <div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(10,28,16,.88));padding:18px 22px">
-              <div style="color:#d1fae5;font-size:14px;font-style:italic">明潭吻鰕虎 Rhinogobius candidianus<br>攝影／周銘泰</div>
+        <div class="story-spread story-dark" style="grid-template-columns:48% 52%">
+          ${media(`${SP}/image9.jpg`, '明潭吻鰕虎與魚道成效', '圖說：魚類調查照片需連結物種、調查日期與所在河段；本頁以明潭吻鰕虎作為魚道成效的代表性底棲魚種。', 'center top')}
+          <div class="story-panel">
+            <div class="story-kicker">第 9 頁 · 成效見證</div>
+            <div class="story-title">魚兒<br>回來了</div>
+            <div class="story-kpi-grid">
+              ${kpi('97', '114年粗石斜曲面型 CPUE 尾／站訪次', 'fa-chart-line')}
+              ${kpi(`${story.fishTotal || '—'} 尾次`, '資料庫水域生物累計', 'fa-database')}
+              ${kpi(`${story.fishGroups.length || '—'} 種`, '平台整合物種', 'fa-fish')}
+              ${kpi('RAG 可問答', '與工程設施、巡查資料連動', 'fa-robot')}
             </div>
-          </div>
-          <div style="background:#1c3829;padding:32px 40px;${TP}">
-            <div style="color:#86efac;font-size:14px;font-weight:800;letter-spacing:2px">尾聲</div>
-            <div style="font-size:clamp(28px,3vw,42px);font-weight:900;color:#fff;line-height:1.2">魚兒，<br>回來了</div>
-            <div style="width:40px;height:3px;background:#4ade80;border-radius:2px"></div>
-            <div style="background:rgba(255,255,255,.08);border-radius:14px;padding:18px;text-align:center;flex-shrink:0">
-              <div style="font-size:clamp(48px,7vw,76px);font-weight:900;color:#4ade80;line-height:1">97</div>
-              <div style="font-size:16px;color:#86efac;margin-top:6px">尾／站訪次 CPUE</div>
-              <div style="font-size:13px;color:#6ee7b7;margin-top:3px">114年粗石斜曲面・七型式最高</div>
-            </div>
-            <div style="font-size:clamp(13px,1.2vw,16px);color:#d1fae5;line-height:1.85">改善工程後，觀察到臺灣白甲魚、臺灣鬚鱲、明潭吻鰕虎等多種魚類成功利用魚道溯游。這些長期調查資料佐證了防災與生態可以並存共生。</div>
+            <p class="story-body">圖冊最後以量化資料收斂：魚道改善後，魚類通行、棲地連續性與族群回復可由調查紀錄、工程位置與設施型式交互驗證。</p>
           </div>
         </div>
       `
-    }
+    },
   ];
 
   const TOTAL = pages.length;
@@ -320,6 +594,10 @@ function renderFishStory() {
     setTimeout(() => {
       area.innerHTML = pages[n].render();
       area.style.opacity = '1';
+      requestAnimationFrame(() => {
+        _storyFit();
+        if (typeof pages[n].afterRender === 'function') pages[n].afterRender();
+      });
     }, 150);
     document.getElementById('storyDots').innerHTML = pages.map((_, i) => `
       <button onclick="storyGoTo(${i})"
@@ -337,6 +615,87 @@ function renderFishStory() {
   };
 
   window.storyGoTo(0);
+}
+
+function injectFishStoryStyles() {
+  if (document.getElementById('fishStoryStyles')) return;
+  const style = document.createElement('style');
+  style.id = 'fishStoryStyles';
+  style.textContent = `
+    .story-spread{height:100%;display:grid;min-height:0;overflow:hidden;background:#fff}
+    .story-dark{background:#12251a;color:#fff}.story-light{background:#f8fafc;color:#0f172a}
+    .story-panel{min-height:0;overflow:auto;padding:clamp(24px,3vw,42px);display:flex;flex-direction:column;justify-content:center;gap:clamp(12px,1.4vw,20px)}
+    .story-kicker{color:#6ee7b7;font-size:clamp(15px,1.35vw,19px);font-weight:900;letter-spacing:1.4px}
+    .story-light .story-kicker{color:#0f766e}.story-title{font-size:clamp(34px,4.4vw,58px);line-height:1.1;font-weight:950;letter-spacing:0;color:inherit}
+    .story-subtitle{font-size:clamp(21px,2.1vw,30px);line-height:1.35;color:#86efac;font-weight:900}
+    .story-light .story-subtitle{color:#0f766e}.story-body{font-size:clamp(19px,1.45vw,23px);line-height:1.65;margin:0;color:#d1fae5;font-weight:650}
+    .story-light .story-body{color:#334155}.story-source-box{border-left:5px solid #86efac;background:rgba(255,255,255,.09);border-radius:0 10px 10px 0;padding:14px 18px;font-size:clamp(17px,1.2vw,20px);line-height:1.65;color:#d1fae5}
+    .story-source-box b{display:block;color:#86efac;margin-bottom:5px}.story-source-box.light{background:#ecfeff;color:#334155;border-color:#0f766e}.story-source-box.light b{color:#0f766e}
+    .story-media{position:relative;height:100%;min-height:0;margin:0;background:#0d1f12;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden}
+    .story-image-btn{border:0;background:transparent;width:100%;height:calc(100% - 56px);min-height:0;display:flex;align-items:center;justify-content:center;padding:0;cursor:zoom-in}
+    .story-media img{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;display:block}
+    .story-media--cover .story-image-btn{align-items:stretch}
+    .story-media--cover img{max-width:none;max-height:none;width:100%;height:100%;object-fit:cover}
+    .story-media figcaption,.story-map-frame figcaption,.story-axis-caption{width:100%;min-height:56px;display:flex;align-items:center;background:#f8fafc;color:#334155;border-top:1px solid #dbeafe;padding:9px 16px;font-size:clamp(16px,1.2vw,20px);line-height:1.45;font-weight:700;box-sizing:border-box}
+    .story-dark .story-media figcaption{background:#112218;color:#d1fae5;border-color:rgba(134,239,172,.25)}
+    .story-source-collage{height:100%;min-height:0;margin:0;display:grid;grid-template-rows:minmax(210px,42%) minmax(260px,1fr) auto;gap:3px;background:#0d1f12;overflow:hidden}
+    .story-source-crop{position:relative;width:100%;min-height:0;border:0;padding:0;overflow:hidden;background-color:#eaf2ec;background-repeat:no-repeat;cursor:zoom-in}
+    .story-source-crop--text{background-size:100% auto;background-position:center top}
+    .story-source-crop--photo{background-size:118% auto;background-position:center 91%}
+    .story-source-crop:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 62%,rgba(8,24,14,.78))}
+    .story-source-crop>span{position:absolute;z-index:1;left:18px;bottom:14px;display:flex;align-items:center;gap:9px;color:#fff;background:rgba(8,24,14,.78);border:1px solid rgba(255,255,255,.22);border-radius:8px;padding:8px 12px;font-size:clamp(15px,1.05vw,18px);font-weight:850}
+    .story-source-collage figcaption{display:flex;align-items:center;min-height:58px;background:#112218;color:#d1fae5;border-top:1px solid rgba(134,239,172,.25);padding:9px 16px;font-size:clamp(16px,1.1vw,19px);line-height:1.45;font-weight:700;box-sizing:border-box}
+    .story-panel--concept{justify-content:flex-start;padding:clamp(16px,1.8vw,26px);gap:8px;overflow:hidden}
+    .story-panel--concept .story-title{font-size:clamp(31px,3vw,43px);line-height:1.05}
+    .story-panel--concept .story-body{font-size:clamp(16px,1.05vw,19px);line-height:1.45}
+    .story-panel--concept .story-kpi-grid{gap:8px}
+    .story-panel--concept .story-kpi{min-height:68px;padding:9px 11px}
+    .story-panel--concept .story-kpi i{font-size:18px}
+    .story-panel--concept .story-kpi strong{font-size:clamp(21px,1.8vw,28px)}
+    .story-panel--concept .story-kpi span{font-size:clamp(14px,.95vw,16px)}
+    .story-panel--concept .story-source-box{padding:8px 11px;font-size:clamp(14px,.95vw,16px);line-height:1.4}
+    .story-panel--concept .story-source-box b{display:inline;margin-right:8px}
+    .story-panel--evidence{justify-content:flex-start;padding:clamp(17px,1.8vw,28px);gap:7px;overflow:hidden}
+    .story-panel--evidence .story-kicker{font-size:clamp(14px,1vw,17px)}
+    .story-panel--evidence .story-body{font-size:clamp(16px,1.05vw,19px);line-height:1.48}
+    .story-title--compact{font-size:clamp(32px,3vw,44px);line-height:1.05}
+    .story-timeline{display:grid;gap:6px}
+    .story-timeline-item{display:grid;grid-template-columns:66px 1fr;align-items:stretch;border:1px solid rgba(134,239,172,.24);border-radius:9px;overflow:hidden;background:rgba(255,255,255,.07)}
+    .story-timeline-item>b{display:grid;place-items:center;background:#166534;color:#fff;font-size:clamp(19px,1.4vw,24px);letter-spacing:0}
+    .story-timeline-item>span{display:block;padding:7px 10px;color:#d1fae5;font-size:clamp(15px,.95vw,17px);line-height:1.35}
+    .story-timeline-item strong{display:inline;color:#86efac;font-size:1.03em;margin-right:7px}
+    .story-source-box--compact{padding:8px 12px;font-size:clamp(15px,.95vw,17px);line-height:1.4}
+    .story-source-box--compact b{display:inline;margin:0 8px 0 0}
+    .story-kpi-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    .story-kpi{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.22);border-radius:12px;padding:14px;min-height:86px;display:flex;flex-direction:column;justify-content:center;gap:4px}
+    .story-light .story-kpi{background:#fff;border-color:#dbeafe}.story-kpi i{font-size:22px;color:#86efac}.story-light .story-kpi i{color:#0f766e}
+    .story-kpi strong{font-size:clamp(24px,2.2vw,34px);line-height:1;color:#4ade80}.story-light .story-kpi strong{color:#0f766e}
+    .story-kpi span{font-size:clamp(15px,1.1vw,18px);line-height:1.35;color:#d1fae5}.story-light .story-kpi span{color:#475569}
+    .story-map-frame{height:100%;display:flex;flex-direction:column;background:#0d1f12;min-height:0}.story-map-frame #hlxStoryMap{flex:1;min-height:0;width:100%}
+    .story-map-pin{display:flex;align-items:center;gap:4px;background:#fff;border:2px solid var(--pin);color:#0f172a;border-radius:999px;padding:3px 7px;font-size:12px;font-weight:900;box-shadow:0 3px 10px rgba(15,23,42,.35);white-space:nowrap}
+    .story-map-pin i{color:var(--pin)}.story-map-pin span{max-width:70px;overflow:hidden;text-overflow:ellipsis}
+    .story-fish-table{background:#fff;border:1px solid #dbeafe;border-radius:12px;overflow:hidden}.story-table-title{font-size:19px;font-weight:900;color:#0f766e;background:#ecfeff;padding:10px 14px;border-bottom:1px solid #dbeafe}
+    .story-fish-row{display:grid;grid-template-columns:42px 1fr auto;gap:10px;align-items:center;padding:10px 14px;border-bottom:1px solid #eef2f7;font-size:18px}.story-fish-row:last-child{border-bottom:0}
+    .story-fish-row span{width:28px;height:28px;border-radius:999px;background:#0f766e;color:#fff;display:grid;place-items:center;font-weight:900}.story-fish-row b{font-weight:900;color:#0f172a}.story-fish-row em{font-style:normal;color:#0369a1;font-weight:900}
+    .story-river-axis{position:relative;height:210px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:14px;padding:34px 18px}.story-river-line{position:absolute;left:5%;right:5%;top:50%;height:9px;background:linear-gradient(90deg,#38bdf8,#22c55e);border-radius:999px;box-shadow:0 0 0 6px rgba(255,255,255,.08)}
+    .story-river-point{position:absolute;top:calc(50% - 17px);transform:translateX(-50%);width:34px;height:34px;border-radius:50%;background:#fff;border:4px solid #1565c0;box-shadow:0 4px 12px rgba(0,0,0,.3)}
+    .story-river-point span{position:absolute;left:50%;top:40px;transform:translateX(-50%);background:#0f172a;color:#fff;border-radius:6px;padding:4px 6px;font-size:13px;white-space:nowrap;font-weight:800}.story-river-point:nth-child(even) span{top:auto;bottom:40px}
+    .story-river-point.story-防砂壩{border-color:#795548}.story-river-point.story-固床工{border-color:#827717}.story-river-point.story-平台{border-color:#7c3aed}.story-river-point.story-護岸{border-color:#546e7a}.story-river-point.story-步道{border-color:#6d4c41}
+    .story-axis-caption{border:0;background:transparent;color:#d1fae5;padding:0;min-height:auto;font-size:17px}
+    .story-design-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;overflow:auto;padding-right:4px}.story-design-card{background:#fff;border:1px solid #dbeafe;border-radius:12px;padding:12px 14px}
+    .story-design-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}.story-design-head i{color:#0f766e}.story-design-head b{font-size:18px;color:#0f172a}.story-design-head span{margin-left:auto;background:#ecfeff;color:#0f766e;border-radius:999px;padding:2px 8px;font-size:14px;font-weight:900}
+    .story-design-card p{font-size:16px;line-height:1.55;color:#334155;margin:0 0 8px}.story-design-card small{display:block;font-size:14px;color:#64748b;line-height:1.45}
+    .story-compare-list{display:grid;gap:12px}.story-compare-list div{background:#fff;border:1px solid #dbeafe;border-radius:12px;padding:15px 16px}.story-compare-list b{display:block;color:#0f766e;font-size:21px;margin-bottom:6px}.story-compare-list span{font-size:18px;color:#334155;line-height:1.6}
+    .story-photo-page{position:relative;height:100%;overflow:hidden;background:#0d1f12}.story-photo-page>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center}
+    .story-photo-page:before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,20,12,.18),rgba(10,20,12,.9))}
+    .story-photo-overlay{position:absolute;left:0;right:0;bottom:0;padding:clamp(26px,4vw,54px);display:flex;flex-direction:column;align-items:flex-start;gap:12px;color:#fff}
+    .story-photo-overlay .story-kicker{width:max-content;max-width:100%;padding:6px 11px;border-radius:7px;background:rgba(236,253,245,.94);color:#065f46;text-shadow:none;box-shadow:0 3px 12px rgba(15,23,42,.2)}
+    .story-photo-overlay .story-title{width:max-content;max-width:min(900px,100%);padding:10px 16px;border-left:6px solid #10b981;border-radius:0 10px 10px 0;background:rgba(255,255,255,.92);color:#052e16;text-shadow:none;box-shadow:0 5px 18px rgba(15,23,42,.26)}
+    .story-photo-caption{max-width:880px;background:rgba(15,23,42,.86);border-left:5px solid #6ee7b7;border-radius:0 10px 10px 0;padding:12px 16px;font-size:clamp(18px,1.35vw,22px);line-height:1.55;color:#f0fdf4;font-weight:800;box-shadow:0 4px 16px rgba(15,23,42,.28)}
+    .story-chip-row{display:flex;gap:10px;flex-wrap:wrap}.story-chip-row span{background:rgba(255,255,255,.94);border:1px solid #a7f3d0;border-radius:999px;padding:9px 14px;font-size:18px;color:#1f2937;font-weight:750;box-shadow:0 3px 10px rgba(15,23,42,.2)}.story-chip-row b{color:#047857;margin-right:6px}
+    @media (max-width: 980px){.story-spread{grid-template-columns:1fr!important;overflow:auto}.story-media{min-height:46vh}.story-source-collage{min-height:70vh}.story-panel{justify-content:flex-start}.story-design-grid,.story-kpi-grid{grid-template-columns:1fr}.story-title{font-size:36px}.story-body{font-size:19px}}
+  `;
+  document.head.appendChild(style);
 }
 
 function renderFishList() {
