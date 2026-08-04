@@ -239,10 +239,88 @@ function renderFishStory() {
       '斜坡式魚道': '以連續坡面減少階差，適合不同游泳能力魚類逐段上溯。',
       '階段式魚道': '多級水池逐段消能，降低單一落差並增加暫歇棲地。'
     };
+    const svgDiagram = {
+      '粗石斜曲面式魚道': `<svg viewBox="0 0 120 52" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:52px">
+        <rect x="0" y="0" width="7" height="52" fill="#92400e"/>
+        <rect x="113" y="0" width="7" height="52" fill="#92400e"/>
+        <path d="M7,44 Q38,28 60,18 Q82,28 113,44" fill="#d1d5db" stroke="#6b7280" stroke-width="1.5"/>
+        <circle cx="32" cy="31" r="3.5" fill="#78716c"/><circle cx="52" cy="22" r="3" fill="#78716c"/>
+        <circle cx="68" cy="22" r="3" fill="#78716c"/><circle cx="88" cy="31" r="3.5" fill="#78716c"/>
+        <path d="M54,17 L66,17 L66,44 L54,44 Z" fill="rgba(56,189,248,.38)" stroke="none"/>
+        <text x="60" y="38" fill="#0369a1" font-size="10" text-anchor="middle">↑↑</text>
+        <text x="60" y="9" fill="#0f172a" font-size="6.5" text-anchor="middle" font-weight="700">水流匯聚中心 · 維持水深</text>
+      </svg>`,
+      '改良型舟通式魚道': `<svg viewBox="0 0 120 52" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:52px">
+        <rect x="0" y="0" width="7" height="52" fill="#92400e"/>
+        <rect x="113" y="0" width="7" height="52" fill="#92400e"/>
+        <rect x="7" y="11" width="58" height="5" fill="#78350f" rx="1"/>
+        <rect x="55" y="27" width="58" height="5" fill="#78350f" rx="1"/>
+        <rect x="7" y="43" width="58" height="5" fill="#78350f" rx="1"/>
+        <rect x="7" y="16" width="48" height="11" fill="rgba(56,189,248,.35)"/>
+        <rect x="63" y="32" width="48" height="11" fill="rgba(56,189,248,.35)"/>
+        <text x="31" y="24" fill="#0369a1" font-size="9" text-anchor="middle">→</text>
+        <text x="87" y="40" fill="#0369a1" font-size="9" text-anchor="middle">←</text>
+        <text x="60" y="9" fill="#0f172a" font-size="6.5" text-anchor="middle" font-weight="700">交錯水路消能 · 提供休息水域</text>
+      </svg>`,
+      '之字形魚道': `<svg viewBox="0 0 120 52" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:52px">
+        <rect x="5" y="3" width="110" height="46" fill="#f1f5f9" rx="4"/>
+        <path d="M15,10 L105,10 L105,24 L15,24 L15,38 L105,38 L105,48" fill="none" stroke="#38bdf8" stroke-width="6" stroke-linecap="round"/>
+        <text x="60" y="19" fill="#0369a1" font-size="8" text-anchor="middle">→</text>
+        <text x="60" y="33" fill="#0369a1" font-size="8" text-anchor="middle">←</text>
+        <text x="60" y="7" fill="#334155" font-size="6.5" text-anchor="middle" font-weight="700">俯視：折線延長水流距離</text>
+      </svg>`,
+      '降壩魚道': `<svg viewBox="0 0 120 52" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:52px">
+        <rect x="0" y="0" width="7" height="52" fill="#92400e"/>
+        <rect x="113" y="0" width="7" height="52" fill="#92400e"/>
+        <rect x="7" y="40" width="28" height="12" fill="#a3a3a3"/>
+        <rect x="35" y="30" width="26" height="22" fill="#9ca3af"/>
+        <rect x="61" y="20" width="26" height="32" fill="#a3a3a3"/>
+        <rect x="87" y="10" width="26" height="42" fill="#9ca3af"/>
+        <rect x="7" y="38" width="28" height="2" fill="#38bdf8" opacity=".85"/>
+        <rect x="35" y="28" width="26" height="2" fill="#38bdf8" opacity=".85"/>
+        <rect x="61" y="18" width="26" height="2" fill="#38bdf8" opacity=".85"/>
+        <text x="60" y="9" fill="#0f172a" font-size="6.5" text-anchor="middle" font-weight="700">逐段跌落消能 · 降低單一落差</text>
+      </svg>`,
+      '潛越式魚道': `<svg viewBox="0 0 120 52" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:52px">
+        <rect x="0" y="0" width="7" height="52" fill="#92400e"/>
+        <rect x="113" y="0" width="7" height="52" fill="#92400e"/>
+        <rect x="7" y="40" width="106" height="12" fill="#a3a3a3"/>
+        <rect x="38" y="10" width="9" height="30" fill="#6b7280" rx="2"/>
+        <rect x="73" y="10" width="9" height="30" fill="#6b7280" rx="2"/>
+        <rect x="7" y="32" width="106" height="8" fill="rgba(56,189,248,.42)"/>
+        <path d="M23,36 Q30,29 38,34" fill="none" stroke="#22d3ee" stroke-width="1.5"/>
+        <path d="M57,36 Q64,28 73,34" fill="none" stroke="#22d3ee" stroke-width="1.5"/>
+        <text x="60" y="9" fill="#0f172a" font-size="6.5" text-anchor="middle" font-weight="700">魚從壩底孔隙潛越通行</text>
+      </svg>`,
+      '斜坡式魚道': `<svg viewBox="0 0 120 52" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:52px">
+        <rect x="0" y="0" width="7" height="52" fill="#92400e"/>
+        <rect x="113" y="0" width="7" height="52" fill="#92400e"/>
+        <path d="M7,46 L113,10 L113,52 L7,52 Z" fill="#a3a3a3"/>
+        <path d="M7,44 L113,8" fill="none" stroke="#38bdf8" stroke-width="3.5" stroke-dasharray="7,4" opacity=".75"/>
+        <text x="60" y="34" fill="#0369a1" font-size="9" text-anchor="middle">→→</text>
+        <text x="60" y="9" fill="#0f172a" font-size="6.5" text-anchor="middle" font-weight="700">緩坡連續面 · 適合多種游泳能力</text>
+      </svg>`,
+      '階段式魚道': `<svg viewBox="0 0 120 52" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:52px">
+        <rect x="0" y="0" width="7" height="52" fill="#92400e"/>
+        <rect x="113" y="0" width="7" height="52" fill="#92400e"/>
+        <rect x="7" y="42" width="24" height="10" fill="#a3a3a3"/>
+        <rect x="31" y="3" width="4" height="49" fill="#6b7280"/>
+        <rect x="35" y="32" width="24" height="20" fill="#9ca3af"/>
+        <rect x="59" y="3" width="4" height="49" fill="#6b7280"/>
+        <rect x="63" y="22" width="24" height="30" fill="#a3a3a3"/>
+        <rect x="87" y="3" width="4" height="49" fill="#6b7280"/>
+        <rect x="91" y="12" width="22" height="40" fill="#9ca3af"/>
+        <rect x="7" y="40" width="24" height="2" fill="#38bdf8" opacity=".85"/>
+        <rect x="35" y="30" width="24" height="2" fill="#38bdf8" opacity=".85"/>
+        <rect x="63" y="20" width="24" height="2" fill="#38bdf8" opacity=".85"/>
+        <text x="60" y="9" fill="#0f172a" font-size="6.5" text-anchor="middle" font-weight="700">多級水池暫歇 · 逐段上溯</text>
+      </svg>`,
+    };
     const types = Object.entries(story.byType);
     if (!types.length) return '<div class="story-note">目前資料庫尚未讀取到魚道型式資料。</div>';
     return types.map(([type, rows]) => {
       const names = rows.map(f => `${f.location || f.name}｜${f.stationKm || ''}`).join('、');
+      const svg = svgDiagram[type] || '';
       return `
         <div class="story-design-card">
           <div class="story-design-head">
@@ -250,6 +328,7 @@ function renderFishStory() {
             <b>${esc(type)}</b>
             <span>${rows.length} 座</span>
           </div>
+          ${svg ? `<div style="margin:4px 0;border-radius:5px;overflow:hidden;background:#f1f5f9">${svg}</div>` : ''}
           <p>${esc(desc[type] || '依現地落差、流速與空間條件調整配置，作為橫流溪縱向連通改善措施。')}</p>
           <small>${esc(names)}</small>
         </div>
@@ -365,7 +444,7 @@ function renderFishStory() {
     {
       render: () => `
         <div class="story-spread story-dark" style="grid-template-columns:64% 36%">
-          ${media(`${SP}/image1.jpg`, '與野共生圖冊封面', '圖說：國有林區治理工程友善生態圖輯，以橫流溪魚道改善為主軸；本頁採完整封面圖，不裁切。')}
+          ${media(`${SP}/image1.jpg`, '與野共生圖冊封面', '')}
           <div class="story-panel">
             <div class="story-kicker">第 1 頁 · 出版緣起</div>
             <div class="story-title">與野共生</div>
@@ -379,36 +458,13 @@ function renderFishStory() {
         </div>
       `
     },
-    // ── 2：橫流溪流域意象 ────────────────────────────────────
-    {
-      render: () => `
-        <div class="story-spread story-dark" style="grid-template-columns:64% 36%">
-          ${media(`${SP}/hengliuxi-watershed-concept.png`, '橫流溪流域生態意象', '圖說：以山林溪谷、友善魚道與魚群上溯，呈現橫流溪由治理工程走向生態連通的流域意象；本圖為敘事示意，非精確位置圖。', 'center center', 'story-media--cover')}
-          <div class="story-panel story-panel--concept">
-            <div class="story-kicker">第 2 頁 · 流域意象</div>
-            <div class="story-title">山林水脈<br>相互連結</div>
-            <p class="story-body">橫流溪穿越森林溪谷，治理設施除穩定河床與土砂，也透過不同型式魚道維持水域生物移動路徑。</p>
-            <div class="story-kpi-grid">
-              ${kpi('0K+460～1K+400', '故事核心河段', 'fa-route')}
-              ${kpi(`${story.fishwayTotal} 座`, '資料庫魚道設施', 'fa-fish')}
-              ${kpi(`${story.damTotal + story.bedTotal} 座`, '防砂壩與固床工', 'fa-layer-group')}
-              ${kpi('工程 × 生態', '流域整合管理', 'fa-water')}
-            </div>
-            <div class="story-source-box">
-              <b>圖像定位</b>
-              <span>本頁用於說明山林、溪流、治理設施與魚類通行的關係；精確設施位置與坐標請至 GIS 整合地圖查詢。</span>
-            </div>
-          </div>
-        </div>
-      `
-    },
     // ── 3：防砂壩功能與河川連通改善 (p.48) ──────────────────
     {
       render: () => `
         <div class="story-spread story-dark" style="grid-template-columns:58% 42%">
           ${media(`${SP}/image2.jpg`, '防砂壩與河川生態示意', '圖說：防砂壩具攔砂與穩定河床功能；當構造物形成明顯落差時，需配合魚道或友善通道維持魚類移動條件。')}
           <div class="story-panel">
-            <div class="story-kicker">第 3 頁 · 工程與生態課題</div>
+            <div class="story-kicker">第 2 頁 · 工程與生態課題</div>
             <div class="story-title">防砂壩功能<br>與河川連通改善</div>
             <p class="story-body">防砂壩用於穩定河床與攔阻土砂；若壩體落差降低魚類上溯能力，則透過魚道、緩坡或多孔隙通道改善縱向連通，兼顧防災功能與棲地需求。</p>
             <div class="story-kpi-grid">
@@ -428,7 +484,7 @@ function renderFishStory() {
       render: () => `
         <div class="story-spread story-light" style="grid-template-columns:47% 53%">
           <div class="story-panel">
-            <div class="story-kicker">第 4 頁 · 水域生態</div>
+            <div class="story-kicker">第 3 頁 · 水域生態</div>
             <div class="story-title">臺灣魚種的<br>基因寶庫</div>
             <p class="story-body">橫流溪具有深潭、淺瀨、急流與礫石底質等多樣微棲地。平台魚類資料庫目前整合 ${story.fishGroups.length || '—'} 種物種，累計 ${story.fishTotal || '—'} 尾次。</p>
             <div class="story-fish-table">
@@ -450,7 +506,7 @@ function renderFishStory() {
         <div class="story-spread story-dark story-evidence-spread" style="grid-template-columns:minmax(0,55%) minmax(420px,45%)">
           ${sourceCollage(`${SP}/image5.jpg`, '橫流溪災後治理與生態連通報告頁', '資料圖說：報告記錄橫流溪上游崩塌、河道阻塞與後續防砂壩修復背景；完整原文可點圖放大閱讀。')}
           <div class="story-panel story-panel--evidence">
-            <div class="story-kicker">第 5 頁 · 治理歷程</div>
+            <div class="story-kicker">第 4 頁 · 治理歷程</div>
             <div class="story-title story-title--compact">災後治理與<br>生態連通</div>
             <p class="story-body">歷次地震與颱風事件造成上游土石崩落及河道阻塞，治理工作除維持道路與下游安全，也逐步把魚類通行與棲地連續性納入修復設計。</p>
             <div class="story-timeline" aria-label="橫流溪治理歷程">
@@ -480,7 +536,7 @@ function renderFishStory() {
       render: () => `
         <div class="story-spread story-light" style="grid-template-columns:50% 50%">
           <div class="story-panel">
-            <div class="story-kicker">第 6 頁 · 多型式設計</div>
+            <div class="story-kicker">第 5 頁 · 多型式設計</div>
             <div class="story-title">魚道不是一種<br>而是多型式配置</div>
             <p class="story-body">依據資料庫，目前橫流溪納管 ${story.fishwayTotal} 座魚道，分成 ${story.fishwayTypeTotal} 種主要型式。不同型式對應不同落差、水深、流速與魚類游泳能力。</p>
             <div class="story-design-grid">${designCards()}</div>
@@ -495,7 +551,7 @@ function renderFishStory() {
         <div class="story-spread story-light" style="grid-template-columns:64% 36%">
           ${media(`${SP}/image7.png`, '魚道剖面圖與改善對照', '圖說：剖面圖呈現改善前梯式高落差與改善後斜曲面水路差異，作為設計審查與後續維護判讀依據。')}
           <div class="story-panel">
-            <div class="story-kicker">第 7 頁 · 設計圖說</div>
+            <div class="story-kicker">第 6 頁 · 設計圖說</div>
             <div class="story-title">剖面圖要能<br>說明設計目的</div>
             <div class="story-compare-list">
               <div><b>改善前</b><span>階差集中、水流急、易淤積，魚類缺乏休息區。</span></div>
@@ -509,19 +565,18 @@ function renderFishStory() {
     // ── 第8頁：施工現場 ───────────────────────────────────
     {
       render: () => `
-        <div class="story-photo-page">
-          <img src="${SP}/image8.jpg" loading="lazy"
-               alt="魚道施工現場">
-          <div class="story-photo-overlay">
-            <div class="story-kicker">第 8 頁 · 施工與維護</div>
-            <div class="story-title">工程現場<br>不只是背景照片</div>
-            <div class="story-photo-caption">圖說：施工照片應對應設施、里程、型式與維護目標。平台可用這類影像連結巡查資料、維護管理資料與後續 AI 影像辨識。</div>
-            <div class="story-chip-row">
-              ${[['設施', `${story.facilityTotal} 筆`], ['魚道', `${story.fishwayTotal} 座`], ['型式', `${story.fishwayTypeTotal} 種`]].map(([a,b]) => `
-                <span><b>${a}</b>${b}</span>
-              `).join('')}
+        <div class="story-spread story-light" style="grid-template-columns:48% 52%">
+          <div class="story-panel">
+            <div class="story-kicker">第 7 頁 · 施工與維護</div>
+            <div class="story-title">生態友善<br>維護理念</div>
+            <p class="story-body">後續維護也依循生態友善的作法，以儘量保留溪底孔隙的方式補強魚道下游處基礎，降低落差、減緩淘刷，也提供水中生物休息和躲藏的孔隙。</p>
+            <p class="story-body">整體而言，粗石斜曲面魚道跳脫以往單一形式的魚道斷面，以適合各類魚種及水生生物通行作為設計理念，期望能進一步助益於河川環境復育。</p>
+            <div class="story-source-box">
+              <b>設計理念</b>
+              <span>保留溪底孔隙・降低落差・減緩淘刷・多樣水域型態</span>
             </div>
           </div>
+          ${media(`${SP}/image7.png`, '粗石斜曲面魚道現場', '粗石斜曲面魚道的設計使水位能隨曲面變化，營造多樣化的水域型態。', 'center center', 'story-media--cover')}
         </div>
       `
     },
@@ -531,7 +586,7 @@ function renderFishStory() {
         <div class="story-spread story-dark" style="grid-template-columns:48% 52%">
           ${media(`${SP}/image9.jpg`, '明潭吻鰕虎與魚道成效', '圖說：魚類調查照片需連結物種、調查日期與所在河段；本頁以明潭吻鰕虎作為魚道成效的代表性底棲魚種。', 'center top')}
           <div class="story-panel">
-            <div class="story-kicker">第 9 頁 · 成效見證</div>
+            <div class="story-kicker">第 8 頁 · 成效見證</div>
             <div class="story-title">魚兒<br>回來了</div>
             <div class="story-kpi-grid">
               ${kpi('97', '114年粗石斜曲面型 CPUE 尾／站訪次', 'fa-chart-line')}
@@ -584,6 +639,17 @@ function renderFishStory() {
   window._storyResizeOff = () => window.removeEventListener('resize', _srh);
   _storyFit();
 
+  // MutationObserver: auto-init Leaflet map whenever #hlxStoryMap appears in the DOM
+  if (window._storyMapObserver) { window._storyMapObserver.disconnect(); window._storyMapObserver = null; }
+  const _obsTarget = document.getElementById('fishTabContent') || document.body;
+  window._storyMapObserver = new MutationObserver(function() {
+    const el = document.getElementById('hlxStoryMap');
+    if (el && !el._leaflet_id && el.offsetWidth > 0 && typeof L !== 'undefined') {
+      storyInitMap();
+    }
+  });
+  window._storyMapObserver.observe(_obsTarget, { childList: true, subtree: true });
+
   window._fishStoryPages = pages;
   window.storyGoTo = function(n) {
     if (n < 0 || n >= TOTAL) return;
@@ -594,10 +660,10 @@ function renderFishStory() {
     setTimeout(() => {
       area.innerHTML = pages[n].render();
       area.style.opacity = '1';
-      requestAnimationFrame(() => {
-        _storyFit();
-        if (typeof pages[n].afterRender === 'function') pages[n].afterRender();
-      });
+      requestAnimationFrame(() => { _storyFit(); });
+      if (typeof pages[n].afterRender === 'function') {
+        setTimeout(() => pages[n].afterRender(), 80);
+      }
     }, 150);
     document.getElementById('storyDots').innerHTML = pages.map((_, i) => `
       <button onclick="storyGoTo(${i})"
