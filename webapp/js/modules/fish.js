@@ -4506,43 +4506,72 @@ function renderFishTrend() {
     FISHWAY_TYPES.forEach(fw => {
       const ctx = document.getElementById(`fishwayTrend_${fw.key}`);
       if (!ctx) return;
-      const cpue = fishwayTargetCPUE(fw);
+      // 堆疊長條：底層灰色＝白甲魚（共同上升基底）；上層彩色＝各型式特徵種（差異化）
+      const charKeys = fw.targetKeys.filter(k => k !== 'bai');
+      const charNames = charKeys.map(k => SPECIES.find(s => s.key === k)?.name || k).join('／');
+      const baiCpue = annualFishwaySeries.map((row, i) => {
+        const eff = annualEffortMetrics[i]?.effort || 0;
+        return eff ? +((row.bai || 0) / eff).toFixed(1) : 0;
+      });
+      const charCpue = annualFishwaySeries.map((row, i) => {
+        const eff = annualEffortMetrics[i]?.effort || 0;
+        const sum = charKeys.reduce((s, k) => s + (row[k] || 0), 0);
+        return eff ? +(sum / eff).toFixed(1) : 0;
+      });
+      const totalCpue = baiCpue.map((b, i) => +(b + charCpue[i]).toFixed(1));
       const raws = fishwayTargetTotals(fw);
+      const lastIdx = baiCpue.length - 1;
       new Chart(ctx, {
         type: 'bar',
         data: {
           labels: fishwayLabels,
-          datasets: [{
-            label: 'CPUE（尾/站訪次）',
-            data: cpue,
-            backgroundColor: cpue.map((v, i) => i === cpue.length - 1 ? fw.color + 'dd' : fw.color + '66'),
-            borderColor: fw.color,
-            borderWidth: 2,
-            borderRadius: 6
-          }]
+          datasets: [
+            {
+              label: '臺灣白甲魚',
+              data: baiCpue,
+              backgroundColor: baiCpue.map((v, i) => i === lastIdx ? 'rgba(148,163,184,0.72)' : 'rgba(148,163,184,0.40)'),
+              borderColor: 'rgba(148,163,184,0.55)',
+              borderWidth: 1,
+              borderRadius: 0,
+              stack: 'cpue'
+            },
+            {
+              label: charNames,
+              data: charCpue,
+              backgroundColor: charCpue.map((v, i) => i === lastIdx ? fw.color + 'dd' : fw.color + '77'),
+              borderColor: fw.color,
+              borderWidth: 2,
+              borderRadius: 6,
+              stack: 'cpue'
+            }
+          ]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
           plugins: {
-            legend: { display: false },
+            legend: {
+              display: true,
+              position: 'top',
+              labels: { font: { size: 11 }, padding: 6, usePointStyle: true, pointStyleWidth: 8, boxWidth: 10, boxHeight: 10 }
+            },
             tooltip: {
               titleFont: { size: 13, weight: '700' },
               bodyFont: { size: 13 },
               padding: 12,
               callbacks: {
-                label(c) { return `CPUE ${c.parsed.y} 尾/站訪次`; },
-                afterBody(items) {
+                label(c) { return `${c.dataset.label}: ${c.parsed.y} 尾/站訪次`; },
+                footer(items) {
                   const i = items[0].dataIndex;
                   const m = annualEffortMetrics[i];
-                  return [`原始捕獲 ${raws[i]} 尾 ÷ 站訪次 ${m?.effort||'?'}`, `關聯物種：${fishwayTargetNames(fw)}`];
+                  return [`合計 ${totalCpue[i]} 尾/站訪次`, `原始 ${raws[i]} 尾 ÷ ${m?.effort||'?'} 站`];
                 }
               }
             }
           },
           scales: {
-            x: { ticks: { font: { size: 12, weight: '700' }, maxRotation: 0 } },
-            y: { beginAtZero: true, ticks: { font: { size: 12, weight: '700' } }, title: { display: true, text: 'CPUE', font: { size: 11, weight: '700' } } }
+            x: { stacked: true, ticks: { font: { size: 12, weight: '700' }, maxRotation: 0 } },
+            y: { stacked: true, beginAtZero: true, ticks: { font: { size: 12, weight: '700' } }, title: { display: true, text: 'CPUE', font: { size: 11, weight: '700' } } }
           }
         }
       });
