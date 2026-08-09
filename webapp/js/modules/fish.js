@@ -3872,6 +3872,43 @@ function renderFishTrend() {
         </div>
       </div>
 
+      <details style="background:#f8fafc;border:1.5px solid #cbd5e1;border-radius:14px;margin-bottom:18px;overflow:hidden">
+        <summary style="cursor:pointer;list-style:none;display:flex;align-items:center;gap:10px;padding:13px 18px;font-size:15px;font-weight:900;color:#0369a1;user-select:none">
+          <i class="fas fa-circle-info" style="font-size:16px"></i>
+          圖表判讀說明
+          <span style="margin-left:auto;font-size:12px;font-weight:600;color:#94a3b8">點選展開 ▼</span>
+        </summary>
+        <div style="padding:16px 20px 18px;border-top:1px solid #e2e8f0;display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;gap:10px;align-items:flex-start">
+              <div style="width:13px;height:13px;border-radius:3px;background:rgba(148,163,184,0.70);flex-shrink:0;margin-top:2px"></div>
+              <div style="font-size:14px;color:#475569;line-height:1.7">
+                <b style="color:#0f172a">灰色底層 ＝ 臺灣白甲魚（所有魚道共用）</b><br>
+                103 年幾乎缺席，107 年魚道完工後持續回升，114 年達 68 尾/站。此上升基底在 7 張圖中完全一致，顯示全溪白甲魚族群整體復甦。
+              </div>
+            </div>
+            <div style="display:flex;gap:10px;align-items:flex-start">
+              <div style="width:13px;height:13px;border-radius:3px;background:linear-gradient(135deg,#0ea5e9,#ef4444);flex-shrink:0;margin-top:2px"></div>
+              <div style="font-size:14px;color:#475569;line-height:1.7">
+                <b style="color:#0f172a">彩色上層 ＝ 各型式特徵種（依魚道結構各異）</b><br>
+                例如潛越式偏好石魚賓與間爬岩鰍（底棲強溯），之字形吸引鬚鱲與纓口臺鰍（緩流型）。彩色比例不同，說明各魚道為不同生態習性的魚種提供了差異化棲位。
+              </div>
+            </div>
+            <div style="display:flex;gap:10px;align-items:flex-start">
+              <div style="width:13px;height:13px;border-radius:3px;background:#fbbf24;flex-shrink:0;margin-top:2px"></div>
+              <div style="font-size:14px;color:#475569;line-height:1.7">
+                <b style="color:#0f172a">109 年短暫下探 ≠ 族群衰退</b><br>
+                成果報告明載該年度為魚道施工期，機具擾動導致 CPUE 下滑，110 年施工結束後即回升，不應解讀為魚類資源衰退。
+              </div>
+            </div>
+          </div>
+          <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:10px 14px;font-size:13px;color:#78350f;line-height:1.7">
+            ⚠ <b>本圖使用 CPUE（尾/站訪次）而非原始捕獲量。</b>
+            橫流溪歷年調查站數不一（107年 3 站、108年 4 站、109～110年 6 站、112年後縮為 1 站），若以原始總尾數比較，108年的「高峰」與其後的「下降」主要反映調查規模縮減，而非魚類資源減少。除以當年站訪次後，長期 CPUE 呈穩健上升趨勢，方為判讀魚道成效的正確基準。
+          </div>
+        </div>
+      </details>
+
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:18px">
         ${FISHWAY_TYPES.map(fw => `
           <div style="border:2px solid #e2e8f0;border-radius:18px;padding:26px;background:#fff">
