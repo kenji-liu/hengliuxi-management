@@ -3909,6 +3909,13 @@ function renderFishTrend() {
         </div>
       </details>
 
+      <details style="border:1.5px solid #e2e8f0;border-radius:14px;overflow:hidden">
+        <summary style="cursor:pointer;list-style:none;display:flex;align-items:center;gap:10px;padding:12px 18px;font-size:15px;font-weight:900;color:#475569;background:#f8fafc;user-select:none">
+          <i class="fas fa-chart-bar" style="font-size:15px;color:#94a3b8"></i>
+          各魚道型式 CPUE 分項趨勢圖（7 張）
+          <span style="margin-left:auto;font-size:12px;font-weight:600;color:#94a3b8">點選展開 ▼</span>
+        </summary>
+        <div style="padding:16px 0 0">
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:18px">
         ${FISHWAY_TYPES.map(fw => `
           <div style="border:2px solid #e2e8f0;border-radius:18px;padding:26px;background:#fff">
@@ -3930,6 +3937,8 @@ function renderFishTrend() {
           </div>
         `).join('')}
       </div>
+        </div>
+      </details>
     </div>
 
     <!-- ★ 四大亮點分析 -->
