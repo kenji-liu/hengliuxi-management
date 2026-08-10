@@ -1330,6 +1330,8 @@ async function batchUploadPendingToDrive() {
   const rows = DB.getAll('inspections');
   const pending = rows.filter(r =>
     INSPECTION_FORM_SYNC_META[r.formType] &&
+    (r.date || '') >= '2026-06-01' &&
+    (!r.driveFileId && !r.driveWebLink) &&
     (!r.cloudSyncStatus || r.cloudSyncStatus === '待上傳' || r.cloudSyncStatus === '上傳失敗')
   );
   if (!pending.length) {
