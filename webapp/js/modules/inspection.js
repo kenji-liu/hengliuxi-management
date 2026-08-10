@@ -3160,10 +3160,6 @@ function renderInspDataList(data) {
             ${hasDeru ? `<span style="background:#fff7ed;color:#9a3412;border:1px solid #fed7aa;border-radius:999px;padding:5px 14px;font-size:17px;font-weight:700">DER&amp;U ${item.deru_label||'U'+item.deru_u}</span>` : ''}
             ${hasAi   ? `<span style="background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;border-radius:999px;padding:5px 14px;font-size:16px">🤖 AI分析</span>` : ''}
             ${item.pdfFormat ? `<span style="background:#fff1f2;color:#b91c1c;border:1px solid #fecaca;border-radius:999px;padding:5px 14px;font-size:16px;font-weight:700"><i class="fas fa-file-pdf"></i> PDF</span>` : ''}
-            ${(item.cloudTarget && INSPECTION_FORM_SYNC_META[item.formType] && (item.driveFileId || item.driveWebLink || (item.date || '') >= '2026-06-01')) ? (item.driveWebLink
-              ? `<a href="${item.driveWebLink}" target="_blank" rel="noopener noreferrer" style="text-decoration:none"><span style="background:${cloudStyle.bg};color:${cloudStyle.color};border:1px solid ${cloudStyle.border};border-radius:999px;padding:5px 14px;font-size:16px;font-weight:700;cursor:pointer"><i class="fas fa-cloud-upload-alt"></i> ${item.cloudSyncStatus || '已上傳'}</span></a>`
-              : `<span style="background:${cloudStyle.bg};color:${cloudStyle.color};border:1px solid ${cloudStyle.border};border-radius:999px;padding:5px 14px;font-size:16px;font-weight:700"><i class="fas fa-cloud-upload-alt"></i> ${item.cloudSyncStatus || '待上傳'}</span>`)
-            : ''}
           </div>
           <div style="display:flex;gap:22px;flex-wrap:wrap;font-size:18px;color:#475569;align-items:center">
             <span><i class="fas fa-calendar" style="margin-right:6px"></i><b>${item.date || '-'}</b></span>
