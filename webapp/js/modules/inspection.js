@@ -1527,8 +1527,8 @@ function inspectionRecordTypeLabel(type) {
 function renderInspectionMgmtPage() {
   // 同步統一由 renderInspectionDataManagement 內的版本閘門處理，避免一次載入同步兩次。
   document.getElementById('contentArea').innerHTML =
-    renderManualInspectionGuide() +
-    renderInspectionDataManagement(true);
+    renderInspectionDataManagement(true) +
+    renderManualInspectionGuide();
 }
 
 /* ══════════════════════════════════════════════════════════════
