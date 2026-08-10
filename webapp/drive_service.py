@@ -58,25 +58,17 @@ def _resolve_path(secret_file: str, local_file: str) -> str | None:
 
 def _auth_mode() -> str:
     """回傳目前可用的認證模式（優先順序）：
-      1. oauth2_env  — Render 環境變數（GDRIVE_REFRESH_TOKEN 等）
-      2. oauth2_file — 本機 / Secret Files 的 token JSON
-      3. service_account — 服務帳號（個人 Drive 無儲存配額，僅限 Shared Drive）
+      1. service_account — 服務帳號（Render Secret File 或 env var）
+      2. oauth2_env  — Render 環境變數（GDRIVE_REFRESH_TOKEN 等）
+      3. oauth2_file — 本機 / Secret Files 的 token JSON
       4. none
     """
-    # 1. 環境變數 OAuth2（最適合 Render）
-    if os.environ.get('GDRIVE_REFRESH_TOKEN') and os.environ.get('GDRIVE_CLIENT_ID'):
-        return 'oauth2_env'
-    # 2. 檔案 OAuth2
-    token  = _resolve_path(_TOKEN_SECRET_FILE, _TOKEN_PATH)
-    secret = _resolve_path(_CLIENT_SECRET_FILE, _SECRET_PATH)
-    if token and secret:
-        return 'oauth2_file'
-    # 3. 服務帳號（限 Shared Drive）
+    # 1. 服務帳號優先（Render 部署使用，永不過期）
     env_sa = os.environ.get('GOOGLE_SERVICE_ACCOUNT_JSON', '').strip()
     if env_sa and env_sa.startswith('{'):
         try:
             info = json.loads(env_sa)
-            if info.get('client_email'):  # 確認是服務帳號格式
+            if info.get('client_email'):
                 return 'service_account'
         except Exception:
             pass
@@ -84,6 +76,14 @@ def _auth_mode() -> str:
         return 'service_account'
     if os.path.exists(_SA_PATH):
         return 'service_account'
+    # 2. 環境變數 OAuth2
+    if os.environ.get('GDRIVE_REFRESH_TOKEN') and os.environ.get('GDRIVE_CLIENT_ID'):
+        return 'oauth2_env'
+    # 3. 檔案 OAuth2
+    token  = _resolve_path(_TOKEN_SECRET_FILE, _TOKEN_PATH)
+    secret = _resolve_path(_CLIENT_SECRET_FILE, _SECRET_PATH)
+    if token and secret:
+        return 'oauth2_file'
     return 'none'
 
 

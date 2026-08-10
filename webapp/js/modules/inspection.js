@@ -2692,18 +2692,11 @@ function renderInspectionDataManagement(standalone = false) {
           <button class="btn btn-outline" onclick="openFishwayForm()" style="font-size:18px;padding:12px 24px;color:#0f766e;border-color:#99f6e4;background:#f0fdfa">
             <i class="fas fa-fish"></i> 魚道檢核
           </button>
-          <button id="cloudSyncBtn" class="btn btn-outline" onclick="cloudSyncBidirectional()" style="font-size:18px;padding:12px 24px;color:#1d4ed8;border-color:#bfdbfe;background:#eff6ff;display:flex;align-items:center;gap:8px">
-            <i class="fas fa-cloud-upload-alt"></i> 雲端同步
-            <span id="cloudSyncBadge" style="font-size:12px;color:#64748b"></span>
-          </button>
           <button class="btn btn-primary" onclick="batchUploadPendingToDrive()" style="font-size:18px;padding:12px 24px;background:#0f766e;border-color:#0f766e">
             <i class="fas fa-cloud-upload-alt"></i> 批量上傳至 Drive
           </button>
           <button class="btn btn-outline" onclick="cleanupDuplicateInspections()" style="font-size:18px;padding:12px 24px;color:#7c3aed;border-color:#c4b5fd;background:#f5f3ff">
             <i class="fas fa-broom"></i> 清除重複記錄
-          </button>
-          <button class="btn btn-primary" onclick="fullInspectionSync()" style="font-size:18px;padding:12px 24px;background:#0369a1;border-color:#0369a1">
-            <i class="fas fa-magic"></i> 全面同步修正
           </button>
         </div>
       </div>` : `
@@ -2724,9 +2717,6 @@ function renderInspectionDataManagement(standalone = false) {
           </button>
           <button class="btn btn-outline" onclick="cleanupDuplicateInspections()" style="font-size:15px;padding:8px 16px;color:#7c3aed;border-color:#c4b5fd;background:#f5f3ff">
             <i class="fas fa-broom"></i> 清除重複
-          </button>
-          <button class="btn btn-primary" onclick="fullInspectionSync()" style="font-size:15px;padding:8px 16px;background:#0369a1;border-color:#0369a1">
-            <i class="fas fa-magic"></i> 全面同步
           </button>
         </div>
       </div>`}
@@ -2778,7 +2768,7 @@ function renderInspectionDataManagement(standalone = false) {
                   <td style="padding:7px 10px;color:#475569;font-size:11px">
                     ${pm.count > 0
                       ? tabLabels
-                      : `<span style="color:#dc2626;font-weight:700">尚無待處理表單——請新增巡查表單，或執行「全面同步修正」確認設施狀態是否仍需維護</span>`}
+                      : `<span style="color:#dc2626;font-weight:700">尚無待處理表單——請新增巡查表單確認設施狀態</span>`}
                   </td>
                 </tr>`;
               }).join('')}
@@ -3245,7 +3235,6 @@ function renderInspDataList(data) {
               ${item.recordDateLabel ? inspDetailRow('表單日期標註', item.recordDateLabel) : ''}
               ${item.photoGroup ? inspDetailRow('照片整理分類', item.photoGroup) : ''}
               ${item.photoDateLabel ? inspDetailRow('照片日期', item.photoDateLabel) : ''}
-              ${(item.cloudTarget && INSPECTION_FORM_SYNC_META[item.formType]) ? inspDetailRow('雲端同步', `${item.cloudTarget}／${item.cloudSyncStatus || '待上傳'}`) : ''}
               ${item.driveSyncedAt ? inspDetailRow('Drive 同步時間', item.driveSyncedAt.slice(0,16).replace('T',' ')) : ''}
               ${inspDetailRow('狀態', item.uiStatus)}
               ${inspDetailRow('優先度', item.uiPriority)}
