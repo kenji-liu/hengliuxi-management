@@ -3872,7 +3872,7 @@ function renderFishTrend() {
         </div>
       </div>
 
-      <details style="background:#f8fafc;border:1.5px solid #cbd5e1;border-radius:14px;margin-bottom:18px;overflow:hidden">
+      <details style="display:none;background:#f8fafc;border:1.5px solid #cbd5e1;border-radius:14px;margin-bottom:18px;overflow:hidden">
         <summary style="cursor:pointer;list-style:none;display:flex;align-items:center;gap:10px;padding:13px 18px;font-size:15px;font-weight:900;color:#0369a1;user-select:none">
           <i class="fas fa-circle-info" style="font-size:16px"></i>
           圖表判讀說明
@@ -3909,7 +3909,7 @@ function renderFishTrend() {
         </div>
       </details>
 
-      <details style="border:1.5px solid #e2e8f0;border-radius:14px;overflow:hidden">
+      <details style="display:none;border:1.5px solid #e2e8f0;border-radius:14px;overflow:hidden">
         <summary style="cursor:pointer;list-style:none;display:flex;align-items:center;gap:10px;padding:12px 18px;font-size:15px;font-weight:900;color:#475569;background:#f8fafc;user-select:none">
           <i class="fas fa-chart-bar" style="font-size:15px;color:#94a3b8"></i>
           各魚道型式 CPUE 分項趨勢圖（7 張）
