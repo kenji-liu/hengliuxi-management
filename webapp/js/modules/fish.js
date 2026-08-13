@@ -463,7 +463,7 @@ function renderFishStory() {
       render: () => `
         <div style="position:relative;width:100%;height:100%;overflow:hidden">
           <img src="${SP}/image4_full.jpg" loading="lazy"
-               style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center top"
+               style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:65% top"
                alt="橫流溪流域生態全景">
           <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(8,20,12,.97) 0%,rgba(8,20,12,.65) 42%,rgba(8,20,12,.1) 72%,transparent 100%);display:flex;flex-direction:column;justify-content:flex-end;padding:28px clamp(24px,4vw,56px) 40px">
             <div class="story-kicker" style="margin-bottom:10px">第 2 頁 · 工程課題與水域生態</div>
@@ -575,7 +575,7 @@ function renderFishStory() {
               </div>
             </div>
           </div>
-          ${media(`${SP}/image7.png`, '粗石斜曲面魚道現場', '粗石斜曲面魚道的設計使水位能隨曲面變化，營造多樣化的水域型態。', 'center center', 'story-media--cover')}
+          ${media(`${SP}/image8.jpg`, '粗石斜曲面魚道施工現場', '粗石斜曲面魚道的設計使水位能隨曲面變化，營造多樣化的水域型態。', 'center top', 'story-media--cover')}
         </div>
       `
     },
