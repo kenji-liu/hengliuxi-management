@@ -1195,8 +1195,8 @@ def smart_ask() -> Any:
             local_docs = _local_keyword_retrieve(query, top_k=5)
             local_evidence = [_doc_to_evidence(d) for d in local_docs[:4]]
             if local_docs:
-                local_ctx = "\n".join(
-                    _as_text(d.get("preview") or d.get("text"))[:200]
+                local_ctx = "\n\n".join(
+                    _as_text(d.get("full_text") or d.get("preview") or d.get("text"))[:500]
                     for d in local_docs[:4]
                 )
         except Exception:
@@ -1273,6 +1273,12 @@ def smart_ask() -> Any:
     # ── 7. AI 綜合推論（自動選用可用的免費服務）─────────────────
     answer, provider_key, provider_display = _ai_synthesis(query, combined_ctx)
 
+    # ── 7a. AI 失敗時：若有本機 RAG 知識庫結果則優先顯示，避免顯示與問題無關的巡查摘要 ──
+    if not answer and local_ctx.strip():
+        answer = f"根據橫流溪本機知識庫檢索結果：\n\n{local_ctx}\n\n（AI 推論服務目前無法使用，以上為直接檢索結果，建議對照原始文件確認詳細內容。）"
+        provider_key, provider_display = "local_kb", "本機知識庫"
+
+    # ── 7b. 完全無 RAG 結果時才用管理資料保底 ─────────────────
     if not answer and management_ctx.strip():
         answer = _management_fallback_answer(query, management_evidence, management_counts)
         provider_key, provider_display = "management_context", "最新巡查與維護資料保底回答"

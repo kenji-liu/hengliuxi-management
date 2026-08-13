@@ -1295,11 +1295,15 @@ function composeAnswer(query, data) {
        </div>`
     : "";
 
-  const providerNote = llmLabel && llmLabel !== "本機知識庫"
-    ? `<div style="font-size:11px;color:#94a3b8;margin-top:10px;text-align:right">
+  const _hideProviderNote = !llmLabel
+    || llmLabel === "本機知識庫"
+    || data?.llm_provider === "management_context"
+    || data?.llm_provider === "none";
+  const providerNote = _hideProviderNote
+    ? ""
+    : `<div style="font-size:11px;color:#94a3b8;margin-top:10px;text-align:right">
          <i class="fas fa-robot" style="margin-right:3px"></i>${escapeHtml(llmLabel)}
-       </div>`
-    : "";
+       </div>`;
 
   // OCR 文件引用區塊
   const ocrCitations = Array.isArray(data?.ocr_citations) ? data.ocr_citations : [];
