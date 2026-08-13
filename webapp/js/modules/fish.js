@@ -458,38 +458,35 @@ function renderFishStory() {
         </div>
       `
     },
-    // ── 3：防砂壩功能與河川連通改善 (p.48) ──────────────────
-    {
-      render: () => `
-        <div class="story-spread story-dark" style="grid-template-columns:58% 42%">
-          ${media(`${SP}/image2.jpg`, '防砂壩與河川生態示意', '圖說：防砂壩具攔砂與穩定河床功能；當構造物形成明顯落差時，需配合魚道或友善通道維持魚類移動條件。')}
-          <div class="story-panel">
-            <div class="story-kicker">第 2 頁 · 工程與生態課題</div>
-            <div class="story-title">防砂壩功能<br>與河川連通改善</div>
-            <p class="story-body">防砂壩用於穩定河床與攔阻土砂；若壩體落差降低魚類上溯能力，則透過魚道、緩坡或多孔隙通道改善縱向連通，兼顧防災功能與棲地需求。</p>
-            <div class="story-kpi-grid">
-              ${kpi(`${story.damTotal} 座`, '防砂壩納管', 'fa-water')}
-              ${kpi(`${story.fishwayTotal} 座`, '魚道改善連通', 'fa-fish')}
-            </div>
-            <div class="story-source-box">
-              <b>平台判讀</b>
-              <span>壩體、魚道與固床工應在同一圖台套疊，但健康評分仍以工程巡查與專業巡查為主，不直接以魚類數量計入。</span>
-            </div>
-          </div>
-        </div>
-      `
-    },
-    // ── 第4頁：基因寶庫 (p.50) — 全螢幕圖片 ───────────────
+    // ── 第2頁：工程課題與水域生態（合併）全螢幕 ─────────────
     {
       render: () => `
         <div style="position:relative;width:100%;height:100%;overflow:hidden">
           <img src="${SP}/image4_full.jpg" loading="lazy"
                style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center top"
                alt="橫流溪流域生態全景">
-          <div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(to top,rgba(8,20,12,.92) 0%,rgba(8,20,12,.45) 65%,transparent 100%);padding:28px 48px 38px">
-            <div class="story-kicker" style="margin-bottom:8px">第 3 頁 · 水域生態</div>
-            <div class="story-title" style="color:#fff;margin-bottom:10px">臺灣魚種的基因寶庫</div>
-            <p class="story-body" style="max-width:700px;margin-bottom:0">橫流溪具有深潭、淺瀨、急流與礫石底質等多樣微棲地，整合 ${story.fishGroups.length || '—'} 種物種，累計 ${story.fishTotal || '—'} 尾次。</p>
+          <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(8,20,12,.97) 0%,rgba(8,20,12,.65) 42%,rgba(8,20,12,.1) 72%,transparent 100%);display:flex;flex-direction:column;justify-content:flex-end;padding:28px clamp(24px,4vw,56px) 40px">
+            <div class="story-kicker" style="margin-bottom:10px">第 2 頁 · 工程課題與水域生態</div>
+            <div style="display:flex;align-items:flex-start;gap:clamp(16px,3vw,52px);flex-wrap:wrap">
+              <div style="flex:2;min-width:260px">
+                <div class="story-title" style="color:#fff;margin-bottom:12px">臺灣魚種的<br>基因寶庫</div>
+                <p class="story-body" style="max-width:560px;margin-bottom:0">橫流溪具有深潭、淺瀨、急流與礫石底質等多樣微棲地，整合 ${story.fishGroups.length || '—'} 種物種，累計 ${story.fishTotal || '—'} 尾次。防砂壩穩定河床的同時，透過多型式魚道改善縱向連通，兼顧防災功能與棲地需求。</p>
+              </div>
+              <div style="display:flex;gap:10px;flex-shrink:0;padding-bottom:6px">
+                <div style="background:rgba(6,78,59,.75);border:1px solid rgba(134,239,172,.4);border-radius:14px;padding:14px 22px;text-align:center;min-width:90px">
+                  <div style="font-size:clamp(28px,2.8vw,42px);font-weight:900;color:#86efac;line-height:1">${story.damTotal}</div>
+                  <div style="font-size:13px;color:#d1fae5;margin-top:6px;line-height:1.3">防砂壩<br>納管</div>
+                </div>
+                <div style="background:rgba(6,78,59,.75);border:1px solid rgba(134,239,172,.4);border-radius:14px;padding:14px 22px;text-align:center;min-width:90px">
+                  <div style="font-size:clamp(28px,2.8vw,42px);font-weight:900;color:#86efac;line-height:1">${story.fishwayTotal}</div>
+                  <div style="font-size:13px;color:#d1fae5;margin-top:6px;line-height:1.3">魚道<br>改善連通</div>
+                </div>
+                <div style="background:rgba(6,78,59,.75);border:1px solid rgba(134,239,172,.4);border-radius:14px;padding:14px 22px;text-align:center;min-width:90px">
+                  <div style="font-size:clamp(28px,2.8vw,42px);font-weight:900;color:#86efac;line-height:1">${story.fishGroups.length || '—'}</div>
+                  <div style="font-size:13px;color:#d1fae5;margin-top:6px;line-height:1.3">水域<br>物種</div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       `
@@ -497,38 +494,34 @@ function renderFishStory() {
     // ── 第5頁：災後治理與生態連通 (p.51) ────────────────────
     {
       render: () => `
-        <div class="story-spread story-dark story-evidence-spread" style="grid-template-columns:minmax(0,55%) minmax(420px,45%)">
-          <div style="display:grid;grid-template-rows:1fr 1fr;gap:6px;padding:16px 12px 16px 16px;background:#0a1a0e;min-height:0;overflow:hidden">
-            <div style="position:relative;overflow:hidden;border-radius:10px;cursor:zoom-in" onclick="fishStoryOpenImage('${SP}/image5.jpg','橫流溪災後治理與生態連通報告頁','')">
-              <img src="${SP}/image5.jpg" style="width:100%;height:100%;object-fit:cover;object-position:center top;display:block" alt="治理報告原文" loading="lazy">
-            </div>
-            <div style="position:relative;overflow:hidden;border-radius:10px;cursor:zoom-in" onclick="fishStoryOpenImage('${SP}/image5.jpg','橫流溪上游崩塌與河道現況','')">
-              <img src="${SP}/image5.jpg" style="width:100%;height:100%;object-fit:cover;object-position:center 91%;display:block" alt="橫流溪上游崩塌" loading="lazy">
-            </div>
-          </div>
-          <div class="story-panel story-panel--evidence">
+        <div class="story-spread story-dark" style="grid-template-columns:50% 50%">
+          <div class="story-panel">
             <div class="story-kicker">第 4 頁 · 治理歷程</div>
-            <div class="story-title story-title--compact">災後治理與<br>生態連通</div>
+            <div class="story-title">災後治理與<br>生態連通</div>
             <p class="story-body">歷次地震與颱風事件造成上游土石崩落及河道阻塞，治理工作除維持道路與下游安全，也逐步把魚類通行與棲地連續性納入修復設計。</p>
-            <div class="story-timeline" aria-label="橫流溪治理歷程">
-              <div class="story-timeline-item">
-                <b>1999</b>
-                <span><strong>上游土石崩落</strong>河道與道路安全受到影響，後續設置防砂設施穩定土砂與河床。</span>
+            <div class="story-design-grid" style="grid-template-columns:repeat(2,1fr)">
+              <div class="story-hist-card">
+                <div class="story-hist-year">1999</div>
+                <div class="story-hist-title">上游土石崩落</div>
+                <div class="story-hist-body">九二一地震後土石大量下移，後續設置防砂設施穩定河床，確保道路與下游住戶安全。</div>
               </div>
-              <div class="story-timeline-item">
-                <b>2012</b>
-                <span><strong>颱風造成邊坡崩塌</strong>大量土砂再次進入溪流，河道整理與設施修復需求提高。</span>
+              <div class="story-hist-card">
+                <div class="story-hist-year">2012</div>
+                <div class="story-hist-title">颱風造成邊坡崩塌</div>
+                <div class="story-hist-body">蘇拉颱風造成大量土砂再次進入溪流，阻斷河道，河道整理與設施修復需求大幅提高。</div>
               </div>
-              <div class="story-timeline-item">
-                <b>2013</b>
-                <span><strong>修復納入生態需求</strong>依河段地形、水量與安全條件配置不同魚道型式，改善魚類移動條件。</span>
+              <div class="story-hist-card">
+                <div class="story-hist-year">2013</div>
+                <div class="story-hist-title">修復納入生態需求</div>
+                <div class="story-hist-body">依河段地形、水量與安全條件，配置粗石斜曲面等多型式魚道，逐步改善魚類縱向移動條件。</div>
               </div>
-            </div>
-            <div class="story-source-box story-source-box--compact">
-              <b>判讀重點</b>
-              <span>工程目標由單一土砂防治，擴充為「河床穩定、通洪安全與縱向生態連通」的整合管理。</span>
+              <div class="story-hist-card story-hist-card--note">
+                <div class="story-hist-title" style="color:#86efac">判讀重點</div>
+                <div class="story-hist-body">工程目標由單一土砂防治，擴充為「河床穩定、通洪安全與縱向生態連通」的整合管理。</div>
+              </div>
             </div>
           </div>
+          ${media(`${SP}/image5.jpg`, '橫流溪災後治理與生態連通報告頁', '資料圖說：報告記錄橫流溪上游崩塌、河道阻塞與後續防砂壩修復背景；完整原文可點圖放大閱讀。')}
         </div>
       `
     },
@@ -572,9 +565,14 @@ function renderFishStory() {
             <div class="story-title">生態友善<br>維護理念</div>
             <p class="story-body">後續維護也依循生態友善的作法，以儘量保留溪底孔隙的方式補強魚道下游處基礎，降低落差、減緩淘刷，也提供水中生物休息和躲藏的孔隙。</p>
             <p class="story-body">整體而言，粗石斜曲面魚道跳脫以往單一形式的魚道斷面，以適合各類魚種及水生生物通行作為設計理念，期望能進一步助益於河川環境復育。</p>
-            <div class="story-source-box">
-              <b>設計理念</b>
-              <span>保留溪底孔隙・降低落差・減緩淘刷・多樣水域型態</span>
+            <div>
+              <div style="color:#0f766e;font-size:clamp(15px,1.1vw,18px);font-weight:900;letter-spacing:.5px;margin-bottom:10px">設計理念</div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <span style="background:#dcfce7;border:1.5px solid #6ee7b7;border-radius:999px;padding:8px 18px;font-size:clamp(14px,1.05vw,17px);color:#14532d;font-weight:800;box-shadow:0 2px 8px rgba(6,78,59,.15)">保留溪底孔隙</span>
+                <span style="background:#dcfce7;border:1.5px solid #6ee7b7;border-radius:999px;padding:8px 18px;font-size:clamp(14px,1.05vw,17px);color:#14532d;font-weight:800;box-shadow:0 2px 8px rgba(6,78,59,.15)">降低落差</span>
+                <span style="background:#dcfce7;border:1.5px solid #6ee7b7;border-radius:999px;padding:8px 18px;font-size:clamp(14px,1.05vw,17px);color:#14532d;font-weight:800;box-shadow:0 2px 8px rgba(6,78,59,.15)">減緩淘刷</span>
+                <span style="background:#dcfce7;border:1.5px solid #6ee7b7;border-radius:999px;padding:8px 18px;font-size:clamp(14px,1.05vw,17px);color:#14532d;font-weight:800;box-shadow:0 2px 8px rgba(6,78,59,.15)">多樣水域型態</span>
+              </div>
             </div>
           </div>
           ${media(`${SP}/image7.png`, '粗石斜曲面魚道現場', '粗石斜曲面魚道的設計使水位能隨曲面變化，營造多樣化的水域型態。', 'center center', 'story-media--cover')}
@@ -760,6 +758,8 @@ function injectFishStoryStyles() {
     .story-photo-overlay .story-title{width:max-content;max-width:min(900px,100%);padding:10px 16px;border-left:6px solid #10b981;border-radius:0 10px 10px 0;background:rgba(255,255,255,.92);color:#052e16;text-shadow:none;box-shadow:0 5px 18px rgba(15,23,42,.26)}
     .story-photo-caption{max-width:880px;background:rgba(15,23,42,.86);border-left:5px solid #6ee7b7;border-radius:0 10px 10px 0;padding:12px 16px;font-size:clamp(18px,1.35vw,22px);line-height:1.55;color:#f0fdf4;font-weight:800;box-shadow:0 4px 16px rgba(15,23,42,.28)}
     .story-chip-row{display:flex;gap:10px;flex-wrap:wrap}.story-chip-row span{background:rgba(255,255,255,.94);border:1px solid #a7f3d0;border-radius:999px;padding:9px 14px;font-size:18px;color:#1f2937;font-weight:750;box-shadow:0 3px 10px rgba(15,23,42,.2)}.story-chip-row b{color:#047857;margin-right:6px}
+    .story-hist-card{background:rgba(255,255,255,.07);border:1px solid rgba(134,239,172,.2);border-radius:12px;padding:13px 15px;display:flex;flex-direction:column;gap:5px}.story-hist-card--note{background:rgba(134,239,172,.08);border-color:rgba(134,239,172,.35)}
+    .story-hist-year{font-size:22px;font-weight:900;color:#86efac;letter-spacing:0.5px}.story-hist-title{font-size:16px;font-weight:800;color:#f0fdf4;line-height:1.3}.story-hist-body{font-size:14px;color:#a7c5aa;line-height:1.55;margin:0}
     @media (max-width: 980px){.story-spread{grid-template-columns:1fr!important;overflow:auto}.story-media{min-height:46vh}.story-source-collage{min-height:70vh}.story-panel{justify-content:flex-start}.story-design-grid,.story-kpi-grid{grid-template-columns:1fr}.story-title{font-size:36px}.story-body{font-size:19px}}
   `;
   document.head.appendChild(style);
