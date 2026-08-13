@@ -462,9 +462,7 @@ function renderFishStory() {
     {
       render: () => `
         <div style="position:relative;width:100%;height:100%;overflow:hidden">
-          <img src="${SP}/image4_full.jpg" loading="lazy"
-               style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:65% top"
-               alt="橫流溪流域生態全景">
+          <div style="position:absolute;inset:0;background:url('${SP}/image4_full.jpg') 65% 55% / auto 140% no-repeat" role="img" aria-label="橫流溪流域生態全景"></div>
           <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(8,20,12,.97) 0%,rgba(8,20,12,.65) 42%,rgba(8,20,12,.1) 72%,transparent 100%);display:flex;flex-direction:column;justify-content:flex-end;padding:28px clamp(24px,4vw,56px) 40px">
             <div class="story-kicker" style="margin-bottom:10px">第 2 頁 · 工程課題與水域生態</div>
             <div style="display:flex;align-items:flex-start;gap:clamp(16px,3vw,52px);flex-wrap:wrap">
