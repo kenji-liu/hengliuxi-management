@@ -446,8 +446,8 @@ function renderFishStory() {
         <div class="story-spread story-dark" style="grid-template-columns:64% 36%">
           ${media(`${SP}/image1.jpg`, '與野共生圖冊封面', '')}
           <div class="story-panel">
-            <div class="story-kicker">第 1 頁 · 出版緣起</div>
-            <div class="story-title">與野共生</div>
+            <div class="story-kicker">緣起</div>
+            <div class="story-title" style="font-size:clamp(44px,5.5vw,72px)">與野共生</div>
             <div class="story-subtitle">國有林區治理工程友善生態圖輯</div>
             <p class="story-body">本圖輯以橫流溪為主角，說明治理工程如何在防災安全與魚類縱向連通之間取得平衡。</p>
             <div class="story-source-box">
@@ -479,24 +479,18 @@ function renderFishStory() {
         </div>
       `
     },
-    // ── 第4頁：基因寶庫 (p.50) ─────────────────────────────
+    // ── 第4頁：基因寶庫 (p.50) — 全螢幕圖片 ───────────────
     {
       render: () => `
-        <div class="story-spread story-light" style="grid-template-columns:47% 53%">
-          <div class="story-panel">
-            <div class="story-kicker">第 3 頁 · 水域生態</div>
-            <div class="story-title">臺灣魚種的<br>基因寶庫</div>
-            <p class="story-body">橫流溪具有深潭、淺瀨、急流與礫石底質等多樣微棲地。平台魚類資料庫目前整合 ${story.fishGroups.length || '—'} 種物種，累計 ${story.fishTotal || '—'} 尾次。</p>
-            <div class="story-fish-table">
-              <div class="story-table-title">資料庫累計前五物種</div>
-              ${topFishRows()}
-            </div>
-            <div class="story-source-box light">
-              <b>圖說重點</b>
-              <span>本頁不以長文字敘述，改以物種名錄與累計尾次說明橫流溪魚類資源量體。</span>
-            </div>
+        <div style="position:relative;width:100%;height:100%;overflow:hidden">
+          <img src="${SP}/image4_full.jpg" loading="lazy"
+               style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center top"
+               alt="橫流溪流域生態全景">
+          <div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(to top,rgba(8,20,12,.92) 0%,rgba(8,20,12,.45) 65%,transparent 100%);padding:28px 48px 38px">
+            <div class="story-kicker" style="margin-bottom:8px">第 3 頁 · 水域生態</div>
+            <div class="story-title" style="color:#fff;margin-bottom:10px">臺灣魚種的基因寶庫</div>
+            <p class="story-body" style="max-width:700px;margin-bottom:0">橫流溪具有深潭、淺瀨、急流與礫石底質等多樣微棲地，整合 ${story.fishGroups.length || '—'} 種物種，累計 ${story.fishTotal || '—'} 尾次。</p>
           </div>
-          ${media(`${SP}/image4.png`, '橫流溪魚類棲地與代表物種', '圖說：溪床大石、淺瀨與深槽構成多樣棲地，支撐臺灣白甲魚、纓口臺鰍、明潭吻鰕虎等指標魚種。')}
         </div>
       `
     },
@@ -504,7 +498,14 @@ function renderFishStory() {
     {
       render: () => `
         <div class="story-spread story-dark story-evidence-spread" style="grid-template-columns:minmax(0,55%) minmax(420px,45%)">
-          ${sourceCollage(`${SP}/image5.jpg`, '橫流溪災後治理與生態連通報告頁', '資料圖說：報告記錄橫流溪上游崩塌、河道阻塞與後續防砂壩修復背景；完整原文可點圖放大閱讀。')}
+          <div style="display:grid;grid-template-rows:1fr 1fr;gap:6px;padding:16px 12px 16px 16px;background:#0a1a0e;min-height:0;overflow:hidden">
+            <div style="position:relative;overflow:hidden;border-radius:10px;cursor:zoom-in" onclick="fishStoryOpenImage('${SP}/image5.jpg','橫流溪災後治理與生態連通報告頁','')">
+              <img src="${SP}/image5.jpg" style="width:100%;height:100%;object-fit:cover;object-position:center top;display:block" alt="治理報告原文" loading="lazy">
+            </div>
+            <div style="position:relative;overflow:hidden;border-radius:10px;cursor:zoom-in" onclick="fishStoryOpenImage('${SP}/image5.jpg','橫流溪上游崩塌與河道現況','')">
+              <img src="${SP}/image5.jpg" style="width:100%;height:100%;object-fit:cover;object-position:center 91%;display:block" alt="橫流溪上游崩塌" loading="lazy">
+            </div>
+          </div>
           <div class="story-panel story-panel--evidence">
             <div class="story-kicker">第 4 頁 · 治理歷程</div>
             <div class="story-title story-title--compact">災後治理與<br>生態連通</div>
@@ -552,7 +553,7 @@ function renderFishStory() {
           ${media(`${SP}/image7.png`, '魚道剖面圖與改善對照', '圖說：剖面圖呈現改善前梯式高落差與改善後斜曲面水路差異，作為設計審查與後續維護判讀依據。')}
           <div class="story-panel">
             <div class="story-kicker">第 6 頁 · 設計圖說</div>
-            <div class="story-title">剖面圖要能<br>說明設計目的</div>
+            <div class="story-title">魚道設計目的</div>
             <div class="story-compare-list">
               <div><b>改善前</b><span>階差集中、水流急、易淤積，魚類缺乏休息區。</span></div>
               <div><b>改善後</b><span>斜曲面與粗石共同消能，保留中央低流量水路。</span></div>
