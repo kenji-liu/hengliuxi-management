@@ -67,6 +67,16 @@
       </li>
     </ul>
 
+    <div class="sidebar-font-ctrl" id="sidebarFontCtrl">
+      <div class="sidebar-font-ctrl-label"><i class="fas fa-text-height" style="margin-right:5px;opacity:.6"></i>字體大小</div>
+      <div class="sidebar-font-btns">
+        <button data-fsize="xs" onclick="applyFontSize('xs')" title="最小字體" style="font-size:11px">A</button>
+        <button data-fsize="sm" onclick="applyFontSize('sm')" title="小字體" style="font-size:13px">A</button>
+        <button data-fsize="md" onclick="applyFontSize('md')" title="標準字體" style="font-size:15px">A</button>
+        <button data-fsize="lg" onclick="applyFontSize('lg')" title="大字體" style="font-size:18px">A</button>
+      </div>
+    </div>
+
     <div class="sidebar-footer">
       <span>林業及自然保育署</span>
     </div>
@@ -195,7 +205,12 @@
       if (lbl) lbl.textContent = s.label;
       if (btn) btn.title = s.title;
       localStorage.setItem(STORE_KEY, key);
+      document.querySelectorAll('[data-fsize]').forEach(b => {
+        b.classList.toggle('sidebar-font-active', b.dataset.fsize === key);
+      });
     }
+
+    window.applyFontSize = applySize;
 
     // 載入儲存的設定（或依螢幕寬自動選預設值）
     const saved = localStorage.getItem(STORE_KEY);
