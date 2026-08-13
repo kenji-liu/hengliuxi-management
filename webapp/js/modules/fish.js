@@ -3820,11 +3820,18 @@ function renderFishTrend() {
           </table>
         </div>
         <div style="margin-top:14px;font-size:13px;color:#475569;line-height:1.8;background:#fff;border-radius:10px;padding:12px 14px">
-          <b style="color:#0e7490">水域生態專家判釋：</b>
+          <b style="color:#0e7490">資料判讀要點：</b>
           ①原始捕獲量 108→114年「下降」係站數由 6 站縮為 1 站之<b>努力量假象</b>，非生態衰退。
           ②CPUE 校正後呈穩定高檔（93～103 尾/站訪次），且物種數於 112年達 9 種峰值，顯示<b>群聚結構趨多元、均衡</b>。
-          ③109年 CPUE 短暫下探係<b>魚道施工擾動期</b>（報告明載），完工後即回升，符合「改善初期先組成改善、後個體回穩」的生態歷程。
+          ③後續年度 CPUE 回升，且各樣站魚種組成維持高度相似，較合理的解讀是<b>年際波動與空間重新分布</b>，而非持續性生態衰退。
           ④洄游指標種臺灣間爬岩鰍於110年合計32尾（4月23尾、9月9尾）、114年13尾再現上游魚道，佐證<b>上下游連通性恢復</b>。
+        </div>
+        <div style="margin-top:12px;background:linear-gradient(135deg,#f0fdf4,#ecfeff);border-left:4px solid #0e7490;border-radius:10px;padding:16px 18px;font-size:13.5px;color:#334155;line-height:1.85">
+          <div style="font-size:14px;font-weight:900;color:#0e7490;margin-bottom:10px"><i class="fas fa-magnifying-glass-chart" style="margin-right:7px"></i>生態詮釋框架</div>
+          <p style="margin:0 0 10px 0">橫流溪各河段的落差、流速與河床條件不同，魚道並非採用單一形式，而是運用粗石斜曲面、階段式、斜坡式、潛越式及降壩等設計，把過大的落差逐步拆小，並創造緩流、休息區與不同通行路徑，讓不同游泳能力的魚類都能找到適合的方式通過。</p>
+          <p style="margin:0 0 10px 0">從歷年 CPUE 來看，107～108 年確實明顯升高，代表當時在相同調查努力下捕獲的魚較多。然而這不一定表示整條溪流的魚類數量突然增加，也可能受到<b>豐枯水條件、繁殖季節、幼魚補充</b>，以及魚群集中在特定深潭或魚道入口等因素影響。</p>
+          <p style="margin:0 0 10px 0">109 年數值下降，亦不能直接解讀為魚道失效。當溪流連通性改善後，魚群可能由原本集中的區域<b>向上下游分散</b>，使單一樣站的捕獲量反而降低；豪雨、土砂堆積與水流路徑改變，也會影響魚類停留位置及調查時的捕獲率。</p>
+          <p style="margin:0;color:#0f766e;font-weight:700">判斷魚道是否有效，須綜合比較魚種組成、上下游移動、水質、流量以及長期 CPUE，才能真正了解溪流連通性是否持續發揮作用。</p>
         </div>
       </div>
 
