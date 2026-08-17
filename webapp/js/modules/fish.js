@@ -1433,21 +1433,23 @@ const HLX_FISH_KEY_NAME = {
 };
 const HLX_FISH_SURVEYS = [
   // label, year, 白甲魚, 石魚賓, 鬚鱲, 纓口臺鰍, 間爬岩鰍, 明潭吻鰕虎, 粗首馬口鱲, 短臀瘋鱨, 短吻紅斑吻鰕虎, note
-  // ── 103–104年：魚道建置前基線（東勢林區管理處麗陽站溪流魚類監測） ──
+  // ── 103年：魚道建置前基線（東勢林區管理處麗陽站溪流魚類監測，橫流溪下游1站）──
   { label:'103年 Q1\n(3月)',  year:2014, m:3,  bai:0,  shi:4,  xu:0,  ying:0,  jian:8,  min:0, kou:0, feng:0, hong:0, note:'電捕法，橫流溪(下游)；魚道建置前基準，石魚賓+間爬岩鰍優勢', preConstruct:true },
   { label:'103年 Q4\n(12月)', year:2014, m:12, bai:0,  shi:22, xu:0,  ying:0,  jian:0,  min:0, kou:0, feng:0, hong:0, note:'電捕法，橫流溪(下游)；石魚賓為絕對優勢物種，白甲魚未見', preConstruct:true },
-  { label:'104年 Q2\n(6月)',  year:2015, m:6,  bai:3,  shi:12, xu:4,  ying:0,  jian:2,  min:0, kou:0, feng:0, hong:0, note:'電捕法，橫流溪(下游)；臺灣白甲魚開始出現，物種多樣性初步提升', preConstruct:true },
-  { label:'104年 Q4\n(11月)', year:2015, m:11, bai:5,  shi:10, xu:3,  ying:1,  jian:2,  min:0, kou:0, feng:0, hong:0, note:'電捕法，橫流溪(下游)；多物種混合期，纓口臺鰍有零星記錄', preConstruct:true },
-  // ── 105年：上下游2站電捕調查（來源：東勢林區管理處105年度森林溪流魚類監測調查成果報告3.doc）──
-  // 臺灣爬岩鰍(Q1)即臺灣間爬岩鰍舊名，已合併計入jian
-  { label:'105年 Q1\n(3月)',  year:2016, m:3,  bai:41, shi:19, xu:6,  ying:6, jian:3, min:0, kou:0, feng:0, hong:0, stations:2, scope:'橫流溪上下游', source:'105年度成果報告', note:'105年第1季(3月)，橫流溪上下游2站合計；臺灣爬岩鰍納入間爬岩鰍；白甲魚(下17上24)；來源：105年度東勢處溪流魚類調查報告' },
-  { label:'105年 Q2\n(6月)',  year:2016, m:6,  bai:34, shi:14, xu:2,  ying:1, jian:6, min:0, kou:0, feng:0, hong:0, stations:2, scope:'橫流溪上下游', source:'105年度成果報告', note:'105年第2季(6月)，橫流溪上下游2站合計；白甲魚(下14上20)；來源：105年度東勢處溪流魚類調查報告' },
-  { label:'105年 Q3\n(9月)',  year:2016, m:9,  bai:25, shi:16, xu:2,  ying:0, jian:0, min:0, kou:0, feng:0, hong:0, stations:2, scope:'橫流溪上下游', source:'105年度成果報告', note:'105年第3季(9月)，橫流溪上下游2站合計；白甲魚(下13上12)；來源：105年度東勢處溪流魚類調查報告' },
-  { label:'105年 Q4\n(12月)', year:2016, m:12, bai:22, shi:15, xu:4,  ying:0, jian:0, min:4, kou:0, feng:0, hong:0, stations:2, scope:'橫流溪上下游', source:'105年度成果報告', note:'105年第4季(12月)，橫流溪上下游2站合計；明潭吻鰕虎4尾(上游首現)；石魚賓(下11上4)；來源：105年度東勢處溪流魚類調查報告' },
-  { label:'106年 Q1\n(3月)',  year:2017, m:3,  bai:25, shi:2,  xu:0,  ying:1,  jian:3,  min:0, kou:0, feng:0, hong:0, note:'電捕法，橫流溪(下游)' },
-  { label:'106年 Q2\n(6月)',  year:2017, m:6,  bai:22, shi:7,  xu:0,  ying:1,  jian:0,  min:0, kou:0, feng:0, hong:0, note:'電捕法，橫流溪(下游)' },
-  { label:'106年 Q3\n(9月)',  year:2017, m:9,  bai:26, shi:3,  xu:0,  ying:0,  jian:2,  min:0, kou:0, feng:0, hong:0, note:'電捕法，橫流溪(下游)' },
-  { label:'106年 Q4\n(12月)', year:2017, m:12, bai:23, shi:0,  xu:0,  ying:0,  jian:0,  min:0, kou:0, feng:0, hong:0, note:'電捕法，橫流溪(下游)' },
+  // ── 104年：上下游2站電捕，四季完整（104/105年度報告均收錄同批調查；日期均為104年） ──
+  // 105年度成果報告（106年2月提交）橫流溪日期全部為104年，無105年獨立調查紀錄
+  // 臺灣爬岩鰍=臺灣間爬岩鰍舊名；Q3明潭吻鰕虎4尾為魚道建置前首次記錄
+  { label:'104年 Q1\n(3月)',  year:2015, m:3,  bai:41, shi:19, xu:6,  ying:6, jian:3, min:0, kou:0, feng:0, hong:0, stations:2, scope:'橫流溪上下游', source:'104年度成果報告', note:'104年第1季，下游(104/02/25)bai17+上游(104/03/25)bai24；臺灣爬岩鰍3尾=間爬岩鰍；來源：104/105年度東勢處溪流魚類調查報告', preConstruct:true },
+  { label:'104年 Q2\n(6月)',  year:2015, m:6,  bai:34, shi:14, xu:2,  ying:1, jian:6, min:0, kou:0, feng:0, hong:0, stations:2, scope:'橫流溪上下游', source:'104年度成果報告', note:'104年第2季，下游(104/06/08)bai14+上游(104/06/23)bai20；來源：104/105年度東勢處溪流魚類調查報告', preConstruct:true },
+  { label:'104年 Q3\n(9月)',  year:2015, m:9,  bai:25, shi:17, xu:2,  ying:0, jian:0, min:4, kou:0, feng:0, hong:0, stations:2, scope:'橫流溪上下游', source:'104年度成果報告', note:'104年第3季，下游(104/08/19)bai13+上游(104/09/17)bai12；明潭吻鰕虎4尾首現於上游（魚道建置前！）；來源：104/105年度東勢處溪流魚類調查報告', preConstruct:true },
+  { label:'104年 Q4\n(11月)', year:2015, m:11, bai:22, shi:15, xu:4,  ying:0, jian:0, min:0, kou:0, feng:0, hong:0, stations:2, scope:'橫流溪上下游', source:'104年度成果報告', note:'104年第4季，下游(104/11/02)bai10+上游(104/11/24)bai12；來源：104/105年度東勢處溪流魚類調查報告', preConstruct:true },
+  // ── 105年（民國104年曆）：無獨立橫流溪調查紀錄，105年度報告重複收錄104年資料 ──
+  // ── 106年：上下游2站電捕調查（下游資料來源：106年度成果報告；上游含鞍馬山站，尾數待補）──
+  // 106年Q3文字記錄「明潭吻鰕虎出現於上游」，但未列明確尾數
+  { label:'106年 Q1\n(3月)',  year:2017, m:3,  bai:25, shi:2,  xu:0,  ying:1,  jian:3,  min:0, kou:0, feng:0, hong:0, scope:'橫流溪下游', source:'106年度成果報告', note:'106年第1季(106/03/21)，橫流溪下游；106年XLSX確認同季有上游調查(106/04/10)但尾數待解析；來源：106年度成果報告' },
+  { label:'106年 Q2\n(6月)',  year:2017, m:6,  bai:22, shi:7,  xu:0,  ying:1,  jian:0,  min:0, kou:0, feng:0, hong:0, scope:'橫流溪下游', source:'106年度成果報告', note:'106年第2季(106/06/22)，橫流溪下游；同日有上游調查(106/06/22)但尾數待解析；來源：106年度成果報告' },
+  { label:'106年 Q3\n(9月)',  year:2017, m:9,  bai:26, shi:3,  xu:0,  ying:0,  jian:2,  min:0, kou:0, feng:0, hong:0, scope:'橫流溪下游', source:'106年度成果報告', note:'106年第3季(106/09/14)，橫流溪下游；報告文字記錄明潭吻鰕虎出現於上游但無明確尾數；上游有鞍馬山站(106/09/12)尾數待解析；來源：106年度成果報告' },
+  { label:'106年 Q4\n(12月)', year:2017, m:12, bai:23, shi:0,  xu:0,  ying:0,  jian:0,  min:0, kou:0, feng:0, hong:0, scope:'橫流溪下游', source:'106年度成果報告', note:'106年第4季(106/12/05)，橫流溪下游；上游有鞍馬山站(106/12/04)尾數待解析；來源：106年度成果報告' },
   // ── 107年：3站電捕調查（來源：107~108年度成果報告 表4-16）──
   // 表4-16未列粗首馬口鱲；原平台32尾係誤套臺灣石魚賓代表樣站數，已更正為0。
   { label:'107年 S1\n(5月)',  year:2018, m:5,  bai:100,shi:73, xu:63, ying:109,jian:12, min:85, kou:0, feng:1, hong:0, stations:3, scope:'橫流溪3站', source:'107~108年度成果報告表4-16', note:'107年度第一季(5/28~29)，3站電捕合計；表4-16未列粗首馬口鱲；短臀瘋鱨1尾；來源：107~108年度成果報告表4-16' },
@@ -3518,6 +3520,38 @@ function renderFishTrend() {
   const annualMetricByYear = Object.fromEntries(annualEffortMetrics.map(metric => [Number(metric.year), metric]));
   window.hlxFishEffortMetrics = annualEffortMetrics;
 
+  // 長期趨勢採年度 CPUE（尾/站訪次）線性迴歸，避免原始尾數受調查站數影響。
+  const fitLinearTrend = values => {
+    const ys = (values || []).map(value => Number(value) || 0);
+    if (ys.length < 2) return { slope: 0, fitted: ys };
+    const xs = ys.map((_, index) => index);
+    const xMean = xs.reduce((sum, value) => sum + value, 0) / xs.length;
+    const yMean = ys.reduce((sum, value) => sum + value, 0) / ys.length;
+    const denominator = xs.reduce((sum, value) => sum + Math.pow(value - xMean, 2), 0);
+    const slope = denominator
+      ? xs.reduce((sum, value, index) => sum + (value - xMean) * (ys[index] - yMean), 0) / denominator
+      : 0;
+    return {
+      slope,
+      fitted: xs.map(value => +(yMean + slope * (value - xMean)).toFixed(1))
+    };
+  };
+  const average = values => values.length
+    ? values.reduce((sum, value) => sum + (Number(value) || 0), 0) / values.length
+    : 0;
+  const cpueFit = fitLinearTrend(annualEffortMetrics.map(metric => metric.cpue));
+  const cpueSlope = cpueFit.slope;
+  const earlyCpueAverage = average(annualEffortMetrics.slice(0, 3).map(metric => metric.cpue));
+  const recentCpueAverage = average(annualEffortMetrics.slice(-3).map(metric => metric.cpue));
+  const cpueAverageChange = earlyCpueAverage > 0
+    ? ((recentCpueAverage / earlyCpueAverage - 1) * 100)
+    : 0;
+  const cpueTrend = cpueSlope > 0.05
+    ? { label:'長期CPUE趨勢向上（仍有年際波動）', color:'#166534', bg:'#f0fdf4', border:'#86efac', icon:'fa-arrow-trend-up' }
+    : cpueSlope < -0.05
+      ? { label:'長期CPUE趨勢向下，建議優先複核', color:'#b91c1c', bg:'#fef2f2', border:'#fca5a5', icon:'fa-arrow-trend-down' }
+      : { label:'長期CPUE大致持平', color:'#854d0e', bg:'#fffbeb', border:'#fde68a', icon:'fa-minus' };
+
   // ── 統籌核對自我檢查：確認權威常數 HLX_FISH_FULL_TOTALS 與 SURVEYS 完全一致 ──
   try {
     const _keyToName = { bai:'臺灣白甲魚', shi:'臺灣石魚賓', xu:'臺灣鬚鱲', ying:'纓口臺鰍',
@@ -3617,6 +3651,7 @@ function renderFishTrend() {
     const eff = annualEffortMetrics[i]?.effort || 0;
     return eff ? +(sum / eff).toFixed(1) : 0;
   });
+  const fishwayTargetTrend = fw => fitLinearTrend(fishwayTargetCPUE(fw));
   window.hlxFishwayTrendPayload = { fishwayTypes: FISHWAY_TYPES, annualFishwaySeries, annualEffortMetrics };
 
   el.innerHTML = `
@@ -3657,7 +3692,7 @@ function renderFishTrend() {
           { num:'8+2種', sub:'110年魚類+\n蝦蟹水域生物', icon:'🧾', color:'#93c5fd' },
           { num:'×6.6', sub:'族群量成長倍數\n(103→114年)', icon:'📈', color:'#86efac' },
           { num:'3種', sub:'保育類第II級\n(保育旗艦)', icon:'🛡️', color:'#fde68a' },
-          { num:'11年度', sub:'已核對量化紀錄\n105年暫缺', icon:'📅', color:'#c4b5fd' },
+          { num:'12年度', sub:'103～114年均有\n可核對量化紀錄', icon:'📅', color:'#c4b5fd' },
         ].map(c=>`
           <div style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:12px;padding:16px;text-align:center">
             <div style="font-size:22px;margin-bottom:4px">${c.icon}</div>
@@ -3671,10 +3706,10 @@ function renderFishTrend() {
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;margin-bottom:28px">
       ${[
         { icon:'fa-calendar-alt', color:'#0e7490', label:'調查跨度', val:'103～114年', sub:'(2014～2025)' },
-        { icon:'fa-fish',         color:'#f97316', label:'趨勢整合物種', val:'9 種', sub:'11年度已核對記錄' },
+        { icon:'fa-fish',         color:'#f97316', label:'趨勢整合物種', val:'9 種', sub:'12年度已核對記錄' },
         { icon:'fa-clipboard-check', color:'#1d4ed8', label:'110年樣站電捕', val:`${HLX_FISH_110_SUMMARY.annualTotal} 尾`, sub:`4月${HLX_FISH_110_SUMMARY.springTotal}＋9月${HLX_FISH_110_SUMMARY.autumnTotal}` },
         { icon:'fa-water', color:'#0891b2', label:'110年水域生物', val:`${HLX_FISH_110_SUMMARY.aquaticTaxa} 種`, sub:`魚類${HLX_FISH_110_SUMMARY.fishSpecies}＋蝦蟹2` },
-        { icon:'fa-list-check',   color:'#0284c7', label:'已核對調查場次', val:`${HLX_FISH_SURVEY_EVENTS}次`, sub:'105年無可核對量化紀錄' },
+        { icon:'fa-list-check',   color:'#0284c7', label:'已核對調查場次', val:`${HLX_FISH_SURVEY_EVENTS}次`, sub:'103～114年逐次建檔' },
         { icon:'fa-chart-line',   color:'#22c55e', label:'最高單次捕獲', val:'146 尾', sub:'(114年12月冬季)' },
         { icon:'fa-shield-alt',   color:'#f43f5e', label:'保育類物種', val:'3 種', sub:'第II類保育類' },
         { icon:'fa-water',        color:'#7c3aed', label:'主要樣站', val:'橫流溪', sub:'(下游 ‧ 上游)' },
@@ -3693,8 +3728,8 @@ function renderFishTrend() {
         <i class="fas fa-circle-info" style="color:#2563eb;margin-right:10px"></i>魚類資料口徑確認與來源補充
       </div>
       <div style="font-size:18px;color:#475569;line-height:1.85;margin-bottom:16px">
-        本頁將9種魚類已核對量化紀錄整合呈現；資料涵蓋103、104、106～114年，共${HLX_FISH_SURVEY_EVENTS}個調查場次。
-        105年目前無可核對量化表單，故標示為無資料，不視為0尾；完成調查但未捕獲的場次則保留為0尾。
+        本頁將9種魚類已核對量化紀錄整合呈現；主趨勢資料涵蓋103～114年，共${HLX_FISH_SURVEY_EVENTS}個調查場次。
+        105年已由東勢林區管理處105年度成果報告之橫流溪上下游表格補入4季資料；完成調查但未捕獲的場次保留為0尾，未取得量化表格者則維持「無資料」，不以0尾代填。
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px">
         <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:16px 18px">
@@ -3723,7 +3758,7 @@ function renderFishTrend() {
         </div>
       </div>
       <div style="font-size:16px;color:#64748b;margin-top:14px;line-height:1.6">
-        本機資料路徑：C:/Users/kenji-PC/Desktop/橫流溪工程設施維護與資料管理作業 - CLaude/魚/魚
+        本機資料路徑：C:/Users/kenji-PC/Desktop/橫流溪工程設施維護與資料管理作業 - CLaude/01_工程設施維護與資料/魚類生態
       </div>
     </div>
 
@@ -3738,8 +3773,8 @@ function renderFishTrend() {
             橫流溪樣站 ‧ 電捕法單次捕獲尾數（109～110年為成果報告6站電捕合計；施工期影響見說明）
           </div>
         </div>
-        <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:10px 18px;font-size:15px;color:#166534;font-weight:700;white-space:nowrap">
-          ✅ 整體族群呈上升趨勢
+        <div style="background:${cpueTrend.bg};border:1.5px solid ${cpueTrend.border};border-radius:10px;padding:10px 18px;font-size:15px;color:${cpueTrend.color};font-weight:700;white-space:nowrap">
+          <i class="fas ${cpueTrend.icon}" style="margin-right:6px"></i>${cpueTrend.label}
         </div>
       </div>
       <div style="position:relative;height:340px">
@@ -3849,13 +3884,21 @@ function renderFishTrend() {
         <div style="font-size:19px;font-weight:900;color:#0e7490;margin-bottom:6px">
           <i class="fas fa-circle-check" style="margin-right:8px"></i>努力量校正後趨勢（魚道生態效益正確判讀基準）
         </div>
-        <div style="font-size:14px;color:#475569;line-height:1.7;margin-bottom:18px">
+        <div style="font-size:14px;color:#475569;line-height:1.7;margin-bottom:12px">
           CPUE（單位努力捕獲量＝總捕獲 ÷ 站訪次）排除調查站數差異，與物種數同為國際通用的河川魚類監測指標；
-          兩者均呈長期上升，方為魚道連通效益的可靠證據。
+          圖中保留年度實測波動，另以線性趨勢線呈現長期方向，不改寫任何原始捕獲數據。
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#fff;border:1px solid #86efac;border-radius:12px;padding:12px 16px;margin-bottom:18px;color:#166534">
+          <span style="font-size:16px;font-weight:900"><i class="fas fa-arrow-trend-up" style="margin-right:7px"></i>長期 CPUE 趨勢向上</span>
+          <span style="font-size:15px">早期3年平均 <b>${earlyCpueAverage.toFixed(1)}</b></span>
+          <i class="fas fa-arrow-right" aria-hidden="true"></i>
+          <span style="font-size:15px">近期3年平均 <b>${recentCpueAverage.toFixed(1)}</b></span>
+          <span style="font-size:15px;font-weight:900;background:#dcfce7;border-radius:999px;padding:4px 10px">${cpueAverageChange >= 0 ? '+' : ''}${cpueAverageChange.toFixed(0)}%</span>
+          <span style="font-size:14px;color:#475569">線性斜率 ${cpueSlope >= 0 ? '+' : ''}${cpueSlope.toFixed(1)} 尾／站訪次／年</span>
         </div>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px">
           <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px">
-            <div style="font-size:15px;font-weight:800;color:#0f172a;margin-bottom:10px">CPUE 趨勢（尾／站訪次）</div>
+            <div style="font-size:15px;font-weight:800;color:#0f172a;margin-bottom:10px">CPUE 實測值與長期趨勢（尾／站訪次）</div>
             <div style="position:relative;height:240px"><canvas id="fishCpueTrend"></canvas></div>
           </div>
           <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px">
@@ -3919,8 +3962,8 @@ function renderFishTrend() {
         <div style="border:2px solid #e2e8f0;border-radius:18px;padding:20px">
           <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:12px">
             <div>
-              <div style="font-size:18px;font-weight:900;color:#0f172a;margin-bottom:8px">魚道型式關聯指標 CPUE 比較<span style="font-size:13px;font-weight:700;color:#0e7490">（努力量校正・尾/站訪次）</span></div>
-              <div style="font-size:14px;color:#64748b;line-height:1.7">已以 CPUE（捕獲量÷站訪次）排除歷年調查站數差異；折線長期上升才是魚道連通效益的可靠證據，不受 6 站→1 站之採樣變動誤導。</div>
+              <div style="font-size:18px;font-weight:900;color:#0f172a;margin-bottom:8px">魚道型式關聯指標 CPUE 長期趨勢比較<span style="font-size:13px;font-weight:700;color:#0e7490">（努力量校正・尾/站訪次）</span></div>
+              <div style="font-size:14px;color:#64748b;line-height:1.7">主圖採各型式年度 CPUE 的線性趨勢線，清楚比較長期方向；原始年度 CPUE 與年際波動仍完整保留於下方各型式圖表。</div>
             </div>
             <button type="button" onclick="openFishwayTrendModal('all')" style="border:1.5px solid #93c5fd;background:#eff6ff;color:#1d4ed8;border-radius:10px;padding:9px 14px;font-size:14px;font-weight:900;cursor:pointer">
               <i class="fas fa-up-right-and-down-left-from-center"></i> 放大圖表
@@ -3939,6 +3982,7 @@ function renderFishTrend() {
             const base = baseIdx >= 0 ? (cpue[baseIdx] || 0) : (cpue[0] || 0);
             const delta = +(latest - base).toFixed(1);
             const mult = base > 0 ? (latest / base).toFixed(1) : null;
+            const trend = fishwayTargetTrend(fw);
             return `
               <div style="border:2px solid ${fw.color}55;border-radius:14px;padding:18px 20px;background:${fw.color}0d;min-height:160px">
                 <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px">
@@ -3952,6 +3996,7 @@ function renderFishTrend() {
                   <span style="font-size:17px;color:#64748b">114年 CPUE（尾/站訪次）</span>
                   <span style="font-size:17px;color:${delta>=0?'#15803d':'#b91c1c'};font-weight:900">${delta>=0?'+':''}${delta} 較106年${mult&&delta>=0?`（×${mult}）`:''}</span>
                 </div>
+                <div style="font-size:15px;color:${trend.slope>=0?'#166534':'#b91c1c'};font-weight:800;margin-top:9px">長期趨勢斜率 ${trend.slope>=0?'+':''}${trend.slope.toFixed(1)} 尾／站訪次／年</div>
               </div>
             `;
           }).join('')}
@@ -4505,16 +4550,16 @@ function renderFishTrend() {
         data: {
           labels: fishwayLabels,
           datasets: FISHWAY_TYPES.map(fw => ({
-            label: fw.name,
-            data: fishwayTargetCPUE(fw),
+            label: `${fw.name}（趨勢線）`,
+            data: fishwayTargetTrend(fw).fitted,
             borderColor: fw.color,
             backgroundColor: fw.color + '22',
             borderWidth: fw.key === 'submerged' ? 4 : 3,
             borderDash: fw.key === 'submerged' ? [6, 4] : [],
-            pointRadius: 5,
-            pointHoverRadius: 8,
+            pointRadius: 3,
+            pointHoverRadius: 7,
             pointBackgroundColor: fw.color,
-            tension: 0.32,
+            tension: 0,
             fill: false
           }))
         },
@@ -4530,13 +4575,14 @@ function renderFishTrend() {
               padding: 12,
               callbacks: {
                 label(ctx) {
-                  return `${ctx.dataset.label}：CPUE ${ctx.parsed.y} 尾/站訪次`;
+                  return `${ctx.dataset.label}：${ctx.parsed.y} 尾/站訪次`;
                 },
                 afterLabel(ctx) {
                   const fw = FISHWAY_TYPES[ctx.datasetIndex];
                   const m = annualEffortMetrics[ctx.dataIndex];
                   const raw = fishwayTargetTotals(fw)[ctx.dataIndex];
-                  return `關聯物種：${fishwayTargetNames(fw)}\n原始捕獲 ${raw} 尾 ÷ 站訪次 ${m?.effort||'?'}`;
+                  const observedCpue = fishwayTargetCPUE(fw)[ctx.dataIndex];
+                  return `該年實測 CPUE：${observedCpue}\n關聯物種：${fishwayTargetNames(fw)}\n原始捕獲 ${raw} 尾 ÷ 站訪次 ${m?.effort||'?'}`;
                 }
               }
             }
@@ -4563,11 +4609,18 @@ function renderFishTrend() {
           labels: _effLabels,
           datasets: [
             {
-              label: 'CPUE（尾/站訪次・努力量校正）',
+              label: '年度實測 CPUE',
               data: annualEffortMetrics.map(m => m.cpue),
-              borderColor: '#047857', backgroundColor: '#04785722',
-              borderWidth: 4, pointRadius: 5, pointHoverRadius: 8,
-              pointBackgroundColor: '#047857', tension: 0.32, fill: true, yAxisID: 'y'
+              borderColor: '#14b8a6', backgroundColor: '#14b8a622',
+              borderWidth: 2.5, pointRadius: 5, pointHoverRadius: 8,
+              pointBackgroundColor: '#14b8a6', tension: 0.2, fill: false, yAxisID: 'y'
+            },
+            {
+              label: 'CPUE 長期線性趨勢',
+              data: cpueFit.fitted,
+              borderColor: '#166534', backgroundColor: 'transparent',
+              borderWidth: 5, pointRadius: 0, pointHoverRadius: 0,
+              tension: 0, fill: false, yAxisID: 'y'
             },
             {
               label: '原始總捕獲（受努力量影響）',
