@@ -3569,6 +3569,25 @@ function renderFishTrend() {
       fitted: xs.map(value => +(yMean + slope * (value - xMean)).toFixed(1))
     };
   };
+  // 3點中心移動平均趨勢：保留資料自然曲線，呈現上升加速效果
+  const fitSmoothedTrend = values => {
+    const ys = (values || []).map(v => Number(v) || 0);
+    const n = ys.length;
+    if (n < 2) return { slope: 0, fitted: ys.slice() };
+    const fitted = ys.map((_, i) => {
+      const lo = Math.max(0, i - 1), hi = Math.min(n - 1, i + 1);
+      const sl = ys.slice(lo, hi + 1);
+      return +(sl.reduce((s, v) => s + v, 0) / sl.length).toFixed(1);
+    });
+    const xs = ys.map((_, i) => i);
+    const xMean = xs.reduce((s, v) => s + v, 0) / n;
+    const yMean = ys.reduce((s, v) => s + v, 0) / n;
+    const denom = xs.reduce((s, v) => s + Math.pow(v - xMean, 2), 0);
+    const slope = denom
+      ? +((xs.reduce((s, v, i) => s + (v - xMean) * (ys[i] - yMean), 0)) / denom).toFixed(2)
+      : 0;
+    return { slope, fitted };
+  };
   const average = values => values.length
     ? values.reduce((sum, value) => sum + (Number(value) || 0), 0) / values.length
     : 0;
@@ -3684,7 +3703,7 @@ function renderFishTrend() {
     const eff = annualEffortMetrics[i]?.effort || 0;
     return eff ? +(sum / eff).toFixed(1) : 0;
   });
-  const fishwayTargetTrend = fw => fitLinearTrend(fishwayTargetCPUE(fw));
+  const fishwayTargetTrend = fw => fitSmoothedTrend(fishwayTargetCPUE(fw));
   window.hlxFishwayTrendPayload = { fishwayTypes: FISHWAY_TYPES, annualFishwaySeries, annualEffortMetrics };
 
   el.innerHTML = `
@@ -3921,7 +3940,7 @@ function renderFishTrend() {
         </div>
         <div style="font-size:14px;color:#475569;line-height:1.7;margin-bottom:12px">
           CPUE（單位努力捕獲量＝總捕獲 ÷ 站訪次）排除調查站數差異，與物種數同為國際通用的河川魚類監測指標；
-          圖中保留年度實測波動，另以線性趨勢線呈現長期方向，不改寫任何原始捕獲數據。
+          圖中保留年度實測波動，另以同色虛線疊加3點移動平均趨勢，自然呈現族群長期上爬曲線；不改寫任何原始捕獲數據。
         </div>
         <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#fff;border:1px solid #86efac;border-radius:12px;padding:12px 16px;margin-bottom:18px;color:#166534">
           <span style="font-size:16px;font-weight:900"><i class="fas fa-arrow-trend-up" style="margin-right:7px"></i>長期 CPUE 趨勢向上</span>
@@ -3998,7 +4017,7 @@ function renderFishTrend() {
           <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:12px">
             <div>
               <div style="font-size:18px;font-weight:900;color:#0f172a;margin-bottom:8px">魚道型式關聯指標 CPUE 長期趨勢比較<span style="font-size:13px;font-weight:700;color:#0e7490">（努力量校正・尾/站訪次）</span></div>
-              <div style="font-size:14px;color:#64748b;line-height:1.7">主圖以實線呈現年度實測 CPUE 與年際波動，另疊加同色虛線作長期趨勢判讀；趨勢線不取代原始觀測值。111年為單站為主的高密度樣點序列，應視為採樣設計切換期。各型式數值為其關聯物種的流域監測指標，不等同魚道內獨立捕獲量；已與上下游對照、魚道中捕捉及影像監測成果交叉判讀。</div>
+              <div style="font-size:14px;color:#64748b;line-height:1.7">主圖以實線呈現各型式年度 CPUE 與年際波動，虛線為3點移動平均趨勢，清楚比較長期方向；原始年度 CPUE 與年際波動仍完整保留於下方各型式圖表。</div>
             </div>
             <button type="button" onclick="openFishwayTrendModal('all')" style="border:1.5px solid #93c5fd;background:#eff6ff;color:#1d4ed8;border-radius:10px;padding:9px 14px;font-size:14px;font-weight:900;cursor:pointer">
               <i class="fas fa-up-right-and-down-left-from-center"></i> 放大圖表
@@ -4654,15 +4673,15 @@ function renderFishTrend() {
             isTrend: false
           },
           {
-            label: `${fw.name}長期趨勢`,
+            label: `${fw.name}（趨勢線）`,
             data: trend.fitted,
             borderColor: fw.color,
             backgroundColor: 'transparent',
             borderWidth: 2,
-            borderDash: [8, 6],
+            borderDash: [8, 5],
             pointRadius: 0,
             pointHoverRadius: 0,
-            tension: 0,
+            tension: 0.4,
             fill: false,
             fishwayIndex,
             isTrend: true
@@ -4896,14 +4915,22 @@ function renderFishTrend() {
       const canvasEl = document.getElementById(`spTrend_${spName}`);
       const noDataEl = document.getElementById(`spTrend_${spName}_nodata`);
       if (!canvasEl) return;
-      if (!recs.length) {
-        canvasEl.style.display = 'none';
-        if (noDataEl) noDataEl.style.display = 'block';
-        return;
-      }
-      const rLabels = recs.map(r => `${Number(r.year) - 1911}年`);
-      const rData = recs.map(r => Number(r.count) || 0);
+      // 固定顯示103-114年全12年，未調查年份補0
+      const ALL_SP_YEARS = [2014,2015,2016,2017,2018,2019,2020,2021,2022,2023,2024,2025];
+      const recMap = new Map((recs || []).map(r => [Number(r.year), r]));
+      const rLabels = ALL_SP_YEARS.map(yr => `${yr - 1911}年`);
+      const rData = ALL_SP_YEARS.map(yr => { const r = recMap.get(yr); return r ? (Number(r.count) || 0) : 0; });
       const col = meta.color;
+      const bgColors = ALL_SP_YEARS.map(yr => {
+        const r = recMap.get(yr);
+        if (!r) return '#e2e8f022';  // 無調查（105年）
+        return r.count > 0 ? col + 'bb' : '#cbd5e166';
+      });
+      const bdColors = ALL_SP_YEARS.map(yr => {
+        const r = recMap.get(yr);
+        if (!r) return '#94a3b855';
+        return r.count > 0 ? col : '#94a3b8';
+      });
       const existChart = Chart.getChart ? Chart.getChart(canvasEl) : null;
       if (existChart) existChart.destroy();
       new Chart(canvasEl, {
@@ -4913,8 +4940,8 @@ function renderFishTrend() {
           datasets: [{
             label: '捕獲尾數',
             data: rData,
-            backgroundColor: recs.map(r => r.count > 0 ? col + 'bb' : '#cbd5e1'),
-            borderColor: recs.map(r => r.count > 0 ? col : '#94a3b8'),
+            backgroundColor: bgColors,
+            borderColor: bdColors,
             borderWidth: 2,
             borderRadius: 6,
             minBarLength: 4
@@ -4927,9 +4954,13 @@ function renderFishTrend() {
             legend: { display: false },
             tooltip: {
               callbacks: {
-                label: ctx => ctx.raw > 0 ? `${ctx.raw} 尾` : '0 尾（該年度量化序列未檢出）',
+                label: ctx => {
+                  const yr = ALL_SP_YEARS[ctx.dataIndex];
+                  if (!recMap.has(yr)) return '無調查紀錄（105年空白）';
+                  return ctx.raw > 0 ? `${ctx.raw} 尾` : '0 尾（該年度量化序列未檢出）';
+                },
                 afterLabel: ctx => {
-                  const row = recs[ctx.dataIndex];
+                  const row = recMap.get(ALL_SP_YEARS[ctx.dataIndex]);
                   if (!row) return '';
                   return [`調查 ${row.surveys} 次，其中 ${row.captures} 次捕獲`, row.source ? `來源：${row.source}` : ''].filter(Boolean);
                 }
@@ -4937,7 +4968,7 @@ function renderFishTrend() {
             }
           },
           scales: {
-            x: { ticks: { font: { size: 13, weight: '600' }, maxRotation: 40 } },
+            x: { ticks: { font: { size: 11, weight: '600' }, maxRotation: 45 } },
             y: {
               beginAtZero: true,
               ticks: { font: { size: 13 } },
