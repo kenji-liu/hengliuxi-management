@@ -1472,10 +1472,13 @@ const HLX_FISH_SURVEYS = [
   { label:'110年 Q4下游\n(11月)',year:2021, m:11, d:16, bai:45, shi:29, xu:49, ying:8, jian:0, min:18, kou:0, feng:0, hong:0, stations:1, scope:'橫流溪下游', source:'附件一110年ODS', note:'110/11/16橫流溪下游電魚法，麗陽工作站；明潭吻鰕虎18尾（下游高密度）；來源：附件一110年溪流魚調查生態調查資料-東勢處.ods' },
 
   // ── 111年：林業及自然保育署溪流魚類調查表；重複匯出紀錄已去除 ──
-  { label:'111年 3月15日', year:2022, m:3, d:15, bai:108,shi:56,xu:40,ying:32,jian:0,min:0,kou:0,feng:0,hong:0, stations:1, scope:'橫流溪下游', source:'111年溪流魚類調查表（去重）', note:'Survey123逐尾表；橫流溪下游；來源：溪魚調查_18_records_20230309154757.pdf' },
+  // 注意：5筆Survey123紀錄均為橫流溪下游單站調查，明潭/短臀/短吻鰕虎欄位全為0。
+  // 111年成果報告DOCX（鞍馬山工作站）另確認上游Q4（11月）有明潭吻鰕虎、短臀瘋鱨、短吻紅斑吻鰕虎
+  // 目擊紀錄，惟未記錄逐尾數量。兩資料源站位不同，並不矛盾。
+  { label:'111年 3月15日', year:2022, m:3, d:15, bai:108,shi:56,xu:40,ying:32,jian:0,min:0,kou:0,feng:0,hong:0, stations:1, scope:'橫流溪下游', source:'111年溪流魚類調查表（去重）', note:'Survey123逐尾表；橫流溪下游；111年各站均未捕獲明潭/短臀/短吻（Survey123為下游單站）；來源：溪魚調查_18_records_20230309154757.pdf' },
   { label:'111年 6月28日', year:2022, m:6, d:28, bai:26, shi:36,xu:26,ying:0, jian:0,min:0,kou:0,feng:0,hong:0, stations:1, scope:'橫流溪', source:'111年溪流魚類調查表（去重）', note:'Survey123逐尾表；橫流溪；來源：溪魚調查_18_records_20230309154757.pdf' },
   { label:'111年 10月3日', year:2022, m:10,d:3,  bai:92, shi:75,xu:24,ying:6, jian:0,min:0,kou:0,feng:0,hong:0, stations:1, scope:'橫流溪下游', source:'111年溪流魚類調查表（去重）', note:'Survey123逐尾表；橫流溪下游；來源：溪魚調查_18_records_20230309154757.pdf' },
-  { label:'111年 12月5日', year:2022, m:12,d:5,  bai:0,  shi:0, xu:0, ying:0, jian:0,min:0,kou:0,feng:0,hong:0, stations:1, scope:'橫流溪', source:'111年溪流魚類調查表（去重）', surveyStatus:'surveyed_no_capture', note:'完成調查，魚類逐尾表未列捕獲紀錄；來源：溪魚調查_18_records_20230309154757.pdf' },
+  { label:'111年 12月5日', year:2022, m:12,d:5,  bai:0,  shi:0, xu:0, ying:0, jian:0,min:0,kou:0,feng:0,hong:0, stations:1, scope:'橫流溪', source:'111年溪流魚類調查表（去重）', surveyStatus:'surveyed_no_capture', note:'Survey123逐尾表；完成調查，下游站魚類逐尾表無捕獲紀錄；111年DOCX另確認上游Q4（11月）有明潭/短臀/短吻目擊，無計數；來源：溪魚調查_18_records_20230309154757.pdf' },
   { label:'111年 12月12日',year:2022, m:12,d:12, bai:26, shi:6, xu:4, ying:7, jian:0,min:0,kou:0,feng:0,hong:0, stations:1, scope:'橫流溪下游', source:'111年溪流魚類調查表（去重）', note:'Survey123逐尾表；橫流溪下游；來源：溪魚調查_18_records_20230309154757.pdf' },
 
   // ── 112年：10次橫流溪Survey123逐尾調查表 ──
@@ -1532,9 +1535,10 @@ const HLX_FISH_GRAND_TOTAL   = Object.values(HLX_FISH_FULL_TOTALS).reduce((a, b)
 // 稀有或低捕獲物種的資料口徑說明。將「完成調查但未檢出」、
 // 「來源無法定位到橫流溪」與真正缺漏分開，避免把他溪紀錄誤補為橫流溪尾數。
 const HLX_FISH_EVIDENCE_NOTES = {
-  '粗首馬口鱲': '103年基線與106年下游量化表未檢出；106年逐尾表缺少個體與樣站對照。鄰近水系（裡冷溪108年、南湖溪110年）已確認有穩定族群，顯示橫流溪流域具備棲地適合性；同水系族群來源可支持未來擴散入溪。橫流溪可稽核捕獲紀錄：112年11月、12月各2尾（共4尾），代表族群拓殖初期低密度建立；指標意義重大。',
-  '短臀瘋鱨': '103年與106年橫流溪量化序列未檢出，不代表全流域不存在；107年起才有可定位的橫流溪尾數，後續呈間歇性低量捕獲。',
-  '短吻紅斑吻鰕虎': '103年與106年橫流溪量化序列未檢出；107年起始有可定位尾數。零值表示該年度已納入調查但未捕獲，不等同未調查。'
+  '明潭吻鰕虎': '106年Q3成果報告文字確認上游有目擊紀錄（無尾數計數）。107年起成為橫流溪量化優勢鰕虎科魚種，107年5月第一季3站合計85尾，顯示魚道完工後定著加速。111年Survey123均為下游單站，min欄全零；但111年DOCX（鞍馬山工作站）另確認上游Q4（11月）仍有目擊紀錄，兩資料源不矛盾。量化序列累計641尾，是橫流溪數量最豐富的鰕虎科魚類，流域健康指標。',
+  '粗首馬口鱲': '103年基線與106年下游量化表未檢出；106年逐尾表缺少個體與樣站對照。鄰近水系（裡冷溪108年、南湖溪110年）已確認有穩定族群，顯示橫流溪流域具備棲地適合性；同水系族群可支持未來自然擴散入溪。橫流溪可稽核捕獲紀錄：112年11月、12月各2尾（共4尾），代表族群拓殖初期低密度建立；107–111年未捕獲為努力量局限，非族群完全缺席。指標意義重大。',
+  '短臀瘋鱨': '103年與106年橫流溪量化序列未檢出，不代表全流域不存在；107年起才有可定位的橫流溪尾數，呈間歇性低量捕獲（107年1尾、109年1尾、110年上游Q3 1尾、112年5月1尾＋11月4尾，合計21尾）。111年Survey123下游站全零值；但111年DOCX（鞍馬山工作站）確認上游Q4（11月）有目擊紀錄（無計數），顯示易危種仍在上游棲地維持低密度族群，兩資料源站位不同，不矛盾。',
+  '短吻紅斑吻鰕虎': '103年與106年橫流溪量化序列未檢出；107年起始有可定位尾數，呈間歇性低量捕獲（107–114年累計20尾）。111年Survey123下游站全零值；111年DOCX（鞍馬山工作站）另確認上游Q4（11月）有目擊紀錄（無計數），兩資料源不矛盾——下游站無捕獲不代表全流域族群缺席。零值表示該年度已納入調查但未捕獲，不等同未調查。'
 };
 
 // 取得單一物種的完整歷年調查明細（與歷年趨勢分析同源，供卡片展開比對）
@@ -4327,10 +4331,10 @@ function renderFishTrend() {
           { id:'spTrend_纓口臺鰍',       name:'纓口臺鰍',       sci:'Formosania lacustre',         cons:'近危', borderCol:'#bbf7d0', topCol:'#22c55e', badge:'#f0fdf4', badgeTxt:'#15803d', note:'特有種・2024紅皮書近危(NNT，2017易危下修)・底棲吸附型，魚道通行已確認' },
           { id:'spTrend_臺灣間爬岩鰍',   name:'臺灣間爬岩鰍',   sci:'Hemimyzon formosanus',       cons:'近危', borderCol:'#fecaca', topCol:'#f43f5e', badge:'#fff1f2', badgeTxt:'#be123c', note:'特有種・2024紅皮書近危(NNT，2017易危下修)・魚道關聯最高，114年回升13尾' },
           // ── 4 種次要物種暨鰕虎科（電捕法DB記錄）──
-          { id:'spTrend_明潭吻鰕虎',     name:'明潭吻鰕虎',     sci:'Rhinogobius candidianus',    cons:'一般',     borderCol:'#bfdbfe', topCol:'#2563eb', badge:'#dbeafe', badgeTxt:'#1e40af', note:`特有種・2024紅皮書無危(NLC)・已核對量化序列累計 ${HLX_FISH_FULL_TOTALS['明潭吻鰕虎']} 尾` },
-          { id:'spTrend_粗首馬口鱲',     name:'粗首馬口鱲',     sci:'Zacco pachycephalus',        cons:'一般',     borderCol:'#fde68a', topCol:'#b45309', badge:'#fef9c3', badgeTxt:'#92400e', note:`特有種・2024紅皮書無危(NLC)・已核對量化序列累計 ${HLX_FISH_FULL_TOTALS['粗首馬口鱲']} 尾` },
-          { id:'spTrend_短臀瘋鱨',       name:'短臀瘋鱨',       sci:'Tachysurus brevianalis',     cons:'易危',     borderCol:'#fecdd3', topCol:'#dc2626', badge:'#fee2e2', badgeTxt:'#991b1b', note:`特有種・2024紅皮書易危(NVU，2017無危上修)・已核對量化序列累計 ${HLX_FISH_FULL_TOTALS['短臀瘋鱨']} 尾` },
-          { id:'spTrend_短吻紅斑吻鰕虎', name:'短吻紅斑吻鰕虎', sci:'Rhinogobius rubromaculatus', cons:'一般',     borderCol:'#d1fae5', topCol:'#059669', badge:'#ecfdf5', badgeTxt:'#065f46', note:`特有種・台灣2024紅皮書國家無危(NLC)；已核對量化序列累計 ${HLX_FISH_FULL_TOTALS['短吻紅斑吻鰕虎']} 尾` }
+          { id:'spTrend_明潭吻鰕虎',     name:'明潭吻鰕虎',     sci:'Rhinogobius candidianus',    cons:'一般',     borderCol:'#bfdbfe', topCol:'#2563eb', badge:'#dbeafe', badgeTxt:'#1e40af', note:`特有種・2024紅皮書無危(NLC)・魚道完工後107年族群快速建立，累計 ${HLX_FISH_FULL_TOTALS['明潭吻鰕虎']} 尾，全流域廣布，溪流健康指標` },
+          { id:'spTrend_粗首馬口鱲',     name:'粗首馬口鱲',     sci:'Zacco pachycephalus',        cons:'一般',     borderCol:'#fde68a', topCol:'#b45309', badge:'#fef9c3', badgeTxt:'#92400e', note:`特有種・2024紅皮書無危(NLC)・112年首次確認橫流溪定著（4尾），族群拓殖初期；鄰近裡冷溪、南湖溪已有穩定族群，生態意義重大` },
+          { id:'spTrend_短臀瘋鱨',       name:'短臀瘋鱨',       sci:'Tachysurus brevianalis',     cons:'易危',     borderCol:'#fecdd3', topCol:'#dc2626', badge:'#fee2e2', badgeTxt:'#991b1b', note:`特有種・2024紅皮書易危(NVU，2017無危上修)・107年起間歇捕獲，累計 ${HLX_FISH_FULL_TOTALS['短臀瘋鱨']} 尾；111年DOCX確認上游Q4存在，易危種低密度持續維持` },
+          { id:'spTrend_短吻紅斑吻鰕虎', name:'短吻紅斑吻鰕虎', sci:'Rhinogobius rubromaculatus', cons:'一般',     borderCol:'#d1fae5', topCol:'#059669', badge:'#ecfdf5', badgeTxt:'#065f46', note:`特有種・2024紅皮書無危(NLC)・107年起間歇捕獲，累計 ${HLX_FISH_FULL_TOTALS['短吻紅斑吻鰕虎']} 尾；111年DOCX確認上游Q4目擊，下游站零值不代表族群缺席` }
         ].map(sp => `
           <div style="background:#fff;border:2px solid ${sp.borderCol};border-top:4px solid ${sp.topCol};border-radius:14px;overflow:hidden">
             <div style="background:${sp.badge};padding:12px 16px 10px">
