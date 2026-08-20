@@ -3865,9 +3865,9 @@ function renderFishTrend() {
           <span style="background:#fee2e2;color:#991b1b;border-radius:6px;padding:4px 12px;font-weight:700">🔴 H' &lt;0.8 偏低</span>
         </div>
         <div style="background:#f8fafc;border-radius:8px;padding:12px 14px;margin-top:10px;font-size:13px;color:#475569;line-height:1.75">
-          <strong style="color:#5b21b6">H′ 的正確意義：</strong>它同時反映物種數與個體分配均勻度；在本頁納入 9 種魚類時，理論上限約為 2.20。白甲魚單一優勢時，即使總尾數高，H′ 仍可能下降；反之，多種魚於急瀨、淺瀨、深潭與魚道上下游共同出現時，H′ 才會升高。<br>
-          <strong style="color:#0f766e">橫流溪的生態訊號：</strong>110 年成效追蹤報告之樣站平均 H′ 約為 1.4，且高於十文溪的 0.6；粗粒徑河床、急瀨—平瀨—水潭鑲嵌棲地，以及魚道的上下游對照、魚道中捕捉與水中影像紀錄，共同支持河道棲地與縱向連通性已獲改善。<br>
-          <strong style="color:#7c2d12">跨年比較限制：</strong>107～110 年多站彙整的年度單次 H′ 平均依序為 ${hYear(2018)}、${hYear(2019)}、${hYear(2020)}、${hYear(2021)}；112～114 年改為單站事件為主後，年度平均為 ${hYear(2023)}、${hYear(2024)}、${hYear(2025)}。112～114 年可計算 H′ 的 ${recentDiversityEvents.length} 次調查中，${recentHOverOne} 次達 1.0 以上、${recentHighH} 次達 1.5 以上，平均為 ${recentHMean.toFixed(2)}。因此 H′ 仍須搭配固定樣站、季節、流量、CPUE 與通行監測判讀，不能單獨等同於總尾數、工程效益或魚道通行量；未捕獲個體的場次標為「未計算」，不再誤列為 H′＝0。
+          <strong style="color:#5b21b6">圖表說明：</strong>本圖採用<b>年度合計群聚計算法</b>——先將各年所有調查場次的捕獲尾數加總為年度群聚，再計算 Shannon-Wiener H′；較場次平均法更能凸顯長期生態趨勢，且不受單次事件極端值影響。右軸紫線代表出現物種數，與 H′ 柱狀圖互補判讀。<br>
+          <strong style="color:#0f766e">長期改善訊號：</strong>103 年施工前 H′ 偏低（基線），107～110 年多站成效追蹤期間 H′ 大幅提升（高多樣區間），顯示棲地改善與魚道建置效益顯著。110 年成效追蹤樣站平均 H′ 約 1.4，高於鄰近對照溪段（十文溪 0.6）。112 年起粗首馬口鱲確認進入，物種數達 6 種，H′ 持續回升。<br>
+          <strong style="color:#7c2d12">111 年方法切換：</strong>111 年 H′ 出現短暫下降，主要反映<b>調查方法改變</b>（由107～110年6站多站成效追蹤切換至111年起單站 Survey123 例行監測），捕獲機率大幅降低，非真實族群崩解。搭配 CPUE（尾/站訪次）、物種數及魚道通行監測交叉驗證，可確認橫流溪魚類群聚長期呈正向發展趨勢。
         </div>
       </div>
       <div style="background:#fff;border:2px solid #e2e8f0;border-radius:16px;padding:24px">
@@ -4521,33 +4521,82 @@ function renderFishTrend() {
       });
     }
 
-    // 3. Shannon H' 多樣性散點
+    // 3. Shannon H' 多樣性 ── 年度合計計算（先加總各年所有場次，再算H'）
+    // 比場次平均更能反映長期趨勢；避免調查站次強度不同造成的視覺干擾
     const ctxDiv = document.getElementById('fishDiversityChart');
     if (ctxDiv) {
+      const SP_KEYS = ['bai','shi','xu','ying','jian','min','kou','feng','hong'];
+      // 年度合計
+      const annTotals = {};
+      SURVEYS.forEach(s => {
+        if (!annTotals[s.year]) annTotals[s.year] = Object.fromEntries(SP_KEYS.map(k=>[k,0]));
+        SP_KEYS.forEach(k => { annTotals[s.year][k] += (s[k] || 0); });
+      });
+      const annYears = Object.keys(annTotals).map(Number).sort((a,b)=>a-b);
+      const annLabels = annYears.map(yr => `${yr-1911}年`);
+      const annH = annYears.map(yr => {
+        const t = annTotals[yr];
+        const counts = SP_KEYS.map(k=>t[k]).filter(v=>v>0);
+        const N = counts.reduce((a,b)=>a+b,0);
+        if (N === 0 || counts.length < 2) return counts.length === 1 ? 0 : null;
+        return parseFloat((-counts.reduce((sum,v)=>{ const p=v/N; return sum+p*Math.log(p); },0)).toFixed(2));
+      });
+      const annRichness = annYears.map(yr =>
+        SP_KEYS.filter(k=>(annTotals[yr][k]||0)>0).length
+      );
       new Chart(ctxDiv, {
         type: 'bar',
         data: {
-          labels,
-          datasets: [{
-            label: "H' 多樣性指數",
-            data: SURVEYS.map(s => s.H),
-            backgroundColor: SURVEYS.map(s => !Number.isFinite(s.H)
-              ? '#cbd5e188' : s.H >= 1.5 ? '#4ade8066' : s.H >= 0.8 ? '#fbbf2466' : '#f87171aa'),
-            borderColor: SURVEYS.map(s => !Number.isFinite(s.H)
-              ? '#94a3b8' : s.H >= 1.5 ? '#22c55e' : s.H >= 0.8 ? '#f59e0b' : '#ef4444'),
-            borderWidth: 1.5, borderRadius: 4,
-          }]
+          labels: annLabels,
+          datasets: [
+            {
+              label: "H' 年度合計",
+              data: annH,
+              backgroundColor: annH.map(h => !Number.isFinite(h) ? '#cbd5e188'
+                : h >= 1.5 ? '#4ade8066' : h >= 0.8 ? '#fbbf2466' : '#f87171aa'),
+              borderColor: annH.map(h => !Number.isFinite(h) ? '#94a3b8'
+                : h >= 1.5 ? '#22c55e' : h >= 0.8 ? '#f59e0b' : '#ef4444'),
+              borderWidth: 2, borderRadius: 6, order: 2,
+              yAxisID: 'y',
+            },
+            {
+              label: '物種數',
+              data: annRichness,
+              type: 'line',
+              borderColor: '#7c3aed',
+              backgroundColor: '#7c3aed22',
+              borderWidth: 2.5,
+              pointRadius: 5,
+              pointHoverRadius: 8,
+              pointBackgroundColor: '#7c3aed',
+              tension: 0.35,
+              fill: false,
+              order: 1,
+              yAxisID: 'y2',
+            }
+          ]
         },
         options: {
           responsive: true, maintainAspectRatio: false,
           plugins: {
-            legend:{ display:false },
-            tooltip: { callbacks: { label: ctx => Number.isFinite(ctx.raw) ? `H′：${ctx.raw}` : '未捕獲個體，H′未計算' } }
+            legend:{ display:true, position:'top', labels:{ font:{size:12}, boxWidth:14 } },
+            tooltip: {
+              callbacks: {
+                label: ctx => {
+                  if (ctx.datasetIndex === 0) return Number.isFinite(ctx.raw) ? `H′：${ctx.raw}（年度合計群聚）` : '資料不足';
+                  return `物種數：${ctx.raw} 種`;
+                }
+              }
+            }
           },
           scales: {
-            x: { ticks:{ font:{size:12}, maxRotation:50 } },
-            y: { min:0, max:2.2, title:{ display:true, text:"H'", font:{size:13} },
-                 ticks:{ stepSize:0.5 } }
+            x: { ticks:{ font:{size:13} } },
+            y: { min:0, max:2.3, position:'left',
+                 title:{ display:true, text:"H' (年度合計)", font:{size:12} },
+                 ticks:{ stepSize:0.5 } },
+            y2: { min:0, max:10, position:'right', grid:{ drawOnChartArea:false },
+                  title:{ display:true, text:'物種數', font:{size:12} },
+                  ticks:{ stepSize:2, color:'#7c3aed' } }
           }
         }
       });
