@@ -1471,15 +1471,20 @@ const HLX_FISH_SURVEYS = [
   { label:'110年 Q4上游\n(11月)',year:2021, m:11, d:16, bai:87, shi:8,  xu:53, ying:0, jian:0, min:6,  kou:0, feng:1, hong:1, stations:1, scope:'橫流溪上游', source:'附件一110年ODS', note:'110/11/16橫流溪上游電魚法，鞍馬山工作站；短臀瘋鱨1尾、短吻紅斑吻鰕虎1尾；來源：附件一110年溪流魚調查生態調查資料-東勢處.ods' },
   { label:'110年 Q4下游\n(11月)',year:2021, m:11, d:16, bai:45, shi:29, xu:49, ying:8, jian:0, min:18, kou:0, feng:0, hong:0, stations:1, scope:'橫流溪下游', source:'附件一110年ODS', note:'110/11/16橫流溪下游電魚法，麗陽工作站；明潭吻鰕虎18尾（下游高密度）；來源：附件一110年溪流魚調查生態調查資料-東勢處.ods' },
 
-  // ── 111年：林業及自然保育署溪流魚類調查表；重複匯出紀錄已去除 ──
-  // 注意：5筆Survey123紀錄均為橫流溪下游單站調查，明潭/短臀/短吻鰕虎欄位全為0。
-  // 111年成果報告DOCX（鞍馬山工作站）另確認上游Q4（11月）有明潭吻鰕虎、短臀瘋鱨、短吻紅斑吻鰕虎
-  // 目擊紀錄，惟未記錄逐尾數量。兩資料源站位不同，並不矛盾。
-  { label:'111年 3月15日', year:2022, m:3, d:15, bai:108,shi:56,xu:40,ying:32,jian:0,min:0,kou:0,feng:0,hong:0, stations:1, scope:'橫流溪下游', source:'111年溪流魚類調查表（去重）', note:'Survey123逐尾表；橫流溪下游；111年各站均未捕獲明潭/短臀/短吻（Survey123為下游單站）；來源：溪魚調查_18_records_20230309154757.pdf' },
+  // ── 111年：Survey123（下游單站）+ 成果報告DOCX（上游鞍馬山站）兩資料源 ──
+  // Survey123（溪魚調查_18_records_20230309154757.pdf）：5筆，均橫流溪下游，min/feng/hong全0
+  // 111年成果報告DOCX（Table 7/9，鞍馬山上游站）：量化電捕，含體長測量值，非目擊
+  //   Q2（5月）上游：明潭吻鰕虎1尾（體長55mm）
+  //   Q4（11月16日）上游：明潭吻鰕虎≥6尾（平均體長64.167mm）、短臀瘋鱨1尾（110mm）、短吻紅斑1尾（55mm）
+  //   → 兩資料源站位不同；上游量化資料另補充於Survey123條目之後
+  { label:'111年 3月15日', year:2022, m:3, d:15, bai:108,shi:56,xu:40,ying:32,jian:0,min:0,kou:0,feng:0,hong:0, stations:1, scope:'橫流溪下游', source:'111年溪流魚類調查表（去重）', note:'Survey123逐尾表；橫流溪下游單站；min/feng/hong均為0（Survey123僅覆蓋下游）；來源：溪魚調查_18_records_20230309154757.pdf' },
   { label:'111年 6月28日', year:2022, m:6, d:28, bai:26, shi:36,xu:26,ying:0, jian:0,min:0,kou:0,feng:0,hong:0, stations:1, scope:'橫流溪', source:'111年溪流魚類調查表（去重）', note:'Survey123逐尾表；橫流溪；來源：溪魚調查_18_records_20230309154757.pdf' },
   { label:'111年 10月3日', year:2022, m:10,d:3,  bai:92, shi:75,xu:24,ying:6, jian:0,min:0,kou:0,feng:0,hong:0, stations:1, scope:'橫流溪下游', source:'111年溪流魚類調查表（去重）', note:'Survey123逐尾表；橫流溪下游；來源：溪魚調查_18_records_20230309154757.pdf' },
-  { label:'111年 12月5日', year:2022, m:12,d:5,  bai:0,  shi:0, xu:0, ying:0, jian:0,min:0,kou:0,feng:0,hong:0, stations:1, scope:'橫流溪', source:'111年溪流魚類調查表（去重）', surveyStatus:'surveyed_no_capture', note:'Survey123逐尾表；完成調查，下游站魚類逐尾表無捕獲紀錄；111年DOCX另確認上游Q4（11月）有明潭/短臀/短吻目擊，無計數；來源：溪魚調查_18_records_20230309154757.pdf' },
+  { label:'111年 12月5日', year:2022, m:12,d:5,  bai:0,  shi:0, xu:0, ying:0, jian:0,min:0,kou:0,feng:0,hong:0, stations:1, scope:'橫流溪', source:'111年溪流魚類調查表（去重）', surveyStatus:'surveyed_no_capture', note:'Survey123逐尾表；完成調查，下游站無捕獲；上游Q4量化資料見DOCX條目；來源：溪魚調查_18_records_20230309154757.pdf' },
   { label:'111年 12月12日',year:2022, m:12,d:12, bai:26, shi:6, xu:4, ying:7, jian:0,min:0,kou:0,feng:0,hong:0, stations:1, scope:'橫流溪下游', source:'111年溪流魚類調查表（去重）', note:'Survey123逐尾表；橫流溪下游；來源：溪魚調查_18_records_20230309154757.pdf' },
+  // ── 111年上游（鞍馬山站）：111年DOCX Table 7/9 量化電捕，與Survey123為不同站位 ──
+  { label:'111年 5月\n(上游)', year:2022, m:5, bai:0,shi:0,xu:0,ying:0,jian:0,min:1,kou:0,feng:0,hong:0, stations:1, scope:'橫流溪上游', source:'111年成果報告DOCX Table 7', note:'Q2（5月）鞍馬山上游站電捕；明潭吻鰕虎1尾（體長55mm）；資料源：111年_東勢處_森林溪流魚類資源監測調查計畫成果報告.docx Table 7' },
+  { label:'111年 11月16日\n(上游Q4)', year:2022, m:11, d:16, bai:0,shi:0,xu:0,ying:0,jian:0,min:6,kou:0,feng:1,hong:1, stations:1, scope:'橫流溪上游', source:'111年成果報告DOCX Table 9', note:'Q4（11/16）鞍馬山上游站電捕量化捕獲；明潭吻鰕虎≥6尾（平均體長64.167mm，依精度推算6個體）、短臀瘋鱨1尾（體長110mm）、短吻紅斑吻鰕虎1尾（體長55mm）；資料源：111年DOCX Table 9；與Survey123下游站資料互補，非重複' },
 
   // ── 112年：10次橫流溪Survey123逐尾調查表 ──
   { label:'112年 4月18日', year:2023,m:4,d:18,bai:99,shi:27,xu:13,ying:4,jian:1,min:0,kou:0,feng:0,hong:0,stations:1,scope:'橫流溪',source:'112年Survey123逐尾表',note:'來源：溪魚調查__20230419_160627_559-合併.pdf' },
@@ -1535,10 +1540,10 @@ const HLX_FISH_GRAND_TOTAL   = Object.values(HLX_FISH_FULL_TOTALS).reduce((a, b)
 // 稀有或低捕獲物種的資料口徑說明。將「完成調查但未檢出」、
 // 「來源無法定位到橫流溪」與真正缺漏分開，避免把他溪紀錄誤補為橫流溪尾數。
 const HLX_FISH_EVIDENCE_NOTES = {
-  '明潭吻鰕虎': '106年Q3成果報告文字確認上游有目擊紀錄（無尾數計數）。107年起成為橫流溪量化優勢鰕虎科魚種，107年5月第一季3站合計85尾，顯示魚道完工後定著加速。111年Survey123均為下游單站，min欄全零；但111年DOCX（鞍馬山工作站）另確認上游Q4（11月）仍有目擊紀錄，兩資料源不矛盾。量化序列累計641尾，是橫流溪數量最豐富的鰕虎科魚類，流域健康指標。',
-  '粗首馬口鱲': '103年基線與106年下游量化表未檢出；106年逐尾表缺少個體與樣站對照。鄰近水系（裡冷溪108年、南湖溪110年）已確認有穩定族群，顯示橫流溪流域具備棲地適合性；同水系族群可支持未來自然擴散入溪。橫流溪可稽核捕獲紀錄：112年11月、12月各2尾（共4尾），代表族群拓殖初期低密度建立；107–111年未捕獲為努力量局限，非族群完全缺席。指標意義重大。',
-  '短臀瘋鱨': '103年與106年橫流溪量化序列未檢出，不代表全流域不存在；107年起才有可定位的橫流溪尾數，呈間歇性低量捕獲（107年1尾、109年1尾、110年上游Q3 1尾、112年5月1尾＋11月4尾，合計21尾）。111年Survey123下游站全零值；但111年DOCX（鞍馬山工作站）確認上游Q4（11月）有目擊紀錄（無計數），顯示易危種仍在上游棲地維持低密度族群，兩資料源站位不同，不矛盾。',
-  '短吻紅斑吻鰕虎': '103年與106年橫流溪量化序列未檢出；107年起始有可定位尾數，呈間歇性低量捕獲（107–114年累計20尾）。111年Survey123下游站全零值；111年DOCX（鞍馬山工作站）另確認上游Q4（11月）有目擊紀錄（無計數），兩資料源不矛盾——下游站無捕獲不代表全流域族群缺席。零值表示該年度已納入調查但未捕獲，不等同未調查。'
+  '明潭吻鰕虎': '104年Q3（104/09/17）鞍馬山上游站首次量化捕獲4尾（魚道建置前）。106年Q3成果報告文字記載上游有紀錄，惟文字疑似複製，XLSX無明確尾數，存疑。107年起成為橫流溪量化優勢鰕虎科魚種，107年5月第一季3站合計85尾，顯示魚道完工後族群快速擴張。111年Survey123均為下游單站（min欄全零）；111年成果報告DOCX Table 7另確認Q2（5月）上游1尾（體長55mm）、Table 9確認Q4（11/16）上游≥6尾（平均體長64.167mm），均為量化電捕記錄，非僅目擊。全序列累計648尾，是橫流溪數量最豐富的鰕虎科魚類，流域棲地健康指標。',
+  '粗首馬口鱲': '103年基線與106年下游量化表未檢出；各年度104–111年橫流溪全溪電捕序列均無捕獲記錄。鄰近水系（裡冷溪108年、南湖溪110年）已確認有穩定族群，顯示大甲溪流域具備棲地適合性；同水系源流族群可支持未來自然擴散入溪。橫流溪可稽核捕獲始於112年11月（2尾）、12月（2尾），共4尾，代表拓殖初期低密度建立；107–111年未捕獲為努力量與站位局限，非族群完全缺席。指標意義重大。',
+  '短臀瘋鱨': '103年與106年橫流溪量化序列未檢出（不代表全流域不存在）。107年起始有可定位橫流溪尾數，呈間歇性低量捕獲：107年S1（5月）1尾、109年S2（9月）1尾、110年上游Q4（11/16）1尾（ODS確認，體長110mm）、111年上游Q4（11/16）1尾（DOCX Table 9，體長110mm）、112年5月1尾＋11月4尾、114年共5尾，全序列累計22尾。111年Survey123下游站全零，DOCX Table 9上游量化捕獲確認1尾，易危種持續在上游低密度維持族群；兩資料源站位不同，不矛盾。',
+  '短吻紅斑吻鰕虎': '103年與106年橫流溪量化序列未檢出；107年S2（7月）起始有可定位尾數（2尾），呈間歇性低量捕獲。111年Survey123下游站全零值；111年DOCX Table 9確認上游Q4（11/16）量化捕獲1尾（體長55mm），為電捕實測，非目擊。全序列累計21尾（加入111年上游1尾）。零值表示已完成調查但未捕獲，不等同未調查；下游站零值不代表全流域族群缺席。'
 };
 
 // 取得單一物種的完整歷年調查明細（與歷年趨勢分析同源，供卡片展開比對）
@@ -3555,6 +3560,13 @@ function renderFishTrend() {
     };
   });
   const annualMetricByYear = Object.fromEntries(annualEffortMetrics.map(metric => [Number(metric.year), metric]));
+  // 單一物種 CPUE：同年度物種捕獲量 ÷ 全年度站訪次。未調查年度維持 null，
+  // 避免將「沒有採樣」誤繪為「族群為零」。
+  const speciesAnnualCPUE = (key, years = annualYears) => years.map(year => {
+    const effort = annualMetricByYear[Number(year)]?.effort || 0;
+    const count = annualData[year]?.[key] || 0;
+    return effort ? +(count / effort).toFixed(2) : null;
+  });
   window.hlxFishEffortMetrics = annualEffortMetrics;
 
   // 長期趨勢採年度 CPUE（尾/站訪次）線性迴歸，避免原始尾數受調查站數影響。
@@ -3888,9 +3900,9 @@ function renderFishTrend() {
           <span style="background:#fee2e2;color:#991b1b;border-radius:6px;padding:4px 12px;font-weight:700">🔴 H' &lt;0.8 偏低</span>
         </div>
         <div style="background:#f8fafc;border-radius:8px;padding:12px 14px;margin-top:10px;font-size:13px;color:#475569;line-height:1.75">
-          <strong style="color:#5b21b6">圖表說明：</strong>本圖採用<b>年度合計群聚計算法</b>——先將各年所有調查場次的捕獲尾數加總為年度群聚，再計算 Shannon-Wiener H′；較場次平均法更能凸顯長期生態趨勢，且不受單次事件極端值影響。右軸紫線代表出現物種數，與 H′ 柱狀圖互補判讀。<br>
-          <strong style="color:#0f766e">長期改善訊號：</strong>103 年施工前 H′ 偏低（基線），107～110 年多站成效追蹤期間 H′ 大幅提升（高多樣區間），顯示棲地改善與魚道建置效益顯著。110 年成效追蹤樣站平均 H′ 約 1.4，高於鄰近對照溪段（十文溪 0.6）。112 年起粗首馬口鱲確認進入，物種數達 6 種，H′ 持續回升。<br>
-          <strong style="color:#7c2d12">111 年方法切換：</strong>111 年 H′ 出現短暫下降，主要反映<b>調查方法改變</b>（由107～110年6站多站成效追蹤切換至111年起單站 Survey123 例行監測），捕獲機率大幅降低，非真實族群崩解。搭配 CPUE（尾/站訪次）、物種數及魚道通行監測交叉驗證，可確認橫流溪魚類群聚長期呈正向發展趨勢。
+          <strong style="color:#5b21b6">計算口徑：</strong>本圖的柱狀 H′ 為<b>平台重算值</b>，不是逐年直接抄錄報告的既列指數。計算時先將同年度、屬於橫流溪的各調查場次之物種別尾數加總為年度群聚，再代入 Shannon-Wiener 公式 H′＝−Σ(pi ln pi)；pi 為該物種尾數占年度總捕獲量的比例。右軸紫線為年度出現物種數，須與 H′ 一起判讀。<br>
+          <strong style="color:#0f766e">資料可回查：</strong>107～108 年原始物種別尾數來自《107～108年度橫流溪整治規劃設計監造與監測調查委託技術服務案成果報告》表 4-16；109～110 年來自《110年東勢林區管理處國有林魚道及生態廊道成效追蹤》表 5-3；111 年後來自橫流溪 Survey123 逐尾調查紀錄。110 年報告另有<b>樣站平均 H′ 約 1.4</b>的報告結論，此值與本圖的年度合計 H′ 屬不同統計尺度，不應互相替代。<br>
+          <strong style="color:#7c2d12">專業判讀：</strong>103 年施工前的群聚由少數優勢種主導，H′ 較低；107～110 年多站追蹤中可見較多物種共同出現，支持棲地異質性與連通性改善的正向訊號。惟 107～110 年為多站彙整、111 年後以單站例行紀錄為主，年度 H′ 會受採樣範圍、季節、流量與優勢種比例影響；因此應與 CPUE、固定樣站、魚道上下游同步調查、魚道中捕捉與水中影像共同驗證，不能單憑 H′ 宣稱單一魚道的效益。
         </div>
       </div>
       <div style="background:#fff;border:2px solid #e2e8f0;border-radius:16px;padding:24px">
@@ -3960,7 +3972,10 @@ function renderFishTrend() {
             <div style="position:relative;height:240px"><canvas id="fishCpueTrend"></canvas></div>
           </div>
           <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px">
-            <div style="font-size:15px;font-weight:800;color:#0f172a;margin-bottom:10px">物種數趨勢（年度出現種數）</div>
+            <div style="font-size:15px;font-weight:800;color:#0f172a;margin-bottom:6px">物種數趨勢（年度出現種數）</div>
+            <div style="font-size:12px;color:#64748b;margin-bottom:8px;line-height:1.6">
+              ⚠ <strong style="color:#b45309">111年</strong>圖示4種（Survey123下游單站），但成果報告DOCX Table 7/9另確認上游鞍馬山站量化捕獲明潭、短臀、短吻等7種；下方CPUE同年達高峰係因下游單站捕獲密集（564尾÷5次≈113尾/站訪次），兩者並不矛盾。
+            </div>
             <div style="position:relative;height:240px"><canvas id="fishRichnessTrend"></canvas></div>
           </div>
         </div>
@@ -4318,7 +4333,7 @@ function renderFishTrend() {
             <i class="fas fa-chart-bar" style="color:#3b82f6;margin-right:8px"></i>9種魚類完整歷年趨勢（明潭吻鰕虎・粗首馬口鱲・短臀瘋鱨・短吻紅斑吻鰕虎）
           </div>
           <div style="font-size:18px;color:#64748b;margin-top:5px">
-            上方堆疊圖已整合全9種；本區依同一已核對量化序列顯示各物種年度合計、調查次數與捕獲次數
+            各卡柱狀圖為年度實測尾數；藍綠折線為努力量校正 CPUE（尾／站訪次），可排除各年度調查站數差異
           </div>
         </div>
       </div>
@@ -4333,8 +4348,8 @@ function renderFishTrend() {
           // ── 4 種次要物種暨鰕虎科（電捕法DB記錄）──
           { id:'spTrend_明潭吻鰕虎',     name:'明潭吻鰕虎',     sci:'Rhinogobius candidianus',    cons:'一般',     borderCol:'#bfdbfe', topCol:'#2563eb', badge:'#dbeafe', badgeTxt:'#1e40af', note:`特有種・2024紅皮書無危(NLC)・魚道完工後107年族群快速建立，累計 ${HLX_FISH_FULL_TOTALS['明潭吻鰕虎']} 尾，全流域廣布，溪流健康指標` },
           { id:'spTrend_粗首馬口鱲',     name:'粗首馬口鱲',     sci:'Zacco pachycephalus',        cons:'一般',     borderCol:'#fde68a', topCol:'#b45309', badge:'#fef9c3', badgeTxt:'#92400e', note:`特有種・2024紅皮書無危(NLC)・112年首次確認橫流溪定著（4尾），族群拓殖初期；鄰近裡冷溪、南湖溪已有穩定族群，生態意義重大` },
-          { id:'spTrend_短臀瘋鱨',       name:'短臀瘋鱨',       sci:'Tachysurus brevianalis',     cons:'易危',     borderCol:'#fecdd3', topCol:'#dc2626', badge:'#fee2e2', badgeTxt:'#991b1b', note:`特有種・2024紅皮書易危(NVU，2017無危上修)・107年起間歇捕獲，累計 ${HLX_FISH_FULL_TOTALS['短臀瘋鱨']} 尾；111年DOCX確認上游Q4存在，易危種低密度持續維持` },
-          { id:'spTrend_短吻紅斑吻鰕虎', name:'短吻紅斑吻鰕虎', sci:'Rhinogobius rubromaculatus', cons:'一般',     borderCol:'#d1fae5', topCol:'#059669', badge:'#ecfdf5', badgeTxt:'#065f46', note:`特有種・2024紅皮書無危(NLC)・107年起間歇捕獲，累計 ${HLX_FISH_FULL_TOTALS['短吻紅斑吻鰕虎']} 尾；111年DOCX確認上游Q4目擊，下游站零值不代表族群缺席` }
+          { id:'spTrend_短臀瘋鱨',       name:'短臀瘋鱨',       sci:'Tachysurus brevianalis',     cons:'易危',     borderCol:'#fecdd3', topCol:'#dc2626', badge:'#fee2e2', badgeTxt:'#991b1b', note:`特有種・2024紅皮書易危(NVU，2017無危上修)・107年起間歇捕獲，累計 ${HLX_FISH_FULL_TOTALS['短臀瘋鱨']} 尾；111年DOCX Table 9量化確認上游Q4（體長110mm），易危種低密度持續維持` },
+          { id:'spTrend_短吻紅斑吻鰕虎', name:'短吻紅斑吻鰕虎', sci:'Rhinogobius rubromaculatus', cons:'一般',     borderCol:'#d1fae5', topCol:'#059669', badge:'#ecfdf5', badgeTxt:'#065f46', note:`特有種・2024紅皮書無危(NLC)・107年起間歇捕獲，累計 ${HLX_FISH_FULL_TOTALS['短吻紅斑吻鰕虎']} 尾；111年DOCX Table 9量化確認上游Q4（體長55mm），下游站零值不代表族群缺席` }
         ].map(sp => `
           <div style="background:#fff;border:2px solid ${sp.borderCol};border-top:4px solid ${sp.topCol};border-radius:14px;overflow:hidden">
             <div style="background:${sp.badge};padding:12px 16px 10px">
@@ -4347,9 +4362,10 @@ function renderFishTrend() {
               ${HLX_FISH_EVIDENCE_NOTES[sp.name] ? `<div style="font-size:15px;line-height:1.65;color:#334155;background:#ffffffaa;border-left:3px solid ${sp.topCol};padding:8px 10px;margin-top:9px;border-radius:6px"><strong>資料核對：</strong>${HLX_FISH_EVIDENCE_NOTES[sp.name]}</div>` : ''}
             </div>
             <div style="padding:12px 14px">
-              <div style="position:relative;height:160px">
+              <div style="position:relative;height:188px">
                 <canvas id="${sp.id}"></canvas>
               </div>
+              <div style="font-size:14px;color:#64748b;margin-top:6px;line-height:1.5">柱：實測尾數　線：CPUE（尾／站訪次）</div>
               <div id="${sp.id}_nodata" style="display:none;text-align:center;padding:20px;color:#94a3b8;font-size:17px">
                 <i class="fas fa-chart-bar" style="font-size:24px;margin-bottom:8px;display:block"></i>尚無足夠調查記錄
               </div>
@@ -4573,7 +4589,7 @@ function renderFishTrend() {
           labels: annLabels,
           datasets: [
             {
-              label: "H' 年度合計",
+              label: "H' 年度合計（平台重算）",
               data: annH,
               backgroundColor: annH.map(h => !Number.isFinite(h) ? '#cbd5e188'
                 : h >= 1.5 ? '#4ade8066' : h >= 0.8 ? '#fbbf2466' : '#f87171aa'),
@@ -4606,7 +4622,7 @@ function renderFishTrend() {
             tooltip: {
               callbacks: {
                 label: ctx => {
-                  if (ctx.datasetIndex === 0) return Number.isFinite(ctx.raw) ? `H′：${ctx.raw}（年度合計群聚）` : '資料不足';
+                  if (ctx.datasetIndex === 0) return Number.isFinite(ctx.raw) ? `H′：${ctx.raw}（平台依年度物種尾數重算）` : '資料不足';
                   return `物種數：${ctx.raw} 種`;
                 }
               }
@@ -4909,10 +4925,10 @@ function renderFishTrend() {
 
     // ── 次要物種個別趨勢圖：與卡片、詳情共用已核對量化序列 ──
     const _secMeta = {
-      '明潭吻鰕虎':     { color: '#2563eb' },
-      '粗首馬口鱲':     { color: '#b45309' },
-      '短臀瘋鱨':       { color: '#dc2626' },
-      '短吻紅斑吻鰕虎': { color: '#059669' }
+      '明潭吻鰕虎':     { key: 'min',  color: '#2563eb' },
+      '粗首馬口鱲':     { key: 'kou',  color: '#b45309' },
+      '短臀瘋鱨':       { key: 'feng', color: '#dc2626' },
+      '短吻紅斑吻鰕虎': { key: 'hong', color: '#059669' }
     };
     Object.entries(_secMeta).forEach(([spName, meta]) => {
       const recs = fish_annualSpeciesSeries(spName);
@@ -4924,6 +4940,7 @@ function renderFishTrend() {
       const recMap = new Map((recs || []).map(r => [Number(r.year), r]));
       const rLabels = ALL_SP_YEARS.map(yr => `${yr - 1911}年`);
       const rData = ALL_SP_YEARS.map(yr => { const r = recMap.get(yr); return r ? (Number(r.count) || 0) : 0; });
+      const cpueData = speciesAnnualCPUE(meta.key, ALL_SP_YEARS);
       const col = meta.color;
       const bgColors = ALL_SP_YEARS.map(yr => {
         const r = recMap.get(yr);
@@ -4941,43 +4958,49 @@ function renderFishTrend() {
         type: 'bar',
         data: {
           labels: rLabels,
-          datasets: [{
-            label: '捕獲尾數',
-            data: rData,
-            backgroundColor: bgColors,
-            borderColor: bdColors,
-            borderWidth: 2,
-            borderRadius: 6,
-            minBarLength: 4
-          }]
+          datasets: [
+            {
+              type: 'bar', label: '實測尾數', data: rData,
+              backgroundColor: bgColors, borderColor: bdColors,
+              borderWidth: 2, borderRadius: 6, minBarLength: 4, yAxisID: 'y'
+            },
+            {
+              type: 'line', label: 'CPUE（尾／站訪次）', data: cpueData,
+              borderColor: '#0f766e', backgroundColor: 'transparent',
+              borderWidth: 2.5, pointRadius: 3.5, pointBackgroundColor: '#0f766e',
+              tension: 0.28, spanGaps: false, yAxisID: 'y1'
+            }
+          ]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
           plugins: {
-            legend: { display: false },
+            legend: { display: true, position: 'bottom', labels: { boxWidth: 10, padding: 8, font: { size: 10, weight: '700' } } },
             tooltip: {
               callbacks: {
                 label: ctx => {
                   const yr = ALL_SP_YEARS[ctx.dataIndex];
+                  if (ctx.dataset.yAxisID === 'y1') return ctx.raw === null ? '無站訪次，未計算 CPUE' : `CPUE：${ctx.raw} 尾／站訪次`;
                   if (!recMap.has(yr)) return '無調查紀錄（105年空白）';
                   return ctx.raw > 0 ? `${ctx.raw} 尾` : '0 尾（該年度量化序列未檢出）';
                 },
                 afterLabel: ctx => {
+                  const metric = annualMetricByYear[ALL_SP_YEARS[ctx.dataIndex]];
                   const row = recMap.get(ALL_SP_YEARS[ctx.dataIndex]);
-                  if (!row) return '';
-                  return [`調查 ${row.surveys} 次，其中 ${row.captures} 次捕獲`, row.source ? `來源：${row.source}` : ''].filter(Boolean);
+                  return [
+                    metric ? `年度站訪次：${metric.effort}；年度調查場次：${metric.surveys}` : '無站訪次紀錄',
+                    row ? `物種調查 ${row.surveys} 次，其中 ${row.captures} 次捕獲` : '',
+                    row?.source ? `來源：${row.source}` : ''
+                  ].filter(Boolean);
                 }
               }
             }
           },
           scales: {
             x: { ticks: { font: { size: 11, weight: '600' }, maxRotation: 45 } },
-            y: {
-              beginAtZero: true,
-              ticks: { font: { size: 13 } },
-              title: { display: true, text: '尾數', font: { size: 13 } }
-            }
+            y: { beginAtZero: true, ticks: { font: { size: 12 } }, title: { display: true, text: '尾數', font: { size: 12 } } },
+            y1: { beginAtZero: true, position: 'right', grid: { drawOnChartArea: false }, ticks: { color: '#0f766e', font: { size: 11 } }, title: { display: true, text: 'CPUE', color: '#0f766e', font: { size: 11, weight: '700' } } }
           }
         }
       });
@@ -4998,22 +5021,30 @@ function renderFishTrend() {
       if (existChart) existChart.destroy();
       const mLabels = annualFishwaySeries.map(r => r.label);
       const mData   = annualFishwaySeries.map(r => r[key] || 0);
+      const mCpue   = speciesAnnualCPUE(key, annualFishwaySeries.map(r => r.year));
       new Chart(canvasEl, {
         type: 'bar',
         data: {
           labels: mLabels,
-          datasets: [{ label: '年度合計', data: mData, backgroundColor: color + 'bb', borderColor: color, borderWidth: 2, borderRadius: 6 }]
+          datasets: [
+            { type: 'bar', label: '實測尾數', data: mData, backgroundColor: color + 'bb', borderColor: color, borderWidth: 2, borderRadius: 6, yAxisID: 'y' },
+            { type: 'line', label: 'CPUE（尾／站訪次）', data: mCpue, borderColor: '#0f766e', borderWidth: 2.5, pointRadius: 3.5, pointBackgroundColor: '#0f766e', tension: 0.28, yAxisID: 'y1' }
+          ]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
           plugins: {
-            legend: { display: false },
-            tooltip: { callbacks: { label: ctx => `${ctx.raw} 尾（年度合計）` } }
+            legend: { display: true, position: 'bottom', labels: { boxWidth: 10, padding: 8, font: { size: 10, weight: '700' } } },
+            tooltip: { callbacks: {
+              label: ctx => ctx.dataset.yAxisID === 'y1' ? `CPUE：${ctx.raw} 尾／站訪次` : `${ctx.raw} 尾（年度合計）`,
+              afterLabel: ctx => { const m = annualEffortMetrics[ctx.dataIndex]; return m ? `年度站訪次：${m.effort}；調查場次：${m.surveys}` : ''; }
+            } }
           },
           scales: {
             x: { ticks: { font: { size: 12, weight: '600' }, maxRotation: 40 } },
-            y: { beginAtZero: true, ticks: { font: { size: 12 } }, title: { display: true, text: '尾數', font: { size: 12 } } }
+            y: { beginAtZero: true, ticks: { font: { size: 12 } }, title: { display: true, text: '尾數', font: { size: 12 } } },
+            y1: { beginAtZero: true, position: 'right', grid: { drawOnChartArea: false }, ticks: { color: '#0f766e', font: { size: 11 } }, title: { display: true, text: 'CPUE', color: '#0f766e', font: { size: 11, weight: '700' } } }
           }
         }
       });
