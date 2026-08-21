@@ -1500,13 +1500,19 @@ const HLX_FISH_SURVEYS = [
   { label:'112年 12月25日',year:2023,m:12,d:25,bai:0,shi:0,xu:0,ying:6,jian:5,min:0,kou:2,feng:0,hong:0,stations:1,scope:'橫流溪',source:'112年Survey123逐尾表',note:'橫流溪；臺灣間爬岩鰍5尾、粗首馬口鱲2尾；來源：溪魚調查__20230419_160627_559-合併.pdf' },
   { label:'112年 12月26日',year:2023,m:12,d:26,bai:19,shi:4,xu:9,ying:10,jian:0,min:8,kou:0,feng:0,hong:0,stations:1,scope:'橫流溪',source:'112年Survey123逐尾表',note:'PDF核查確認橫流溪；明潭吻鰕虎8尾；來源：溪魚調查__20230419_160627_559-合併.pdf' },
 
-  // ── 113年：合併檔僅納入調查地點為橫流溪的6筆，其餘溪流全部排除 ──
-  { label:'113年 3月25日', year:2024,m:3,d:25,bai:67,shi:14,xu:32,ying:6,jian:0,min:3,kou:0,feng:0,hong:0,stations:1,scope:'橫流溪下游',source:'113年Survey123逐尾表',note:'明潭吻鰕虎3尾；來源：113年合併檔橫流溪區段' },
-  { label:'113年 6月18日', year:2024,m:6,d:18,bai:2,shi:1,xu:2,ying:0,jian:0,min:0,kou:0,feng:0,hong:0,stations:1,scope:'橫流溪上游',source:'113年Survey123逐尾表',note:'來源：113年合併檔橫流溪區段' },
-  { label:'113年 6月27日', year:2024,m:6,d:27,bai:18,shi:4,xu:2,ying:1,jian:0,min:3,kou:0,feng:0,hong:1,stations:1,scope:'橫流溪下游',source:'113年Survey123逐尾表',note:'明潭吻鰕虎3尾、短吻紅斑吻鰕虎1尾；其他溪流粗首馬口鱲紀錄已排除' },
-  { label:'113年 9月24日', year:2024,m:9,d:24,bai:0,shi:0,xu:0,ying:0,jian:0,min:0,kou:0,feng:0,hong:0,stations:1,scope:'橫流溪下游',source:'113年Survey123逐尾表',surveyStatus:'surveyed_no_capture',note:'完成調查，逐尾表未列捕獲紀錄；其他溪流資料已排除' },
-  { label:'113年 11月26日',year:2024,m:11,d:26,bai:56,shi:12,xu:4,ying:3,jian:0,min:2,kou:0,feng:0,hong:0,stations:1,scope:'橫流溪下游',source:'113年Survey123逐尾表',note:'明潭吻鰕虎2尾；來源：113年合併檔橫流溪區段' },
-  { label:'113年 12月13日',year:2024,m:12,d:13,bai:31,shi:1,xu:14,ying:1,jian:0,min:2,kou:0,feng:0,hong:0,stations:1,scope:'橫流溪上游',source:'113年Survey123逐尾表',note:'明潭吻鰕虎2尾；來源：113年合併檔橫流溪區段' },
+  // ── 113年：PDF逐頁核查（2026-08-21）溪魚調查__20240715_164059_29848_113合併.pdf（123頁）──
+  // 核查方法：TWD97座標分離橫流溪（X≈240000–241000，Y≈2675000–2679000）與非橫流溪（X:278732，Y:2688460）
+  // 橫流溪6筆：3/25(p73-92), 6/18(p93-99), 6/27(p1-10), 9/24(p25-30), 11/26(p31-44), 12/13(p59-63)
+  // 非橫流溪4筆排除：9/24(p11-24含香魚54尾/粗首馬口鱲2尾/間爬岩鰍1尾), 12/12(p45-52), 3/21(p64-72), 6/26(p100+)
+  // Unicode解碼確認：臺灣白甲魚(U+81FA7063767D75329B5A)、臺灣鬚鱲(U+81FA70639B1A9C72)等9物種全數對應
+  // 6/27實際魚種bai=18/shi=4/xu=2/ying=1/min=3/hong=1 PDF逐頁核實；jian=0為正確值（jian僅見非橫流溪）
+  // 9/24無捕獲與颱風凱米（2024-07-24）擾動一致；113年合計6物種為PDF直接核實
+  { label:'113年 3月25日', year:2024,m:3,d:25,bai:67,shi:14,xu:32,ying:6,jian:0,min:3,kou:0,feng:0,hong:0,stations:1,scope:'橫流溪下游',source:'113年Survey123逐尾表',note:'PDF核查p73-92：bai=67/shi=14/xu=32/ying=6/min=3完全吻合；jian=0確認（非橫流溪排除）' },
+  { label:'113年 6月18日', year:2024,m:6,d:18,bai:2,shi:1,xu:2,ying:0,jian:0,min:0,kou:0,feng:0,hong:0,stations:1,scope:'橫流溪上游',source:'113年Survey123逐尾表',note:'PDF核查p93-99：bai=2/shi=1/xu=2完全吻合；共5尾' },
+  { label:'113年 6月27日', year:2024,m:6,d:27,bai:18,shi:4,xu:2,ying:1,jian:0,min:3,kou:0,feng:0,hong:1,stations:1,scope:'橫流溪下游',source:'113年Survey123逐尾表',note:'PDF核查p1-10：各物種完全吻合；kou=0確認（kou僅見p11-24非橫流溪9/24調查，已排除）；jian=0確認' },
+  { label:'113年 9月24日', year:2024,m:9,d:24,bai:0,shi:0,xu:0,ying:0,jian:0,min:0,kou:0,feng:0,hong:0,stations:1,scope:'橫流溪下游',source:'113年Survey123逐尾表',surveyStatus:'surveyed_no_capture',note:'PDF核查p25-30：確認無捕獲；颱風凱米（2024-07-24凱米過境）後棲地擾動，生態學上合理' },
+  { label:'113年 11月26日',year:2024,m:11,d:26,bai:56,shi:12,xu:4,ying:3,jian:0,min:2,kou:0,feng:0,hong:0,stations:1,scope:'橫流溪下游',source:'113年Survey123逐尾表',note:'PDF核查p31-44：bai=56/shi=12/xu=4/ying=3/min=2完全吻合；jian=0確認' },
+  { label:'113年 12月13日',year:2024,m:12,d:13,bai:31,shi:1,xu:14,ying:1,jian:0,min:2,kou:0,feng:0,hong:0,stations:1,scope:'橫流溪上游',source:'113年Survey123逐尾表',note:'PDF核查p59-63：bai/xu/shi/ying/min均有確認；表格另含公分單位魚體量測' },
 
   // ── 114年：4次橫流溪上、下游Survey123逐尾調查表 ──
   { label:'114年 6月24日', year:2025,m:6,d:24,bai:31,shi:23,xu:3,ying:2,jian:0,min:2,kou:0,feng:1,hong:0,stations:1,scope:'橫流溪下游',source:'114年Survey123逐尾表',note:'明潭吻鰕虎2尾、短臀瘋鱨1尾；來源：114年Survey123逐尾表' },
