@@ -848,8 +848,10 @@ def _call_groq(query: str, ctx: str) -> "tuple[str, str]":
     取得 Key：https://console.groq.com  →  API Keys
     設定：set GROQ_API_KEY=gsk_xxxxxxxx
     """
-    import os, urllib.request, json as _json
+    import os, urllib.request, urllib.error, json as _json, logging as _logging
+    _log = _logging.getLogger(__name__)
     key = os.environ.get("GROQ_API_KEY", "")
+    _log.info(f"[GROQ] key present={bool(key)}, len={len(key)}, prefix={key[:10] if key else ''}")
     if not key:
         return "", ""
     payload = _json.dumps({
@@ -872,7 +874,12 @@ def _call_groq(query: str, ctx: str) -> "tuple[str, str]":
             res = _json.loads(r.read().decode())
         model_name = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")
         return res["choices"][0]["message"]["content"].strip(), f"{model_name} (Groq)"
-    except Exception:
+    except urllib.error.HTTPError as _e:
+        body = _e.read()[:300].decode("utf-8", errors="replace")
+        _log.error(f"[GROQ] HTTP {_e.code} {_e.reason} — {body}")
+        return "", ""
+    except Exception as _e:
+        _log.error(f"[GROQ] {type(_e).__name__}: {_e}")
         return "", ""
 
 
