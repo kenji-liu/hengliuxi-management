@@ -2064,9 +2064,10 @@ function inspDataSetPageSize(size) {
    護管員巡查日誌（梁技正橫流溪巡查日誌，民國109-113年）
    來源：01_工程設施維護與資料/更新資料/梁技正橫流溪巡查日誌
    ══════════════════════════════════════════════════════════════ */
-const _RANGER_BASE = '01_工程設施維護與資料/更新資料/梁技正橫流溪巡查日誌/';
-function rangerInspHref(filename) {
-  return '/media/' + _RANGER_BASE.split('/').map(encodeURIComponent).join('/') + encodeURIComponent(filename);
+const _RANGER_DEPLOY_BASE = '/webapp/assets/ranger-logs/';
+function rangerInspHref(recordOrId) {
+  const id = typeof recordOrId === 'string' ? recordOrId : recordOrId?.id;
+  return `${_RANGER_DEPLOY_BASE}${encodeURIComponent(id)}.pdf`;
 }
 let _selectedRIRecord = 'ri-01';
 function giRangerSelect(id) {
@@ -2079,14 +2080,20 @@ function giRangerSelect(id) {
   });
   const rec = RANGER_INSP_RECORDS.find(r => r.id === id);
   if (!rec) return;
-  const href = rangerInspHref(rec.pdf);
+  const href = rangerInspHref(rec);
   const title = document.getElementById('ri_title');
   const meta  = document.getElementById('ri_meta');
   const link1 = document.getElementById('ri_link_1');
   const link2 = document.getElementById('ri_link_2');
-  if (title) title.textContent = rec.title;
+  const link3 = document.getElementById('ri_link_3');
+  const viewer = document.getElementById('ri_pdf_viewer');
+  if (title) title.textContent = `橫流溪護管員巡查日誌 ${rec.displayDate}`;
   if (meta)  meta.textContent  = `${rec.displayDate}｜橫流溪護管員巡查日誌｜PDF`;
-  [link1, link2].forEach(a => { if (a) a.href = href; });
+  [link1, link2, link3].forEach(a => { if (a) a.href = href; });
+  if (viewer) {
+    viewer.title = `${rec.displayDate} 橫流溪護管員巡查日誌`;
+    viewer.src = `${href}#toolbar=1&navpanes=0&view=FitH`;
+  }
 }
 
 const RANGER_INSP_RECORDS = [
@@ -2176,7 +2183,7 @@ const RANGER_INSP_RECORDS = [
 
 function renderRangerInspRecords() {
   const defaultRec = RANGER_INSP_RECORDS.find(r => r.id === _selectedRIRecord) || RANGER_INSP_RECORDS[0];
-  const defaultHref = rangerInspHref(defaultRec.pdf);
+  const defaultHref = rangerInspHref(defaultRec);
 
   // 依年份分組（倒序，最新在上）
   const groups = {};
@@ -2202,7 +2209,7 @@ function renderRangerInspRecords() {
         <a id="ri_link_1" href="${defaultHref}" target="_blank" rel="noopener noreferrer"
           style="display:inline-flex;align-items:center;gap:6px;background:#166534;color:#fff;
                  padding:7px 16px;border-radius:8px;font-size:14px;font-weight:700;text-decoration:none">
-          <i class="fas fa-up-right-from-square"></i> 點開閱讀 PDF
+          <i class="fas fa-up-right-from-square"></i> 另開 PDF
         </a>
       </div>
     </div>
@@ -2214,7 +2221,7 @@ function renderRangerInspRecords() {
         <i class="fas fa-info-circle"></i>
         來源：<b>01_工程設施維護與資料 ／ 更新資料 ／ 橫流溪護管員巡查日誌</b>　·
         民國109年3月 ～ 113年11月 護管員巡查日誌。
-        點選左側日誌可切換右側文件；PDF 已取消頁面內嵌預覽，請點開閱讀完整內容。
+        點選左側日誌即可在右側內嵌閱讀 PDF，亦可另開原始文件檢視完整內容。
       </div>
 
       <!-- 左右分割 -->
@@ -2264,23 +2271,26 @@ function renderRangerInspRecords() {
             </a>
           </div>
 
-          <!-- 文件提示 -->
-          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:20px;
-                      display:flex;align-items:center;gap:18px">
-            <i class="fas fa-file-pdf" style="font-size:48px;color:#b91c1c;flex-shrink:0"></i>
-            <div style="flex:1">
-              <div style="font-size:18px;color:#64748b;margin-bottom:8px">
-                已取消頁面內嵌預覽，請點開閱讀完整巡查日誌
-              </div>
-              <div id="ri_meta" style="font-size:16px;color:#94a3b8">
+          <!-- 內嵌 PDF 閱讀器 -->
+          <div style="background:#f8fafc;border:1px solid #dbe4ee;border-radius:12px;overflow:hidden">
+            <div style="padding:10px 14px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+              <i class="fas fa-file-pdf" style="font-size:22px;color:#b91c1c"></i>
+              <div id="ri_meta" style="font-size:15px;color:#475569;font-weight:700;flex:1">
                 ${defaultRec.displayDate}｜橫流溪護管員巡查日誌｜PDF
               </div>
+              <a id="ri_link_3" href="${defaultHref}" target="_blank" rel="noopener noreferrer"
+                style="background:#166534;color:#fff;padding:7px 14px;border-radius:7px;
+                       font-size:14px;font-weight:700;text-decoration:none;white-space:nowrap">
+                <i class="fas fa-up-right-from-square"></i> 另開 PDF
+              </a>
             </div>
-            <a id="ri_link_3" href="${defaultHref}" target="_blank" rel="noopener noreferrer"
-              style="background:#166534;color:#fff;padding:12px 24px;border-radius:8px;
-                     font-size:18px;font-weight:700;text-decoration:none;white-space:nowrap;flex-shrink:0">
-              <i class="fas fa-up-right-from-square"></i> 點開閱讀 PDF
-            </a>
+            <iframe id="ri_pdf_viewer"
+              src="${defaultHref}#toolbar=1&navpanes=0&view=FitH"
+              title="${defaultRec.displayDate} 橫流溪護管員巡查日誌"
+              loading="eager"
+              style="display:block;width:100%;height:680px;border:0;background:#fff"
+              allow="fullscreen">
+            </iframe>
           </div>
 
         </div>
