@@ -11,7 +11,7 @@ const FISH_PHOTO_LIBRARY = {
   '粗首馬口鱲': {
     image: '/webapp/assets/fish-photos/zacco-pachycephalus.png',
     source: '02_魚類與棲地資料庫／施工前魚類調查嵌入影像',
-    caption: '溪流魚類量測實拍，粗首馬口鱲（Zacco pachycephalus）代表影像'
+    caption: '溪流魚類量測實拍，粗首馬口鱲（Opsariichthys pachycephalus）代表影像'
   },
   '臺灣鬚鱲': {
     image: '/webapp/assets/fish-photos/candidia-barbata.png',
@@ -1549,7 +1549,7 @@ const HLX_FISH_GRAND_TOTAL   = Object.values(HLX_FISH_FULL_TOTALS).reduce((a, b)
 // 「來源無法定位到橫流溪」與真正缺漏分開，避免把他溪紀錄誤補為橫流溪尾數。
 const HLX_FISH_EVIDENCE_NOTES = {
   '明潭吻鰕虎': '104年Q3（104/09/17）鞍馬山上游站首次量化捕獲4尾（魚道建置前）。106年Q3成果報告文字記載上游有紀錄，惟文字疑似複製，XLSX無明確尾數，存疑。107年起成為橫流溪量化優勢鰕虎科魚種，107年5月第一季3站合計85尾，顯示魚道完工後族群快速擴張。111年Survey123均為下游單站（min欄全零）；111年成果報告DOCX Table 7另確認Q2（5月）上游1尾（體長55mm）、Table 9確認Q4（11/16）上游≥6尾（平均體長64.167mm），均為量化電捕記錄，非僅目擊。全序列累計648尾，是橫流溪數量最豐富的鰕虎科魚類，流域棲地健康指標。',
-  '粗首馬口鱲': '103年基線與106年下游量化表未檢出；各年度104–111年橫流溪全溪電捕序列均無捕獲記錄。鄰近水系（裡冷溪108年、南湖溪110年）已確認有穩定族群，顯示大甲溪流域具備棲地適合性；同水系源流族群可支持未來自然擴散入溪。橫流溪可稽核捕獲始於112年11月（2尾）、12月（2尾），共4尾，代表拓殖初期低密度建立；107–111年未捕獲為努力量與站位局限，非族群完全缺席。指標意義重大。',
+  '粗首馬口鱲': '橫流溪可稽核量化序列中，103年基線、106年下游量化表及104–111年調查均未檢出；112年11月與12月各記錄2尾，合計4尾。資料比對已納入現行學名 Opsariichthys pachycephalus、舊學名 Zacco pachycephalus，以及「粗手馬口鱲」「粗首馬口」等OCR異體；但「臺灣馬口魚」可能指臺灣鬚鱲，未具學名或標本佐證時不併計。108年裡冷溪與110年南湖溪的陽性記錄屬其他溪流，僅能證明鄰近大甲溪水系存在族群，不得移入橫流溪。未捕獲表示當次調查未檢出，不等同全溪不存在；可能受低密度、活動水層、季節、站位與電捕效率影響。',
   '短臀瘋鱨': '103年與106年橫流溪量化序列未檢出（不代表全流域不存在）。107年起始有可定位橫流溪尾數，呈間歇性低量捕獲：107年S1（5月）1尾、109年S2（9月）1尾、110年上游Q4（11/16）1尾（ODS確認，體長110mm）、111年上游Q4（11/16）1尾（DOCX Table 9，體長110mm）、112年5月1尾＋11月4尾、114年共5尾，全序列累計22尾。111年Survey123下游站全零，DOCX Table 9上游量化捕獲確認1尾，易危種持續在上游低密度維持族群；兩資料源站位不同，不矛盾。',
   '短吻紅斑吻鰕虎': '103年與106年橫流溪量化序列未檢出；107年S2（7月）起始有可定位尾數（2尾），呈間歇性低量捕獲。111年Survey123下游站全零值；111年DOCX Table 9確認上游Q4（11/16）量化捕獲1尾（體長55mm），為電捕實測，非目擊。全序列累計21尾（加入111年上游1尾）。零值表示已完成調查但未捕獲，不等同未調查；下游站零值不代表全流域族群缺席。'
 };
@@ -3650,7 +3650,7 @@ function renderFishTrend() {
     { key:'ying', name:'纓口臺鰍',       color:'#22c55e', engName:'Formosania lacustre',          conserve:'近危(NNT)・特有種' },
     { key:'jian', name:'臺灣間爬岩鰍',   color:'#f43f5e', engName:'Hemimyzon formosanus',        conserve:'近危(NNT)・特有種' },
     { key:'min',  name:'明潭吻鰕虎',     color:'#3b82f6', engName:'Rhinogobius candidianus',     conserve:'一般(NLC)・特有種' },
-    { key:'kou',  name:'粗首馬口鱲',     color:'#f59e0b', engName:'Zacco pachycephalus',          conserve:'一般(NLC)・特有種' },
+    { key:'kou',  name:'粗首馬口鱲',     color:'#f59e0b', engName:'Opsariichthys pachycephalus', conserve:'一般(NLC)・特有種' },
     { key:'feng', name:'短臀瘋鱨',       color:'#dc2626', engName:'Tachysurus brevianalis',       conserve:'易危(NVU)・特有種' },
     { key:'hong', name:'短吻紅斑吻鰕虎', color:'#059669', engName:'Rhinogobius rubromaculatus',   conserve:'一般(NLC)・特有種（IUCN全球NT）' },
   ];
@@ -3910,7 +3910,7 @@ function renderFishTrend() {
         <div style="background:#f8fafc;border-radius:8px;padding:12px 14px;margin-top:10px;font-size:13px;color:#475569;line-height:1.75">
           <strong style="color:#5b21b6">計算口徑：</strong>本圖的柱狀 H′ 為<b>平台重算值</b>，不是逐年直接抄錄報告的既列指數。計算時先將同年度、屬於橫流溪的各調查場次之物種別尾數加總為年度群聚，再代入 Shannon-Wiener 公式 H′＝−Σ(pi ln pi)；pi 為該物種尾數占年度總捕獲量的比例。右軸紫線為年度出現物種數，須與 H′ 一起判讀。<br>
           <strong style="color:#0f766e">資料可回查：</strong>107～108 年原始物種別尾數來自《107～108年度橫流溪整治規劃設計監造與監測調查委託技術服務案成果報告》表 4-16；109～110 年來自《110年東勢林區管理處國有林魚道及生態廊道成效追蹤》表 5-3；111 年後來自橫流溪 Survey123 逐尾調查紀錄。110 年報告另有<b>樣站平均 H′ 約 1.4</b>的報告結論，此值與本圖的年度合計 H′ 屬不同統計尺度，不應互相替代。<br>
-          <strong style="color:#7c2d12">專業判讀：</strong>103 年施工前的群聚由少數優勢種主導，H′ 較低；107～110 年多站追蹤中可見較多物種共同出現，支持棲地異質性與連通性改善的正向訊號。惟 107～110 年為多站彙整、111 年後以單站例行紀錄為主，年度 H′ 會受採樣範圍、季節、流量與優勢種比例影響；因此應與 CPUE、固定樣站、魚道上下游同步調查、魚道中捕捉與水中影像共同驗證，不能單憑 H′ 宣稱單一魚道的效益。
+          <strong style="color:#7c2d12">專業判讀：</strong>103 年施工前的群聚由少數優勢種主導，H′ 較低；107～110 年多站追蹤中可見較多物種共同出現，支持棲地異質性與連通性改善的正向訊號。113 年共記錄 282 尾、6 種，平台重算 H′ 為 1.13；臺灣白甲魚 174 尾，占 61.7%。114 年共記錄 275 尾、8 種，H′ 回升至 1.25；臺灣白甲魚 170 尾，占 61.8%。因此兩年仍屬中等多樣性，主因不是魚少，而是優勢種比例偏高、均勻度受壓低；114 年物種數與 CPUE 均較 113 年提高，顯示群聚持續恢復，但尚未形成高度均勻的物種組成。惟 107～110 年為多站彙整、111 年後以單站例行紀錄為主，年度 H′ 仍須與 CPUE、固定樣站、上下游同步調查、魚道中捕捉與水中影像共同判讀。
         </div>
       </div>
       <div style="background:#fff;border:2px solid #e2e8f0;border-radius:16px;padding:24px">
@@ -3926,7 +3926,7 @@ function renderFishTrend() {
             <span style="width:10px;height:10px;border-radius:50%;background:${s.color};flex-shrink:0;display:inline-block"></span>${s.name}</span>`).join('')}
         </div>
         <div style="background:#f0fdf4;border-radius:8px;padding:10px 14px;margin-top:10px;font-size:13px;color:#166534;line-height:1.6">
-          臺灣白甲魚占比約<strong>55%</strong>，臺灣石魚賓與臺灣鬚鱲各約<strong>10～15%</strong>，物種組成趨於均衡。
+          114 年臺灣白甲魚占全 9 種年度捕獲量約<strong>61.8%</strong>，為壓低 H′ 均勻度的主要優勢種；同年記錄 8 種，顯示物種豐富度提高，但群聚尚未達高度均衡。
         </div>
       </div>
     </div>
@@ -4034,7 +4034,7 @@ function renderFishTrend() {
           <div style="font-size:14px;font-weight:900;color:#0e7490;margin-bottom:10px"><i class="fas fa-magnifying-glass-chart" style="margin-right:7px"></i>生態詮釋框架</div>
           <p style="margin:0 0 10px 0">橫流溪各河段的落差、流速與河床條件不同，魚道並非採用單一形式，而是運用粗石斜曲面、階段式、斜坡式、潛越式及降壩等設計，把過大的落差逐步拆小，並創造緩流、休息區與不同通行路徑，讓不同游泳能力的魚類都能找到適合的方式通過。</p>
           <p style="margin:0 0 10px 0">從歷年 CPUE 來看，107～108 年確實明顯升高，代表當時在相同調查努力下捕獲的魚較多。然而這不一定表示整條溪流的魚類數量突然增加，也可能受到<b>豐枯水條件、繁殖季節、幼魚補充</b>，以及魚群集中在特定深潭或魚道入口等因素影響。</p>
-          <p style="margin:0 0 10px 0">108 年 CPUE 為 111.6 尾／站訪次；109 年因調查由 4 站改為 6 站、採樣季節與河段組合改變，降為 43.1 尾／站訪次。110 年則回升至 60.1 尾／站訪次，顯示 109 年的低點不宜直接解讀為魚道失效或族群持續下降。豪雨、土砂堆積、水流路徑改變及魚群向上下游分散，均會改變魚類停留位置與調查捕獲率。</p>
+          <p style="margin:0 0 10px 0">108 年兩次調查共 8 站訪次，CPUE 為 111.6 尾／站訪次；109 年兩次調查擴為 12 站訪次，時間改在 7 月與 9 月，CPUE 降為 43.1。109 年仍記錄 517 尾、7 種，H′ 為 1.63，最大優勢種占比僅約 24%，呈現「密度指標下降、群聚均勻度仍高」的組合。110 年 CPUE 回升至 60.1，故 109 年低點較合理的解釋是樣站與季節組合、水文及魚群空間分散共同影響捕獲率，不能直接判為魚道失效。報告未提供足以把單一豪雨或施工事件定為唯一原因的對照證據，相關因素僅列為待驗證假說。</p>
           <p style="margin:0;color:#0f766e;font-weight:700">判斷工程改善成效，應以固定樣站、相同季節與相近流況的可比較序列，並綜合魚種組成、上下游同步調查、魚道中捕捉、影像監測、水質與流量判讀；本圖的 CPUE 是全溪關聯物種指標，不是單一魚道的直接過魚量。</p>
         </div>
       </div>
@@ -4109,8 +4109,8 @@ function renderFishTrend() {
             <div style="display:flex;gap:10px;align-items:flex-start">
               <div style="width:13px;height:13px;border-radius:3px;background:#fbbf24;flex-shrink:0;margin-top:2px"></div>
               <div style="font-size:14px;color:#475569;line-height:1.7">
-                <b style="color:#0f172a">109 年短暫下探 ≠ 族群衰退</b><br>
-                成果報告明載該年度為魚道施工期，機具擾動導致 CPUE 下滑，110 年施工結束後即回升，不應解讀為魚類資源衰退。
+                <b style="color:#0f172a">109 年短暫下探 ≠ 已證實的族群衰退</b><br>
+                109 年 CPUE 為 43.1 尾／站訪次，但仍有 7 種、H′ 1.63，最大優勢種約占 24%；這是密度下降但組成均衡的實測結果。相較 108 年，調查站訪次由 8 增至 12，季節亦改為 7 月與 9 月，水文、魚群分散與樣站組合都可能改變捕獲率。現有資料不足以把下降唯一歸因於施工、豪雨或魚道功能，因此應列為多因子年際波動。
               </div>
             </div>
           </div>
@@ -4167,7 +4167,7 @@ function renderFishTrend() {
             body:'魚道連通性追蹤指標顯示，臺灣間爬岩鰍於110年全年合計記錄32尾（其中4月23尾、9月9尾）；114年已核對調查資料合計13尾。本計畫已導入魚道上下游同步調查、標放試驗及自動化影像監測機制進行交叉驗證，歷年監測數據確實證實魚道具備良好之縱向連通功能，能有效供底棲性魚類（臺灣間爬岩鰍、明潭吻鰕虎等）進行上下游遷徙與棲地擴展。109～110年8區9座魚道均有魚類捕捉紀錄，為縱向通行功能提供具體實證。',
             badge:'上下游同步＋標放＋影像三驗' },
           { icon:'fa-layer-group', title:'物種組成與多樣性變化', color:'#3b82f6', bg:'#eff6ff', bd:'#bfdbfe',
-            body:`106年魚相由臺灣白甲魚高度主導；已核對序列的年度物種數最高為${Math.max(...annualEffortMetrics.map(metric => metric.richness))}種。112～114年物種數依序為${annualMetricByYear[2023]?.richness ?? '-'}、${annualMetricByYear[2024]?.richness ?? '-'}、${annualMetricByYear[2025]?.richness ?? '-'}種，顯示組成具年際變化；H′與物種數仍須在相同採樣努力量下比較，方能判斷群聚是否趨於多元。`,
+            body:`106年魚相由臺灣白甲魚高度主導；已核對序列的年度物種數最高為${Math.max(...annualEffortMetrics.map(metric => metric.richness))}種。113年為6種、H′ 1.13，臺灣白甲魚占61.7%；114年增為8種、H′ 1.25，臺灣白甲魚占61.8%。因此114年雖有更高物種豐富度與CPUE，多樣性仍屬中等，主要受優勢種比例偏高、均勻度不足影響；這與棲地改善及縱向連通性提升並不矛盾。`,
             badge:'同口徑比較' },
           { icon:'fa-droplet', title:'✅ 水質長期優良，支撐保育類物種生存', color:'#7c3aed', bg:'#faf5ff', bd:'#ddd6fe',
             body:'歷次調查pH值維持在7.87～8.03之間（弱鹼性優良水質），水溫夏季22.5～24.9°C、冬季11～11.4°C，均處於臺灣原生魚類最適生存範圍。電導度265～363μS/m亦顯示無污染。穩定優良的水質條件，為3種保育類特有魚類長期定居與繁殖提供了堅實的環境基礎。',
@@ -4282,8 +4282,8 @@ function renderFishTrend() {
         ${[
           { sp:'明潭吻鰕虎', eng:'Rhinogobius candidianus', fam:'鰕虎科', status:'🟢 台灣特有種 ‧ 一般物種', icon:'🐡',
             desc:'次要4種中族群數量最多（103～114年累計317尾），是橫流溪最常見的底棲型鰕虎。棲息於礫石縫隙間，以小型底棲無脊椎動物為食，對水質敏感，偏好清澈高溶氧之急流至緩流段。分布範圍廣，107年至113年持續有記錄，族群整體穩定。', color:'#3b82f6', bg:'#eff6ff' },
-          { sp:'粗首馬口鱲', eng:'Zacco pachycephalus', fam:'鯉科', status:'🟢 台灣特有種 ‧ 一般物種', icon:'🐟',
-            desc:'台灣特有種，廣泛分布台灣各河川中上游急流砂礫底環境。107年首次大規模電捕記錄（30尾），具強游泳能力，常在急瀬段成群活動；雜食性，攝食水生昆蟲、藻類及有機碎屑。112～113年捕獲量偏低（3～6尾），推測與白甲魚優勢族群競爭及底質淤積有關，對水道底質結構變化敏感。', color:'#f59e0b', bg:'#fffbeb' },
+          { sp:'粗首馬口鱲', eng:'Opsariichthys pachycephalus', fam:'鯉科', status:'🟢 台灣特有種 ‧ 一般物種', icon:'🐟',
+            desc:'臺灣特有種，常見於河川中上游流動水域。橫流溪目前僅112年11月及12月各確認2尾，共4尾；其餘年度為「已調查未檢出」，不是推估為零，也不能解讀為全溪不存在。資料清理已比對舊學名Zacco pachycephalus及「粗手馬口鱲」「粗首馬口」等OCR異體；「臺灣馬口魚」因可能指臺灣鬚鱲，未具學名或標本佐證者不併計。裡冷溪與南湖溪的陽性資料亦不移入橫流溪。', color:'#f59e0b', bg:'#fffbeb' },
           { sp:'短臀瘋鱨', eng:'Tachysurus brevianalis', fam:'鯰科', status:'🔴 保育類第III類 ‧ 易危（VU）', icon:'🦶',
             desc:'保育類第三級（易危），IUCN評為近危（NT）。108年4月首次在橫流溪確認（4尾），為重要新紀錄，顯示橫流溪仍維持足以支持此保育物種之水域環境。夜行性底棲魚類，白天多藏匿於大型礫石或倒木下方，以底棲無脊椎動物為主食，觸鬚發達。族群數量極少，建議加強夜間調查以正確評估族群規模。', color:'#dc2626', bg:'#fef2f2' },
           { sp:'短吻紅斑吻鰕虎', eng:'Rhinogobius rubromaculatus', fam:'鰕虎科', status:'🟠 IUCN近危（NT）', icon:'🦐',
@@ -4355,7 +4355,7 @@ function renderFishTrend() {
           { id:'spTrend_臺灣間爬岩鰍',   name:'臺灣間爬岩鰍',   sci:'Hemimyzon formosanus',       cons:'近危', borderCol:'#fecaca', topCol:'#f43f5e', badge:'#fff1f2', badgeTxt:'#be123c', note:'特有種・2024紅皮書近危(NNT，2017易危下修)・魚道關聯最高，114年回升13尾' },
           // ── 4 種次要物種暨鰕虎科（電捕法DB記錄）──
           { id:'spTrend_明潭吻鰕虎',     name:'明潭吻鰕虎',     sci:'Rhinogobius candidianus',    cons:'一般',     borderCol:'#bfdbfe', topCol:'#2563eb', badge:'#dbeafe', badgeTxt:'#1e40af', note:`特有種・2024紅皮書無危(NLC)・魚道完工後107年族群快速建立，累計 ${HLX_FISH_FULL_TOTALS['明潭吻鰕虎']} 尾，全流域廣布，溪流健康指標` },
-          { id:'spTrend_粗首馬口鱲',     name:'粗首馬口鱲',     sci:'Zacco pachycephalus',        cons:'一般',     borderCol:'#fde68a', topCol:'#b45309', badge:'#fef9c3', badgeTxt:'#92400e', note:`特有種・2024紅皮書無危(NLC)・112年首次確認橫流溪定著（4尾），族群拓殖初期；鄰近裡冷溪、南湖溪已有穩定族群，生態意義重大` },
+          { id:'spTrend_粗首馬口鱲',     name:'粗首馬口鱲',     sci:'Opsariichthys pachycephalus', cons:'一般',     borderCol:'#fde68a', topCol:'#b45309', badge:'#fef9c3', badgeTxt:'#92400e', note:`特有種・2024紅皮書無危(NLC)・橫流溪可稽核量化紀錄僅112年4尾；其他年度為已調查未檢出，不以鄰近溪流或推估值補入` },
           { id:'spTrend_短臀瘋鱨',       name:'短臀瘋鱨',       sci:'Tachysurus brevianalis',     cons:'易危',     borderCol:'#fecdd3', topCol:'#dc2626', badge:'#fee2e2', badgeTxt:'#991b1b', note:`特有種・2024紅皮書易危(NVU，2017無危上修)・107年起間歇捕獲，累計 ${HLX_FISH_FULL_TOTALS['短臀瘋鱨']} 尾；111年DOCX Table 9量化確認上游Q4（體長110mm），易危種低密度持續維持` },
           { id:'spTrend_短吻紅斑吻鰕虎', name:'短吻紅斑吻鰕虎', sci:'Rhinogobius rubromaculatus', cons:'一般',     borderCol:'#d1fae5', topCol:'#059669', badge:'#ecfdf5', badgeTxt:'#065f46', note:`特有種・2024紅皮書無危(NLC)・107年起間歇捕獲，累計 ${HLX_FISH_FULL_TOTALS['短吻紅斑吻鰕虎']} 尾；111年DOCX Table 9量化確認上游Q4（體長55mm），下游站零值不代表族群缺席` }
         ].map(sp => `

@@ -36,9 +36,24 @@ try:
     from sentence_transformers import SentenceTransformer
     from sklearn.metrics.pairwise import cosine_similarity
 except ImportError as e:
-    logger.error(f"Missing dependency: {e}")
+    logger.warning(f"sentence-transformers not available (cloud mode uses Jina API instead): {e}")
     SentenceTransformer = None
     cosine_similarity = None
+
+# ── Jina AI 雲端嵌入（Phase 1：取代本機 sentence-transformers）────
+# 申請免費 key：https://jina.ai  每月 100 萬 token 免費
+# Render 環境變數：JINA_API_KEY
+JINA_API_KEY           = os.environ.get('JINA_API_KEY', '')
+JINA_EMBED_MODEL       = 'jina-embeddings-v3'
+JINA_EMBED_DIMS        = 768      # 與 SIMILARITY_THRESHOLD=0.22 相容
+JINA_EMBED_URL         = 'https://api.jina.ai/v1/embeddings'
+
+# ── Firebase Storage（向量庫持久存儲）────────────────────────────
+# Render 環境變數：FIREBASE_STORAGE_BUCKET（格式：xxx.appspot.com）
+# Firebase Storage 安全規則須允許讀取 hlx/vector_store.jsonl
+FIREBASE_STORAGE_BUCKET      = os.environ.get('FIREBASE_STORAGE_BUCKET', '')
+FIREBASE_VECTOR_STORE_OBJECT = 'hlx/vector_store.jsonl'
+VECTOR_STORE_CACHE           = Path('/tmp/hlx_vector_store.jsonl')  # Render 暫存路徑
 
 # Configuration
 MODEL_NAME = 'paraphrase-multilingual-MiniLM-L12-v2'   # 多語言含繁中；比 all-MiniLM-L6-v2 更準
@@ -420,6 +435,12 @@ TARGET_SOURCE_HINTS = (
     '113年東勢處水域友善監測追蹤',
     '維護管理手冊',
     '成果報告',
+    # 新增：hlx_index_all.py 三個根目錄的路徑提示
+    '橫流溪工程設施維護與資料管理作業',  # C:\Desktop 和 G:\ 根目錄
+    '叭哩叭哩噗計畫',                   # G:\叭哩叭哩噗計畫
+    '橫流溪生態知識庫',                  # KB markdown files
+    'fish.js',                          # 魚類調查資料
+    'hlx_index',                        # 由 hlx_index_all.py 建立的條目
 )
 
 
@@ -466,9 +487,78 @@ def resolve_source_path(source_path: str) -> Path:
     return candidate
 
 
+def jina_embed(texts: List[str], task: str = 'retrieval.passage') -> Optional[np.ndarray]:
+    """呼叫 Jina AI API 取得向量。成功回傳 numpy array，失敗回傳 None。"""
+    if not JINA_API_KEY:
+        return None
+    if not texts:
+        return np.array([])
+
+    all_vectors: List[List[float]] = []
+    batch_size = 100
+    for i in range(0, len(texts), batch_size):
+        batch = texts[i:i + batch_size]
+        payload = json.dumps({
+            'model': JINA_EMBED_MODEL,
+            'input': batch,
+            'task': task,
+            'dimensions': JINA_EMBED_DIMS,
+        }).encode('utf-8')
+        req = urllib.request.Request(
+            JINA_EMBED_URL,
+            data=payload,
+            headers={
+                'Authorization': f'Bearer {JINA_API_KEY}',
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            },
+            method='POST',
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                data = json.loads(resp.read())
+            all_vectors.extend(item['embedding'] for item in data['data'])
+        except Exception as e:
+            logger.error(f"Jina AI API error: {e}")
+            return None
+
+    return np.array(all_vectors, dtype=np.float32)
+
+
+def download_vector_store_from_firebase() -> bool:
+    """從 Firebase Storage 下載向量庫到 /tmp。成功回傳 True。"""
+    if not FIREBASE_STORAGE_BUCKET:
+        logger.info("FIREBASE_STORAGE_BUCKET 未設定，跳過 Firebase 下載")
+        return False
+
+    encoded_path = quote(FIREBASE_VECTOR_STORE_OBJECT, safe='')
+    url = (
+        f'https://firebasestorage.googleapis.com/v0/b/{FIREBASE_STORAGE_BUCKET}'
+        f'/o/{encoded_path}?alt=media'
+    )
+    try:
+        logger.info(f"從 Firebase Storage 下載向量庫: {url[:80]}…")
+        VECTOR_STORE_CACHE.parent.mkdir(parents=True, exist_ok=True)
+        req = urllib.request.Request(url)
+        with urllib.request.urlopen(req, timeout=180) as resp:
+            raw = resp.read()
+        VECTOR_STORE_CACHE.write_bytes(raw)
+        mb = len(raw) / 1024 / 1024
+        logger.info(f"下載完成 {mb:.1f} MB → {VECTOR_STORE_CACHE}")
+        return True
+    except urllib.error.HTTPError as e:
+        logger.error(f"Firebase Storage HTTP {e.code}: {e.reason}（確認 Storage 規則允許讀取）")
+        return False
+    except Exception as e:
+        logger.error(f"Firebase Storage 下載失敗: {e}")
+        return False
+
+
 def load_model():
-    """Load embedding model (lazy loading)."""
+    """Load embedding model (lazy loading, fallback when Jina API not configured)."""
     global _model
+    if JINA_API_KEY:
+        return None  # 雲端模式：用 jina_embed() 取代本機模型
     if _model is None:
         if SentenceTransformer is None:
             logger.warning("sentence-transformers not available, RAG features disabled")
@@ -483,20 +573,32 @@ def load_model():
 
 
 def load_vector_store():
-    """Load vector store from JSONL file (lazy loading)."""
+    """Load vector store from JSONL file (lazy loading, with Firebase Storage fallback)."""
     global _vector_store, _metadata_index, _vector_store_mode
 
     if _vector_store is not None:
         return _vector_store
 
-    if not VECTOR_STORE_FILE.exists():
-        logger.warning(f"Vector store not found at {VECTOR_STORE_FILE}; using manifest keyword fallback")
+    # 優先順序：本機檔案 → /tmp 快取 → Firebase Storage 下載 → manifest fallback
+    target_file: Optional[Path] = None
+    if VECTOR_STORE_FILE.exists():
+        target_file = VECTOR_STORE_FILE
+    elif VECTOR_STORE_CACHE.exists():
+        logger.info(f"使用 /tmp 快取向量庫: {VECTOR_STORE_CACHE}")
+        target_file = VECTOR_STORE_CACHE
+    else:
+        logger.info("本機向量庫不存在，嘗試從 Firebase Storage 下載...")
+        if download_vector_store_from_firebase():
+            target_file = VECTOR_STORE_CACHE
+
+    if target_file is None:
+        logger.warning("向量庫不可用，退回 manifest keyword fallback")
         return load_manifest_store_fallback()
 
     try:
-        logger.info("Loading vector store...")
+        logger.info(f"Loading vector store from {target_file}...")
         _vector_store = []
-        with open(VECTOR_STORE_FILE, 'r', encoding='utf-8') as f:
+        with open(target_file, 'r', encoding='utf-8') as f:
             for line_idx, line in enumerate(f):
                 try:
                     doc = json.loads(line)
@@ -654,11 +756,15 @@ def search_similar(query: str, top_k: int = TOP_K_RESULTS, threshold: float = SI
     Returns:
         List of similar documents with scores
     """
-    model = load_model()
+    model = load_model()  # None in cloud mode (Jina API used instead)
     vector_store = load_vector_store()
 
-    if model is None or vector_store is None or len(vector_store) == 0:
-        logger.warning("RAG system not initialized properly")
+    cloud_mode = bool(JINA_API_KEY)
+    if not cloud_mode and model is None:
+        logger.warning("RAG system not initialized: no Jina API key and no local model")
+        return []
+    if vector_store is None or len(vector_store) == 0:
+        logger.warning("RAG system not initialized: vector store empty")
         return []
 
     try:
@@ -670,8 +776,15 @@ def search_similar(query: str, top_k: int = TOP_K_RESULTS, threshold: float = SI
         all_similarities = {}  # doc_id -> best_score
 
         for q in expanded_queries:
-            # Encode expanded query
-            query_vector = model.encode(q, convert_to_numpy=True)
+            # Encode query: Jina API (cloud) or local model (local)
+            if cloud_mode:
+                vecs = jina_embed([q], task='retrieval.query')
+                if vecs is None or len(vecs) == 0:
+                    logger.warning("Jina API 查詢向量化失敗，跳過此 query variant")
+                    continue
+                query_vector = vecs[0]
+            else:
+                query_vector = model.encode(q, convert_to_numpy=True)
             query_vector = normalize_vector(query_vector)
 
             # Compute similarities
@@ -2070,6 +2183,65 @@ def register_rag_blueprint(app):
     """Register RAG blueprint with Flask app."""
     app.register_blueprint(rag)
     logger.info("RAG blueprint registered successfully")
+
+
+@rag.route('/admin/reload', methods=['POST'])
+def admin_reload():
+    """
+    重新從 Firebase Storage 下載向量庫並載入記憶體。
+    需主控登入後呼叫（由前端 AI 問答管理面板觸發）。
+    """
+    global _vector_store, _metadata_index, _vector_store_mode, _bm25_index, _bm25_doc_map
+    try:
+        # 清空現有快取（強制重新下載）
+        _vector_store = None
+        _metadata_index = None
+        _vector_store_mode = 'none'
+        _bm25_index = None
+        _bm25_doc_map = []
+        if VECTOR_STORE_CACHE.exists():
+            VECTOR_STORE_CACHE.unlink()
+
+        # 重新下載並載入
+        store = load_vector_store()
+        if store and len(store) > 0:
+            return jsonify({
+                'success': True,
+                'chunks': len(store),
+                'mode': _vector_store_mode,
+                'source': 'firebase_storage' if VECTOR_STORE_CACHE.exists() else 'local',
+                'timestamp': datetime.now().isoformat(),
+            })
+        else:
+            return jsonify({'success': False, 'error': '向量庫載入失敗或為空'}), 500
+    except Exception as e:
+        logger.error(f"Admin reload error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@rag.route('/admin/status', methods=['GET'])
+def admin_status():
+    """知識庫管理狀態（給前端管理面板用）"""
+    store = load_vector_store()
+    chunks = len(store) if store else 0
+
+    # 各分類統計
+    cat_counts: Dict[str, int] = {}
+    for doc in (store or []):
+        cat = doc.get('category', '未分類')
+        cat_counts[cat] = cat_counts.get(cat, 0) + 1
+
+    return jsonify({
+        'chunks': chunks,
+        'mode': _vector_store_mode,
+        'jina_configured': bool(JINA_API_KEY),
+        'jina_model': JINA_EMBED_MODEL if JINA_API_KEY else None,
+        'firebase_bucket': FIREBASE_STORAGE_BUCKET or None,
+        'categories': cat_counts,
+        'local_file_exists': VECTOR_STORE_FILE.exists(),
+        'cache_file_exists': VECTOR_STORE_CACHE.exists(),
+        'timestamp': datetime.now().isoformat(),
+    })
 
 
 @rag.route('/test-confidence', methods=['GET'])
