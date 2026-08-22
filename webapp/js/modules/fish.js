@@ -56,6 +56,105 @@ const FISH_PHOTO_LIBRARY = {
   }
 };
 
+// 物種層級生態習性與橫流溪調查判讀分開維護，避免把一般文獻習性誤當成現地實測結果。
+const FISH_ECOLOGY_HABITS = {
+  '臺灣白甲魚': {
+    habitat: '多棲息於清澈、溶氧充足的河川中上游，以礫石、卵石底質的淺瀨、流心及潭瀨交界為主要活動空間。',
+    feeding: '以刮食石面附著藻類、有機碎屑為主，也會攝食小型水生昆蟲；常在流速較穩定的底層覓食。',
+    breeding: '繁殖活動多集中於水溫回升的暖季，通常利用水流通暢、底質孔隙尚未被細砂封填的礫石河床。',
+    hengliu: '橫流溪歷年調查的優勢物種，於上、中、下游均有紀錄；高優勢度也可能降低單次調查的均勻度指標，應與物種數及 CPUE 一併判讀。'
+  },
+  '臺灣石魚賓': {
+    habitat: '偏好清澈溪流的深潭、緩流與潭瀨交界，常利用大型礫石、卵石及岸際遮蔽物作為休息與避難空間。',
+    feeding: '屬雜食性魚類，攝食附著藻類、有機碎屑與水生昆蟲等底棲生物，會在潭頭與流速較緩處巡游覓食。',
+    breeding: '繁殖期通常落在暖季，礫石底床、水流交換及較少淤泥覆蓋，有利於卵與早期生活史階段存活。',
+    hengliu: '在橫流溪多河段持續出現，兼具游泳與溯流能力；其跨河段紀錄可作為潭瀨棲地完整性及縱向連通性的輔助指標。'
+  },
+  '臺灣鬚鱲': {
+    habitat: '常見於河川中上游開闊水域、潭瀨交界與岸際緩流帶，偏好水質清澈且具有礫石底質的多樣流況。',
+    feeding: '屬雜食性，利用水生昆蟲、附著藻類與有機碎屑；可在中層巡游，也會靠近底床覓食。',
+    breeding: '暖季為主要繁殖與幼魚補充時段，具水流交換及礫石孔隙的淺水區可提供較適合的產卵與育幼環境。',
+    hengliu: '歷年在橫流溪中游及上下游銜接河段皆有紀錄，是反映水質、流況與棲地連續性的常見指標魚種。'
+  },
+  '纓口臺鰍': {
+    habitat: '底棲吸附型魚類，偏好清澈、高溶氧且流速較快的淺瀨，常貼附於卵石、大礫石或裸露岩盤表面。',
+    feeding: '以刮食石面附著藻膜、微小有機物及底棲生物為主，扁平腹面與特化胸腹鰭有助於抵抗水流。',
+    breeding: '繁殖生態的現地量化資訊較有限；判讀時應保留不確定性，並以暖季成幼魚組成與礫石孔隙狀況持續追蹤。',
+    hengliu: '橫流溪已有魚道及上下游調查紀錄，可作為急流微棲地與貼底通行條件的指標；不宜僅以單次尾數判定整體族群增減。'
+  },
+  '臺灣間爬岩鰍': {
+    habitat: '典型底棲急流魚類，偏好水淺、流速快、溶氧高的淺瀨，以卵石、大礫石及岩盤構成的底床最為重要。',
+    feeding: '利用扁平體型與吸附構造貼附底床，主要刮食附著藻類、微小有機物與石面底棲生物。',
+    breeding: '繁殖與幼魚補充受水文、底質穩定度及孔隙是否淤塞影響；現地仍應以季節性體長組成確認補充情形。',
+    hengliu: '為橫流溪魚道連通性的重要觀察物種，既有上下游同步調查、標放與影像監測可交叉檢核其通行及棲地擴展。'
+  },
+  '明潭吻鰕虎': {
+    habitat: '底棲型魚類，常棲息於礫石、卵石縫隙及潭瀨交界，偏好清澈、溶氧良好且流況多樣的溪段。',
+    feeding: '以小型水生昆蟲、甲殼類及其他底棲無脊椎動物為主，通常貼近河床進行伏擊或短距離覓食。',
+    breeding: '多利用石塊下方或底床孔隙產卵，並具有護卵行為；穩定的礫石底床及低淤砂環境有利於繁殖。',
+    hengliu: '在橫流溪多年度、多河段均有紀錄，是底床孔隙、水質與魚道近底層通行條件的重要指標物種。'
+  },
+  '粗首馬口鱲': {
+    habitat: '偏好河川中上游開闊的流心、深潭與潭瀨交界，需有較充足水深、流動水體及可供追逐覓食的空間。',
+    feeding: '幼魚以水生昆蟲及小型無脊椎動物為主，成長後攝食範圍增加，具有較明顯的主動追捕與肉食傾向。',
+    breeding: '繁殖多與暖季、水溫及流量變化相關，礫石淺灘可提供產卵環境；實際繁殖期仍應以現地體長與成熟度資料確認。',
+    hengliu: '目前平台僅納入已能對應橫流溪樣站的量化紀錄；未捕獲年份代表該次調查未檢出，不等同流域內完全不存在。'
+  },
+  '短臀瘋鱨': {
+    habitat: '夜行性底棲魚類，白天多藏匿於深潭、大型礫石縫隙、倒木或岸際遮蔽物下，偏好水質清澈且底床異質性高的溪段。',
+    feeding: '主要攝食水生昆蟲幼蟲、小型甲殼類及其他底棲動物，夜間沿河床活動與覓食。',
+    breeding: '繁殖資訊與橫流溪現地樣本均較有限，不宜由少量捕獲直接推定繁殖成功；建議搭配夜間調查及體長組成追蹤。',
+    hengliu: '屬低密度且電捕偵測率可能偏低的物種；零星紀錄具保育意義，應以夜間目視、掩蔽物檢查與環境 DNA 輔助確認。'
+  },
+  '短吻紅斑吻鰕虎': {
+    habitat: '偏好清澈、高溶氧的淺瀨、岸際緩流與礫石底床，常利用石塊下方及底質孔隙作為躲藏空間。',
+    feeding: '以水生昆蟲幼蟲、小型甲殼類等底棲無脊椎動物為主，活動範圍多貼近河床。',
+    breeding: '多利用石塊下方產卵並有護卵行為；底床孔隙完整、細砂淤積較少，有利於繁殖與幼魚躲藏。',
+    hengliu: '歷年呈間歇性低量紀錄，適合作為清澈急流與礫石孔隙品質的敏感指標；跨年變化需考量低密度物種的偵測機率。'
+  }
+};
+
+function fish_renderEcologyHabits(species, panelId) {
+  const habit = FISH_ECOLOGY_HABITS[species];
+  if (!habit) return '';
+  const rows = [
+    ['fa-water', '棲地環境', habit.habitat],
+    ['fa-shrimp', '活動與食性', habit.feeding],
+    ['fa-egg', '繁殖特性', habit.breeding],
+    ['fa-location-dot', '橫流溪判讀', habit.hengliu]
+  ];
+  return `
+    <section id="${panelId}" hidden onclick="event.stopPropagation()"
+      style="margin-top:10px;padding:13px 14px;background:#f0fdfa;border:1px solid #99f6e4;border-radius:8px;text-align:left">
+      <div style="font-size:20px;font-weight:900;color:#115e59;margin-bottom:9px">
+        <i class="fas fa-leaf" style="margin-right:6px"></i>${fish_escape(species)}的生態習性
+      </div>
+      ${rows.map(([icon, label, text]) => `
+        <div style="display:grid;grid-template-columns:22px 1fr;gap:7px;margin-bottom:9px;align-items:start">
+          <i class="fas ${icon}" style="color:#0f766e;font-size:16px;margin-top:4px;text-align:center"></i>
+          <div style="font-size:17px;line-height:1.62;color:#334155">
+            <strong style="color:#134e4a">${label}：</strong>${fish_escape(text)}
+          </div>
+        </div>
+      `).join('')}
+      <div style="font-size:15px;line-height:1.5;color:#64748b;border-top:1px solid #99f6e4;padding-top:8px">
+        <i class="fas fa-circle-info" style="margin-right:4px"></i>物種一般生態與橫流溪實測紀錄分列呈現；未捕獲不直接解讀為不存在。
+      </div>
+    </section>`;
+}
+
+function fish_toggleEcology(button, panelId) {
+  const panel = document.getElementById(panelId);
+  if (!panel) return;
+  const willOpen = panel.hidden;
+  panel.hidden = !willOpen;
+  button.setAttribute('aria-expanded', String(willOpen));
+  const label = button.querySelector('[data-ecology-label]');
+  const chevron = button.querySelector('[data-ecology-chevron]');
+  if (label) label.textContent = willOpen ? '關閉生態習性' : '開啟生態習性';
+  if (chevron) chevron.className = `fas ${willOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`;
+}
+
 function renderFish() {
   document.getElementById('contentArea').innerHTML = `
     <div class="tabs">
@@ -846,10 +945,10 @@ function loadFishTable() {
 
   document.getElementById('fishTable').innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:18px;padding:4px 0">
-      ${species.map(s => {
+      ${species.map((s, speciesIndex) => {
         const photo = fish_photoFor(s);
         const [ccl] = cMap[s.conservation] || ['#475569','#f1f5f9'];
-        const cardId = `fishcard_sp_${s.species.replace(/[^\w]/g, '_')}`;
+        const cardId = `fishcard_sp_${speciesIndex}_${s.species.replace(/[^\w]/g, '_')}`;
         const inTrend = TREND_SET.has(s.species);
         const allLocs = [...new Set(s.records.map(r => r.location).filter(Boolean))];
         const surveyRecords = Array.isArray(s.surveyRecords) ? s.surveyRecords : [];
@@ -911,6 +1010,14 @@ function loadFishTable() {
                   <i class="fas fa-robot"></i> AI問答
                 </button>
               </div>
+              <button type="button" aria-expanded="false" aria-controls="${cardId}_ecology"
+                onclick="event.stopPropagation();fish_toggleEcology(this,'${cardId}_ecology')"
+                style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:10px;padding:9px 12px;border:1.5px solid #0f766e;border-radius:8px;background:#ecfdf5;color:#115e59;font-size:18px;font-weight:800;cursor:pointer">
+                <i class="fas fa-leaf"></i>
+                <span data-ecology-label>開啟生態習性</span>
+                <i class="fas fa-chevron-down" data-ecology-chevron style="font-size:14px"></i>
+              </button>
+              ${fish_renderEcologyHabits(s.species, `${cardId}_ecology`)}
               <div style="text-align:center;margin-top:10px;color:#94a3b8;font-size:18px">
                 <span id="${cardId}_hint"><i class="fas fa-up-right-from-square"></i> 點選開啟完整物種資料（${displaySurveyCount} 次調查）</span>
               </div>
@@ -3846,7 +3953,7 @@ function renderFishTrend() {
             <i class="fas fa-chart-bar" style="color:#0e7490;margin-right:10px"></i>各次調查物種捕獲數量
           </div>
           <div style="font-size:16px;color:#64748b;margin-top:6px">
-            橫流溪樣站 ‧ 電捕法單次捕獲尾數（109～110年為成果報告6站電捕合計；施工期影響見說明）
+            橫流溪樣站 ‧ 電捕法單次捕獲尾數（109～110年為成果報告6站電捕合計；跨年抽樣差異見說明）
           </div>
         </div>
         <div style="background:${cpueTrend.bg};border:1.5px solid ${cpueTrend.border};border-radius:10px;padding:10px 18px;font-size:15px;color:${cpueTrend.color};font-weight:700;white-space:nowrap">
@@ -3859,7 +3966,7 @@ function renderFishTrend() {
       <div style="background:#f8fafc;border-radius:10px;padding:16px 20px;margin-top:16px;font-size:16px;color:#334155;line-height:1.8;border-left:4px solid #0e7490">
         <strong>📊 圖表解讀：</strong>
         103～104年（魚道建置前）以臺灣石魚賓為主要記錄物種；107～108年白甲魚在多站調查中成為優勢種，108年4月4站合計589尾。
-        109年第1次255尾、第2次262尾；報告記載該期存在施工擾動，但捕獲差異仍可能同時受站數、水文、季節與魚群空間分布影響；
+        109年第1次255尾、第2次262尾，全年517尾、12站訪次，CPUE為43.1尾／站訪次；相較108年893尾、8站訪次、CPUE 111.6，下降主要出現在努力量校正後密度，而非「沒有魚」。109年仍記錄7種、H′ 1.63，最大優勢種占比約24%，群聚組成尚稱均衡。108年採4月與10月、109年改於7月與9月且樣站增為6站，季節、流況、魚群分散及電捕可捕獲率均可能共同造成差異；現有來源不足以把下降唯一歸因於施工、颱風或魚道失效。
         110年第3次調查（4/28～5/5）回升至${HLX_FISH_110_SUMMARY.springTotal}尾，第4次（8/31～9/2）為${HLX_FISH_110_SUMMARY.autumnTotal}尾，
         兩次樣站電捕合計${HLX_FISH_110_SUMMARY.annualTotal}尾、魚類${HLX_FISH_110_SUMMARY.fishSpecies}種。
         112～114年年度總捕獲依序為${annualMetricByYear[2023]?.catch ?? '-'}、${annualMetricByYear[2024]?.catch ?? '-'}、${annualMetricByYear[2025]?.catch ?? '-'}尾；同期CPUE為${annualMetricByYear[2023]?.cpue ?? '-'}、${annualMetricByYear[2024]?.cpue ?? '-'}、${annualMetricByYear[2025]?.cpue ?? '-'}尾/站訪次，顯示原始總量與努力量校正值須分開判讀。
@@ -3909,7 +4016,7 @@ function renderFishTrend() {
         </div>
         <div style="background:#f8fafc;border-radius:8px;padding:12px 14px;margin-top:10px;font-size:13px;color:#475569;line-height:1.75">
           <strong style="color:#5b21b6">計算口徑：</strong>本圖的柱狀 H′ 為<b>平台重算值</b>，不是逐年直接抄錄報告的既列指數。計算時先將同年度、屬於橫流溪的各調查場次之物種別尾數加總為年度群聚，再代入 Shannon-Wiener 公式 H′＝−Σ(pi ln pi)；pi 為該物種尾數占年度總捕獲量的比例。右軸紫線為年度出現物種數，須與 H′ 一起判讀。<br>
-          <strong style="color:#0f766e">資料可回查：</strong>107～108 年原始物種別尾數來自《107～108年度橫流溪整治規劃設計監造與監測調查委託技術服務案成果報告》表 4-16；109～110 年來自《110年東勢林區管理處國有林魚道及生態廊道成效追蹤》表 5-3；111 年後來自橫流溪 Survey123 逐尾調查紀錄。110 年報告另有<b>樣站平均 H′ 約 1.4</b>的報告結論，此值與本圖的年度合計 H′ 屬不同統計尺度，不應互相替代。<br>
+          <strong style="color:#0f766e">資料可回查：</strong>107～108 年原始物種別尾數來自《107～108年度橫流溪整治規劃設計監造與監測調查委託技術服務案成果報告》表 4-16；109～110 年來自《110年東勢林區管理處國有林魚道及生態廊道成效追蹤》表 5-3；111 年後來自橫流溪 Survey123 逐尾調查紀錄。三個資料路徑中的107～108與110年核心PDF經雜湊比對均為相同檔案副本，統計時各只計一次。110 年報告另有<b>樣站平均 H′ 約 1.4</b>的報告結論，此值與本圖的年度合計 H′ 屬不同統計尺度，不應互相替代。<br>
           <strong style="color:#7c2d12">專業判讀：</strong>103 年施工前的群聚由少數優勢種主導，H′ 較低；107～110 年多站追蹤中可見較多物種共同出現，支持棲地異質性與連通性改善的正向訊號。113 年共記錄 282 尾、6 種，平台重算 H′ 為 1.13；臺灣白甲魚 174 尾，占 61.7%。114 年共記錄 275 尾、8 種，H′ 回升至 1.25；臺灣白甲魚 170 尾，占 61.8%。因此兩年仍屬中等多樣性，主因不是魚少，而是優勢種比例偏高、均勻度受壓低；114 年物種數與 CPUE 均較 113 年提高，顯示群聚持續恢復，但尚未形成高度均勻的物種組成。惟 107～110 年為多站彙整、111 年後以單站例行紀錄為主，年度 H′ 仍須與 CPUE、固定樣站、上下游同步調查、魚道中捕捉與水中影像共同判讀。
         </div>
       </div>
@@ -5098,6 +5205,7 @@ function openFishwayTrendModal(key = 'all') {
       <b style="color:#0e7490">努力量校正（CPUE）：</b>數值＝關聯魚種捕獲量 ÷ 當年站訪次，已排除歷年調查站數差異（107~110年3~6站、111年5次單站為主、112年後1站）。回歸線僅描述長期方向；各型式數值是關聯物種的流域監測指標，並非逐座魚道直接過魚量。
     </div>
     <div style="background:#fff7ed;border:1.5px solid #fed7aa;border-radius:12px;padding:12px 16px;margin-bottom:18px;font-size:14px;color:#7c2d12;line-height:1.75">
+      <b>109年下降判讀：</b>108年為4月、10月共8站訪次，捕獲893尾，CPUE 111.6；109年改為7月、9月共12站訪次，捕獲517尾，CPUE 43.1。109年仍有7種、H′ 1.63且最大優勢種約占24%，較符合季節、流況、樣站擴增、魚群空間分散與可捕獲率共同造成的密度下降，不支持直接判定為魚道失效。現有資料亦不足以把單一施工或極端事件列為唯一原因。<br>
       <b>111年高點判讀：</b>該年在下游高密度樣點的5次調查，年度CPUE顯著偏高；它保留為實測結果，但因樣站、季節與調查設計已與109～110年六站調查不同，不能單獨當作全溪族群或每一魚道的生態高峰。112～114年同為單站事件為主，CPUE由50.6、47.0回升至68.8尾／站訪次，114年是這段可比較序列的最高值。
     </div>
     <div style="height:68vh;min-height:480px;border:1.5px solid #e2e8f0;border-radius:16px;padding:18px;background:#fff">
