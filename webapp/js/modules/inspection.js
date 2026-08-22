@@ -2405,9 +2405,10 @@ const GENERAL_INSP_RECORDS = [
 /* 目前選中的巡查紀錄 ID */
 let _selectedGIRecord = 'gi-01';
 
-function generalInspHref(path) {
-  // Flask /media/ 路由負責從 project root 提供靜態媒體檔案
-  return '/media/' + String(path || '').split('/').map(encodeURIComponent).join('/');
+const _GENERAL_INSP_DEPLOY_BASE = '/webapp/assets/general-inspections/';
+function generalInspHref(recordOrId) {
+  const id = typeof recordOrId === 'string' ? recordOrId : recordOrId?.id;
+  return `${_GENERAL_INSP_DEPLOY_BASE}${encodeURIComponent(id)}.pdf`;
 }
 
 function giSelectRecord(id) {
@@ -2425,33 +2426,34 @@ function giSelectRecord(id) {
   // 更新右側文件閱讀卡
   const rec = GENERAL_INSP_RECORDS.find(r => r.id === id);
   if (!rec) return;
-  const href = generalInspHref(rec.path);
+  const href = generalInspHref(rec);
 
   const title     = document.getElementById('gi_pdf_title');
   const condition = document.getElementById('gi_condition');
   const handling  = document.getElementById('gi_handling');
   const meta      = document.getElementById('gi_pdf_meta');
-  const hint      = document.getElementById('gi_pdf_hint');
+  const viewer    = document.getElementById('gi_pdf_viewer');
 
   if (title)     title.textContent = rec.title;
   if (condition) condition.textContent = rec.condition || '-';
   if (handling)  handling.textContent  = rec.handling  || '-';
   if (meta)      meta.textContent  = `${rec.date}｜${rec.type}｜${rec.format}｜${rec.size}`;
-  if (hint)      hint.textContent  = rec.format === 'PDF'
-    ? '已取消頁面內嵌預覽，請點開閱讀完整文件'
-    : '此格式請以新分頁或下載方式開啟。';
+  if (viewer) {
+    viewer.title = `${rec.title} PDF`;
+    viewer.src = `${href}#toolbar=1&navpanes=0&view=FitH`;
+  }
 
   ['gi_pdf_link', 'gi_pdf_link_2', 'gi_no_preview_link'].forEach(elId => {
     const a = document.getElementById(elId);
     if (!a) return;
     a.href = href;
-    if (elId === 'gi_no_preview_link') a.textContent = `點開閱讀 ${rec.format}`;
+    if (elId === 'gi_no_preview_link') a.innerHTML = `<i class="fas fa-up-right-from-square"></i> 另開 ${rec.format}`;
   });
 }
 
 function renderGeneralInspRecords() {
   const defaultRec = GENERAL_INSP_RECORDS.find(r => r.id === _selectedGIRecord) || GENERAL_INSP_RECORDS[0];
-  const defaultHref = generalInspHref(defaultRec.path);
+  const defaultHref = generalInspHref(defaultRec);
 
   const typeIcon = type => {
     if (type.includes('表單')) return 'fa-file-pen';
@@ -2485,7 +2487,7 @@ function renderGeneralInspRecords() {
         <a id="gi_pdf_link" href="${defaultHref}" target="_blank" rel="noopener noreferrer"
           style="display:inline-flex;align-items:center;gap:6px;background:#1565c0;color:#fff;
                  padding:7px 16px;border-radius:8px;font-size:14px;font-weight:700;text-decoration:none">
-          <i class="fas fa-up-right-from-square"></i> 點開閱讀 PDF
+          <i class="fas fa-up-right-from-square"></i> 另開 PDF
         </a>
       </div>
     </div>
@@ -2497,7 +2499,7 @@ function renderGeneralInspRecords() {
         <i class="fas fa-info-circle"></i>
         來源：<b>01_工程設施維護與資料 ／ 巡查紀錄</b>　·
         114年10月 ～ 115年4月 一般性定期巡查表單、野溪環境巡查紀錄。
-        點選左側紀錄可切換右側文件資訊；PDF 已取消頁面內嵌預覽，請點開閱讀完整內容與照片。
+        點選左側紀錄即可在右側內嵌閱讀 PDF，並同步切換巡查摘要與完整照片內容。
       </div>
 
       <!-- 左右分割：紀錄清單 + 文件閱讀卡 -->
@@ -2578,25 +2580,26 @@ function renderGeneralInspRecords() {
 
           </div>
 
-          <!-- PDF 連結提示 -->
-          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:20px;
-                      display:flex;align-items:center;gap:18px">
-            <i class="fas ${defaultRec.format === 'PDF' ? 'fa-file-pdf' : 'fa-file-powerpoint'}"
-              style="font-size:48px;color:${defaultRec.format === 'PDF' ? '#b91c1c' : '#c2410c'};flex-shrink:0"></i>
-            <div style="flex:1">
-              <div id="gi_pdf_hint" style="font-size:18px;color:#64748b;margin-bottom:8px">
-                ${defaultRec.format === 'PDF' ? '已取消頁面內嵌預覽，請點開閱讀完整文件' : '此格式請以新分頁或下載方式開啟。'}
-              </div>
-              <div id="gi_pdf_meta" style="font-size:16px;color:#94a3b8">
+          <!-- 內嵌 PDF 閱讀器 -->
+          <div style="background:#f8fafc;border:1px solid #dbe4ee;border-radius:12px;overflow:hidden">
+            <div style="padding:10px 14px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+              <i class="fas fa-file-pdf" style="font-size:22px;color:#b91c1c"></i>
+              <div id="gi_pdf_meta" style="font-size:15px;color:#475569;font-weight:700;flex:1">
                 ${defaultRec.date}｜${defaultRec.type}｜${defaultRec.format}｜${defaultRec.size}
               </div>
+              <a id="gi_no_preview_link" href="${defaultHref}" target="_blank" rel="noopener noreferrer"
+                style="background:#1565c0;color:#fff;padding:7px 14px;border-radius:7px;
+                       font-size:14px;font-weight:700;text-decoration:none;white-space:nowrap">
+                <i class="fas fa-up-right-from-square"></i> 另開 ${defaultRec.format}
+              </a>
             </div>
-            <a id="gi_no_preview_link" href="${defaultHref}" target="_blank" rel="noopener noreferrer"
-              style="background:#1565c0;color:#fff;padding:12px 24px;border-radius:8px;
-                     font-size:18px;font-weight:700;text-decoration:none;white-space:nowrap;flex-shrink:0">
-              <i class="fas fa-up-right-from-square"></i>
-              點開閱讀 ${defaultRec.format}
-            </a>
+            <iframe id="gi_pdf_viewer"
+              src="${defaultHref}#toolbar=1&navpanes=0&view=FitH"
+              title="${inspectionEscape(defaultRec.title)} PDF"
+              loading="eager"
+              style="display:block;width:100%;height:680px;border:0;background:#fff"
+              allow="fullscreen">
+            </iframe>
           </div>
 
         </div>
