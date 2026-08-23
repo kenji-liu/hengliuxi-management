@@ -1334,5 +1334,59 @@ def smart_ask() -> Any:
     })
 
 
+@nlp_rag.route("/ai-check", methods=["GET"])
+def ai_check():
+    """快速診斷端點：測試所有 AI 供應商是否可用。"""
+    import os, urllib.request, urllib.error, json as _json, logging
+    _log = logging.getLogger(__name__)
+    results = {}
+
+    # Groq
+    groq_key = os.environ.get("GROQ_API_KEY", "")
+    if groq_key:
+        try:
+            payload = _json.dumps({"model": "llama-3.3-70b-versatile",
+                "messages": [{"role": "user", "content": "hi"}],
+                "max_tokens": 5}).encode()
+            req = urllib.request.Request(
+                "https://api.groq.com/openai/v1/chat/completions", data=payload,
+                headers={"Content-Type": "application/json", "Authorization": f"Bearer {groq_key}"}, method="POST")
+            with urllib.request.urlopen(req, timeout=10) as r:
+                r.read()
+            results["groq"] = "✓ OK"
+        except urllib.error.HTTPError as e:
+            results["groq"] = f"✗ HTTP {e.code}: {e.read()[:100].decode('utf-8','replace')}"
+        except Exception as e:
+            results["groq"] = f"✗ {type(e).__name__}: {e}"
+    else:
+        results["groq"] = "✗ key not set"
+
+    # Gemini
+    gemini_key = os.environ.get("GOOGLE_API_KEY", "")
+    if gemini_key:
+        try:
+            payload = _json.dumps({"contents": [{"parts": [{"text": "hi"}]}],
+                "generationConfig": {"maxOutputTokens": 5}}).encode()
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}"
+            req = urllib.request.Request(url, data=payload,
+                headers={"Content-Type": "application/json"}, method="POST")
+            with urllib.request.urlopen(req, timeout=10) as r:
+                r.read()
+            results["gemini"] = "✓ OK"
+        except urllib.error.HTTPError as e:
+            results["gemini"] = f"✗ HTTP {e.code}: {e.read()[:200].decode('utf-8','replace')}"
+        except Exception as e:
+            results["gemini"] = f"✗ {type(e).__name__}: {e}"
+    else:
+        results["gemini"] = "✗ key not set"
+
+    # OpenRouter
+    or_key = os.environ.get("OPENROUTER_API_KEY", "")
+    results["openrouter"] = "✓ key set (未測試)" if or_key else "✗ key not set"
+
+    _log.info(f"[AI_CHECK] {results}")
+    return jsonify({"status": "ok", "providers": results, "timestamp": _now()})
+
+
 def register_nlp_rag_blueprint(app: Any) -> None:
     app.register_blueprint(nlp_rag)
