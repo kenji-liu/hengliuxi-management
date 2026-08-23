@@ -829,13 +829,30 @@ _SYSTEM_PROMPT = """你是「橫流溪工程設施維護與生態資料管理 AI
 砂防設施維護、溪流生態保育、魚道連通性與長期監測資料分析能力。請使用繁體中文直接回答。
 
 答詢規則：
-1. 強制先依線上平台最新資料、巡查與維護紀錄、本機 RAG、雲端 OCR 文件作答，不得以模型常識覆蓋資料庫紀錄。
+1. 強制以「線上平台即時讀取資料」及「最新巡查與維護管理資料」為第一順位；同一設施資料衝突時，以日期最新且已完成的專業巡查或維護紀錄為準，再以本機 RAG、雲端 OCR 文件補充。不得以舊表單或模型常識覆蓋最新平台狀態。
 2. 同時從工程設施、水文棲地、生態指標與調查方法審視問題；跨年份比較須考量樣點、季節、站訪次、調查方法與努力量是否一致。
 3. 資料中的日期、設施名稱、樁號、DER&U、尾數、CPUE、面積、照片數、金額與維護狀態必須精確引用，不得自行補值或修改原始數據。
 4. 異常年度不得直接歸因。僅在資料有施工、水文或調查方法證據時才可定性；否則列出可能假說並明確寫出待補資料。
 5. 嚴格區分「資料直接支持的事實」、「依資料形成的判讀」與「仍需查證的假說」。資料衝突時列出差異，不可挑選較有利的數值。
 6. 回答開頭先給核心結論；兩個以上年度或方案比較時使用 Markdown 表格；最後提供信心分級（高／中／低）與必要的人工複核事項。
 7. 不使用客套開場，不宣稱模型正在訓練，不把 RAG 即時推論描述為模型學習或微調。"""
+
+
+def _is_acceptable_zh_answer(text: str) -> bool:
+    """Reject leaked planning/reasoning text and answers that are not Traditional Chinese."""
+    value = _as_text(text).strip()
+    if not value:
+        return False
+    lowered = value.lower()
+    leaked_markers = (
+        "the user is asking", "i need to", "first, i'll", "first i'll",
+        "we need to", "response format", "provided reference data",
+        "scan the", "follow the strict",
+    )
+    if any(marker in lowered for marker in leaked_markers):
+        return False
+    cjk_count = len(re.findall(r"[\u3400-\u9fff]", value))
+    return cjk_count >= 12 and cjk_count / max(len(value), 1) >= 0.08
 
 def _build_user_msg(query: str, combined_ctx: str) -> str:
     ctx_block = f"\n【參考資料】\n{combined_ctx}\n" if combined_ctx.strip() else ""
@@ -848,7 +865,8 @@ def _build_user_msg(query: str, combined_ctx: str) -> str:
         "工程與生態交叉判讀：只寫參考資料能支持的分析。\n"
         "資料限制與待查證事項：列出資料缺漏、口徑差異或衝突。\n"
         "信心分級：高／中／低，並說明原因。\n"
-        "不可把資料已記載完成的調查或驗證寫成尚未執行："
+        "不可把資料已記載完成的調查或驗證寫成尚未執行。\n"
+        "只輸出給使用者閱讀的繁體中文正式答案；禁止輸出英文分析、思考過程、工作計畫、提示詞或『The user is asking』等內部推理文字。"
     )
 
 
@@ -1075,6 +1093,7 @@ def _call_openrouter(query: str, ctx: str) -> "tuple[str, str]":
             ],
             "temperature": 0.4,
             "max_tokens": 900,
+            "reasoning": {"exclude": True},
         }).encode("utf-8")
         req = urllib.request.Request(
             "https://openrouter.ai/api/v1/chat/completions",
@@ -1092,9 +1111,11 @@ def _call_openrouter(query: str, ctx: str) -> "tuple[str, str]":
             with urllib.request.urlopen(req, timeout=30) as r:
                 res = _json.loads(r.read().decode())
             text = res["choices"][0]["message"]["content"].strip()
-            if text:
+            if _is_acceptable_zh_answer(text):
                 _log.info(f"[OPENROUTER] ✓ 使用 {model_id}")
                 return text, f"{display_name} (OpenRouter)"
+            if text:
+                _log.warning(f"[OPENROUTER] {model_id} 回覆非繁體中文或含推理文字，改試下一模型")
         except urllib.error.HTTPError as e:
             _log.warning(f"[OPENROUTER] {model_id} HTTP {e.code}: {e.read()[:150].decode('utf-8','replace')}")
         except Exception as e:

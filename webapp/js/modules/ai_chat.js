@@ -3,6 +3,9 @@
 //  不需伺服器；從已載入的報告資料 + 靜態知識庫即時回答
 // ═══════════════════════════════════════════════════════
 
+// API 金鑰統一由後端環境變數管理；清除舊版曾存於瀏覽器的 Groq 金鑰。
+try { localStorage.removeItem("GROQ_API_KEY"); } catch (_) {}
+
 // ── 靜態知識庫條目 ──────────────────────────────────────
 const HLX_KB = [
   // ── 工程設施通用 ──
@@ -1032,8 +1035,6 @@ function initAIChat() {
         <div style="display:flex;align-items:center;gap:8px">
           <button onclick="clearAIChat()" title="清除對話記錄"
             style="background:rgba(255,255,255,0.2);border:none;color:#fff;border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer">清除</button>
-          <button onclick="aiSetKey()" title="設定 Groq API Key"
-            style="background:rgba(255,255,255,0.2);border:none;color:#fff;border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer">🔑 Key</button>
           <button class="ai-header-close" onclick="toggleAIChat()">×</button>
         </div>
       </div>
@@ -1092,10 +1093,27 @@ function _buildWelcomeMessage() {
   let fwSummary = '';
   try {
     if (typeof DB !== 'undefined') {
+      const facilities = DB.getAll('facilities') || [];
       const fwInsp = (DB.getAll('inspections') || []).filter(i => i.formType === 'professional_fishway');
-      const fwUrgent = fwInsp.filter(i => i.deru_u >= 3 || i.fw_grade === 'C1' || i.fw_grade === 'C2');
+      const latestByFacility = new Map();
+      fwInsp.forEach(i => {
+        const key = String(i.facilityId || i.facilityName || '');
+        const prev = latestByFacility.get(key);
+        if (!prev || String(i.date || '') > String(prev.date || '')) latestByFacility.set(key, i);
+      });
+      const fwUrgent = [...latestByFacility.values()].filter(i => {
+        const fac = facilities.find(f => String(f.id) === String(i.facilityId) || f.name === i.facilityName);
+        const latest = fac && typeof fac_latestProfessionalAssessment === 'function'
+          ? fac_latestProfessionalAssessment(fac) : null;
+        if (latest) {
+          const der = String(latest.derLevel || '');
+          const status = String(latest.status || '');
+          return /^[CD]/i.test(der) || status === '損壞';
+        }
+        return Number(i.deru_u) >= 4 || /^C/i.test(String(i.fw_grade || ''));
+      });
       if (fwInsp.length > 0) {
-        fwSummary = `\n• 魚道檢核表 ${fwInsp.length} 筆（${fwUrgent.length > 0 ? `★${fwUrgent.length}座需緊急處理` : '✓各座功能正常'}）`;
+        fwSummary = `\n• 魚道檢核表 ${fwInsp.length} 筆（${fwUrgent.length > 0 ? `★${fwUrgent.length}座依最新表徵需緊急處理` : '✓依最新表徵各座狀態正常'}）`;
       }
     }
   } catch(e) {}
@@ -1184,24 +1202,6 @@ async function _refreshAIProviderStatus(force = false) {
     el.classList.add("warn");
     el.textContent = "雲端 AI 狀態暫時無法取得｜本機知識庫仍可使用";
     el.title = error.message || String(error);
-  }
-}
-
-function aiSetKey() {
-  const current = getAIKey();
-  const input = prompt(
-    "請輸入 Groq API Key（從 console.groq.com → API Keys 取得，gsk_ 開頭）：\n儲存後即可使用 AI 回答，不需啟動後端伺服器。",
-    current
-  );
-  if (input === null) return; // 使用者按取消
-  if (input.trim()) {
-    localStorage.setItem("GROQ_API_KEY", input.trim());
-    _updateAiSubLabel();
-    alert("Groq API Key 已儲存，下次提問會先嘗試 Groq AI。");
-  } else {
-    localStorage.removeItem("GROQ_API_KEY");
-    _updateAiSubLabel();
-    alert("已清除 API Key，切換回本機知識庫模式。");
   }
 }
 
@@ -1638,10 +1638,6 @@ function refreshKBFromDB() {
   }
 }
 
-function getAIKey() {
-  return localStorage.getItem("GROQ_API_KEY") || "";
-}
-
 const _chatHistory = [];
 const CHAT_HISTORY_TURNS = 5;
 
@@ -1743,87 +1739,6 @@ function buildCurrentPlatformPageContext(query = "") {
   return parts.filter(Boolean).join("\n\n");
 }
 
-async function callGroqDirect(query, localCtx = "") {
-  const key = getAIKey();
-  if (!key) return null;
-
-  // 即時 DB 資料
-  const dbCtx = buildDynamicContext(query);
-  const platformPageCtx = buildCurrentPlatformPageContext(query);
-  const allSectionsCtx = buildAllSectionsContext(query);
-  const localCombined = [
-    platformPageCtx ? `【線上平台目前頁面與資料庫快照】\n${platformPageCtx}` : "",
-    allSectionsCtx ? `【平台5大選單即時資料快照（依選單結構整理）】\n${allSectionsCtx}` : "",
-    localCtx,
-    dbCtx,
-  ].filter(Boolean).join('\n\n');
-
-  // 網路補充：當本機資料量少，或查詢涉及通用知識時，從維基百科補充
-  const needsWeb = !localCombined || localCombined.length < 120 ||
-    /標準|法規|規範|學術|研究|統計|全國|文獻|介紹|是什麼|意思/.test(query);
-  let webCtx = '';
-  let webSources = [];
-  if (needsWeb) {
-    webSources = await webSearchWiki(query);
-    if (webSources.length) {
-      webCtx = '\n【網路補充資料（維基百科）】\n' +
-        webSources.map(r => `◆ ${r.title}：${r.extract}`).join('\n');
-    }
-  }
-
-  const fullCtx = [localCombined, webCtx].filter(Boolean).join('\n');
-  const ctxBlock = fullCtx
-    ? `\n【橫流溪線上平台與本機資料庫（即時查詢）】\n${fullCtx}\n\n請優先依上述平台目前資料與最新巡查維護資料回答，不足時再補充專業知識。\n`
-    : "";
-  const userMsg = `${ctxBlock}\n【使用者問題】\n${query}\n\n請以繁體中文回答：`;
-
-  // 多輪對話歷史（最近 CHAT_HISTORY_TURNS 輪）
-  const histMsgs = _chatHistory.slice(-(CHAT_HISTORY_TURNS * 2));
-
-  // 現行有效 Groq 模型（llama-3.1-70b-versatile 已被 Groq 下架，移除避免全數失敗）
-  const models = ["llama-3.3-70b-versatile", "meta-llama/llama-4-scout-17b-16e-instruct", "llama-3.1-8b-instant"];
-
-  for (const model of models) {
-    try {
-      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${key}`
-        },
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: "system", content: AI_SYSTEM },
-            ...histMsgs,
-            { role: "user",   content: userMsg }
-          ],
-          temperature: 0.4,
-          max_tokens: 1024
-        })
-      });
-      if (!res.ok) {
-        const errBody = await res.json().catch(() => ({}));
-        console.error(`[Groq] ${model} HTTP ${res.status}:`, errBody?.error?.message || errBody);
-        continue;
-      }
-      const data = await res.json();
-      const text = data?.choices?.[0]?.message?.content?.trim();
-      if (text) {
-        // 儲存到多輪歷史（user 端只存乾淨問題，不存長上下文）
-        _chatHistory.push({ role: "user", content: query });
-        _chatHistory.push({ role: "assistant", content: text });
-        while (_chatHistory.length > CHAT_HISTORY_TURNS * 2) _chatHistory.shift();
-        return { text, model, webSources };
-      }
-    } catch (err) {
-      console.error(`[Groq] ${model} 例外:`, err.message || err);
-    }
-  }
-  console.error("[Groq] 所有模型均無回應，請按 F12 查看 Console 錯誤訊息");
-  return null;
-}
-
 async function aiFetchLatestManagementContext(query) {
   const pageOrigin = window.location.protocol.startsWith("http") ? window.location.origin : "";
   const bases = window.HLX_API_BASE
@@ -1885,25 +1800,7 @@ async function queryRAG(query) {
     kbResult?.answer || ""
   ].filter(Boolean).join("\n\n");
 
-  // ── 2. 直接呼叫 Groq（不需後端，最穩定路徑）
-  const groq = await callGroqDirect(query, localCtx);
-  if (groq) {
-    return {
-      answer:            groq.text,
-      llm_provider:      "groq",
-      llm_model:         `${groq.model} (Groq)`,
-      confidence_level:  "high",
-      confidence_score:  90,
-      policy_label:      "AI 綜合回答",
-      message:           `線上平台資料＋本機資料＋${groq.model}`,
-      web_sources:       groq.webSources || [],
-      structured_citations: kbResult?.structured_citations || [],
-      ocr_citations:     ocrCitations,
-      management_evidence: latestManagement?.evidence || [],
-    };
-  }
-
-  // ── 4. 嘗試後端 smart-ask（有跑 Flask 時才有效）
+  // ── 2. 統一由後端 smart-ask 管理金鑰、最新平台資料與 RAG，避免前端金鑰外洩或繞過資料優先規則。
   const pageOrigin = (window.location.protocol.startsWith("http"))
     ? window.location.origin : "";
   const isLocalStatic = /^(127\.0\.0\.1|localhost)$/.test(window.location.hostname) && window.location.port !== "5000";
@@ -1964,7 +1861,7 @@ async function queryRAG(query) {
   }
   // 連本機都無資料時，給出明確引導而非「無可用 AI」
   return {
-    answer: "目前查無相關資料。請嘗試：①點 🔑 Key 設定 Groq API Key 啟用 AI；②輸入更具體的設施名稱、樁號或年度。",
+    answer: "目前查無相關資料。請輸入更具體的設施名稱、樁號、巡查日期或調查年度後再查詢。",
     llm_provider:  "local_kb",
     llm_model:     "橫流溪本機知識庫",
     confidence_level: "low",
