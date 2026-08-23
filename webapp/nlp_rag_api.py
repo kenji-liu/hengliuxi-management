@@ -1048,39 +1048,55 @@ def _call_claude(query: str, ctx: str) -> "tuple[str, str]":
 
 
 def _call_openrouter(query: str, ctx: str) -> "tuple[str, str]":
-    """OpenRouter 免費模型 — llama-3.1-8b-instruct:free（需先建立帳號）。
+    """OpenRouter 免費模型（依序嘗試多個 free 模型）。
     取得 Key：https://openrouter.ai  →  Keys
     設定：set OPENROUTER_API_KEY=sk-or-xxxxxxxx
     """
-    import os, urllib.request, json as _json
+    import os, urllib.request, urllib.error, json as _json, logging
+    _log = logging.getLogger(__name__)
     key = os.environ.get("OPENROUTER_API_KEY", "")
     if not key:
         return "", ""
-    payload = _json.dumps({
-        "model": "meta-llama/llama-3.1-8b-instruct:free",
-        "messages": [
-            {"role": "system", "content": _SYSTEM_PROMPT},
-            {"role": "user",   "content": _build_user_msg(query, ctx)},
-        ],
-        "temperature": 0.4,
-        "max_tokens": 900,
-    }).encode("utf-8")
-    req = urllib.request.Request(
-        "https://openrouter.ai/api/v1/chat/completions",
-        data=payload,
-        headers={
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {key}",
-            "HTTP-Referer": "http://localhost:5000",
-        },
-        method="POST",
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=30) as r:
-            res = _json.loads(r.read().decode())
-        return res["choices"][0]["message"]["content"].strip(), "llama-3.1-8b (OpenRouter)"
-    except Exception:
-        return "", ""
+
+    free_models = [
+        ("meta-llama/llama-3.1-8b-instruct:free",  "llama-3.1-8b"),
+        ("google/gemma-3-27b-it:free",               "gemma-3-27b"),
+        ("meta-llama/llama-3.2-3b-instruct:free",   "llama-3.2-3b"),
+        ("mistralai/mistral-7b-instruct:free",       "mistral-7b"),
+    ]
+    for model_id, display_name in free_models:
+        payload = _json.dumps({
+            "model": model_id,
+            "messages": [
+                {"role": "system", "content": _SYSTEM_PROMPT},
+                {"role": "user",   "content": _build_user_msg(query, ctx)},
+            ],
+            "temperature": 0.4,
+            "max_tokens": 900,
+        }).encode("utf-8")
+        req = urllib.request.Request(
+            "https://openrouter.ai/api/v1/chat/completions",
+            data=payload,
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {key}",
+                "HTTP-Referer": "https://hengliuxi-management.onrender.com",
+                "X-Title": "橫流溪管理平台",
+            },
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=30) as r:
+                res = _json.loads(r.read().decode())
+            text = res["choices"][0]["message"]["content"].strip()
+            if text:
+                _log.info(f"[OPENROUTER] ✓ 使用 {model_id}")
+                return text, f"{display_name} (OpenRouter)"
+        except urllib.error.HTTPError as e:
+            _log.warning(f"[OPENROUTER] {model_id} HTTP {e.code}: {e.read()[:150].decode('utf-8','replace')}")
+        except Exception as e:
+            _log.warning(f"[OPENROUTER] {model_id} 錯誤: {e}")
+    return "", ""
 
 
 def _call_ollama_synthesis(query: str, combined_ctx: str) -> str:
@@ -1564,9 +1580,32 @@ def ai_check():
     else:
         results["claude"] = "✗ key not set"
 
-    # OpenRouter
+    # OpenRouter — 實際呼叫測試
     or_key = os.environ.get("OPENROUTER_API_KEY", "")
-    results["openrouter"] = "✓ key set (未測試)" if or_key else "✗ key not set"
+    if or_key:
+        try:
+            or_payload = _json.dumps({
+                "model": "meta-llama/llama-3.1-8b-instruct:free",
+                "messages": [{"role": "user", "content": "hi"}],
+                "max_tokens": 5,
+            }).encode()
+            or_req = urllib.request.Request(
+                "https://openrouter.ai/api/v1/chat/completions", data=or_payload,
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {or_key}",
+                    "HTTP-Referer": "https://hengliuxi-management.onrender.com",
+                    "X-Title": "橫流溪管理平台",
+                }, method="POST")
+            with urllib.request.urlopen(or_req, timeout=15) as r:
+                r.read()
+            results["openrouter"] = "✓ OK"
+        except urllib.error.HTTPError as e:
+            results["openrouter"] = f"✗ HTTP {e.code}: {e.read()[:150].decode('utf-8','replace')}"
+        except Exception as e:
+            results["openrouter"] = f"✗ {type(e).__name__}: {e}"
+    else:
+        results["openrouter"] = "✗ key not set"
 
     # Ollama（Render 通常未部署；本機服務可作為穩定備援）
     try:
