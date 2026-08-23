@@ -899,17 +899,17 @@ def _call_gemini(query: str, ctx: str) -> "tuple[str, str]":
         "generationConfig": {"temperature": 0.4, "maxOutputTokens": 1024},
     }).encode("utf-8")
 
-    # 依序嘗試不同模型與 API 版本（v1beta / v1）
-    candidates = [
-        ("gemini-3.6-flash",              "v1beta"),
-        ("gemini-3.6-flash",              "v1"),
-        ("gemini-3.5-flash",              "v1beta"),
-        ("gemini-3.5-flash",              "v1"),
-        ("gemini-2.5-flash",              "v1beta"),
-        ("gemini-2.5-flash",              "v1"),
-        ("gemini-1.5-flash",              "v1"),
-        ("gemini-1.5-flash",              "v1beta"),
-    ]
+    configured_model = os.environ.get("GEMINI_MODEL", "").strip()
+    candidates = []
+    if configured_model:
+        candidates.extend([(configured_model, "v1beta"), (configured_model, "v1")])
+    # 只保留已公開的穩定候選；若 Render 有指定 GEMINI_MODEL，會優先使用。
+    candidates.extend([
+        ("gemini-2.5-flash", "v1beta"),
+        ("gemini-2.5-flash", "v1"),
+        ("gemini-2.0-flash", "v1beta"),
+        ("gemini-2.0-flash", "v1"),
+    ])
     for model, api_ver in candidates:
         url = f"https://generativelanguage.googleapis.com/{api_ver}/models/{model}:generateContent?key={key}"
         req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
@@ -925,6 +925,84 @@ def _call_gemini(query: str, ctx: str) -> "tuple[str, str]":
         except Exception as e:
             _log.warning(f"[GEMINI] {model}/{api_ver} 錯誤: {e}")
 
+    return "", ""
+
+
+_CLAUDE_MODEL_CACHE = ""
+
+
+def _resolve_claude_model(key: str) -> str:
+    """Resolve an available Claude model instead of relying on a stale hard-coded id."""
+    global _CLAUDE_MODEL_CACHE
+    import os, urllib.request, json as _json, logging
+    configured = (os.environ.get("ANTHROPIC_MODEL") or os.environ.get("CLAUDE_MODEL") or "").strip()
+    if configured:
+        return configured
+    if _CLAUDE_MODEL_CACHE:
+        return _CLAUDE_MODEL_CACHE
+    req = urllib.request.Request(
+        "https://api.anthropic.com/v1/models?limit=100",
+        headers={
+            "x-api-key": key,
+            "anthropic-version": "2023-06-01",
+            "Content-Type": "application/json",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=15) as r:
+            payload = _json.loads(r.read().decode("utf-8"))
+        model_ids = [str(item.get("id", "")) for item in payload.get("data", []) if item.get("id")]
+        preferred = [m for m in model_ids if "sonnet" in m.lower()]
+        if not preferred:
+            preferred = [m for m in model_ids if "haiku" in m.lower()]
+        if preferred or model_ids:
+            _CLAUDE_MODEL_CACHE = (preferred or model_ids)[0]
+    except Exception as exc:
+        logging.getLogger(__name__).warning("[CLAUDE] model discovery failed: %s", exc)
+    return _CLAUDE_MODEL_CACHE
+
+
+def _call_claude(query: str, ctx: str) -> "tuple[str, str]":
+    """Anthropic Messages API fallback. Keys and resolved model ids are never returned."""
+    import os, urllib.request, urllib.error, json as _json, logging
+    _log = logging.getLogger(__name__)
+    key = (os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("CLAUDE_API_KEY") or "").strip()
+    if not key:
+        return "", ""
+    model = _resolve_claude_model(key)
+    if not model:
+        _log.warning("[CLAUDE] no available model found")
+        return "", ""
+    payload = _json.dumps({
+        "model": model,
+        "max_tokens": 1024,
+        "temperature": 0.4,
+        "system": _SYSTEM_PROMPT,
+        "messages": [{"role": "user", "content": _build_user_msg(query, ctx)}],
+    }).encode("utf-8")
+    req = urllib.request.Request(
+        "https://api.anthropic.com/v1/messages",
+        data=payload,
+        headers={
+            "x-api-key": key,
+            "anthropic-version": "2023-06-01",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            response = _json.loads(r.read().decode("utf-8"))
+        text_parts = [item.get("text", "") for item in response.get("content", []) if item.get("type") == "text"]
+        text = "\n".join(part for part in text_parts if part).strip()
+        if text:
+            return text, f"{model} (Claude)"
+        return "", ""
+    except urllib.error.HTTPError as exc:
+        body = exc.read()[:300].decode("utf-8", errors="replace")
+        _log.error("[CLAUDE] HTTP %s - %s", exc.code, body)
+    except Exception as exc:
+        _log.error("[CLAUDE] %s: %s", type(exc).__name__, exc)
     return "", ""
 
 
@@ -965,21 +1043,22 @@ def _call_openrouter(query: str, ctx: str) -> "tuple[str, str]":
 
 
 def _call_ollama_synthesis(query: str, combined_ctx: str) -> str:
-    """Ollama 本機推論（qwen2.5:14b）— 最後一道防線。"""
+    """Ollama 本機推論；smart-ask 預設使用較快的 7B 模型避免前端逾時。"""
     import os, urllib.request, json as _json
     if rag_backend is None:
         return ""
     ollama_url = f"{getattr(rag_backend, 'OLLAMA_BASE_URL', 'http://localhost:11434').rstrip('/')}/api/chat"
-    model   = getattr(rag_backend, "OLLAMA_MODEL", "qwen2.5:14b")
-    timeout = min(float(os.environ.get("OLLAMA_SMART_TIMEOUT", "5")), float(getattr(rag_backend, "OLLAMA_TIMEOUT", 240)))
+    model = os.environ.get("OLLAMA_SMART_MODEL", "qwen2.5:7b")
+    timeout = min(float(os.environ.get("OLLAMA_SMART_TIMEOUT", "150")), float(getattr(rag_backend, "OLLAMA_TIMEOUT", 240)))
+    prompt_context = combined_ctx[:8000]
     payload = _json.dumps({
         "model": model,
         "messages": [
             {"role": "system", "content": _SYSTEM_PROMPT},
-            {"role": "user",   "content": _build_user_msg(query, combined_ctx)},
+            {"role": "user",   "content": _build_user_msg(query, prompt_context)},
         ],
         "stream": False,
-        "options": {"temperature": 0.4, "num_ctx": 4096},
+        "options": {"temperature": 0.4, "num_ctx": 3072, "num_predict": 512},
     }).encode("utf-8")
     req = urllib.request.Request(
         ollama_url, data=payload,
@@ -995,7 +1074,7 @@ def _call_ollama_synthesis(query: str, combined_ctx: str) -> str:
 
 def _ai_synthesis(query: str, combined_ctx: str) -> "tuple[str, str, str]":
     """自動選用可用的免費 AI 服務，依序嘗試：
-    Groq → Gemini → OpenRouter → Ollama（本機）
+    Groq → Gemini → Claude → OpenRouter → Ollama（本機）
     回傳 (answer, provider_key, display_name)
     """
     import os, logging
@@ -1005,6 +1084,7 @@ def _ai_synthesis(query: str, combined_ctx: str) -> "tuple[str, str, str]":
     key_status = {
         "GROQ":        bool(os.environ.get("GROQ_API_KEY")),
         "GOOGLE":      bool(os.environ.get("GOOGLE_API_KEY")),
+        "CLAUDE":      bool(os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("CLAUDE_API_KEY")),
         "OPENROUTER":  bool(os.environ.get("OPENROUTER_API_KEY")),
     }
     _log.info(f"[AI_SYNTHESIS] Key status: {key_status}")
@@ -1012,6 +1092,7 @@ def _ai_synthesis(query: str, combined_ctx: str) -> "tuple[str, str, str]":
     for fn, provider_key in [
         (_call_groq,       "groq"),
         (_call_gemini,     "gemini"),
+        (_call_claude,     "claude"),
         (_call_openrouter, "openrouter"),
     ]:
         text, display = fn(query, combined_ctx)
@@ -1025,7 +1106,7 @@ def _ai_synthesis(query: str, combined_ctx: str) -> "tuple[str, str, str]":
     _log.info("[AI_SYNTHESIS] 嘗試 Ollama 本機...")
     text = _call_ollama_synthesis(query, combined_ctx)
     if text:
-        model = getattr(rag_backend, "OLLAMA_MODEL", "qwen2.5:14b") if rag_backend else "qwen2.5:14b"
+        model = os.environ.get("OLLAMA_SMART_MODEL", "qwen2.5:7b")
         _log.info(f"[AI_SYNTHESIS] ✓ 使用 Ollama ({model})")
         return text, "ollama", f"{model} (Ollama 本機)"
 
@@ -1303,7 +1384,7 @@ def smart_ask() -> Any:
     if not answer:
         answer = _fallback_answer(parse_query(query), []) or (
             "目前所有 AI 服務皆無回應。\n"
-            "請設定至少一組免費 API Key（GROQ_API_KEY / GOOGLE_API_KEY）"
+            "請設定至少一組 API Key（GROQ_API_KEY / GOOGLE_API_KEY / ANTHROPIC_API_KEY）"
             "或確認 Ollama 是否執行中（ollama serve）。"
         )
         provider_key, provider_display = "none", "無可用 AI"
@@ -1377,7 +1458,8 @@ def ai_check():
         try:
             payload = _json.dumps({"contents": [{"parts": [{"text": "hi"}]}],
                 "generationConfig": {"maxOutputTokens": 5}}).encode()
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key={gemini_key}"
+            model = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={gemini_key}"
             req = urllib.request.Request(url, data=payload,
                 headers={"Content-Type": "application/json"}, method="POST")
             with urllib.request.urlopen(req, timeout=10) as r:
@@ -1390,9 +1472,56 @@ def ai_check():
     else:
         results["gemini"] = "✗ key not set"
 
+    # Claude / Anthropic
+    claude_key = (os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("CLAUDE_API_KEY") or "").strip()
+    if claude_key:
+        try:
+            model = _resolve_claude_model(claude_key)
+            if not model:
+                raise RuntimeError("no available model returned by Anthropic")
+            payload = _json.dumps({
+                "model": model,
+                "max_tokens": 5,
+                "messages": [{"role": "user", "content": "Reply OK"}],
+            }).encode("utf-8")
+            req = urllib.request.Request(
+                "https://api.anthropic.com/v1/messages", data=payload,
+                headers={
+                    "Content-Type": "application/json",
+                    "x-api-key": claude_key,
+                    "anthropic-version": "2023-06-01",
+                }, method="POST")
+            with urllib.request.urlopen(req, timeout=15) as r:
+                r.read()
+            results["claude"] = f"✓ OK ({model})"
+        except urllib.error.HTTPError as e:
+            results["claude"] = f"✗ HTTP {e.code}: {e.read()[:160].decode('utf-8','replace')}"
+        except Exception as e:
+            results["claude"] = f"✗ {type(e).__name__}: {e}"
+    else:
+        results["claude"] = "✗ key not set"
+
     # OpenRouter
     or_key = os.environ.get("OPENROUTER_API_KEY", "")
     results["openrouter"] = "✓ key set (未測試)" if or_key else "✗ key not set"
+
+    # Ollama（Render 通常未部署；本機服務可作為穩定備援）
+    try:
+        ollama_base = (
+            getattr(rag_backend, "OLLAMA_BASE_URL", "http://localhost:11434")
+            if rag_backend else "http://localhost:11434"
+        ).rstrip("/")
+        with urllib.request.urlopen(f"{ollama_base}/api/tags", timeout=3) as r:
+            ollama_payload = _json.loads(r.read().decode("utf-8"))
+        available_models = [str(item.get("name", "")) for item in ollama_payload.get("models", [])]
+        configured_ollama = os.environ.get("OLLAMA_SMART_MODEL", "qwen2.5:7b")
+        if configured_ollama in available_models:
+            results["ollama"] = f"✓ OK ({configured_ollama})"
+        else:
+            results["ollama"] = f"✗ model not found ({configured_ollama})"
+    except Exception as e:
+        results["ollama"] = f"✗ unavailable: {type(e).__name__}"
+    results["local_kb"] = "✓ ready"
 
     _log.info(f"[AI_CHECK] {results}")
     return jsonify({"status": "ok", "providers": results, "timestamp": _now()})

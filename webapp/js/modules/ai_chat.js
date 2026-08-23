@@ -1006,6 +1006,8 @@ function initAIChat() {
     .ai-doc-search-box{background:#fff;border-radius:12px;padding:20px;width:min(92vw,520px);max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)}
     .ai-doc-search-result{border:1px solid #e2e8f0;border-radius:8px;padding:10px;margin-top:8px;cursor:pointer;transition:background .15s}
     .ai-doc-search-result:hover{background:#f0f9ff}
+    .ai-provider-status{padding:6px 12px;background:#ecfdf5;border-bottom:1px solid #bbf7d0;color:#14532d;font-size:11px;line-height:1.45}
+    .ai-provider-status.warn{background:#fff7ed;border-color:#fed7aa;color:#9a3412}
     @keyframes bounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-6px)}}
   `;
   document.head.appendChild(style);
@@ -1027,6 +1029,7 @@ function initAIChat() {
           <button class="ai-header-close" onclick="toggleAIChat()">×</button>
         </div>
       </div>
+      <div class="ai-provider-status" id="aiProviderStatus">AI 服務狀態檢查中…</div>
       <div class="ai-messages" id="aiMessages">
         <div class="ai-msg bot" id="aiWelcomeMsg" style="white-space:pre-wrap">載入中…</div>
       </div>
@@ -1113,6 +1116,7 @@ function toggleAIChat() {
   const panel = document.getElementById("aiChatPanel");
   panel.classList.toggle("open");
   _updateAiSubLabel();
+  _refreshAIProviderStatus();
   // 首次開啟時動態填入歡迎訊息
   const welcome = document.getElementById("aiWelcomeMsg");
   if (welcome && welcome.textContent === '載入中…') {
@@ -1123,8 +1127,55 @@ function toggleAIChat() {
 function _updateAiSubLabel() {
   const sub = document.getElementById("aiSubLabel");
   if (!sub) return;
-  const key = getAIKey();
-  sub.textContent = key ? "Groq AI + 本機知識庫" : "本機知識庫（未設定 Groq Key）";
+  sub.textContent = "雲端 AI + 橫流溪 RAG 知識庫";
+}
+
+let _aiProviderStatusCheckedAt = 0;
+async function _refreshAIProviderStatus(force = false) {
+  const el = document.getElementById("aiProviderStatus");
+  if (!el) return;
+  if (!force && Date.now() - _aiProviderStatusCheckedAt < 60000) return;
+  _aiProviderStatusCheckedAt = Date.now();
+  const pageOrigin = location.protocol.startsWith("http") ? location.origin : "";
+  const isLocalStatic = /^(127\.0\.0\.1|localhost)$/.test(location.hostname) && location.port !== "5000";
+  const bases = window.HLX_API_BASE
+    ? [window.HLX_API_BASE]
+    : (isLocalStatic
+      ? ["http://127.0.0.1:5000", "http://localhost:5000", pageOrigin, "https://hengliuxi-management.onrender.com"]
+      : [pageOrigin, "https://hengliuxi-management.onrender.com", "http://127.0.0.1:5000", "http://localhost:5000"]
+    ).filter(Boolean);
+  try {
+    let data = null;
+    let lastError = null;
+    for (const base of [...new Set(bases)]) {
+      try {
+        const res = await fetch(`${base}/api/ai-check`, { signal: AbortSignal.timeout(20000) });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        data = await res.json();
+        break;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    if (!data) throw lastError || new Error("沒有可用的 AI 狀態端點");
+    const providers = data.providers || {};
+    const state = (name) => String(providers[name] || "未回報");
+    const short = (value) => {
+      if (/✓/.test(value)) return "可用";
+      if (/429|credit|quota|額度/i.test(value)) return "額度不足";
+      if (/403|1010|cloudflare/i.test(value)) return "連線遭拒";
+      if (/key not set/i.test(value)) return "未設定";
+      return "不可用";
+    };
+    const inferenceReady = ["groq", "gemini", "claude", "openrouter", "ollama"].some(k => /✓/.test(state(k)));
+    el.classList.toggle("warn", !inferenceReady);
+    el.textContent = `Groq：${short(state("groq"))}｜Gemini：${short(state("gemini"))}｜Claude：${short(state("claude"))}｜Ollama：${short(state("ollama"))}｜知識庫：${short(state("local_kb"))}`;
+    el.title = ["Groq", "Gemini", "Claude", "Ollama"].map((label, i) => `${label}: ${state(["groq", "gemini", "claude", "ollama"][i])}`).join("\n");
+  } catch (error) {
+    el.classList.add("warn");
+    el.textContent = "雲端 AI 狀態暫時無法取得｜本機知識庫仍可使用";
+    el.title = error.message || String(error);
+  }
 }
 
 function aiSetKey() {
@@ -1137,7 +1188,7 @@ function aiSetKey() {
   if (input.trim()) {
     localStorage.setItem("GROQ_API_KEY", input.trim());
     _updateAiSubLabel();
-    alert("✅ Gemini API Key 已儲存！下次問問題即可使用 AI 回答。");
+    alert("Groq API Key 已儲存，下次提問會先嘗試 Groq AI。");
   } else {
     localStorage.removeItem("GROQ_API_KEY");
     _updateAiSubLabel();
@@ -1803,14 +1854,18 @@ async function queryRAG(query) {
   // ── 4. 嘗試後端 smart-ask（有跑 Flask 時才有效）
   const pageOrigin = (window.location.protocol.startsWith("http"))
     ? window.location.origin : "";
+  const isLocalStatic = /^(127\.0\.0\.1|localhost)$/.test(window.location.hostname) && window.location.port !== "5000";
   const bases = window.HLX_API_BASE
     ? [window.HLX_API_BASE]
-    : [pageOrigin, "http://127.0.0.1:5000", "http://localhost:5000"].filter(Boolean);
+    : (isLocalStatic
+      ? ["http://127.0.0.1:5000", "http://localhost:5000", pageOrigin]
+      : [pageOrigin, "http://127.0.0.1:5000", "http://localhost:5000"]
+    ).filter(Boolean);
 
   for (const base of bases) {
     try {
       const ctrl = new AbortController();
-      const tid = setTimeout(() => ctrl.abort(), 60000);
+      const tid = setTimeout(() => ctrl.abort(), 180000);
       const res = await fetch(`${base}/api/smart-ask`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1827,12 +1882,12 @@ async function queryRAG(query) {
       const data = await res.json();
       if (data.status !== "success") continue;
       // 後端無可用 AI（provider=none）或回傳空泛 fallback 時，不可遮蔽本機知識庫
-      const backendUseless = data.llm_provider === "none" ||
+      const backendUseless = data.llm_provider === "none" || data.llm_provider === "local_kb" ||
         !data.answer || data.answer.length < 30 ||
-        /目前所有 AI 服務皆無回應|未檢索到足以支持判斷/.test(data.answer || "");
+        /目前所有 AI 服務皆無回應|AI 推論服務目前無法使用|未檢索到足以支持判斷/.test(data.answer || "");
       if (backendUseless) {
-        console.info("[queryRAG] 後端無有效 AI 回答，改用本機知識庫");
-        break;
+        console.info(`[queryRAG] ${base} 無有效 AI 回答，嘗試下一個端點`);
+        continue;
       }
       data.structured_citations = (data.local_evidence || []).map((e, i) => ({
         index: i + 1, source_file: e.source || "橫流溪資料庫",
