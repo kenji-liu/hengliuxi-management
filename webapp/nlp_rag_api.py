@@ -829,7 +829,8 @@ _SYSTEM_PROMPT = """你是「橫流溪工程設施維護與生態資料管理 AI
 砂防設施維護、溪流生態保育、魚道連通性與長期監測資料分析能力。請使用繁體中文直接回答。
 
 答詢規則：
-1. 強制以「線上平台即時讀取資料」及「最新巡查與維護管理資料」為第一順位；同一設施資料衝突時，以日期最新且已完成的專業巡查或維護紀錄為準，再以本機 RAG、雲端 OCR 文件補充。不得以舊表單或模型常識覆蓋最新平台狀態。
+1. 強制以「瀏覽器目前平台資料庫即時快照」、「線上平台即時讀取資料」及「最新巡查與維護管理資料」為第一順位；同一設施資料衝突時，以日期最新且已完成的專業巡查或維護紀錄為準，再以本機 RAG、雲端 OCR 文件補充。不得以舊表單或模型常識覆蓋最新平台狀態。
+1a. 若最新平台快照標示某設施為正常、A級、U1或已改善完成，且其日期晚於原異常紀錄，較舊的待處理、U3/U4紀錄才能標示為歷史履歷。同日或更新且未結案的功能異常不得被結構 A 級自動覆蓋。回答的結論、數量、表格與建議必須與最新快照一致。
 2. 同時從工程設施、水文棲地、生態指標與調查方法審視問題；跨年份比較須考量樣點、季節、站訪次、調查方法與努力量是否一致。
 3. 資料中的日期、設施名稱、樁號、DER&U、尾數、CPUE、面積、照片數、金額與維護狀態必須精確引用，不得自行補值或修改原始數據。
 4. 異常年度不得直接歸因。僅在資料有施工、水文或調查方法證據時才可定性；否則列出可能假說並明確寫出待補資料。
@@ -1363,6 +1364,7 @@ def smart_ask() -> Any:
     include_cloud_ocr = str(data.get("include_cloud_ocr", "true")).lower() not in ("0", "false", "no")
     platform_url = _as_text(data.get("platform_url") or data.get("source_url")) or DEFAULT_PLATFORM_URL
     include_platform_url = str(data.get("include_platform_url", "true")).lower() not in ("0", "false", "no")
+    client_platform_ctx = _as_text(data.get("client_platform_context"))[:24000]
 
     if not query:
         return jsonify({"status": "error", "message": "缺少 query"}), 400
@@ -1458,6 +1460,11 @@ def smart_ask() -> Any:
 
     # ── 6. 組合 context ───────────────────────────────────────
     combined_ctx_parts = []
+    if client_platform_ctx.strip():
+        combined_ctx_parts.append(
+            "【瀏覽器目前平台資料庫即時快照（最高優先）】\n"
+            + client_platform_ctx
+        )
     if platform_ctx.strip():
         combined_ctx_parts.append(f"【線上平台即時讀取資料】\n{platform_ctx}")
     if management_ctx.strip():
@@ -1472,6 +1479,59 @@ def smart_ask() -> Any:
 
     # ── 7. AI 綜合推論（自動選用可用的免費服務）─────────────────
     answer, provider_key, provider_display = _ai_synthesis(query, combined_ctx)
+
+    # 魚道緊急狀態屬於可由平台即時數據決定的事實，不讓模型改寫成相反結論。
+    if client_platform_ctx and re.search(r"魚道", query) and re.search(r"緊急|優先|處理|維護|異常|狀態", query):
+        summary_match = re.search(
+            r"魚道設施共\s*(\d+)\s*座[^。\n]*?正常\s*(\d+)\s*座[^。\n]*?需維護\s*(\d+)\s*座[^。\n]*?損壞\s*(\d+)\s*座",
+            client_platform_ctx,
+        )
+        summary_mode = "facility"
+        if not summary_match:
+            summary_match = re.search(
+                r"共\s*(\d+)\s*座魚道[^。\n]*?正常\s*(\d+)\s*座[^。\n]*?"
+                r"(?:需追蹤|需維護)\s*(\d+)\s*座[^。\n]*?(?:緊急|損壞)\s*(\d+)\s*座",
+                client_platform_ctx,
+            )
+            summary_mode = "checklist"
+        if summary_match:
+            total, normal, maintenance, damaged = map(int, summary_match.groups())
+            u4_names = []
+            for match in re.finditer(
+                r"([溪溝構\w\-]+(?:\s*[^\n。；]{0,20}?魚道)?)"
+                r"[^。\n；]{0,35}?(?:D4/E4/R4・U4|U4)[^。\n；]{0,20}",
+                client_platform_ctx,
+            ):
+                name = re.sub(r"^[【（(\s]+|[】）)\s]+$", "", match.group(1)).strip(" ：:")
+                if name and name not in u4_names:
+                    u4_names.append(name)
+            for match in re.finditer(r"★緊急【([^】\n]{2,40})】", client_platform_ctx):
+                name = match.group(1).strip()
+                if name and name not in u4_names:
+                    u4_names.append(name)
+            followups = []
+            for match in re.finditer(
+                r"([溪溝構\w\-]+(?:\s*[^\n。；]{0,20}?魚道)?)"
+                r"[^。\n；]{0,35}?(D\d/E\d/R\d・U[23])",
+                client_platform_ctx,
+            ):
+                item = f"{match.group(1).strip(' ：:')}（{match.group(2)}）"
+                if item not in followups:
+                    followups.append(item)
+            urgent_sentence = (
+                f"需緊急處理的設施為{'、'.join(u4_names)}，其最新狀態為 U4 且尚未結案。"
+                if u4_names else
+                (f"目前有 {damaged} 座魚道標示為損壞，應優先進行現場複核與處置。" if damaged else "目前無 U4 或損壞魚道。")
+            )
+            followup_sentence = f"另有 {maintenance} 座需維護" + (f"：{'、'.join(followups[:4])}。" if followups else "，應持續追蹤。")
+            answer = (
+                f"依目前網頁平台的即時資料，魚道設施共 {total} 座："
+                f"正常 {normal} 座、需維護 {maintenance} 座、損壞 {damaged} 座。"
+                f"{urgent_sentence}{followup_sentence}"
+                "以上為目前頁面最新表徵；較舊紀錄僅作履歷比對，不得覆蓋尚未結案的最新異常。"
+            )
+            provider_key = provider_key or "platform_guard"
+            provider_display = f"{provider_display or '平台資料'}＋即時狀態一致性檢核"
 
     # ── 7a. AI 失敗時：若有本機 RAG 知識庫結果則優先顯示，避免顯示與問題無關的巡查摘要 ──
     if not answer and local_ctx.strip():
@@ -1496,7 +1556,7 @@ def smart_ask() -> Any:
         for r in web_results[:4]
     ]
 
-    platform_part = "線上平台資料＋ " if platform_ctx else ""
+    platform_part = "線上平台資料＋ " if (platform_ctx or client_platform_ctx) else ""
     web_part  = f"網路搜尋（{len(web_results)} 筆）＋ " if web_results else ""
     ocr_part  = f"雲端文件 {len(ocr_citations)} 筆 ＋ " if ocr_citations else ""
     ai_part   = provider_display or "本機知識庫"
@@ -1511,7 +1571,8 @@ def smart_ask() -> Any:
         "web_search_used":  bool(web_results),
         "web_sources":      web_sources_out,
         "platform_url":      platform_url,
-        "platform_context_used": bool(platform_ctx),
+        "platform_context_used": bool(platform_ctx or client_platform_ctx),
+        "client_platform_context_used": bool(client_platform_ctx),
         "platform_evidence": platform_evidence,
         "local_evidence":   local_evidence,
         "ocr_citations":    ocr_citations,

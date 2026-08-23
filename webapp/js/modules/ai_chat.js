@@ -651,16 +651,24 @@ function buildDynamicContext(query) {
         const fid = String(i.facilityId);
         if (!latestByFac[fid]) latestByFac[fid] = i;
       });
-      const fwList = Object.values(latestByFac);
+      const fwList = Object.values(latestByFac).map(i => {
+        const fac = facilities.find(f => String(f.id) === String(i.facilityId));
+        const latestAssess = fac && typeof fac_latestProfessionalAssessment === 'function'
+          ? fac_latestProfessionalAssessment(fac) : null;
+        const latestIsNormal = !!(latestAssess?.derLevel && /^A/.test(latestAssess.derLevel));
+        const effectiveU = latestIsNormal ? 1 : Number(latestAssess?.deru?.u ?? i.deru_u ?? 1);
+        return { ...i, _latestAssess: latestAssess, _effectiveU: effectiveU, _latestIsNormal: latestIsNormal };
+      });
 
       if (fwList.length > 0) {
-        // 通行狀況摘要
-        const blockaded = fwList.filter(i => i.fw_grade === 'C1' || i.deru_u >= 4);
-        const needAttn  = fwList.filter(i => i.deru_u >= 2 && i.deru_u < 4);
-        const normal    = fwList.filter(i => i.deru_u <= 1);
+        // 現況必須採設施最新專業巡查表徵，舊魚道檢核表僅保留為歷史履歷。
+        const blockaded = fwList.filter(i => !i._latestIsNormal && (i.fw_grade === 'C1' || i._effectiveU >= 4));
+        const needAttn  = fwList.filter(i => !i._latestIsNormal && i._effectiveU >= 2 && i._effectiveU < 4);
+        const normal    = fwList.filter(i => i._latestIsNormal || i._effectiveU <= 1);
         parts.push(
           `【魚道檢核表整體現況（附錄三）】共 ${fwList.length} 座魚道有最新檢核記錄：` +
-          `✓正常 ${normal.length} 座、⚠需追蹤 ${needAttn.length} 座、★緊急 ${blockaded.length} 座。`
+          `✓正常 ${normal.length} 座、⚠需追蹤 ${needAttn.length} 座、★緊急 ${blockaded.length} 座。` +
+          `現況以各設施最新專業巡查或改善完成表徵為準；較舊待處理表單僅屬歷史履歷。`
         );
 
         // 列出有問題的魚道（若設施最新 professional_structure 表徵已為 A 級則略過，避免舊魚道檢核表蓋過最新判定）
@@ -1074,7 +1082,12 @@ function _buildWelcomeMessage() {
     const inspections = (typeof DB !== 'undefined') ? DB.getAll('inspections') || [] : [];
     const fishRecords = (typeof DB !== 'undefined') ? DB.getAll('fish')        || [] : [];
     stats.fac       = facilities.length;
-    stats.needMaint = facilities.filter(f => f.status === '需維護' || f.status === '損壞').length;
+    stats.needMaint = facilities.filter(f => {
+      const assess = typeof fac_latestProfessionalAssessment === 'function'
+        ? fac_latestProfessionalAssessment(f) : null;
+      const status = assess?.status || f.status || '';
+      return status === '需維護' || status === '損壞';
+    }).length;
     stats.insp      = inspections.length;
     stats.fish      = fishRecords.length;
     stats.fishProtected = fishRecords.filter(r => r.conservationStatus && r.conservationStatus !== '一般').length;
@@ -1518,8 +1531,8 @@ const AI_SYSTEM = `你是「橫流溪工程設施智慧評估平台」的專業 
 【最新表徵覆寫規則（強制執行）】
 • 設施的最終判定以「最新專業巡查（最後表徵）」為準，標示格式：最新表徵日期 + DER&U 等級
 • 若某設施「最後表徵」之 DER&U 等級為 A1（或任何 A 開頭等級），該設施一律不得列為「需緊急維護」項目，即使資料中另有舊的魚道檢核表（professional_fishway）記錄過高急迫評分
-• professional_structure 整體判定（A/B/C）的層級高於 professional_fishway 個別項目 DER 評分
-• 判斷「哪些設施需要緊急處理」時，以各設施「最後表徵」欄位的 DER&U 等級為唯一依據
+• professional_structure 評估結構外觀，professional_fishway 評估通魚功能；同日未結案的魚道功能異常，不得被結構 A 級自動覆蓋
+• 判斷「哪些設施需要緊急處理」時，以各設施「最後表徵」的日期、結案狀態與 DER&U 等級綜合判斷
 
 【DER&U 快速判讀標準】
 - D（損壞程度）：0=無損、1=輕微、2=中等、3=嚴重、4=極嚴重
@@ -1563,17 +1576,29 @@ function refreshKBFromDB() {
     const fishRecords = DB.getAll('fish') || [];
 
     // 1. 設施整體統計
-    const needMaint = facilities.filter(f => f.status === '需維護' || f.status === '損壞');
+    const facilityAssessments = facilities.map(f => ({
+      facility: f,
+      assessment: typeof fac_latestProfessionalAssessment === 'function'
+        ? fac_latestProfessionalAssessment(f) : null
+    }));
+    const needMaint = facilityAssessments.filter(({ facility, assessment }) => {
+      const status = assessment?.status || facility.status || '';
+      return status === '需維護' || status === '損壞';
+    });
     const fishways  = facilities.filter(f => /魚道/.test(f.type || '') || /魚道/.test(f.name || ''));
-    const urgentFW  = inspections.filter(i => i.formType === 'professional_fishway' && (i.deru_u >= 3 || i.priority === '緊急'));
+    const urgentFW = fishways.filter(f => {
+      const assessment = typeof fac_latestProfessionalAssessment === 'function'
+        ? fac_latestProfessionalAssessment(f) : null;
+      return Number(assessment?.deru?.u || 0) >= 3 || assessment?.status === '損壞';
+    });
 
     const statsEntry = {
       id: 'auto_facility_stats',
       title: '橫流溪設施現況統計（自動更新）',
       body: `共 ${facilities.length} 座構造物，其中魚道設施 ${fishways.length} 座。` +
-        `需維護/損壞：${needMaint.length} 座（${needMaint.map(f=>f.name).join('、') || '無'}）。` +
+        `需維護/損壞：${needMaint.length} 座（${needMaint.map(({facility})=>facility.name).join('、') || '無'}）。` +
         `魚道檢核表 ${inspections.filter(i=>i.formType==='professional_fishway').length} 筆，` +
-        `其中 U3/U4 緊急項目 ${urgentFW.length} 件。` +
+        `依最新有效評估屬 U3/U4 或損壞者 ${urgentFW.length} 座。` +
         `巡查記錄合計 ${inspections.length} 筆。`,
       kw: ['設施','統計','現況','總覽','需維護','損壞','魚道','緊急'],
       weight: 3
@@ -1589,10 +1614,14 @@ function refreshKBFromDB() {
     fishways.forEach(f => {
       const ins = fwInspMap[String(f.id)];
       if (ins) {
-        const grade = ins.fw_grade || '-';
-        const fish  = ins.fw_fishPresent || '未記錄';
-        const u     = ins.deru_u >= 4 ? '★緊急' : ins.deru_u >= 3 ? '⚠需維護' : ins.deru_u >= 2 ? '追蹤' : '正常';
-        fwStatusLines.push(`${f.name}：${grade}級 ${u}，${fish}，${ins.date}`);
+        const assessment = typeof fac_latestProfessionalAssessment === 'function'
+          ? fac_latestProfessionalAssessment(f) : null;
+        const grade = assessment?.derLevel || ins.fw_grade || '-';
+        const fish = ins.fw_fishPresent || '未記錄';
+        const effectiveU = Number(assessment?.deru?.u ?? ins.deru_u ?? 1);
+        const status = assessment?.status || (effectiveU >= 4 ? '損壞' : effectiveU >= 2 ? '需維護' : '正常');
+        const date = assessment?.assessmentDate || ins.date || '-';
+        fwStatusLines.push(`${f.name}：${grade}・${status}，${fish}，最新表徵 ${date}`);
       }
     });
     if (fwStatusLines.length > 0) {
@@ -1799,6 +1828,13 @@ async function queryRAG(query) {
     latestManagement?.context ? `【最新巡查與維護管理資料】\n${latestManagement.context}` : "",
     kbResult?.answer || ""
   ].filter(Boolean).join("\n\n");
+  const livePlatformContext = [
+    // 查詢相關的動態數據最先放入，避免全站摘要太長時被 24,000 字上限截斷。
+    buildDynamicContext(query),
+    buildCurrentPlatformPageContext(query),
+    latestManagement?.context ? `【伺服器最新巡查與維護資料】\n${latestManagement.context}` : "",
+    buildAllSectionsContext(query)
+  ].filter(Boolean).join("\n\n").slice(0, 24000);
 
   // ── 2. 統一由後端 smart-ask 管理金鑰、最新平台資料與 RAG，避免前端金鑰外洩或繞過資料優先規則。
   const pageOrigin = (window.location.protocol.startsWith("http"))
@@ -1822,7 +1858,8 @@ async function queryRAG(query) {
           query,
           use_web: "auto",
           include_platform_url: true,
-          platform_url: "https://hengliuxi-management.onrender.com/webapp/"
+          platform_url: "https://hengliuxi-management.onrender.com/webapp/",
+          client_platform_context: livePlatformContext
         }),
         signal: ctrl.signal
       });
@@ -1837,6 +1874,14 @@ async function queryRAG(query) {
       if (backendUseless) {
         console.info(`[queryRAG] ${base} 無有效 AI 回答，嘗試下一個端點`);
         continue;
+      }
+      // 現況／緊急維護問題必須與使用者眼前的設施清單一致。
+      // 這層在瀏覽器端再次核對，避免任何外部模型忽略最新未結案紀錄。
+      const liveStatusAnswer = _buildLiveStatusAnswer(query);
+      if (liveStatusAnswer) {
+        data.answer = liveStatusAnswer;
+        data.llm_model = `${data.llm_model || 'AI'}＋平台即時狀態檢核`;
+        data.platform_consistency_guard = true;
       }
       data.structured_citations = (data.local_evidence || []).map((e, i) => ({
         index: i + 1, source_file: e.source || "橫流溪資料庫",
@@ -1868,6 +1913,50 @@ async function queryRAG(query) {
     confidence_score: 20,
     policy_label:  "本機引導",
   };
+}
+
+function _buildLiveStatusAnswer(query) {
+  const q = String(query || '');
+  if (!/(魚道|設施)/.test(q) || !/(緊急|優先|維護|異常|狀態|處理)/.test(q)) return '';
+  if (typeof DB === 'undefined') return '';
+
+  try {
+    const allFacilities = DB.getAll('facilities') || [];
+    const fishwayOnly = /魚道/.test(q);
+    const targets = fishwayOnly
+      ? allFacilities.filter(f => /魚道/.test(`${f.name || ''} ${f.type || ''} ${f.subType || ''}`))
+      : allFacilities;
+    if (!targets.length) return '';
+
+    const rows = targets.map(f => {
+      const a = typeof fac_latestProfessionalAssessment === 'function'
+        ? fac_latestProfessionalAssessment(f) : null;
+      return {
+        name: f.name || f.code || '未命名設施',
+        status: a?.status || f.status || '未標示',
+        der: a?.derLevel || f.derLevel || '-',
+        u: Number(a?.deru?.u || 0),
+        date: a?.assessmentDate || f.assessmentDate || f.lastInspect || '-',
+        strategy: a?.strategy || f.maintenanceStrategy || '-'
+      };
+    });
+    const urgent = rows.filter(r => r.status === '損壞' || r.u >= 4 || /・U4\b/.test(r.der));
+    const maintenance = rows.filter(r => !urgent.includes(r) &&
+      (r.status === '需維護' || r.u >= 2 || /・U[23]\b/.test(r.der)));
+    const normal = rows.filter(r => !urgent.includes(r) && !maintenance.includes(r));
+    const scope = fishwayOnly ? '魚道設施' : '工程設施';
+    const urgentText = urgent.length
+      ? `需緊急處理者為：${urgent.map(r => `${r.name}（${r.der}，最後表徵 ${r.date}）`).join('、')}。`
+      : '目前沒有 U4 或損壞且尚未結案的設施。';
+    const maintenanceText = maintenance.length
+      ? `另有 ${maintenance.length} 座需維護或追蹤：${maintenance.map(r => `${r.name}（${r.der}，${r.strategy}）`).join('、')}。`
+      : '其餘設施未列入維護或追蹤。';
+
+    return `依目前網頁平台正在顯示的最新資料，${scope}共 ${rows.length} 座：正常 ${normal.length} 座、需維護 ${maintenance.length} 座、損壞 ${urgent.length} 座。${urgentText}${maintenanceText}以上以最新專業巡查、改善完成日期及未結案狀態綜合判定；較舊紀錄僅作歷史履歷，不覆蓋尚未結案的異常。`;
+  } catch (err) {
+    console.warn('[_buildLiveStatusAnswer] 即時狀態核對失敗:', err.message || err);
+    return '';
+  }
 }
 
 function clearAIChat() {
