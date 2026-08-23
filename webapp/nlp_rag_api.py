@@ -901,14 +901,14 @@ def _call_gemini(query: str, ctx: str) -> "tuple[str, str]":
 
     # 依序嘗試不同模型與 API 版本（v1beta / v1）
     candidates = [
-        ("gemini-2.0-flash",              "v1beta"),
-        ("gemini-2.0-flash",              "v1"),
-        ("gemini-2.0-flash-lite",         "v1beta"),
-        ("gemini-2.0-flash-lite",         "v1"),
+        ("gemini-3.6-flash",              "v1beta"),
+        ("gemini-3.6-flash",              "v1"),
+        ("gemini-3.5-flash",              "v1beta"),
+        ("gemini-3.5-flash",              "v1"),
+        ("gemini-2.5-flash",              "v1beta"),
+        ("gemini-2.5-flash",              "v1"),
         ("gemini-1.5-flash",              "v1"),
         ("gemini-1.5-flash",              "v1beta"),
-        ("gemini-1.5-flash-latest",       "v1"),
-        ("gemini-1.5-flash-8b",           "v1"),
     ]
     for model, api_ver in candidates:
         url = f"https://generativelanguage.googleapis.com/{api_ver}/models/{model}:generateContent?key={key}"
@@ -1377,7 +1377,7 @@ def ai_check():
         try:
             payload = _json.dumps({"contents": [{"parts": [{"text": "hi"}]}],
                 "generationConfig": {"maxOutputTokens": 5}}).encode()
-            url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key={gemini_key}"
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key={gemini_key}"
             req = urllib.request.Request(url, data=payload,
                 headers={"Content-Type": "application/json"}, method="POST")
             with urllib.request.urlopen(req, timeout=10) as r:
