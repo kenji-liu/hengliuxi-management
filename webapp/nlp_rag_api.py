@@ -1658,7 +1658,7 @@ def photo_assess():
                     "Content-Type": "application/json",
                     "Authorization": f"Bearer {or_key}",
                     "HTTP-Referer": "https://hengliuxi-management.onrender.com",
-                    "X-Title": "橫流溪管理平台",
+                    "X-Title": "Hengliuxi Management Platform",
                 }, method="POST")
             try:
                 with urllib.request.urlopen(req, timeout=60) as r:
