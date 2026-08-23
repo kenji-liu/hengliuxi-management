@@ -150,24 +150,55 @@ def _get_service():
         raise RuntimeError('DRIVE_NOT_CONFIGURED')
 
 
+def shared_drive_id() -> str:
+    """設定中的共用雲端硬碟 ID（未使用共用硬碟時為空字串）。"""
+    return os.environ.get('GDRIVE_SHARED_DRIVE_ID', '').strip()
+
+
+def root_folder_id() -> str:
+    """上傳的根資料夾。
+
+    優先序：明確指定的 GDRIVE_ROOT_FOLDER_ID → 共用硬碟根目錄 → 內建常數。
+    共用硬碟的根目錄 ID 等同該硬碟的 driveId。
+    """
+    explicit = os.environ.get('GDRIVE_ROOT_FOLDER_ID', '').strip()
+    if explicit:
+        return explicit
+    return shared_drive_id() or GDRIVE_ROOT_FOLDER_ID
+
+
+def _list_files(service, query: str, fields: str, page_size: int = 5):
+    """files().list 包裝：帶齊共用雲端硬碟所需參數。
+
+    未加 supportsAllDrives / includeItemsFromAllDrives 時，共用硬碟裡的項目
+    不會出現在結果中，會被誤判為「不存在」而重複建立資料夾或檔案。
+    """
+    params = dict(q=query, fields=fields, pageSize=page_size,
+                  supportsAllDrives=True, includeItemsFromAllDrives=True)
+    drive_id = shared_drive_id()
+    if drive_id:
+        params.update(corpora='drive', driveId=drive_id)
+    return service.files().list(**params).execute().get('files', [])
+
+
 def _find_or_create_folder(service, name: str, parent_id: str) -> str:
     safe = name.replace("'", "\\'")
     query = (f"name='{safe}' and '{parent_id}' in parents and "
              "mimeType='application/vnd.google-apps.folder' and trashed=false")
-    results = service.files().list(q=query, fields='files(id)', pageSize=5).execute()
-    files = results.get('files', [])
+    files = _list_files(service, query, 'files(id)')
     if files:
         return files[0]['id']
     meta = {'name': name,
             'mimeType': 'application/vnd.google-apps.folder',
             'parents': [parent_id]}
-    folder = service.files().create(body=meta, fields='id').execute()
+    folder = service.files().create(
+        body=meta, fields='id', supportsAllDrives=True).execute()
     logger.info(f'[Drive] 建立資料夾：{name}')
     return folder['id']
 
 
 def _resolve_folder_path(service, path: str) -> str:
-    current_id = GDRIVE_ROOT_FOLDER_ID
+    current_id = root_folder_id()
     for part in path.split('/'):
         part = part.strip()
         if part:
@@ -178,11 +209,89 @@ def _resolve_folder_path(service, path: str) -> str:
 def _find_existing_file(service, filename: str, folder_id: str):
     safe = filename.replace("'", "\\'")
     query = f"name='{safe}' and '{folder_id}' in parents and trashed=false"
-    results = service.files().list(q=query, fields='files(id,webViewLink)', pageSize=5).execute()
-    files = results.get('files', [])
+    files = _list_files(service, query, 'files(id,webViewLink)')
     if files:
         return files[0]['id'], files[0].get('webViewLink', '')
     return None, None
+
+
+def service_account_email() -> str:
+    """服務帳號信箱（要加入共用雲端硬碟的對象）。不含私鑰。"""
+    try:
+        return str(_load_sa_info().get('client_email', ''))
+    except Exception:
+        return ''
+
+
+def diagnose() -> dict:
+    """檢查 Drive 設定是否可實際寫入，並指出下一步該做什麼。"""
+    report = {
+        'authMode':            _auth_mode(),
+        'serviceAccountEmail': service_account_email(),
+        'sharedDriveId':       shared_drive_id(),
+        'rootFolderId':        root_folder_id(),
+        'sharedDrives':        [],
+        'rootFolder':          {},
+        'canWrite':            False,
+        'nextStep':            '',
+    }
+
+    if report['authMode'] == 'none':
+        report['nextStep'] = '尚未設定 Drive 認證（服務帳號 JSON 或 OAuth token）。'
+        return report
+
+    try:
+        service = _get_service()
+    except Exception as exc:
+        report['nextStep'] = explain_drive_error(exc)
+        return report
+
+    # 服務帳號看得到哪些共用硬碟
+    try:
+        report['sharedDrives'] = [
+            {'id': d.get('id'), 'name': d.get('name')}
+            for d in service.drives().list(
+                pageSize=20, fields='drives(id,name)').execute().get('drives', [])
+        ]
+    except Exception as exc:
+        logger.info('[Drive] 無法列出共用硬碟：%s', exc)
+
+    # 根資料夾在哪裡
+    try:
+        info = service.files().get(
+            fileId=report['rootFolderId'],
+            fields='id,name,driveId,mimeType', supportsAllDrives=True).execute()
+        report['rootFolder'] = {
+            'id': info.get('id'), 'name': info.get('name'),
+            'driveId': info.get('driveId', ''),
+            'inSharedDrive': bool(info.get('driveId')),
+        }
+    except Exception as exc:
+        report['rootFolder'] = {'error': explain_drive_error(exc)}
+
+    # 實際試寫一個小檔再刪除 — 這是唯一能確定「真的可以上傳」的方法
+    try:
+        from googleapiclient.http import MediaIoBaseUpload
+        probe = service.files().create(
+            body={'name': '_hlx_write_probe.txt', 'parents': [report['rootFolderId']]},
+            media_body=MediaIoBaseUpload(io.BytesIO(b'probe'), mimetype='text/plain'),
+            fields='id', supportsAllDrives=True).execute()
+        service.files().delete(fileId=probe['id'], supportsAllDrives=True).execute()
+        report['canWrite'] = True
+        report['nextStep'] = '設定完成，可正常上傳 PDF 表單至 Drive。'
+    except Exception as exc:
+        report['canWrite'] = False
+        report['nextStep'] = explain_drive_error(exc)
+        if not report['sharedDrives']:
+            report['nextStep'] += (
+                f" 目前服務帳號（{report['serviceAccountEmail']}）"
+                '尚未被加入任何共用雲端硬碟。')
+        elif not report['rootFolder'].get('inSharedDrive'):
+            report['nextStep'] += (
+                ' 根資料夾不在共用雲端硬碟內，請將 GDRIVE_SHARED_DRIVE_ID 或 '
+                'GDRIVE_ROOT_FOLDER_ID 指向共用硬碟中的資料夾。')
+
+    return report
 
 
 def explain_drive_error(exc: Exception) -> str:
@@ -220,13 +329,15 @@ def _upload_bytes(service, content: bytes, mimetype: str,
 
     if existing_id:
         updated = service.files().update(
-            fileId=existing_id, media_body=media, fields='id,webViewLink').execute()
+            fileId=existing_id, media_body=media, fields='id,webViewLink',
+            supportsAllDrives=True).execute()
         return {'id': updated['id'],
                 'link': updated.get('webViewLink', existing_link),
                 'action': 'updated'}
     created = service.files().create(
         body={'name': filename, 'parents': [folder_id]},
-        media_body=media, fields='id,webViewLink').execute()
+        media_body=media, fields='id,webViewLink',
+        supportsAllDrives=True).execute()
     return {'id': created['id'],
             'link': created.get('webViewLink', ''),
             'action': 'created'}

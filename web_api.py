@@ -230,6 +230,20 @@ def api_drive_sync_inspection():
         import traceback; traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/api/drive/diagnose', methods=['GET'])
+def api_drive_diagnose():
+    """檢查 Drive 是否真的可寫入，並回報下一步該做什麼。"""
+    from flask import jsonify
+    if not DRIVE_SERVICE_AVAILABLE:
+        return jsonify({'available': False, 'nextStep': 'Drive service 未安裝'}), 503
+    try:
+        from webapp.drive_service import diagnose
+        return jsonify({'available': True, **diagnose()})
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return jsonify({'available': True, 'error': f'{type(e).__name__}: {e}'}), 500
+
+
 @app.route('/api/forms/render-pdf', methods=['POST'])
 def api_forms_render_pdf():
     """把一筆表單紀錄即時渲染成 PDF 表單回傳下載。
