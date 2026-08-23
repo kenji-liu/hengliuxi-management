@@ -230,6 +230,46 @@ def api_drive_sync_inspection():
         import traceback; traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/api/forms/render-pdf', methods=['POST'])
+def api_forms_render_pdf():
+    """把一筆表單紀錄即時渲染成 PDF 表單回傳下載。
+
+    Body: {"data": {...表單紀錄...}, "formType": "professional_structure"}
+    回應：application/pdf（附 Content-Disposition 檔名）
+    """
+    from flask import request, jsonify, Response
+    from urllib.parse import quote
+    try:
+        from webapp.form_pdf import render_form_pdf, pdf_filename
+    except ImportError as exc:
+        return jsonify({'success': False,
+                        'error': f'PDF 模組未載入：{exc}'}), 503
+
+    try:
+        body = request.get_json(force=True) or {}
+        # 有 data 鍵時一律以它為準，避免空的 data 誤把外層信封當成表單內容
+        data = body.get('data') if 'data' in body else body
+        if not isinstance(data, dict) or not data:
+            return jsonify({'success': False, 'error': '缺少表單資料'}), 400
+
+        form_type = body.get('formType') or data.get('formType') or ''
+        data = {k: v for k, v in data.items() if k != 'photoDataUrls'}
+
+        pdf_bytes = render_form_pdf(data, form_type)
+        filename = body.get('filename') or pdf_filename(data, form_type)
+
+        return Response(pdf_bytes, mimetype='application/pdf', headers={
+            # filename* 用 RFC 5987 編碼，讓中文檔名在各瀏覽器都正確
+            'Content-Disposition':
+                f"attachment; filename=form.pdf; filename*=UTF-8''{quote(filename)}",
+            'Content-Length': str(len(pdf_bytes)),
+            'Cache-Control': 'no-store',
+        })
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return jsonify({'success': False, 'error': f'{type(e).__name__}: {e}'}), 500
+
+
 @app.route('/api/drive/status', methods=['GET'])
 def api_drive_status():
     """回傳 Drive 授權狀態"""

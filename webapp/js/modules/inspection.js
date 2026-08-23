@@ -1095,11 +1095,58 @@ function _gdriveGetToken() {
  * @param {Object} item      已儲存的巡查紀錄（含 id）
  * @param {string} formType  'professional_structure' | 'professional_fishway'
  */
+/**
+ * 下載一筆表單紀錄的 PDF（後端以維護管理手冊格式渲染）
+ * @param {number} id  巡查紀錄 id
+ */
+async function downloadInspectionFormPdf(id) {
+  const item = DB.getById('inspections', id);
+  if (!item) { showToast('找不到該筆表單紀錄', 'error'); return; }
+
+  const formType = item.formType || '';
+  const meta = INSPECTION_FORM_SYNC_META[formType] || {};
+  const facilityName = item.facilityName
+    || DB.getById('facilities', item.facilityId)?.name || '未知設施';
+  const fileName = inspectionPdfFileName({ ...item, facilityName }, meta);
+
+  showToast('正在產生 PDF 表單…', 'info');
+  try {
+    const payload = { ...item, facilityName };
+    delete payload.photoDataUrls;   // base64 照片不送出，避免請求過大
+    delete payload.photos;
+
+    const res = await fetch('/api/forms/render-pdf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data: payload, formType, filename: fileName })
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    showToast(`✅ 已下載：${fileName}`, 'success');
+  } catch (e) {
+    showToast(`PDF 產生失敗：${e.message}`, 'error');
+  }
+}
+
 async function uploadInspectionFileToDrive(item, formType) {
   const meta = INSPECTION_FORM_SYNC_META[formType] || {};
   const facilityName = (DB.getById('facilities', item.facilityId)?.name || '未知設施').replace(/[/\\:*?"<>|]/g, '-');
   const dateStr = (item.date || new Date().toISOString().split('T')[0]);
-  const fileName = `${meta.label || formType}_${facilityName}_${dateStr}.json`;
+  // 上傳為 PDF 表單；後端另存原始 JSON 於 _原始資料 子資料夾供重新匯入
+  const fileName = `${meta.label || formType}_${facilityName}_${dateStr}.pdf`;
 
   // 立即更新狀態為上傳中
   if (item.id) DB.update('inspections', item.id, {
@@ -1295,20 +1342,39 @@ function _showGDriveClientIdSetup(pendingItem, pendingFormType) {
   if (hasPending) window._drivePendingItem = { item: pendingItem, formType: pendingFormType, meta };
 }
 
-function _driveDownloadAndOpen() {
+/** Drive 未授權時的備援：下載 PDF 表單並開啟雲端資料夾供手動上傳 */
+async function _driveDownloadAndOpen() {
   const p = window._drivePendingItem;
   if (!p) return;
   const { item, formType, meta } = p;
-  const facilityName = (DB.getById('facilities', item.facilityId)?.name || '未知設施').replace(/[/\\:*?"<>|]/g, '-');
-  const dateStr = item.date || new Date().toISOString().split('T')[0];
-  const fileName = `${meta.label || formType}_${facilityName}_${dateStr}.json`;
-  const payload = { ...item };
+  const facilityName = item.facilityName
+    || DB.getById('facilities', item.facilityId)?.name || '未知設施';
+  const fileName = inspectionPdfFileName({ ...item, facilityName }, meta);
+
+  const payload = { ...item, facilityName };
   delete payload.photoDataUrls;
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = fileName; a.click();
-  URL.revokeObjectURL(url);
+  delete payload.photos;
+
+  try {
+    const res = await fetch('/api/forms/render-pdf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data: payload, formType, filename: fileName })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
+    const url = URL.createObjectURL(await res.blob());
+    const a = document.createElement('a');
+    a.href = url; a.download = fileName;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  } catch (e) {
+    showToast(`PDF 產生失敗：${e.message}`, 'error');
+    return;
+  }
+
   setTimeout(() => window.open(INSPECTION_GDRIVE_FOLDER_URL, '_blank'), 500);
   if (item.id) DB.update('inspections', item.id, { cloudSyncStatus: '手動上傳', cloudSyncNote: `已下載 ${fileName}，請手動上傳至 Drive` });
   closeModal();
@@ -3249,6 +3315,10 @@ function renderInspDataList(data) {
               ${inspDetailRow('優先度', item.uiPriority)}
               <!-- Drive 按鈕群 -->
               <div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px">
+                <button onclick="downloadInspectionFormPdf(${item.id})"
+                  style="display:inline-flex;align-items:center;gap:6px;background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;border-radius:8px;padding:8px 14px;font-size:14px;font-weight:700;cursor:pointer">
+                  <i class="fas fa-file-pdf"></i> 下載 PDF 表單
+                </button>
                 ${item.driveWebLink ? `
                   <a href="${item.driveWebLink}" target="_blank" rel="noopener noreferrer"
                     style="display:inline-flex;align-items:center;gap:6px;background:#f0fdf4;color:#166534;border:1px solid #86efac;border-radius:8px;padding:8px 14px;text-decoration:none;font-size:14px;font-weight:700">

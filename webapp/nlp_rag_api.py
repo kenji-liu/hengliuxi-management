@@ -12,8 +12,10 @@ from __future__ import annotations
 from datetime import datetime
 import html
 import json
+import logging
 import os
 import re
+import time
 import urllib.parse
 import urllib.request
 from typing import Any, Dict, List, Optional
@@ -777,6 +779,21 @@ def _fetch_url_text(url: str, timeout: int = 8, max_chars: int = 2200) -> str:
         return ""
 
 
+# 線上平台頁面在短時間內不會變動，快取避免每次問答多花數秒重抓。
+_platform_page_cache: Dict[str, Any] = {}
+_PLATFORM_PAGE_TTL = float(os.environ.get("PLATFORM_PAGE_TTL", "180"))
+_platform_ctx_cache: Dict[str, Any] = {}
+
+
+def _fetch_platform_page_cached(url: str) -> str:
+    entry = _platform_page_cache.get(url)
+    if entry and time.time() - entry["at"] < _PLATFORM_PAGE_TTL:
+        return entry["text"]
+    text = _fetch_url_text(url, timeout=5)
+    _platform_page_cache[url] = {"text": text, "at": time.time()}
+    return text
+
+
 def _fetch_platform_url_context(query: str, platform_url: str = "") -> Dict[str, Any]:
     """Read the public platform URL and same-origin management API for grounding."""
     url = _as_text(platform_url) or DEFAULT_PLATFORM_URL
@@ -788,7 +805,7 @@ def _fetch_platform_url_context(query: str, platform_url: str = "") -> Dict[str,
     evidence: List[Dict[str, Any]] = []
     parts: List[str] = []
 
-    page_text = _fetch_url_text(url)
+    page_text = _fetch_platform_page_cached(url)
     if page_text:
         parts.append(f"線上平台頁面：{url}\n頁面可讀文字摘要：{page_text}")
         evidence.append({
@@ -1064,6 +1081,11 @@ def _call_claude(query: str, ctx: str) -> "tuple[str, str]":
     return "", ""
 
 
+# OpenRouter 上次成功的模型（免費模型常下架，記住可用的可省下重試時間）
+_OR_LAST_GOOD: Dict[str, str] = {"model": ""}
+_OR_VISION_LAST_GOOD: Dict[str, str] = {"model": ""}
+
+
 def _call_openrouter(query: str, ctx: str) -> "tuple[str, str]":
     """OpenRouter 免費模型（依序嘗試多個 free 模型）。
     取得 Key：https://openrouter.ai  →  Keys
@@ -1084,9 +1106,20 @@ def _call_openrouter(query: str, ctx: str) -> "tuple[str, str]":
         ("mistralai/mistral-7b-instruct:free",       "mistral-7b"),
         ("google/gemma-3-4b-it:free",               "gemma-3-4b"),
     ]
+    # 上次成功的模型排最前面：免費模型會不定期下架，每次從頭試會白等數十秒
+    if _OR_LAST_GOOD["model"]:
+        free_models.sort(key=lambda mv: mv[0] != _OR_LAST_GOOD["model"])
+
+    # 總預算內逐一嘗試；已用掉的時間會從後續模型的逾時扣除，避免整體無上限累加
+    deadline = time.time() + float(os.environ.get("OPENROUTER_BUDGET", "45"))
     for model_id, display_name in free_models:
         if not model_id:
             continue
+        remaining = deadline - time.time()
+        if remaining < 5:
+            _log.warning("[OPENROUTER] 已用盡時間預算，停止嘗試其餘模型")
+            break
+        attempt_timeout = min(25.0, remaining)
         payload = _json.dumps({
             "model": model_id,
             "messages": [
@@ -1110,15 +1143,18 @@ def _call_openrouter(query: str, ctx: str) -> "tuple[str, str]":
             method="POST",
         )
         try:
-            with urllib.request.urlopen(req, timeout=30) as r:
+            with urllib.request.urlopen(req, timeout=attempt_timeout) as r:
                 res = _json.loads(r.read().decode())
             text = res["choices"][0]["message"]["content"].strip()
             if _is_acceptable_zh_answer(text):
                 _log.info(f"[OPENROUTER] ✓ 使用 {model_id}")
+                _OR_LAST_GOOD["model"] = model_id
                 return text, f"{display_name} (OpenRouter)"
             if text:
                 _log.warning(f"[OPENROUTER] {model_id} 回覆非繁體中文或含推理文字，改試下一模型")
         except urllib.error.HTTPError as e:
+            if _OR_LAST_GOOD["model"] == model_id:
+                _OR_LAST_GOOD["model"] = ""      # 已下架或失效，不再優先
             _log.warning(f"[OPENROUTER] {model_id} HTTP {e.code}: {e.read()[:150].decode('utf-8','replace')}")
         except Exception as e:
             _log.warning(f"[OPENROUTER] {model_id} 錯誤: {e}")
@@ -1130,9 +1166,22 @@ def _call_ollama_synthesis(query: str, combined_ctx: str) -> str:
     import os, urllib.request, json as _json
     if rag_backend is None:
         return ""
-    ollama_url = f"{getattr(rag_backend, 'OLLAMA_BASE_URL', 'http://localhost:11434').rstrip('/')}/api/chat"
+    base = getattr(rag_backend, "OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
+
+    # 先以短逾時確認服務在線。Ollama 是最後一道保底，若它其實不可用
+    # （雲端部署常見），不該讓使用者為此多等一次完整的推論逾時。
+    try:
+        with urllib.request.urlopen(f"{base}/api/tags", timeout=2) as _probe:
+            _probe.read(1)
+    except Exception:
+        logging.getLogger(__name__).info("[OLLAMA] 服務不可用，略過本機推論")
+        return ""
+
+    ollama_url = f"{base}/api/chat"
     model = os.environ.get("OLLAMA_SMART_MODEL", "qwen2.5:7b")
-    timeout = min(float(os.environ.get("OLLAMA_SMART_TIMEOUT", "150")), float(getattr(rag_backend, "OLLAMA_TIMEOUT", 240)))
+    # 互動式問答的可接受等待上限，預設 45 秒（原本 150 秒過長）
+    timeout = min(float(os.environ.get("OLLAMA_SMART_TIMEOUT", "45")),
+                  float(getattr(rag_backend, "OLLAMA_TIMEOUT", 240)))
     prompt_context = combined_ctx[:8000]
     payload = _json.dumps({
         "model": model,
@@ -1153,6 +1202,76 @@ def _call_ollama_synthesis(query: str, combined_ctx: str) -> str:
         return (res.get("message", {}).get("content", "") or res.get("response", "")).strip()
     except Exception:
         return ""
+
+
+def _run_parallel(tasks: "Dict[str, Any]", timeout: float = 20.0) -> Dict[str, Any]:
+    """併行執行多個彼此獨立的取資料函式。
+
+    任一路失敗或逾時只影響該路（回傳 None），不會拖垮整個問答；
+    這讓 smart-ask 的總等待時間從「各路相加」降為「最慢的一路」。
+    """
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    out: Dict[str, Any] = {name: None for name in tasks}
+    if not tasks:
+        return out
+
+    _log = logging.getLogger(__name__)
+    with ThreadPoolExecutor(max_workers=len(tasks)) as pool:
+        futures = {pool.submit(fn): name for name, fn in tasks.items()}
+        try:
+            for future in as_completed(futures, timeout=timeout):
+                name = futures[future]
+                try:
+                    out[name] = future.result()
+                except Exception as exc:
+                    _log.warning("[PARALLEL] %s 失敗：%s: %s", name, type(exc).__name__, exc)
+        except Exception:
+            pending = [futures[f] for f in futures if not f.done()]
+            _log.warning("[PARALLEL] 逾時 %.0fs，未完成：%s", timeout, pending)
+    return out
+
+
+# ── AI 服務健康度快取 ─────────────────────────────────────────────────
+# Groq 被 Cloudflare 依 ASN 封鎖、Gemini 額度耗盡等狀況會持續一段時間；
+# 每次問答都重試會固定浪費數十秒。失敗後讓該服務冷卻，成功者優先。
+_PROVIDER_HEALTH: Dict[str, Dict[str, float]] = {}
+_PROVIDER_COOLDOWN = float(os.environ.get("AI_PROVIDER_COOLDOWN", "600"))  # 秒
+_PROVIDER_MAX_COOLDOWN = 3600.0
+
+
+def _provider_mark(provider_key: str, ok: bool) -> None:
+    entry = _PROVIDER_HEALTH.setdefault(provider_key, {"fails": 0.0, "until": 0.0, "ok_at": 0.0})
+    now = time.time()
+    if ok:
+        entry.update(fails=0.0, until=0.0, ok_at=now)
+        return
+    entry["fails"] += 1
+    # 連續失敗則指數延長冷卻（10 分 → 20 分 → 40 分，上限 1 小時）
+    backoff = min(_PROVIDER_COOLDOWN * (2 ** (entry["fails"] - 1)), _PROVIDER_MAX_COOLDOWN)
+    entry["until"] = now + backoff
+
+
+def _provider_is_cooling(provider_key: str) -> bool:
+    entry = _PROVIDER_HEALTH.get(provider_key)
+    return bool(entry and time.time() < entry.get("until", 0.0))
+
+
+def _provider_health_order(priority: "List[str]") -> "List[str]":
+    """最近成功過的服務排前面，其餘維持原設定順序。"""
+    def sort_key(name: str):
+        entry = _PROVIDER_HEALTH.get(name) or {}
+        return (-entry.get("ok_at", 0.0), priority.index(name))
+    return sorted(priority, key=sort_key)
+
+
+@nlp_rag.route("/ai-providers/reset", methods=["POST"])
+def ai_providers_reset() -> Any:
+    """清除 AI 服務冷卻狀態（設定新 API Key 後可立即重試）。"""
+    cleared = sorted(_PROVIDER_HEALTH.keys())
+    _PROVIDER_HEALTH.clear()
+    _platform_ctx_cache.clear()
+    return jsonify({"status": "success", "cleared": cleared, "timestamp": _now()})
 
 
 def _ai_synthesis(query: str, combined_ctx: str) -> "tuple[str, str, str]":
@@ -1181,18 +1300,36 @@ def _ai_synthesis(query: str, combined_ctx: str) -> "tuple[str, str, str]":
     priority = [
         name.strip().lower()
         for name in os.environ.get(
-            "AI_PROVIDER_PRIORITY", "gemini,openrouter,claude,groq"
+            "AI_PROVIDER_PRIORITY", "openrouter,gemini,claude,groq"
         ).split(",")
         if name.strip().lower() in provider_functions
     ]
-    for provider_key in priority:
+
+    provider_key_names = {
+        "gemini": "GOOGLE", "claude": "CLAUDE",
+        "groq": "GROQ", "openrouter": "OPENROUTER",
+    }
+
+    # 上次成功的服務優先重試，避免每次都從頭嘗試已失效的服務
+    healthy_first = _provider_health_order(priority)
+    for provider_key in healthy_first:
+        if _provider_is_cooling(provider_key):
+            _log.info(f"[AI_SYNTHESIS] ⏭ 跳過 {provider_key}（冷卻中，稍早失敗）")
+            continue
         fn = provider_functions[provider_key]
         text, display = fn(query, combined_ctx)
         if text:
             _log.info(f"[AI_SYNTHESIS] ✓ 使用 {display}")
+            _provider_mark(provider_key, ok=True)
             return text, provider_key, display
+        # 只對「有 Key 但呼叫失敗」的服務啟動冷卻。未設 Key 的服務會立即返回、
+        # 本來就不耗時；若冷卻它，之後補上的新 Key 會被忽略一段時間。
+        has_key = key_status.get(provider_key_names[provider_key], False)
+        if has_key:
+            _log.info(f"[AI_SYNTHESIS] ✗ {provider_key} 呼叫失敗，進入冷卻")
+            _provider_mark(provider_key, ok=False)
         else:
-            _log.info(f"[AI_SYNTHESIS] ✗ {provider_key} 未回應（Key 未設或呼叫失敗）")
+            _log.info(f"[AI_SYNTHESIS] ✗ {provider_key} 未設定 API Key")
 
     # 本機 Ollama fallback
     _log.info("[AI_SYNTHESIS] 嘗試 Ollama 本機...")
@@ -1370,94 +1507,99 @@ def smart_ask() -> Any:
     if not query:
         return jsonify({"status": "error", "message": "缺少 query"}), 400
 
-    # ── 1. 線上平台 URL 即時資料 ─────────────────────────────
-    platform_ctx = ""
-    platform_evidence: List[Dict[str, Any]] = []
-    platform_payload: Dict[str, Any] = {}
-    if include_platform_url:
-        platform_payload = _fetch_platform_url_context(query, platform_url)
-        platform_ctx = _as_text(platform_payload.get("context"))
-        platform_evidence = list(platform_payload.get("evidence") or [])
+    # ── 1~5. 五路資料來源並行擷取 ─────────────────────────────
+    # 這五步彼此獨立，過去循序執行會把各自的網路等待時間相加；
+    # 併行後總耗時降為最慢的一路。
+    def _task_platform() -> Dict[str, Any]:
+        if not include_platform_url:
+            return {}
+        return _fetch_platform_url_context(query, platform_url)
 
-    # ── 2. 網路搜尋 ──────────────────────────────────────────
-    web_results: List[Dict[str, Any]] = []
-    web_ctx     = ""
-    if use_web:
-        web_results = _web_search_ddg(query, max_results=6)
-        web_ctx     = _format_web_results(web_results)
+    def _task_web() -> List[Dict[str, Any]]:
+        return _web_search_ddg(query, max_results=6) if use_web else []
 
-    # ── 3. 本機 RAG 補充 ──────────────────────────────────────
-    local_ctx = ""
-    local_evidence: List[Dict[str, Any]] = []
-    if rag_backend is not None:
-        try:
-            local_docs = _local_keyword_retrieve(query, top_k=8)
-            local_evidence = [_doc_to_evidence(d) for d in local_docs[:6]]
-            if local_docs:
-                local_ctx = "\n\n".join(
-                    (
-                        f"【本機文件 {index}：{_as_text(d.get('source_file') or d.get('source') or '橫流溪資料庫')}"
-                        f"；頁碼 {_as_text(d.get('page') or d.get('page_number') or '未標示')}】\n"
-                        f"{_as_text(d.get('full_text') or d.get('preview') or d.get('text'))[:900]}"
-                    )
-                    for index, d in enumerate(local_docs[:8], 1)
-                )
-        except Exception:
-            pass
+    def _task_local() -> List[Dict[str, Any]]:
+        if rag_backend is None:
+            return []
+        return _local_keyword_retrieve(query, top_k=8)
 
-    # ── 4. Drive OCR 全文搜尋 ────────────────────────────────
-    ocr_ctx      = ""
+    def _task_ocr() -> Dict[str, Any]:
+        ocr_svc = _get_ocr_svc()
+        if not include_cloud_ocr or ocr_svc is None:
+            return {}
+        status = dict(ocr_svc.get_status() or {})
+        started = False
+        if int(status.get("total_docs") or 0) == 0 and not bool(status.get("running")):
+            folder_id = _OCR_FOLDER_ID
+            folder_url = _as_text(data.get("folder_url") or data.get("drive_folder_url"))
+            if folder_url:
+                m = re.search(r"/folders/([A-Za-z0-9_-]+)", folder_url)
+                if m:
+                    folder_id = m.group(1)
+            started = bool(ocr_svc.start_indexing(folder_id))
+            status = dict(ocr_svc.get_status() or {})
+        return {"status": status, "started": started,
+                "hits": ocr_svc.search(query, top_k=5) or []}
+
+    def _task_management() -> Dict[str, Any]:
+        if management_context is None:
+            return {}
+        return management_context.build_management_context(query, limit=6) or {}
+
+    results = _run_parallel({
+        "platform":   _task_platform,
+        "web":        _task_web,
+        "local":      _task_local,
+        "ocr":        _task_ocr,
+        "management": _task_management,
+    })
+
+    # 1. 線上平台 URL 即時資料
+    platform_payload: Dict[str, Any] = results.get("platform") or {}
+    platform_ctx = _as_text(platform_payload.get("context"))
+    platform_evidence: List[Dict[str, Any]] = list(platform_payload.get("evidence") or [])
+
+    # 2. 網路搜尋
+    web_results: List[Dict[str, Any]] = results.get("web") or []
+    web_ctx = _format_web_results(web_results) if web_results else ""
+
+    # 3. 本機 RAG 補充
+    local_docs: List[Dict[str, Any]] = results.get("local") or []
+    local_evidence = [_doc_to_evidence(d) for d in local_docs[:6]]
+    local_ctx = "\n\n".join(
+        (
+            f"【本機文件 {index}：{_as_text(d.get('source_file') or d.get('source') or '橫流溪資料庫')}"
+            f"；頁碼 {_as_text(d.get('page') or d.get('page_number') or '未標示')}】\n"
+            f"{_as_text(d.get('full_text') or d.get('preview') or d.get('text'))[:900]}"
+        )
+        for index, d in enumerate(local_docs[:8], 1)
+    ) if local_docs else ""
+
+    # 4. Drive OCR 全文搜尋
+    ocr_payload: Dict[str, Any] = results.get("ocr") or {}
+    ocr_status_data: Dict[str, Any] = dict(ocr_payload.get("status") or {})
+    ocr_index_started = bool(ocr_payload.get("started"))
     ocr_citations: List[Dict[str, Any]] = []
-    ocr_status_data: Dict[str, Any] = {}
-    ocr_index_started = False
-    ocr_svc = _get_ocr_svc()
-    if include_cloud_ocr and ocr_svc is not None:
-        try:
-            ocr_status_data = dict(ocr_svc.get_status() or {})
-            if (
-                int(ocr_status_data.get("total_docs") or 0) == 0
-                and not bool(ocr_status_data.get("running"))
-            ):
-                folder_id = _OCR_FOLDER_ID
-                folder_url = _as_text(data.get("folder_url") or data.get("drive_folder_url"))
-                if folder_url:
-                    m = re.search(r"/folders/([A-Za-z0-9_-]+)", folder_url)
-                    if m:
-                        folder_id = m.group(1)
-                ocr_index_started = bool(ocr_svc.start_indexing(folder_id))
-                ocr_status_data = dict(ocr_svc.get_status() or {})
+    ocr_parts: List[str] = []
+    for h in (ocr_payload.get("hits") or []):
+        snippet = _as_text(h.get("chunk"))[:600]
+        doc_name = _as_text(h.get("doc_name"))
+        year_tag = f"（{h['year']}年）" if h.get("year") else ""
+        ocr_parts.append(f"【文件：{doc_name}{year_tag}】\n{snippet}")
+        ocr_citations.append({
+            "title":   doc_name,
+            "href":    h.get("web_view", ""),
+            "year":    h.get("year"),
+            "score":   h.get("score", 0),
+            "snippet": snippet[:120],
+        })
+    ocr_ctx = "\n\n".join(ocr_parts)
 
-            ocr_hits = ocr_svc.search(query, top_k=5)
-            if ocr_hits:
-                ocr_parts = []
-                for h in ocr_hits:
-                    snippet = _as_text(h.get("chunk"))[:600]
-                    doc_name = _as_text(h.get("doc_name"))
-                    year_tag = f"（{h['year']}年）" if h.get("year") else ""
-                    ocr_parts.append(f"【文件：{doc_name}{year_tag}】\n{snippet}")
-                    ocr_citations.append({
-                        "title":   doc_name,
-                        "href":    h.get("web_view", ""),
-                        "year":    h.get("year"),
-                        "score":   h.get("score", 0),
-                        "snippet": snippet[:120],
-                    })
-                ocr_ctx = "\n\n".join(ocr_parts)
-        except Exception:
-            pass
-
-    # ── 5. 最新巡查與維護管理資料 ──────────────────────────
-    management_ctx = ""
-    management_evidence: List[Dict[str, Any]] = []
-    management_counts: Dict[str, Any] = {}
-    if management_context is not None:
-        try:
-            mgmt = management_context.build_management_context(query, limit=6)
-            management_ctx = _as_text(mgmt.get("context"))
-            management_evidence = list(mgmt.get("evidence") or [])
-            management_counts = dict(mgmt.get("counts") or {})
-        except Exception:
-            pass
+    # 5. 最新巡查與維護管理資料
+    mgmt: Dict[str, Any] = results.get("management") or {}
+    management_ctx = _as_text(mgmt.get("context"))
+    management_evidence: List[Dict[str, Any]] = list(mgmt.get("evidence") or [])
+    management_counts: Dict[str, Any] = dict(mgmt.get("counts") or {})
 
     # ── 6. 組合 context ───────────────────────────────────────
     combined_ctx_parts = []
@@ -1636,12 +1778,19 @@ def photo_assess():
         if not or_key:
             return jsonify({"status": "error", "message": "未設定 OPENROUTER_API_KEY"}), 503
 
+        # 免費視覺模型會不定期下架；`openrouter/free` 由 OpenRouter 自動路由到
+        # 當下可用的免費模型，放第一順位可大幅降低「全部失敗」的機率。
         vision_models = [
-            ("meta-llama/llama-3.2-11b-vision-instruct:free", "llama-3.2-11b-vision"),
-            ("qwen/qwen2.5-vl-7b-instruct:free",              "qwen2.5-vl-7b"),
-            ("qwen/qwen2-vl-7b-instruct:free",                "qwen2-vl-7b"),
-            ("microsoft/phi-3.5-vision-instruct:free",         "phi-3.5-vision"),
+            (os.environ.get("OPENROUTER_VISION_MODEL", "").strip(), "指定視覺模型"),
+            ("openrouter/free",                                "OpenRouter Free Router"),
+            ("meta-llama/llama-3.2-11b-vision-instruct:free",  "llama-3.2-11b-vision"),
+            ("qwen/qwen2.5-vl-7b-instruct:free",               "qwen2.5-vl-7b"),
+            ("qwen/qwen2-vl-72b-instruct:free",                "qwen2-vl-72b"),
+            ("mistralai/mistral-small-3.2-24b-instruct:free",  "mistral-small-3.2-24b"),
         ]
+        vision_models = [(m, n) for m, n in vision_models if m]
+        if _OR_VISION_LAST_GOOD["model"]:
+            vision_models.sort(key=lambda mv: mv[0] != _OR_VISION_LAST_GOOD["model"])
         last_err = ""
         for model_id, display_name in vision_models:
             payload = _json.dumps({
@@ -1668,6 +1817,7 @@ def photo_assess():
                 answer = res["choices"][0]["message"]["content"].strip()
                 if answer:
                     _log.info(f"[PHOTO_ASSESS] ✓ {model_id}")
+                    _OR_VISION_LAST_GOOD["model"] = model_id
                     return jsonify({
                         "status": "success",
                         "assessment": answer,
@@ -1675,6 +1825,8 @@ def photo_assess():
                         "timestamp": _now(),
                     })
             except urllib.error.HTTPError as e:
+                if _OR_VISION_LAST_GOOD["model"] == model_id:
+                    _OR_VISION_LAST_GOOD["model"] = ""
                 last_err = f"HTTP {e.code}: {e.read()[:120].decode('utf-8','replace')}"
                 _log.warning(f"[PHOTO_ASSESS] {model_id} {last_err}")
             except Exception as e:

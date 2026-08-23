@@ -185,9 +185,60 @@ def _find_existing_file(service, filename: str, folder_id: str):
     return None, None
 
 
+def explain_drive_error(exc: Exception) -> str:
+    """把 Google Drive API 的原始錯誤轉成可行動的中文提示。"""
+    text = str(exc)
+    if 'storageQuotaExceeded' in text or 'do not have storage quota' in text:
+        return ('Google 服務帳號本身沒有雲端硬碟容量，無法上傳檔案。'
+                '請改用「共用雲端硬碟（Shared Drive）」並將服務帳號加為成員，'
+                '或改用 OAuth 授權（/api/drive/authorize）。')
+    if 'invalid_grant' in text:
+        return ('Google Drive 授權已過期或被撤銷，請重新授權：開啟 /api/drive/authorize。')
+    if 'insufficientPermissions' in text or 'forbidden' in text.lower():
+        return ('沒有此資料夾的寫入權限，請確認服務帳號或帳號已被加入該 Drive 資料夾的編輯者。')
+    if 'DRIVE_NOT_CONFIGURED' in text or 'SA_NOT_FOUND' in text:
+        return '尚未設定 Google Drive 認證，請先完成服務帳號或 OAuth 設定。'
+    return text
+
+
+def _render_form_pdf(payload: dict, form_type: str) -> bytes:
+    """呼叫表單 PDF 產生器（相容套件內／獨立執行兩種匯入路徑）。"""
+    try:
+        from webapp.form_pdf import render_form_pdf
+    except ImportError:
+        from form_pdf import render_form_pdf              # type: ignore
+    return render_form_pdf(payload, form_type)
+
+
+def _upload_bytes(service, content: bytes, mimetype: str,
+                  filename: str, folder_id: str) -> dict:
+    """上傳／覆蓋單一檔案，回傳 (id, webViewLink, action)。"""
+    from googleapiclient.http import MediaIoBaseUpload
+
+    media = MediaIoBaseUpload(io.BytesIO(content), mimetype=mimetype, resumable=False)
+    existing_id, existing_link = _find_existing_file(service, filename, folder_id)
+
+    if existing_id:
+        updated = service.files().update(
+            fileId=existing_id, media_body=media, fields='id,webViewLink').execute()
+        return {'id': updated['id'],
+                'link': updated.get('webViewLink', existing_link),
+                'action': 'updated'}
+    created = service.files().create(
+        body={'name': filename, 'parents': [folder_id]},
+        media_body=media, fields='id,webViewLink').execute()
+    return {'id': created['id'],
+            'link': created.get('webViewLink', ''),
+            'action': 'created'}
+
+
 def upload_inspection(data: dict, form_type: str,
                       cloud_folder_path: str, filename: str) -> dict:
-    from googleapiclient.http import MediaIoBaseUpload
+    """把一筆表單同步至 Drive。
+
+    主檔為可直接閱讀的 PDF 表單；原始 JSON 另存於同層 `_原始資料` 子資料夾，
+    供平台重新匯入使用，不對外當成表單本體呈現。
+    """
     from datetime import datetime
 
     service = _get_service()
@@ -197,29 +248,44 @@ def upload_inspection(data: dict, form_type: str,
     payload['_syncedAt'] = datetime.utcnow().isoformat() + 'Z'
     payload['_formType'] = form_type
 
-    content = json.dumps(payload, ensure_ascii=False, indent=2)
-    media   = MediaIoBaseUpload(
-        io.BytesIO(content.encode('utf-8')),
-        mimetype='application/json', resumable=False)
+    base = filename.rsplit('.', 1)[0] if '.' in filename else filename
 
-    existing_id, existing_link = _find_existing_file(service, filename, folder_id)
+    # ── 主檔：PDF 表單 ────────────────────────────────────────────
+    pdf_result, pdf_error = None, ''
+    try:
+        pdf_result = _upload_bytes(
+            service, _render_form_pdf(payload, form_type),
+            'application/pdf', f'{base}.pdf', folder_id)
+    except Exception as exc:
+        pdf_error = explain_drive_error(exc)
+        logger.error('[Drive] PDF 產生／上傳失敗：%s（原始：%s）', pdf_error, exc)
 
-    if existing_id:
-        updated = service.files().update(
-            fileId=existing_id, media_body=media,
-            fields='id,webViewLink').execute()
-        return {'success': True,
-                'driveFileId':  updated['id'],
-                'driveWebLink': updated.get('webViewLink', existing_link),
-                'action': 'updated'}
-    else:
-        created = service.files().create(
-            body={'name': filename, 'parents': [folder_id]},
-            media_body=media, fields='id,webViewLink').execute()
-        return {'success': True,
-                'driveFileId':  created['id'],
-                'driveWebLink': created.get('webViewLink', ''),
-                'action': 'created'}
+    # ── 附檔：原始 JSON（存於 _原始資料 子資料夾）────────────────
+    json_result = None
+    try:
+        raw_folder_id = _find_or_create_folder(service, '_原始資料', folder_id)
+        json_result = _upload_bytes(
+            service, json.dumps(payload, ensure_ascii=False, indent=2).encode('utf-8'),
+            'application/json', f'{base}.json', raw_folder_id)
+    except Exception as exc:
+        logger.warning('[Drive] 原始 JSON 上傳失敗：%s', exc)
+
+    primary = pdf_result or json_result
+    if primary is None:
+        return {'success': False,
+                'error': pdf_error or 'Drive 上傳失敗（PDF 與 JSON 皆未成功）'}
+
+    return {
+        'success': True,
+        'driveFileId':   primary['id'],
+        'driveWebLink':  primary['link'],
+        'action':        primary['action'],
+        'format':        'PDF' if pdf_result else 'JSON',
+        'pdfFileName':   f'{base}.pdf' if pdf_result else '',
+        'jsonFileId':    json_result['id'] if json_result else '',
+        'jsonWebLink':   json_result['link'] if json_result else '',
+        'pdfError':      pdf_error,
+    }
 
 
 # ── OAuth2 流程（本機備用）─────────────────────────────────────────────
