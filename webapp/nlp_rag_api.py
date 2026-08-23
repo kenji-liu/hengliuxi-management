@@ -1078,10 +1078,11 @@ def _call_openrouter(query: str, ctx: str) -> "tuple[str, str]":
     configured = os.environ.get("OPENROUTER_MODEL", "").strip()
     free_models = [
         (configured, configured),
-        ("openrouter/free", "OpenRouter Free Router"),
-        ("google/gemma-3-27b-it:free",               "gemma-3-27b"),
+        ("openrouter/free",                          "OpenRouter Free Router"),
+        ("meta-llama/llama-3.1-8b-instruct:free",   "llama-3.1-8b"),
         ("meta-llama/llama-3.2-3b-instruct:free",   "llama-3.2-3b"),
         ("mistralai/mistral-7b-instruct:free",       "mistral-7b"),
+        ("google/gemma-3-4b-it:free",               "gemma-3-4b"),
     ]
     for model_id, display_name in free_models:
         if not model_id:
@@ -1637,8 +1638,9 @@ def photo_assess():
 
         vision_models = [
             ("meta-llama/llama-3.2-11b-vision-instruct:free", "llama-3.2-11b-vision"),
+            ("qwen/qwen2.5-vl-7b-instruct:free",              "qwen2.5-vl-7b"),
             ("qwen/qwen2-vl-7b-instruct:free",                "qwen2-vl-7b"),
-            ("google/gemma-3-27b-it:free",                    "gemma-3-27b"),
+            ("microsoft/phi-3.5-vision-instruct:free",         "phi-3.5-vision"),
         ]
         last_err = ""
         for model_id, display_name in vision_models:
