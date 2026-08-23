@@ -917,9 +917,14 @@ def _resolve_gemini_candidates(key: str) -> list[tuple[str, str]]:
 
     # Stable text models first, then previews; higher version ids sort first.
     model_ids = sorted(set(model_ids), key=lambda value: ("preview" not in value, value), reverse=True)
-    ordered = ([configured] if configured else []) + model_ids + [
-        "gemini-3.6-flash", "gemini-2.5-flash", "gemini-2.0-flash",
-    ]
+    # 免費額度模型優先（1.5 系列），再嘗試動態探索結果，最後才用新世代付費模型
+    free_tier = ["gemini-1.5-flash", "gemini-1.5-flash-8b", "gemini-1.5-flash-latest"]
+    ordered = (
+        ([configured] if configured else [])
+        + free_tier
+        + model_ids
+        + ["gemini-2.5-flash", "gemini-3.6-flash"]
+    )
     candidates = []
     for model_id in ordered:
         for api_version in ("v1beta", "v1"):
