@@ -917,13 +917,11 @@ def _resolve_gemini_candidates(key: str) -> list[tuple[str, str]]:
 
     # Stable text models first, then previews; higher version ids sort first.
     model_ids = sorted(set(model_ids), key=lambda value: ("preview" not in value, value), reverse=True)
-    # 免費額度模型優先（1.5 系列），再嘗試動態探索結果，最後才用新世代付費模型
-    free_tier = ["gemini-1.5-flash", "gemini-1.5-flash-8b", "gemini-1.5-flash-latest"]
+    # 以帳戶即時回報的模型為準；1.5 系列已下架，不再放入固定候選清單。
     ordered = (
         ([configured] if configured else [])
-        + free_tier
         + model_ids
-        + ["gemini-2.5-flash", "gemini-3.6-flash"]
+        + ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-3-flash-preview"]
     )
     candidates = []
     for model_id in ordered:
@@ -1058,13 +1056,17 @@ def _call_openrouter(query: str, ctx: str) -> "tuple[str, str]":
     if not key:
         return "", ""
 
+    configured = os.environ.get("OPENROUTER_MODEL", "").strip()
     free_models = [
-        ("meta-llama/llama-3.1-8b-instruct:free",  "llama-3.1-8b"),
+        (configured, configured),
+        ("openrouter/free", "OpenRouter Free Router"),
         ("google/gemma-3-27b-it:free",               "gemma-3-27b"),
         ("meta-llama/llama-3.2-3b-instruct:free",   "llama-3.2-3b"),
         ("mistralai/mistral-7b-instruct:free",       "mistral-7b"),
     ]
     for model_id, display_name in free_models:
+        if not model_id:
+            continue
         payload = _json.dumps({
             "model": model_id,
             "messages": [
@@ -1081,7 +1083,8 @@ def _call_openrouter(query: str, ctx: str) -> "tuple[str, str]":
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {key}",
                 "HTTP-Referer": "https://hengliuxi-management.onrender.com",
-                "X-Title": "橫流溪管理平台",
+                # urllib HTTP headers must be latin-1 encodable.
+                "X-Title": "Hengliu Creek Management Platform",
             },
             method="POST",
         )
@@ -1155,7 +1158,7 @@ def _ai_synthesis(query: str, combined_ctx: str) -> "tuple[str, str, str]":
     priority = [
         name.strip().lower()
         for name in os.environ.get(
-            "AI_PROVIDER_PRIORITY", "gemini,claude,groq,openrouter"
+            "AI_PROVIDER_PRIORITY", "gemini,openrouter,claude,groq"
         ).split(",")
         if name.strip().lower() in provider_functions
     ]
@@ -1536,16 +1539,26 @@ def ai_check():
         try:
             payload = _json.dumps({"contents": [{"parts": [{"text": "hi"}]}],
                 "generationConfig": {"maxOutputTokens": 5}}).encode()
-            candidates = _resolve_gemini_candidates(gemini_key)
-            model, api_version = candidates[0]
-            url = f"https://generativelanguage.googleapis.com/{api_version}/models/{model}:generateContent?key={gemini_key}"
-            req = urllib.request.Request(url, data=payload,
-                headers={"Content-Type": "application/json"}, method="POST")
-            with urllib.request.urlopen(req, timeout=10) as r:
-                r.read()
-            results["gemini"] = "✓ OK"
-        except urllib.error.HTTPError as e:
-            results["gemini"] = f"✗ HTTP {e.code}: {e.read()[:200].decode('utf-8','replace')}"
+            last_error = "no usable model"
+            for model, api_version in _resolve_gemini_candidates(gemini_key):
+                url = f"https://generativelanguage.googleapis.com/{api_version}/models/{model}:generateContent?key={gemini_key}"
+                req = urllib.request.Request(url, data=payload,
+                    headers={"Content-Type": "application/json"}, method="POST")
+                try:
+                    with urllib.request.urlopen(req, timeout=10) as r:
+                        r.read()
+                    results["gemini"] = f"✓ OK ({model})"
+                    break
+                except urllib.error.HTTPError as e:
+                    body = e.read()[:200].decode("utf-8", "replace")
+                    last_error = f"HTTP {e.code}: {body}"
+                    # 429/403 are account-level restrictions; trying more models will not help.
+                    if e.code in (403, 429):
+                        break
+            else:
+                results["gemini"] = f"✗ {last_error}"
+            if "gemini" not in results:
+                results["gemini"] = f"✗ {last_error}"
         except Exception as e:
             results["gemini"] = f"✗ {type(e).__name__}: {e}"
     else:
@@ -1585,7 +1598,7 @@ def ai_check():
     if or_key:
         try:
             or_payload = _json.dumps({
-                "model": "meta-llama/llama-3.1-8b-instruct:free",
+                "model": os.environ.get("OPENROUTER_MODEL", "").strip() or "openrouter/free",
                 "messages": [{"role": "user", "content": "hi"}],
                 "max_tokens": 5,
             }).encode()
@@ -1595,11 +1608,11 @@ def ai_check():
                     "Content-Type": "application/json",
                     "Authorization": f"Bearer {or_key}",
                     "HTTP-Referer": "https://hengliuxi-management.onrender.com",
-                    "X-Title": "橫流溪管理平台",
+                    "X-Title": "Hengliu Creek Management Platform",
                 }, method="POST")
             with urllib.request.urlopen(or_req, timeout=15) as r:
                 r.read()
-            results["openrouter"] = "✓ OK"
+            results["openrouter"] = "✓ OK (free router)"
         except urllib.error.HTTPError as e:
             results["openrouter"] = f"✗ HTTP {e.code}: {e.read()[:150].decode('utf-8','replace')}"
         except Exception as e:

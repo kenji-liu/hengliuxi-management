@@ -1177,8 +1177,9 @@ async function _refreshAIProviderStatus(force = false) {
     };
     const inferenceReady = ["groq", "gemini", "claude", "openrouter", "ollama"].some(k => /✓/.test(state(k)));
     el.classList.toggle("warn", !inferenceReady);
-    el.textContent = `Groq：${short(state("groq"))}｜Gemini：${short(state("gemini"))}｜Claude：${short(state("claude"))}｜Ollama：${short(state("ollama"))}｜知識庫：${short(state("local_kb"))}`;
-    el.title = ["Groq", "Gemini", "Claude", "Ollama"].map((label, i) => `${label}: ${state(["groq", "gemini", "claude", "ollama"][i])}`).join("\n");
+    el.textContent = `Groq：${short(state("groq"))}｜Gemini：${short(state("gemini"))}｜Claude：${short(state("claude"))}｜OpenRouter：${short(state("openrouter"))}｜Ollama：${short(state("ollama"))}｜知識庫：${short(state("local_kb"))}`;
+    const providerKeys = ["groq", "gemini", "claude", "openrouter", "ollama"];
+    el.title = ["Groq", "Gemini", "Claude", "OpenRouter", "Ollama"].map((label, i) => `${label}: ${state(providerKeys[i])}`).join("\n");
   } catch (error) {
     el.classList.add("warn");
     el.textContent = "雲端 AI 狀態暫時無法取得｜本機知識庫仍可使用";
