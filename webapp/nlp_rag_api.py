@@ -899,21 +899,31 @@ def _call_gemini(query: str, ctx: str) -> "tuple[str, str]":
         "generationConfig": {"temperature": 0.4, "maxOutputTokens": 1024},
     }).encode("utf-8")
 
-    # 依序嘗試：2.0-flash → 2.5-flash-preview → 1.5-flash
-    for model in ["gemini-2.0-flash", "gemini-2.5-flash-preview-05-20", "gemini-1.5-flash"]:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
+    # 依序嘗試不同模型與 API 版本（v1beta / v1）
+    candidates = [
+        ("gemini-2.0-flash",              "v1beta"),
+        ("gemini-2.0-flash",              "v1"),
+        ("gemini-2.0-flash-lite",         "v1beta"),
+        ("gemini-2.0-flash-lite",         "v1"),
+        ("gemini-1.5-flash",              "v1"),
+        ("gemini-1.5-flash",              "v1beta"),
+        ("gemini-1.5-flash-latest",       "v1"),
+        ("gemini-1.5-flash-8b",           "v1"),
+    ]
+    for model, api_ver in candidates:
+        url = f"https://generativelanguage.googleapis.com/{api_ver}/models/{model}:generateContent?key={key}"
         req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
         try:
             with urllib.request.urlopen(req, timeout=30) as r:
                 res = _json.loads(r.read().decode())
             text = res["candidates"][0]["content"]["parts"][0]["text"].strip()
-            _log.info(f"[GEMINI] ✓ 使用 {model}")
+            _log.info(f"[GEMINI] ✓ 使用 {model} ({api_ver})")
             return text, f"{model} (Google)"
         except urllib.error.HTTPError as e:
             body = e.read().decode("utf-8", errors="ignore")
-            _log.warning(f"[GEMINI] {model} HTTP {e.code}: {body[:200]}")
+            _log.warning(f"[GEMINI] {model}/{api_ver} HTTP {e.code}: {body[:150]}")
         except Exception as e:
-            _log.warning(f"[GEMINI] {model} 錯誤: {e}")
+            _log.warning(f"[GEMINI] {model}/{api_ver} 錯誤: {e}")
 
     return "", ""
 
@@ -1367,7 +1377,7 @@ def ai_check():
         try:
             payload = _json.dumps({"contents": [{"parts": [{"text": "hi"}]}],
                 "generationConfig": {"maxOutputTokens": 5}}).encode()
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}"
+            url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key={gemini_key}"
             req = urllib.request.Request(url, data=payload,
                 headers={"Content-Type": "application/json"}, method="POST")
             with urllib.request.urlopen(req, timeout=10) as r:
