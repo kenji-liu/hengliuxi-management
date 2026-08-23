@@ -974,11 +974,16 @@ function initAIChat() {
     .ai-msg{max-width:96%;font-size:13px;line-height:1.45;white-space:pre-wrap}
     .ai-msg.bot{background:#fff;border:1px solid #e2e8f0;border-radius:0 10px 10px 10px;padding:9px 11px;align-self:flex-start}
     .ai-msg.user{background:var(--primary);color:#fff;border-radius:10px 0 10px 10px;padding:8px 12px;align-self:flex-end}
-    .ai-input-row{display:flex;gap:6px;padding:10px 12px;border-top:1px solid #e2e8f0;background:#fff}
-    .ai-input{flex:1;padding:8px 10px;border:1px solid #d5dde7;border-radius:20px;font-size:13px;outline:none;font-family:inherit}
+    .ai-input-row{display:flex;gap:6px;padding:10px 12px;border-top:1px solid #e2e8f0;background:#fff;align-items:center;flex-wrap:wrap}
+    .ai-input{flex:1;min-width:120px;padding:8px 10px;border:1px solid #d5dde7;border-radius:20px;font-size:13px;outline:none;font-family:inherit}
     .ai-input:focus{border-color:var(--primary)}
     .ai-send{background:var(--primary);color:#fff;border:none;border-radius:18px;min-width:48px;height:34px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
     .ai-send:hover{background:var(--primary-light)}
+    .ai-photo-btn{background:#f0f4f8;border:1px solid #d5dde7;border-radius:18px;width:34px;height:34px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .ai-photo-btn:hover{background:#e2e8f0}
+    .ai-photo-preview-wrap{display:none;align-items:center;gap:4px;background:#f0faf4;border:1px solid #86efac;border-radius:8px;padding:2px 6px;width:100%}
+    .ai-photo-preview-wrap img{height:40px;border-radius:4px;cursor:pointer}
+    .ai-photo-cancel{cursor:pointer;font-size:12px;color:#666;margin-left:4px}
     .ai-typing{display:flex;gap:4px;padding:8px 12px;background:#fff;border:1px solid #e2e8f0;border-radius:0 10px 10px 10px;align-self:flex-start}
     .ai-typing span{width:8px;height:8px;border-radius:50%;background:#1a6b3c;animation:bounce .9s infinite}
     .ai-typing span:nth-child(2){animation-delay:.15s}
@@ -1066,6 +1071,13 @@ function initAIChat() {
         ).join('')}
       </div>
       <div class="ai-input-row">
+        <input type="file" id="aiPhotoInput" accept="image/*" style="display:none" onchange="_aiPhotoPreview(this)">
+        <button class="ai-photo-btn" onclick="document.getElementById('aiPhotoInput').click()" title="上傳設施照片評估損壞">📷</button>
+        <div class="ai-photo-preview-wrap" id="aiPhotoPreviewWrap">
+          <img id="aiPhotoThumb" src="" alt="預覽">
+          <span style="font-size:12px;color:#15803d">照片已選取</span>
+          <span class="ai-photo-cancel" onclick="_aiPhotoCancel()">✕ 取消</span>
+        </div>
         <input class="ai-input" id="aiInput" placeholder="輸入問題…如：溪構5-2 魚道現況？" onkeydown="if(event.key==='Enter')aiSend()">
         <button class="ai-send" onclick="aiSend()">送出</button>
       </div>
@@ -1965,11 +1977,65 @@ function clearAIChat() {
   if (log) log.innerHTML = '<div class="ai-msg bot">對話已清除，可繼續提問。</div>';
 }
 
+// ── 照片評估 ──────────────────────────────────────────────────────
+let _aiPhoto = { b64: null, mime: null };
+
+function _aiPhotoPreview(input) {
+  const file = input.files[0];
+  if (!file) return;
+  _aiPhoto.mime = file.type || "image/jpeg";
+  const reader = new FileReader();
+  reader.onload = e => {
+    _aiPhoto.b64 = e.target.result.split(",")[1];
+    document.getElementById("aiPhotoThumb").src = e.target.result;
+    document.getElementById("aiPhotoPreviewWrap").style.display = "flex";
+    document.getElementById("aiInput").placeholder = "（選填）輸入問題，或直接按送出讓 AI 評估照片…";
+  };
+  reader.readAsDataURL(file);
+}
+
+function _aiPhotoCancel() {
+  _aiPhoto = { b64: null, mime: null };
+  document.getElementById("aiPhotoInput").value = "";
+  document.getElementById("aiPhotoPreviewWrap").style.display = "none";
+  document.getElementById("aiInput").placeholder = "輸入問題…如：溪構5-2 魚道現況？";
+}
+
 async function aiSend() {
   const input = document.getElementById("aiInput");
   const q = (input.value || "").trim();
-  if (!q) return;
 
+  // ── 有照片 → 呼叫 photo-assess ──────────────────────────────
+  if (_aiPhoto.b64) {
+    const question = q || "請評估照片中的設施損壞狀況";
+    input.value = "";
+    const thumb = document.getElementById("aiPhotoThumb").src;
+    appendAIMsg(`<img src="${thumb}" style="max-width:180px;max-height:130px;border-radius:8px;display:block;margin-bottom:4px"><span>${question}</span>`, "user", true);
+    const typing = appendTyping();
+    const b64 = _aiPhoto.b64, mime = _aiPhoto.mime;
+    _aiPhotoCancel();
+    try {
+      const resp = await fetch("/api/photo-assess", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image_base64: b64, mime_type: mime, question }),
+      });
+      const data = await resp.json();
+      typing.remove();
+      if (data.status === "success") {
+        appendAIMsg(`📷 **AI 設施損壞評估**（${data.model}）\n\n${data.assessment}`, "bot", true);
+      } else {
+        appendAIMsg(`❌ 照片評估失敗：${data.message}`, "bot");
+      }
+    } catch (err) {
+      typing.remove();
+      appendAIMsg(`照片評估錯誤：${err.message}`, "bot");
+    }
+    return;
+  }
+
+  // ── 純文字 → 原有 RAG 流程 ───────────────────────────────────
+  if (!q) return;
   input.value = "";
   appendAIMsg(q, "user");
   const typing = appendTyping();

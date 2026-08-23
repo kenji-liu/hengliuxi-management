@@ -1588,6 +1588,102 @@ def smart_ask() -> Any:
     })
 
 
+@nlp_rag.route("/photo-assess", methods=["POST"])
+def photo_assess():
+    """照片損壞評估 — 使用 OpenRouter 免費視覺模型。
+    接受 multipart/form-data（欄位 photo + question）
+    或 application/json（image_base64, mime_type, question）。
+    """
+    import base64 as _b64, os, urllib.request, urllib.error, json as _json, logging
+    _log = logging.getLogger(__name__)
+    try:
+        # ── 取得圖片 ─────────────────────────────────────────────
+        mime_type, image_b64 = "image/jpeg", ""
+        ct = request.content_type or ""
+        if "multipart" in ct:
+            photo = request.files.get("photo")
+            if not photo:
+                return jsonify({"status": "error", "message": "未收到 'photo' 欄位"}), 400
+            image_b64 = _b64.b64encode(photo.read()).decode("ascii")
+            mime_type = photo.content_type or "image/jpeg"
+        else:
+            body = request.get_json(silent=True) or {}
+            image_b64 = body.get("image_base64", "")
+            mime_type = body.get("mime_type", "image/jpeg")
+        if not image_b64:
+            return jsonify({"status": "error", "message": "未收到圖片資料"}), 400
+
+        question = (
+            (request.form.get("question") if request.form else None)
+            or (request.get_json(silent=True) or {}).get("question")
+            or "請評估照片中的設施損壞狀況"
+        )
+
+        # ── 評估提示詞 ────────────────────────────────────────────
+        system_text = (
+            "你是橫流溪水利工程設施專業巡查員，具備 DER&U 評估能力。"
+            "請以繁體中文分析照片中的設施狀況：\n"
+            "1. **損壞類型**：裂縫、淘空、位移、鏽蝕、堵塞、生態廊道阻礙、外觀正常等\n"
+            "2. **損壞程度**：輕微 / 中等 / 嚴重（說明理由）\n"
+            "3. **緊急程度**：可繼續觀察 / 近期需維護（3個月內）/ 需立即處理\n"
+            "4. **建議處置**：具體維修方式或下一步行動\n"
+            "若照片不清晰或無法判斷，請說明原因並請使用者補拍。"
+        )
+
+        # ── 依序嘗試免費視覺模型 ─────────────────────────────────
+        or_key = os.environ.get("OPENROUTER_API_KEY", "")
+        if not or_key:
+            return jsonify({"status": "error", "message": "未設定 OPENROUTER_API_KEY"}), 503
+
+        vision_models = [
+            ("meta-llama/llama-3.2-11b-vision-instruct:free", "llama-3.2-11b-vision"),
+            ("qwen/qwen2-vl-7b-instruct:free",                "qwen2-vl-7b"),
+            ("google/gemma-3-27b-it:free",                    "gemma-3-27b"),
+        ]
+        last_err = ""
+        for model_id, display_name in vision_models:
+            payload = _json.dumps({
+                "model": model_id,
+                "messages": [{"role": "user", "content": [
+                    {"type": "text", "text": f"{system_text}\n\n問題：{question}"},
+                    {"type": "image_url", "image_url": {
+                        "url": f"data:{mime_type};base64,{image_b64}"
+                    }},
+                ]}],
+                "max_tokens": 1000,
+            }).encode("utf-8")
+            req = urllib.request.Request(
+                "https://openrouter.ai/api/v1/chat/completions", data=payload,
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {or_key}",
+                    "HTTP-Referer": "https://hengliuxi-management.onrender.com",
+                    "X-Title": "橫流溪管理平台",
+                }, method="POST")
+            try:
+                with urllib.request.urlopen(req, timeout=60) as r:
+                    res = _json.loads(r.read().decode())
+                answer = res["choices"][0]["message"]["content"].strip()
+                if answer:
+                    _log.info(f"[PHOTO_ASSESS] ✓ {model_id}")
+                    return jsonify({
+                        "status": "success",
+                        "assessment": answer,
+                        "model": display_name,
+                        "timestamp": _now(),
+                    })
+            except urllib.error.HTTPError as e:
+                last_err = f"HTTP {e.code}: {e.read()[:120].decode('utf-8','replace')}"
+                _log.warning(f"[PHOTO_ASSESS] {model_id} {last_err}")
+            except Exception as e:
+                last_err = str(e)
+                _log.warning(f"[PHOTO_ASSESS] {model_id} 錯誤: {e}")
+        return jsonify({"status": "error", "message": f"視覺模型均失敗：{last_err}"}), 503
+    except Exception as e:
+        _log.error(f"[PHOTO_ASSESS] 未預期錯誤: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
 @nlp_rag.route("/ai-check", methods=["GET"])
 def ai_check():
     """快速診斷端點：測試所有 AI 供應商是否可用。"""
