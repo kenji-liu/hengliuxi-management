@@ -883,6 +883,41 @@ def _call_groq(query: str, ctx: str) -> "tuple[str, str]":
         return "", ""
 
 
+def _resolve_gemini_candidates(key: str) -> list[tuple[str, str]]:
+    """Ask Gemini which text-generation models this API key can currently use."""
+    import os, urllib.request, json as _json, logging
+    configured = os.environ.get("GEMINI_MODEL", "").strip()
+    model_ids = []
+    try:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models?key={key}&pageSize=100"
+        with urllib.request.urlopen(url, timeout=15) as response:
+            payload = _json.loads(response.read().decode("utf-8"))
+        for item in payload.get("models", []):
+            methods = item.get("supportedGenerationMethods", [])
+            model_id = str(item.get("name", "")).removeprefix("models/")
+            lowered = model_id.lower()
+            if (
+                model_id and "generateContent" in methods and "gemini" in lowered
+                and "flash" in lowered and not any(word in lowered for word in ("image", "tts", "live"))
+            ):
+                model_ids.append(model_id)
+    except Exception as exc:
+        logging.getLogger(__name__).warning("[GEMINI] model discovery failed: %s", exc)
+
+    # Stable text models first, then previews; higher version ids sort first.
+    model_ids = sorted(set(model_ids), key=lambda value: ("preview" not in value, value), reverse=True)
+    ordered = ([configured] if configured else []) + model_ids + [
+        "gemini-3.6-flash", "gemini-2.5-flash", "gemini-2.0-flash",
+    ]
+    candidates = []
+    for model_id in ordered:
+        for api_version in ("v1beta", "v1"):
+            candidate = (model_id, api_version)
+            if model_id and candidate not in candidates:
+                candidates.append(candidate)
+    return candidates
+
+
 def _call_gemini(query: str, ctx: str) -> "tuple[str, str]":
     """Google Gemini 免費 API（優先 gemini-2.0-flash，備用 gemini-1.5-flash）。
     取得 Key：https://aistudio.google.com  →  Get API key
@@ -899,17 +934,7 @@ def _call_gemini(query: str, ctx: str) -> "tuple[str, str]":
         "generationConfig": {"temperature": 0.4, "maxOutputTokens": 1024},
     }).encode("utf-8")
 
-    configured_model = os.environ.get("GEMINI_MODEL", "").strip()
-    candidates = []
-    if configured_model:
-        candidates.extend([(configured_model, "v1beta"), (configured_model, "v1")])
-    # 只保留已公開的穩定候選；若 Render 有指定 GEMINI_MODEL，會優先使用。
-    candidates.extend([
-        ("gemini-2.5-flash", "v1beta"),
-        ("gemini-2.5-flash", "v1"),
-        ("gemini-2.0-flash", "v1beta"),
-        ("gemini-2.0-flash", "v1"),
-    ])
+    candidates = _resolve_gemini_candidates(key)
     for model, api_ver in candidates:
         url = f"https://generativelanguage.googleapis.com/{api_ver}/models/{model}:generateContent?key={key}"
         req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
@@ -1458,8 +1483,9 @@ def ai_check():
         try:
             payload = _json.dumps({"contents": [{"parts": [{"text": "hi"}]}],
                 "generationConfig": {"maxOutputTokens": 5}}).encode()
-            model = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={gemini_key}"
+            candidates = _resolve_gemini_candidates(gemini_key)
+            model, api_version = candidates[0]
+            url = f"https://generativelanguage.googleapis.com/{api_version}/models/{model}:generateContent?key={gemini_key}"
             req = urllib.request.Request(url, data=payload,
                 headers={"Content-Type": "application/json"}, method="POST")
             with urllib.request.urlopen(req, timeout=10) as r:
