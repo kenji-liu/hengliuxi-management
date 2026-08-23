@@ -825,19 +825,30 @@ def _fetch_platform_url_context(query: str, platform_url: str = "") -> Dict[str,
     }
 
 
-_SYSTEM_PROMPT = (
-    "你是一位流利使用繁體中文的專業助理，擅長工程維護、生態保育與一般知識問答。"
-    "回答時必須優先使用線上平台目前資料、最新巡查資料、維護管理資料、本機知識庫與雲端 OCR 文件。"
-    "若資料內有日期、DER&U、維護工項、照片數、金額或數量，請直接量化回答。"
-    "回答清晰自然、適當分段，不使用 Markdown 標題符號（#、##）。"
-)
+_SYSTEM_PROMPT = """你是「橫流溪工程設施維護與生態資料管理 AI 專家」，具備水利工程、水土保持、
+砂防設施維護、溪流生態保育、魚道連通性與長期監測資料分析能力。請使用繁體中文直接回答。
+
+答詢規則：
+1. 強制先依線上平台最新資料、巡查與維護紀錄、本機 RAG、雲端 OCR 文件作答，不得以模型常識覆蓋資料庫紀錄。
+2. 同時從工程設施、水文棲地、生態指標與調查方法審視問題；跨年份比較須考量樣點、季節、站訪次、調查方法與努力量是否一致。
+3. 資料中的日期、設施名稱、樁號、DER&U、尾數、CPUE、面積、照片數、金額與維護狀態必須精確引用，不得自行補值或修改原始數據。
+4. 異常年度不得直接歸因。僅在資料有施工、水文或調查方法證據時才可定性；否則列出可能假說並明確寫出待補資料。
+5. 嚴格區分「資料直接支持的事實」、「依資料形成的判讀」與「仍需查證的假說」。資料衝突時列出差異，不可挑選較有利的數值。
+6. 回答開頭先給核心結論；兩個以上年度或方案比較時使用 Markdown 表格；最後提供信心分級（高／中／低）與必要的人工複核事項。
+7. 不使用客套開場，不宣稱模型正在訓練，不把 RAG 即時推論描述為模型學習或微調。"""
 
 def _build_user_msg(query: str, combined_ctx: str) -> str:
     ctx_block = f"\n【參考資料】\n{combined_ctx}\n" if combined_ctx.strip() else ""
     return (
         f"{ctx_block}"
         f"【使用者問題】\n{query}\n\n"
-        "請以繁體中文回答（200～500字，資料充分時可適當延伸）："
+        "請以繁體中文提出可直接用於管理決策的回答（約 250～700 字），固定依下列順序：\n"
+        "核心結論：1～2句直接回答。\n"
+        "量化依據：涉及兩個以上年度或方案時，必須使用 Markdown 表格。\n"
+        "工程與生態交叉判讀：只寫參考資料能支持的分析。\n"
+        "資料限制與待查證事項：列出資料缺漏、口徑差異或衝突。\n"
+        "信心分級：高／中／低，並說明原因。\n"
+        "不可把資料已記載完成的調查或驗證寫成尚未執行："
     )
 
 
@@ -931,7 +942,7 @@ def _call_gemini(query: str, ctx: str) -> "tuple[str, str]":
 
     payload = _json.dumps({
         "contents": [{"parts": [{"text": f"{_SYSTEM_PROMPT}\n\n{_build_user_msg(query, ctx)}"}]}],
-        "generationConfig": {"temperature": 0.4, "maxOutputTokens": 1024},
+        "generationConfig": {"temperature": 0.15, "maxOutputTokens": 2048},
     }).encode("utf-8")
 
     candidates = _resolve_gemini_candidates(key)
@@ -1114,12 +1125,21 @@ def _ai_synthesis(query: str, combined_ctx: str) -> "tuple[str, str, str]":
     }
     _log.info(f"[AI_SYNTHESIS] Key status: {key_status}")
 
-    for fn, provider_key in [
-        (_call_groq,       "groq"),
-        (_call_gemini,     "gemini"),
-        (_call_claude,     "claude"),
-        (_call_openrouter, "openrouter"),
-    ]:
+    provider_functions = {
+        "gemini": _call_gemini,
+        "claude": _call_claude,
+        "groq": _call_groq,
+        "openrouter": _call_openrouter,
+    }
+    priority = [
+        name.strip().lower()
+        for name in os.environ.get(
+            "AI_PROVIDER_PRIORITY", "gemini,claude,groq,openrouter"
+        ).split(",")
+        if name.strip().lower() in provider_functions
+    ]
+    for provider_key in priority:
+        fn = provider_functions[provider_key]
         text, display = fn(query, combined_ctx)
         if text:
             _log.info(f"[AI_SYNTHESIS] ✓ 使用 {display}")
@@ -1286,7 +1306,15 @@ def smart_ask() -> Any:
     """
     data    = request.get_json() or {}
     query   = _as_text(data.get("query") or data.get("question"))
-    use_web = bool(data.get("use_web", True))
+    use_web_raw = data.get("use_web", "auto")
+    if isinstance(use_web_raw, bool):
+        use_web = use_web_raw
+    else:
+        use_web_text = str(use_web_raw).strip().lower()
+        if use_web_text == "auto":
+            use_web = bool(re.search(r"網路|外部|最新法規|新聞|天氣|颱風|氣象|公開資料", query))
+        else:
+            use_web = use_web_text not in ("0", "false", "no", "off")
     include_cloud_ocr = str(data.get("include_cloud_ocr", "true")).lower() not in ("0", "false", "no")
     platform_url = _as_text(data.get("platform_url") or data.get("source_url")) or DEFAULT_PLATFORM_URL
     include_platform_url = str(data.get("include_platform_url", "true")).lower() not in ("0", "false", "no")
@@ -1315,12 +1343,16 @@ def smart_ask() -> Any:
     local_evidence: List[Dict[str, Any]] = []
     if rag_backend is not None:
         try:
-            local_docs = _local_keyword_retrieve(query, top_k=5)
-            local_evidence = [_doc_to_evidence(d) for d in local_docs[:4]]
+            local_docs = _local_keyword_retrieve(query, top_k=8)
+            local_evidence = [_doc_to_evidence(d) for d in local_docs[:6]]
             if local_docs:
                 local_ctx = "\n\n".join(
-                    _as_text(d.get("full_text") or d.get("preview") or d.get("text"))[:500]
-                    for d in local_docs[:4]
+                    (
+                        f"【本機文件 {index}：{_as_text(d.get('source_file') or d.get('source') or '橫流溪資料庫')}"
+                        f"；頁碼 {_as_text(d.get('page') or d.get('page_number') or '未標示')}】\n"
+                        f"{_as_text(d.get('full_text') or d.get('preview') or d.get('text'))[:900]}"
+                    )
+                    for index, d in enumerate(local_docs[:8], 1)
                 )
         except Exception:
             pass
@@ -1347,11 +1379,11 @@ def smart_ask() -> Any:
                 ocr_index_started = bool(ocr_svc.start_indexing(folder_id))
                 ocr_status_data = dict(ocr_svc.get_status() or {})
 
-            ocr_hits = ocr_svc.search(query, top_k=3)
+            ocr_hits = ocr_svc.search(query, top_k=5)
             if ocr_hits:
                 ocr_parts = []
                 for h in ocr_hits:
-                    snippet = _as_text(h.get("chunk"))[:300]
+                    snippet = _as_text(h.get("chunk"))[:600]
                     doc_name = _as_text(h.get("doc_name"))
                     year_tag = f"（{h['year']}年）" if h.get("year") else ""
                     ocr_parts.append(f"【文件：{doc_name}{year_tag}】\n{snippet}")
@@ -1385,12 +1417,12 @@ def smart_ask() -> Any:
         combined_ctx_parts.append(f"【線上平台即時讀取資料】\n{platform_ctx}")
     if management_ctx.strip():
         combined_ctx_parts.append(f"【最新巡查與維護管理資料】\n{management_ctx}")
-    if web_ctx.strip():
-        combined_ctx_parts.append(f"【網路搜尋結果（DuckDuckGo）】\n{web_ctx}")
     if local_ctx.strip():
         combined_ctx_parts.append(f"【橫流溪本機 RAG 資料】\n{local_ctx}")
     if ocr_ctx.strip():
         combined_ctx_parts.append(f"【橫流溪雲端文件庫（OCR 全文）】\n{ocr_ctx}")
+    if web_ctx.strip():
+        combined_ctx_parts.append(f"【外部網路補充資料（不得覆蓋橫流溪原始紀錄）】\n{web_ctx}")
     combined_ctx = "\n\n".join(combined_ctx_parts)
 
     # ── 7. AI 綜合推論（自動選用可用的免費服務）─────────────────

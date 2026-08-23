@@ -980,8 +980,16 @@ function initAIChat() {
     .ai-confidence-text{flex:1}
     .ai-confidence-score{font-weight:700;font-size:12px;background:rgba(255,255,255,.65);padding:2px 6px;border-radius:4px}
     .ai-section-title{font-weight:700;margin:7px 0 3px;color:#1f2937}
-    .ai-answer{background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:8px 9px;color:#243447;line-height:1.55;white-space:pre-wrap;font-size:12.5px}
+    .ai-answer{background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:8px 9px;color:#243447;line-height:1.55;white-space:normal;font-size:12.5px}
     .ai-answer br{line-height:1.1}
+    .ai-answer-title{font-weight:800;color:#0f5132;margin:7px 0 3px;font-size:13px}
+    .ai-answer-line{margin:2px 0}
+    .ai-answer-gap{height:5px}
+    .ai-answer ul{margin:4px 0 5px 18px;padding:0}
+    .ai-answer-table-wrap{overflow-x:auto;margin:7px 0}
+    .ai-answer table{width:100%;border-collapse:collapse;background:#fff;font-size:11.5px}
+    .ai-answer th,.ai-answer td{border:1px solid #cbd5e1;padding:5px 6px;text-align:left;vertical-align:top}
+    .ai-answer th{background:#e8f5ee;color:#14532d;font-weight:700}
     .ai-model-note{font-size:11px;color:#64748b;margin-bottom:4px}
     .ai-recommendations{background:#f9fafb;border-left:3px solid #e5e7eb;padding:8px;margin-top:6px;border-radius:4px;font-size:12px;color:#475569}
     .ai-recommendations li{margin-left:16px;margin-top:2px}
@@ -1290,6 +1298,49 @@ function renderFeedbackBlock() {
   return ''; // 回饋區塊已停用
 }
 
+function formatAIAnswer(text) {
+  const lines = String(text || '').replace(/\r/g, '').split('\n');
+  const inline = (value) => escapeHtml(value).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  const cells = (line) => line.trim().replace(/^\||\|$/g, '').split('|').map(v => v.trim());
+  let html = '';
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    const next = lines[i + 1] || '';
+    if (line.includes('|') && /^\s*\|?\s*:?-{3,}/.test(next)) {
+      const headers = cells(line);
+      i += 2;
+      const rows = [];
+      while (i < lines.length && lines[i].includes('|') && lines[i].trim()) {
+        rows.push(cells(lines[i]));
+        i += 1;
+      }
+      html += `<div class="ai-answer-table-wrap"><table><thead><tr>${headers.map(h => `<th>${inline(h)}</th>`).join('')}</tr></thead><tbody>${rows.map(row => `<tr>${headers.map((_, index) => `<td>${inline(row[index] || '')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+      continue;
+    }
+    const title = line.match(/^#{1,3}\s+(.+)$/);
+    if (title) {
+      html += `<div class="ai-answer-title">${inline(title[1])}</div>`;
+      i += 1;
+      continue;
+    }
+    if (/^\s*[-*]\s+/.test(line)) {
+      const items = [];
+      while (i < lines.length && /^\s*[-*]\s+/.test(lines[i])) {
+        items.push(lines[i].replace(/^\s*[-*]\s+/, ''));
+        i += 1;
+      }
+      html += `<ul>${items.map(item => `<li>${inline(item)}</li>`).join('')}</ul>`;
+      continue;
+    }
+    html += line.trim()
+      ? `<div class="ai-answer-line">${inline(line)}</div>`
+      : '<div class="ai-answer-gap"></div>';
+    i += 1;
+  }
+  return html;
+}
+
 function composeAnswer(query, data) {
   const citations = collectCitations(data);
   const fallback = fallbackConfidence(citations);
@@ -1355,7 +1406,7 @@ function composeAnswer(query, data) {
        </div>`;
 
   return `
-    <div class="ai-answer">${answer ? escapeHtml(answer) : fallbackText}</div>
+    <div class="ai-answer">${answer ? formatAIAnswer(answer) : fallbackText}</div>
     ${webSourcesHtml}
     ${providerNote}
     ${renderFeedbackBlock()}
@@ -1871,7 +1922,7 @@ async function queryRAG(query) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           query,
-          use_web: true,
+          use_web: "auto",
           include_platform_url: true,
           platform_url: "https://hengliuxi-management.onrender.com/webapp/"
         }),
