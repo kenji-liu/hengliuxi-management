@@ -1832,6 +1832,23 @@ async function aiFetchLatestManagementContext(query) {
 }
 
 async function queryRAG(query) {
+  // 設施現況、異常與維護優先序可由瀏覽器目前資料庫直接判定。
+  // 不需先等待雲端模型與 3.8 萬筆文件檢索，亦可避免模型改寫最新狀態。
+  const immediateStatusAnswer = _buildLiveStatusAnswer(query);
+  if (immediateStatusAnswer) {
+    return {
+      status: "success",
+      answer: immediateStatusAnswer,
+      llm_provider: "platform_guard",
+      llm_model: "平台即時資料庫（免等待推論）",
+      confidence_level: "high",
+      confidence_score: 96,
+      policy_label: "即時狀態回答",
+      platform_consistency_guard: true,
+      structured_citations: []
+    };
+  }
+
   const latestManagement = await aiFetchLatestManagementContext(query);
 
   // ── 1. 先從本機 KB 取得相關背景知識（不管後端在不在都有資料）
@@ -1851,13 +1868,16 @@ async function queryRAG(query) {
   // ── 2. 統一由後端 smart-ask 管理金鑰、最新平台資料與 RAG，避免前端金鑰外洩或繞過資料優先規則。
   const pageOrigin = (window.location.protocol.startsWith("http"))
     ? window.location.origin : "";
-  const isLocalStatic = /^(127\.0\.0\.1|localhost)$/.test(window.location.hostname) && window.location.port !== "5000";
   const bases = window.HLX_API_BASE
     ? [window.HLX_API_BASE]
-    : (isLocalStatic
-      ? ["http://127.0.0.1:5000", "http://localhost:5000", pageOrigin]
-      : [pageOrigin, "http://127.0.0.1:5000", "http://localhost:5000"]
-    ).filter(Boolean);
+    : [
+        pageOrigin,
+        "https://hengliuxi-management.onrender.com",
+        "http://127.0.0.1:5000",
+        "http://localhost:5000"
+      ].filter((base, index, list) => base && list.indexOf(base) === index);
+
+  const needsCloudDocuments = /(?:OCR|雲端|Drive|文件|報告|原文|頁碼|出處|來源)/i.test(query);
 
   for (const base of bases) {
     try {
@@ -1869,7 +1889,9 @@ async function queryRAG(query) {
         body: JSON.stringify({
           query,
           use_web: "auto",
-          include_platform_url: true,
+          // 已隨請求附上瀏覽器即時快照，不再讓後端重抓同一頁面。
+          include_platform_url: false,
+          include_cloud_ocr: needsCloudDocuments,
           platform_url: "https://hengliuxi-management.onrender.com/webapp/",
           client_platform_context: livePlatformContext
         }),

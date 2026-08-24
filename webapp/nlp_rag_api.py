@@ -490,8 +490,9 @@ def _local_keyword_retrieve(query: str, top_k: int = 8) -> List[Dict[str, Any]]:
         if not haystack:
             continue
         exact = sum(1 for term in query_terms if term.lower() in haystack)
-        partial = sum(1 for term in query_terms if len(term) >= 2 and any(term[:2].lower() in h for h in haystack.split()))
-        score = exact * 1.0 + partial * 0.15
+        # query_terms 已包含中文雙字詞；再對每個詞執行 haystack.split() 會讓
+        # 3.8 萬筆索引每題重複切詞數十萬次，是問答延遲的主要來源。
+        score = exact * 1.0
         if "橫流溪" in haystack:
             score += 0.25
         if score > 0:
@@ -1084,6 +1085,7 @@ def _call_claude(query: str, ctx: str) -> "tuple[str, str]":
 # OpenRouter 上次成功的模型（免費模型常下架，記住可用的可省下重試時間）
 _OR_LAST_GOOD: Dict[str, str] = {"model": ""}
 _OR_VISION_LAST_GOOD: Dict[str, str] = {"model": ""}
+_OLLAMA_UNAVAILABLE_UNTIL: Dict[str, float] = {"until": 0.0}
 
 
 def _call_openrouter(query: str, ctx: str) -> "tuple[str, str]":
@@ -1111,7 +1113,7 @@ def _call_openrouter(query: str, ctx: str) -> "tuple[str, str]":
         free_models.sort(key=lambda mv: mv[0] != _OR_LAST_GOOD["model"])
 
     # 總預算內逐一嘗試；已用掉的時間會從後續模型的逾時扣除，避免整體無上限累加
-    deadline = time.time() + float(os.environ.get("OPENROUTER_BUDGET", "45"))
+    deadline = time.time() + float(os.environ.get("OPENROUTER_BUDGET", "24"))
     for model_id, display_name in free_models:
         if not model_id:
             continue
@@ -1119,7 +1121,7 @@ def _call_openrouter(query: str, ctx: str) -> "tuple[str, str]":
         if remaining < 5:
             _log.warning("[OPENROUTER] 已用盡時間預算，停止嘗試其餘模型")
             break
-        attempt_timeout = min(25.0, remaining)
+        attempt_timeout = min(14.0, remaining)
         payload = _json.dumps({
             "model": model_id,
             "messages": [
@@ -1168,19 +1170,24 @@ def _call_ollama_synthesis(query: str, combined_ctx: str) -> str:
         return ""
     base = getattr(rag_backend, "OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
 
+    now = time.time()
+    if now < _OLLAMA_UNAVAILABLE_UNTIL.get("until", 0.0):
+        return ""
+
     # 先以短逾時確認服務在線。Ollama 是最後一道保底，若它其實不可用
     # （雲端部署常見），不該讓使用者為此多等一次完整的推論逾時。
     try:
-        with urllib.request.urlopen(f"{base}/api/tags", timeout=2) as _probe:
+        with urllib.request.urlopen(f"{base}/api/tags", timeout=1) as _probe:
             _probe.read(1)
     except Exception:
+        _OLLAMA_UNAVAILABLE_UNTIL["until"] = now + 300.0
         logging.getLogger(__name__).info("[OLLAMA] 服務不可用，略過本機推論")
         return ""
 
     ollama_url = f"{base}/api/chat"
     model = os.environ.get("OLLAMA_SMART_MODEL", "qwen2.5:7b")
-    # 互動式問答的可接受等待上限，預設 45 秒（原本 150 秒過長）
-    timeout = min(float(os.environ.get("OLLAMA_SMART_TIMEOUT", "45")),
+    # 互動式問答的可接受等待上限，預設 30 秒。
+    timeout = min(float(os.environ.get("OLLAMA_SMART_TIMEOUT", "30")),
                   float(getattr(rag_backend, "OLLAMA_TIMEOUT", 240)))
     prompt_context = combined_ctx[:8000]
     payload = _json.dumps({
@@ -1201,6 +1208,7 @@ def _call_ollama_synthesis(query: str, combined_ctx: str) -> str:
             res = _json.loads(resp.read().decode())
         return (res.get("message", {}).get("content", "") or res.get("response", "")).strip()
     except Exception:
+        _OLLAMA_UNAVAILABLE_UNTIL["until"] = time.time() + 300.0
         return ""
 
 
@@ -1217,18 +1225,24 @@ def _run_parallel(tasks: "Dict[str, Any]", timeout: float = 20.0) -> Dict[str, A
         return out
 
     _log = logging.getLogger(__name__)
-    with ThreadPoolExecutor(max_workers=len(tasks)) as pool:
-        futures = {pool.submit(fn): name for name, fn in tasks.items()}
-        try:
-            for future in as_completed(futures, timeout=timeout):
-                name = futures[future]
-                try:
-                    out[name] = future.result()
-                except Exception as exc:
-                    _log.warning("[PARALLEL] %s 失敗：%s: %s", name, type(exc).__name__, exc)
-        except Exception:
-            pending = [futures[f] for f in futures if not f.done()]
-            _log.warning("[PARALLEL] 逾時 %.0fs，未完成：%s", timeout, pending)
+    pool = ThreadPoolExecutor(max_workers=len(tasks))
+    futures = {pool.submit(fn): name for name, fn in tasks.items()}
+    try:
+        for future in as_completed(futures, timeout=timeout):
+            name = futures[future]
+            try:
+                out[name] = future.result()
+            except Exception as exc:
+                _log.warning("[PARALLEL] %s 失敗：%s: %s", name, type(exc).__name__, exc)
+    except Exception:
+        pending = [futures[f] for f in futures if not f.done()]
+        _log.warning("[PARALLEL] 逾時 %.0fs，未完成：%s", timeout, pending)
+        for future in futures:
+            if not future.done():
+                future.cancel()
+    finally:
+        # 不在 context manager 結束時等待逾時工作，避免名義上的 timeout 仍卡住回覆。
+        pool.shutdown(wait=False, cancel_futures=True)
     return out
 
 
