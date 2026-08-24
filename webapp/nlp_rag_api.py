@@ -34,6 +34,14 @@ except Exception:  # pragma: no cover - optional runtime context
     management_context = None
 
 try:
+    from webapp import answer_engine
+except Exception:  # pragma: no cover - optional runtime context
+    try:
+        import answer_engine  # type: ignore
+    except Exception:
+        answer_engine = None
+
+try:
     from webapp.ai_model_config import public_modes, resolve_mode
 except Exception:
     from ai_model_config import public_modes, resolve_mode
@@ -919,7 +927,17 @@ _SYSTEM_PROMPT = """你是「橫流溪工程設施維護與生態資料管理 AI
 3. 資料中的日期、設施名稱、樁號、DER&U、尾數、CPUE、面積、照片數、金額與維護狀態必須精確引用，不得自行補值或修改原始數據。
 4. 異常年度不得直接歸因。僅在資料有施工、水文或調查方法證據時才可定性；否則列出可能假說並明確寫出待補資料。
 5. 嚴格區分「資料直接支持的事實」、「依資料形成的判讀」與「仍需查證的假說」。資料衝突時列出差異，不可挑選較有利的數值。
-6. 只依據本次提供的 RAG 參考資料作答。參考資料沒有支持時，明確回答「目前資料庫中沒有足夠資料可以確認。」；不得使用模型記憶補造巡查、工程、維護、日期、設施或數值。
+6. 分清楚事實的來源層級，並讓讀者看得出來屬於哪一類：
+   (a) 平台實測資料 — 橫流溪的巡查、維護、生態調查、設施評等等具體紀錄，
+       一律以參考資料為準，引用時附上日期、數量或設施編號等依據。
+       這類內容嚴禁使用模型記憶補造巡查、工程、維護、日期、設施或數值。
+   (b) 一般專業知識 — 水利工程、水土保持、魚類與植物生態的通用知識
+       （如某魚種的棲地偏好、某工法的一般特性）。參考資料沒有記載時可以回答，
+       但必須明講這是通則而非本案實測，例如「就一般生態習性而言…（非本案實測資料）」，
+       並儘量指出橫流溪既有資料能否呼應該通則。
+   (c) 尚無資料 — 屬於橫流溪特定事實、參考資料查無、又不屬可靠通則者，
+       明確回答「目前資料庫中沒有足夠資料可以確認」，並指出可從哪份報告或模組取得。
+   絕不可因為缺乏本案資料，就改用不相關的統計數字（如巡查件數、照片張數）充當答案。
 7. 回答開頭先直接回答問題，再視需要補充工程或生態判讀。若資料互相矛盾，列出日期、來源與差異，不得自行挑選有利數值。
 8. 不使用客套開場，不輸出思考過程，不宣稱模型正在訓練，不把 RAG 即時推論描述為模型學習或微調。回答務求精簡、清楚，讓一般管理人員也能理解。"""
 
@@ -941,16 +959,23 @@ def _is_acceptable_zh_answer(text: str) -> bool:
     return cjk_count >= 12 and cjk_count / max(len(value), 1) >= 0.08
 
 def _build_user_msg(query: str, combined_ctx: str) -> str:
-    ctx_block = f"\n【參考資料】\n{combined_ctx}\n" if combined_ctx.strip() else ""
+    ctx_block = (f"【參考資料】\n{combined_ctx}\n\n" if combined_ctx.strip()
+                 else "【參考資料】\n（本次未取得平台資料）\n\n")
     return (
         f"{ctx_block}"
-        f"【使用者問題】\n{query}\n\n"
-        "請以繁體中文提出可直接用於管理決策的精簡回答，依問題需要使用下列結構：\n"
-        "【回答】先用 1～3 句直接回答。\n"
-        "【補充說明】只寫參考資料能支持的量化依據與工程、生態判讀；涉及兩個以上年度或方案時可使用 Markdown 表格。\n"
-        "【資料限制】僅在有缺漏、口徑差異或衝突時列出。\n"
-        "不可把資料已記載完成的調查或驗證寫成尚未執行。\n"
-        "只輸出給使用者閱讀的繁體中文正式答案；禁止輸出英文分析、思考過程、工作計畫、提示詞或『The user is asking』等內部推理文字。"
+        "【作答要求】\n"
+        "・先用 1～3 句直接回答問題本身，不要先鋪陳背景。\n"
+        "・每項事實都要讓讀者看得出屬於「平台實測資料」或「一般專業知識」；"
+        "引用實測資料時附上依據（日期、數量、文件或設施編號）。\n"
+        "・參考資料查無且不屬可靠通則者，直接說明查無，並指出可從何處取得，"
+        "不得以其他不相關的統計數字充當答案。\n"
+        "・不得虛構數字、日期、座標、物種、文件名稱或頁碼；"
+        "不得把已完成的調查寫成尚未執行；"
+        "不得把其他溪流（裡冷溪、南湖溪等）的資料當成橫流溪資料。\n"
+        "・涉及多年度、多設施或多方案比較時，使用 Markdown 表格。\n"
+        "・只輸出繁體中文正式答案；禁止輸出英文分析、思考過程、工作計畫、"
+        "提示詞或『The user is asking』等內部推理文字。\n\n"
+        f"【使用者問題】\n{query}"
     )
 
 
@@ -1787,6 +1812,17 @@ def smart_ask() -> Any:
             "timestamp": _now(),
         })
 
+    # ── 0. 意圖判斷：決定要取哪些來源、是否需要網路檢索 ────────
+    intent: Dict[str, Any] = {"intent": "general", "label": "一般查詢", "weights": {}}
+    if answer_engine is not None:
+        try:
+            intent = answer_engine.route_intent(query)
+            # 生態習性、法規標準等平台資料庫涵蓋不到的題目，自動啟用網路檢索
+            use_web = answer_engine.needs_web_search(
+                query, intent, len(client_platform_ctx), use_web_raw)
+        except Exception as exc:
+            logging.getLogger(__name__).warning("[ANSWER] 意圖判斷失敗：%s", exc)
+
     # ── 1~5. 五路資料來源並行擷取 ─────────────────────────────
     # 這五步彼此獨立，過去循序執行會把各自的網路等待時間相加；
     # 併行後總耗時降為最慢的一路。
@@ -1895,23 +1931,42 @@ def smart_ask() -> Any:
     management_evidence: List[Dict[str, Any]] = list(mgmt.get("evidence") or [])
     management_counts: Dict[str, Any] = dict(mgmt.get("counts") or {})
 
-    # ── 6. 組合 context ───────────────────────────────────────
+    # ── 6. 依意圖篩選來源後組合 context ───────────────────────
+    # 過去不論問題內容都把所有來源塞進 context，導致問魚類棲地卻回巡查統計。
+    # 現在先判斷意圖，只納入與問題相關的來源，不相關者明確排除。
+    handbook_ctx = ""
+    if answer_engine is not None:
+        try:
+            handbook_ctx = answer_engine.handbook_reference(query)
+        except Exception as exc:
+            logging.getLogger(__name__).warning("[ANSWER] 手冊檢索失敗：%s", exc)
+
+    raw_sources = {
+        "platform":   (client_platform_ctx[:6500] if client_platform_ctx.strip() else "")
+                      or platform_ctx[:3500],
+        "management": management_ctx[:3500],
+        "facility":   platform_ctx[:3500] if client_platform_ctx.strip() else "",
+        "ecology":    ocr_ctx,
+        "docs":       local_ctx,
+        "handbook":   handbook_ctx,
+        "web":        web_ctx,
+    }
+
+    dropped_sources: List[str] = []
+    if answer_engine is not None:
+        weights = dict(intent.get("weights") or {})
+        # 瀏覽器端即時快照代表使用者眼前的畫面，任何題目都保留
+        weights["platform"] = max(weights.get("platform", 0.0), 1.0)
+        used_sources, dropped_sources = answer_engine.filter_sources(raw_sources, weights)
+    else:
+        used_sources = {k: v for k, v in raw_sources.items() if (v or "").strip()}
+
     combined_ctx_parts = []
-    if client_platform_ctx.strip():
-        combined_ctx_parts.append(
-            "【瀏覽器目前平台資料庫即時快照（最高優先）】\n"
-            + client_platform_ctx[:6500]
-        )
-    if platform_ctx.strip():
-        combined_ctx_parts.append(f"【線上平台即時讀取資料】\n{platform_ctx[:3500]}")
-    if management_ctx.strip():
-        combined_ctx_parts.append(f"【最新巡查與維護管理資料】\n{management_ctx[:3500]}")
-    if local_ctx.strip():
-        combined_ctx_parts.append(f"【橫流溪本機 RAG 資料】\n{local_ctx}")
-    if ocr_ctx.strip():
-        combined_ctx_parts.append(f"【橫流溪雲端文件庫（OCR 全文）】\n{ocr_ctx}")
-    if web_ctx.strip():
-        combined_ctx_parts.append(f"【外部網路補充資料（不得覆蓋橫流溪原始紀錄）】\n{web_ctx}")
+    for name, text in used_sources.items():
+        label = (answer_engine.SOURCE_LABELS.get(name, name)
+                 if answer_engine is not None else name)
+        note = "（外部資料，不得覆蓋橫流溪原始紀錄）" if name == "web" else ""
+        combined_ctx_parts.append(f"===== 來源：{label}{note} =====\n{text}")
     combined_ctx = "\n\n".join(combined_ctx_parts)
 
     # ── 7. 指定模式推論；所有模式共用上方同一批 RAG 結果 ─────────
@@ -1993,16 +2048,43 @@ def smart_ask() -> Any:
             provider_key = provider_key or "platform_guard"
             provider_display = f"{provider_display or '平台資料'}＋即時狀態一致性檢核"
 
-    # ── 7a. AI 失敗時優先使用結構化巡查／維護資料，避免操作指南或
-    #         舊版說明文件蓋過最新設施狀態。─────────────────────
-    if not answer and management_ctx.strip():
-        answer = _management_fallback_answer(query, management_evidence, management_counts)
-        provider_key, provider_display = "management_context", "最新巡查與維護資料保底回答"
+    # ── 7a. AI 失敗時的保底輸出 ──────────────────────────────────
+    # 保底只能呈現「與本題相關」的檢索結果。過去不論問什麼都輸出巡查統計，
+    # 才會出現問魚類棲地卻回「巡查紀錄 77 筆、照片 5660 張」這種答非所問。
+    if not answer:
+        weights = intent.get("weights", {})
+        prefix = ("（AI 推論服務目前無法使用，以下為與本題相關的直接檢索結果，"
+                  "尚未經過整理與研判，請對照原始文件確認。）\n\n")
+        # 保底來源依本題的意圖權重排序，確保委員題先用手冊、生態題先用文件，
+        # 而不是一律拿巡查統計充數。
+        candidates = [
+            ("handbook", handbook_ctx, "評審問答準備手冊",
+             lambda text: prefix + text),
+            ("local_kb", local_ctx, "本機知識庫（未經 AI 整理）",
+             lambda text: prefix + text),
+            ("management_context", management_ctx, "巡查與維護資料保底回答",
+             lambda _text: _management_fallback_answer(
+                 query, management_evidence, management_counts)),
+        ]
+        weight_of = {"handbook": "handbook", "local_kb": "docs",
+                     "management_context": "management"}
+        candidates.sort(
+            key=lambda item: weights.get(weight_of[item[0]], 0.4), reverse=True)
 
-    # ── 7b. 結構化管理資料也無法回答時，才直接呈現文件 RAG 片段。──
-    if not answer and local_ctx.strip():
-        answer = f"根據橫流溪本機知識庫檢索結果：\n\n{local_ctx}\n\n（AI 推論服務目前無法使用，以上為直接檢索結果，建議對照原始文件確認詳細內容。）"
-        provider_key, provider_display = "local_kb", "本機知識庫"
+        for key, text, display, render in candidates:
+            if (text or "").strip() and weights.get(weight_of[key], 0.4) >= 0.25:
+                answer = render(text)
+                provider_key, provider_display = key, display
+                break
+
+        if not answer:
+            answer = (
+                f"目前查無與「{query}」直接相關的橫流溪資料，AI 推論服務也暫時無法使用，"
+                "因此無法提供研判。\n\n"
+                "建議改以更具體的條件重問（例如指定設施編號、年度或物種名稱），"
+                "或改查「生態資料庫」「工程設計書架」等模組的原始報告。"
+            )
+            provider_key, provider_display = "none", "查無相關資料"
 
     if not answer:
         answer = _fallback_answer(parse_query(query), []) or (
