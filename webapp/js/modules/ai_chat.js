@@ -1234,7 +1234,7 @@ async function _refreshAIProviderStatus(force = false) {
     let lastError = null;
     for (const base of [...new Set(bases)]) {
       try {
-        const res = await fetch(`${base}/api/ai-check`, { signal: AbortSignal.timeout(20000) });
+        const res = await fetch(`${base}/api/ai/model-config`, { signal: AbortSignal.timeout(6000) });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         data = await res.json();
         break;
@@ -1243,12 +1243,11 @@ async function _refreshAIProviderStatus(force = false) {
       }
     }
     if (!data) throw lastError || new Error("沒有可用的 AI 狀態端點");
-    const providers = data.providers || {};
-    window._hlxOpenRouterReady = /✓/.test(String(providers.openrouter || ""));
+    window._hlxOpenRouterReady = data.openrouter_ready === true;
     _renderAiModeStatus(
       el,
       window._hlxOpenRouterReady,
-      /✓/.test(String(providers.local_kb || ""))
+      data.rag_ready !== false
     );
   } catch (error) {
     window._hlxOpenRouterReady = false;

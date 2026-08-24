@@ -1503,6 +1503,8 @@ def ai_model_config_public() -> Any:
         "status": "success",
         "default_mode": "pro",
         "modes": public_modes(),
+        "openrouter_ready": bool(os.environ.get("OPENROUTER_API_KEY")),
+        "rag_ready": rag_backend is not None,
         "timestamp": _now(),
     })
 
