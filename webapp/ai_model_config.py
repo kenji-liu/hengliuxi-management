@@ -16,10 +16,16 @@ MODE_LABELS = {
 }
 
 
+# 備援一律指定「免費」模型：兩者會一起送進 OpenRouter 的 models 陣列由平台路由，
+# 帳號額度不足時才能自動降級並照常作答。
+# 若備援也是付費模型（原本 pro 的備援為 openrouter/auto），額度用盡時整個請求
+# 會回 HTTP 402，AI 便退成未整理的檢索結果，看起來像答詢失效。
+_FREE_FALLBACK = "nvidia/nemotron-3-super-120b-a12b:free"
+
 _DEFAULTS: Dict[str, Dict[str, Any]] = {
     "fast": {
         "model": "google/gemini-2.5-flash-lite",
-        "fallback_model": "openrouter/free",
+        "fallback_model": _FREE_FALLBACK,
         "temperature": 0.20,
         "max_tokens": 500,
         "top_k": 3,
@@ -27,7 +33,7 @@ _DEFAULTS: Dict[str, Dict[str, Any]] = {
     },
     "pro": {
         "model": "~anthropic/claude-sonnet-latest",
-        "fallback_model": "openrouter/auto",
+        "fallback_model": _FREE_FALLBACK,
         "temperature": 0.20,
         "max_tokens": 800,
         "top_k": 4,
@@ -35,7 +41,7 @@ _DEFAULTS: Dict[str, Dict[str, Any]] = {
     },
     "deep": {
         "model": "openrouter/auto",
-        "fallback_model": "~anthropic/claude-sonnet-latest",
+        "fallback_model": "openrouter/free",
         "temperature": 0.15,
         "max_tokens": 1500,
         "top_k": 5,
