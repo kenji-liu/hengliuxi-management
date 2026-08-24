@@ -963,7 +963,15 @@ function initAIChat() {
   style.textContent = `
     #aiChatWidget{position:fixed;bottom:24px;right:24px;z-index:1000;font-family:'Microsoft JhengHei',sans-serif}
     #aiChatBtn{width:52px;height:52px;border-radius:50%;background:var(--primary);color:#fff;border:none;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.2);font-size:18px;font-weight:700}
-    #aiChatPanel{display:none;width:440px;height:640px;background:#fff;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.18);flex-direction:column;overflow:hidden;margin-bottom:10px}
+    /* resize 讓使用者可自由拉大視窗（右下角）；尺寸會記憶於 localStorage。
+       resize 需要 overflow 非 visible，故沿用 hidden。 */
+    #aiChatPanel{display:none;width:440px;height:640px;min-width:320px;min-height:360px;
+      max-width:96vw;max-height:88vh;resize:both;
+      background:#fff;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.18);
+      flex-direction:column;overflow:hidden;margin-bottom:10px}
+    .ai-size-btn{background:transparent;border:none;color:#fff;cursor:pointer;font-size:13px;
+      opacity:.85;padding:2px 5px;border-radius:5px;line-height:1}
+    .ai-size-btn:hover{opacity:1;background:rgba(255,255,255,.18)}
     #aiChatPanel.open{display:flex}
     .ai-header{background:var(--primary);color:#fff;padding:10px 14px;display:flex;align-items:center;justify-content:space-between}
     .ai-title{font-weight:700;font-size:14px}
@@ -1014,6 +1022,12 @@ function initAIChat() {
     .ai-recommendations{background:#f9fafb;border-left:3px solid #e5e7eb;padding:8px;margin-top:6px;border-radius:4px;font-size:12px;color:#475569}
     .ai-recommendations li{margin-left:16px;margin-top:2px}
     .ai-citations{margin-top:8px;border-top:1px dashed #d8dee8;padding-top:6px}
+    .ai-citations-toggle{font-size:11px;color:#64748b;font-weight:700;cursor:pointer;
+      list-style:none;user-select:none;padding:2px 0}
+    .ai-citations-toggle::-webkit-details-marker{display:none}
+    .ai-citations-toggle::before{content:'▸ ';color:#94a3b8}
+    details[open]>.ai-citations-toggle::before{content:'▾ '}
+    .ai-citations-toggle:hover{color:#334155}
     .ai-citation{border:1px solid #e5e7eb;border-radius:8px;padding:8px;margin-top:6px;background:#fafafa}
     .ai-citation-head{display:flex;justify-content:space-between;gap:8px;align-items:flex-start;font-size:12px;font-weight:700;color:#334155}
     .ai-citation-preview{font-size:12px;color:#475569;margin-top:5px;white-space:pre-wrap}
@@ -1051,7 +1065,10 @@ function initAIChat() {
           <div class="ai-title">橫流溪 AI 問答</div>
           <div class="ai-sub" id="aiSubLabel">本機知識庫 + RAG 即時檢索</div>
         </div>
-        <div style="display:flex;align-items:center;gap:8px">
+        <div style="display:flex;align-items:center;gap:6px">
+          <button class="ai-size-btn" onclick="aiResizePanel('sm')" title="縮小視窗">▫</button>
+          <button class="ai-size-btn" onclick="aiResizePanel('md')" title="預設大小">▪</button>
+          <button class="ai-size-btn" onclick="aiResizePanel('lg')" title="放大視窗">◼</button>
           <button onclick="clearAIChat()" title="清除對話記錄"
             style="background:rgba(255,255,255,0.2);border:none;color:#fff;border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer">清除</button>
           <button class="ai-header-close" onclick="toggleAIChat()">×</button>
@@ -1179,9 +1196,62 @@ function _buildWelcomeMessage() {
 <span style="font-size:11px;color:#94a3b8">提示：問題越具體（含設施名稱/時間/指標）回答越精準</span>`;
 }
 
+const AI_PANEL_SIZE_KEY = 'hlx_ai_panel_size';
+const AI_PANEL_PRESETS = {
+  sm: { width: 360, height: 480 },
+  md: { width: 440, height: 640 },
+  lg: { width: 720, height: 820 },
+};
+
+/** 套用視窗尺寸並記住，讓使用者依畫面大小與閱讀習慣調整 */
+function aiResizePanel(preset) {
+  const panel = document.getElementById('aiChatPanel');
+  if (!panel) return;
+  const size = AI_PANEL_PRESETS[preset] || AI_PANEL_PRESETS.md;
+  // 不超出視窗可見範圍，避免在小螢幕上被裁切
+  const width = Math.min(size.width, Math.round(window.innerWidth * 0.96));
+  const height = Math.min(size.height, Math.round(window.innerHeight * 0.88));
+  panel.style.width = width + 'px';
+  panel.style.height = height + 'px';
+  _aiSavePanelSize(width, height);
+}
+
+function _aiSavePanelSize(width, height) {
+  try {
+    localStorage.setItem(AI_PANEL_SIZE_KEY, JSON.stringify({ width, height }));
+  } catch (e) { /* 隱私模式下 localStorage 可能不可用，忽略 */ }
+}
+
+function _aiRestorePanelSize() {
+  const panel = document.getElementById('aiChatPanel');
+  if (!panel) return;
+  try {
+    const saved = JSON.parse(localStorage.getItem(AI_PANEL_SIZE_KEY) || 'null');
+    if (saved && saved.width && saved.height) {
+      panel.style.width = Math.min(saved.width, Math.round(window.innerWidth * 0.96)) + 'px';
+      panel.style.height = Math.min(saved.height, Math.round(window.innerHeight * 0.88)) + 'px';
+    }
+  } catch (e) { /* 設定毀損時沿用預設尺寸 */ }
+
+  // 記住使用者以右下角拖曳調整後的尺寸
+  if (window.ResizeObserver && !panel._aiSizeWatched) {
+    panel._aiSizeWatched = true;
+    let timer = null;
+    new ResizeObserver(() => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        if (panel.classList.contains('open')) {
+          _aiSavePanelSize(panel.offsetWidth, panel.offsetHeight);
+        }
+      }, 400);
+    }).observe(panel);
+  }
+}
+
 function toggleAIChat() {
   const panel = document.getElementById("aiChatPanel");
   panel.classList.toggle("open");
+  if (panel.classList.contains("open")) _aiRestorePanelSize();
   _updateAiSubLabel();
   _refreshAIProviderStatus();
   // 首次開啟時動態填入歡迎訊息
@@ -1433,23 +1503,22 @@ function composeAnswer(query, data) {
   // 網路來源區塊（smart-ask 模式才有）
   const webSources = Array.isArray(data?.web_sources) ? data.web_sources : [];
   const webSourcesHtml = webSources.length
-    ? `<div style="margin-top:14px;padding-top:10px;border-top:1px solid #e2e8f0">
-         <div style="font-size:12px;color:#94a3b8;margin-bottom:6px">
-           <i class="fas fa-globe" style="margin-right:4px"></i>網路參考來源
-         </div>
-         <div style="display:flex;flex-direction:column;gap:5px">
+    ? `<details class="ai-citations">
+         <summary class="ai-citations-toggle"><i class="fas fa-globe" style="margin-right:4px"></i>網路參考來源（${webSources.length}）</summary>
+         <div style="display:flex;flex-direction:column;gap:5px;margin-top:6px">
            ${webSources.map(s => `
              <div style="font-size:12px;padding:5px 8px;background:#f8fafc;border-left:2px solid #bae6fd;border-radius:3px">
                <a href="${escapeHtml(s.href || '#')}" target="_blank" rel="noopener noreferrer"
                   style="color:#0369a1;font-weight:600;text-decoration:none">${escapeHtml(s.title || s.href || '')}</a>
              </div>`).join('')}
          </div>
-       </div>`
+       </details>`
     : "";
 
+  // 參考資料預設收合：正常閱讀時只看答案，需要查證原始出處時再展開。
   const citationsHtml = citations.length
-    ? `<div class="ai-citations">
-         <div style="font-size:11px;color:#475569;font-weight:700;margin-bottom:4px"><i class="fas fa-book-open" style="margin-right:4px"></i>參考資料</div>
+    ? `<details class="ai-citations">
+         <summary class="ai-citations-toggle"><i class="fas fa-book-open" style="margin-right:4px"></i>參考資料（${citations.length}）</summary>
          ${citations.map((c, index) => `
            <div class="ai-citation">
              <div class="ai-citation-head">
@@ -1458,7 +1527,7 @@ function composeAnswer(query, data) {
              </div>
              ${c.preview ? `<div class="ai-citation-preview">${escapeHtml(c.preview)}</div>` : ''}
            </div>`).join('')}
-       </div>`
+       </details>`
     : "";
 
   const usage = data?.ai_usage || {};
