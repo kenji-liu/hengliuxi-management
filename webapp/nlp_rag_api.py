@@ -1682,6 +1682,30 @@ def _management_fallback_answer(
     return "\n".join(lines)
 
 
+def _smalltalk_answer(query: str) -> str:
+    """Return a deterministic reply for short social messages.
+
+    These messages must not enter RAG retrieval: the platform snapshot always
+    contains facility data, so an unrelated greeting could otherwise be paired
+    with a valid but irrelevant engineering passage.
+    """
+    normalized = re.sub(r"[\s，。！？!?、~～]+", "", _as_text(query)).lower()
+    if not normalized or len(normalized) > 24:
+        return ""
+
+    if normalized in {"生日快樂", "祝你生日快樂", "祝大家生日快樂"}:
+        return "生日快樂！祝福今天過生日的人平安順心、事事如意。"
+    if normalized in {"你好", "您好", "嗨", "哈囉", "hello", "hi", "早安", "午安", "晚安"}:
+        return "您好！我是橫流溪管理平台 AI 助理，可以協助查詢工程設施、巡查維護、魚道與生態監測資料。"
+    if normalized in {"謝謝", "感謝", "謝謝你", "感謝你", "辛苦了"}:
+        return "不客氣！需要查詢橫流溪工程、巡查、維護或生態資料時，都可以直接告訴我。"
+    if normalized in {"再見", "掰掰", "bye", "下次見"}:
+        return "再見！祝您今天順利。"
+    if normalized in {"你是誰", "請問你是誰", "你可以做什麼", "你會做什麼"}:
+        return "我是橫流溪管理平台 AI 助理，主要協助查詢工程設施、巡查維護、魚道與生態監測資料。"
+    return ""
+
+
 @nlp_rag.route("/smart-ask", methods=["POST"])
 def smart_ask() -> Any:
     """
@@ -1712,6 +1736,56 @@ def smart_ask() -> Any:
 
     if not query:
         return jsonify({"status": "error", "message": "缺少 query"}), 400
+
+    # 純閒聊不應強制套用橫流溪文件。這條快速通道不檢索、不呼叫模型，
+    # 因此不會產生 OpenRouter 費用，也避免低相關片段造成答非所問。
+    smalltalk_answer = _smalltalk_answer(query)
+    if smalltalk_answer:
+        response_time = round(time.perf_counter() - request_started, 3)
+        usage = {
+            "selected_mode": mode_config.get("requested_mode"),
+            "selected_mode_label": mode_config.get("requested_label"),
+            "resolved_mode": mode_config.get("mode"),
+            "resolved_mode_label": mode_config.get("label"),
+            "auto_selected": bool(mode_config.get("auto_selected")),
+            "actual_model": "未呼叫模型",
+            "provider": "conversation_guard",
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "estimated_cost": 0.0,
+            "response_time": response_time,
+            "rag_chunk_count": 0,
+            "fallback_used": False,
+        }
+        _log_ai_usage({
+            "user_question": query,
+            **usage,
+            "answer_success": True,
+            "error_type": "",
+        })
+        return jsonify({
+            "status": "success",
+            "answer": smalltalk_answer,
+            "llm_provider": "conversation_guard",
+            "llm_model": "純閒聊快速回覆",
+            "web_search_used": False,
+            "web_sources": [],
+            "platform_context_used": False,
+            "client_platform_context_used": False,
+            "platform_evidence": [],
+            "local_evidence": [],
+            "ocr_citations": [],
+            "management_evidence": [],
+            "management_counts": {},
+            "structured_citations": [],
+            "ai_usage": usage,
+            "selected_mode": mode_config.get("requested_mode"),
+            "resolved_mode": mode_config.get("mode"),
+            "confidence_level": "high",
+            "confidence_score": 100,
+            "message": "純閒聊快速回覆（未呼叫模型與 RAG）",
+            "timestamp": _now(),
+        })
 
     # ── 1~5. 五路資料來源並行擷取 ─────────────────────────────
     # 這五步彼此獨立，過去循序執行會把各自的網路等待時間相加；
