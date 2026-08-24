@@ -26,5 +26,7 @@ services:
         value: ~anthropic/claude-sonnet-latest
       - key: AI_PROVIDER_PRIORITY
         value: gemini,claude,groq
+      - key: AI_ENABLE_LEGACY_PROVIDER_FALLBACK
+        value: "false"
       - key: OLLAMA_SMART_TIMEOUT
         value: "8"

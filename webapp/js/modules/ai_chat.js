@@ -1079,7 +1079,8 @@ function initAIChat() {
       <div class="ai-input-row">
         <div class="ai-mode-row">
           <label class="ai-mode-label" for="aiModelMode">AI 模型</label>
-          <select class="ai-mode-select" id="aiModelMode" title="選擇回答速度與分析深度">
+          <select class="ai-mode-select" id="aiModelMode" title="選擇回答速度與分析深度"
+            onchange="_renderAiModeStatus(document.getElementById('aiProviderStatus'), window._hlxOpenRouterReady !== false, true)">
             <option value="fast">⚡ 快速省錢</option>
             <option value="pro" selected>⭐ 專業問答</option>
             <option value="deep">🧠 深度分析</option>
@@ -1197,6 +1198,24 @@ function _updateAiSubLabel() {
 }
 
 let _aiProviderStatusCheckedAt = 0;
+const _AI_MODE_LABELS = {
+  fast: "⚡ 快速省錢",
+  pro: "⭐ 專業問答",
+  deep: "🧠 深度分析",
+  auto: "🔄 AI 自動選擇"
+};
+
+function _renderAiModeStatus(el, openRouterReady, kbReady) {
+  if (!el) return;
+  const selectedMode = document.getElementById("aiModelMode")?.value || "pro";
+  const selectedLabel = _AI_MODE_LABELS[selectedMode] || _AI_MODE_LABELS.pro;
+  const cloudLabel = openRouterReady ? "可用" : "暫時不可用";
+  const kbLabel = kbReady ? "可用" : "檢查中";
+  el.classList.toggle("warn", !openRouterReady && !kbReady);
+  el.textContent = `目前模式：${selectedLabel}${selectedMode === "pro" ? "（預設）" : ""}｜OpenRouter：${cloudLabel}｜共用 RAG 知識庫：${kbLabel}`;
+  el.title = "可選模式：⚡ 快速省錢、⭐ 專業問答、🧠 深度分析、🔄 AI 自動選擇。所有模式共用同一套 RAG 知識庫。";
+}
+
 async function _refreshAIProviderStatus(force = false) {
   const el = document.getElementById("aiProviderStatus");
   if (!el) return;
@@ -1225,22 +1244,15 @@ async function _refreshAIProviderStatus(force = false) {
     }
     if (!data) throw lastError || new Error("沒有可用的 AI 狀態端點");
     const providers = data.providers || {};
-    const state = (name) => String(providers[name] || "未回報");
-    const short = (value) => {
-      if (/✓/.test(value)) return "可用";
-      if (/429|credit|quota|額度/i.test(value)) return "額度不足";
-      if (/403|1010|cloudflare/i.test(value)) return "連線遭拒";
-      if (/key not set/i.test(value)) return "未設定";
-      return "不可用";
-    };
-    const inferenceReady = ["groq", "gemini", "claude", "openrouter", "ollama"].some(k => /✓/.test(state(k)));
-    el.classList.toggle("warn", !inferenceReady);
-    el.textContent = `Groq：${short(state("groq"))}｜Gemini：${short(state("gemini"))}｜Claude：${short(state("claude"))}｜OpenRouter：${short(state("openrouter"))}｜Ollama：${short(state("ollama"))}｜知識庫：${short(state("local_kb"))}`;
-    const providerKeys = ["groq", "gemini", "claude", "openrouter", "ollama"];
-    el.title = ["Groq", "Gemini", "Claude", "OpenRouter", "Ollama"].map((label, i) => `${label}: ${state(providerKeys[i])}`).join("\n");
+    window._hlxOpenRouterReady = /✓/.test(String(providers.openrouter || ""));
+    _renderAiModeStatus(
+      el,
+      window._hlxOpenRouterReady,
+      /✓/.test(String(providers.local_kb || ""))
+    );
   } catch (error) {
-    el.classList.add("warn");
-    el.textContent = "雲端 AI 狀態暫時無法取得｜本機知識庫仍可使用";
+    window._hlxOpenRouterReady = false;
+    _renderAiModeStatus(el, false, true);
     el.title = error.message || String(error);
   }
 }

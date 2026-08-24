@@ -1457,7 +1457,12 @@ def _ai_synthesis(query: str, combined_ctx: str) -> "tuple[str, str, str]":
 
 
 def _ai_synthesis_mode(query: str, combined_ctx: str, config: Dict[str, Any]) -> Dict[str, Any]:
-    """Use the selected OpenRouter mode, then fall back without re-running RAG."""
+    """Use the selected OpenRouter mode and its configured model fallback.
+
+    The legacy provider chain is opt-in only.  OpenRouter already performs the
+    primary/fallback routing, so retrying unavailable Groq/Gemini/Claude/Ollama
+    services would only increase latency and show confusing provider states.
+    """
     started = time.perf_counter()
     result = _call_openrouter_mode(query, combined_ctx, config)
     if result.get("answer"):
@@ -1465,6 +1470,14 @@ def _ai_synthesis_mode(query: str, combined_ctx: str, config: Dict[str, Any]) ->
 
     primary_error = _as_text(result.get("error_type"))
     _provider_mark("openrouter", ok=False)
+    legacy_enabled = str(os.environ.get(
+        "AI_ENABLE_LEGACY_PROVIDER_FALLBACK", "false"
+    )).strip().lower() in {"1", "true", "yes", "on"}
+    if not legacy_enabled:
+        result["response_time"] = round(time.perf_counter() - started, 3)
+        result["error_type"] = primary_error
+        return result
+
     legacy_answer, provider_key, provider_display = _ai_synthesis(query, combined_ctx)
     elapsed = round(time.perf_counter() - started, 3)
     if legacy_answer:
