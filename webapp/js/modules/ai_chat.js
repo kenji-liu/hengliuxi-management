@@ -975,6 +975,10 @@ function initAIChat() {
     .ai-msg.bot{background:#fff;border:1px solid #e2e8f0;border-radius:0 10px 10px 10px;padding:9px 11px;align-self:flex-start}
     .ai-msg.user{background:var(--primary);color:#fff;border-radius:10px 0 10px 10px;padding:8px 12px;align-self:flex-end}
     .ai-input-row{display:flex;gap:6px;padding:10px 12px;border-top:1px solid #e2e8f0;background:#fff;align-items:center;flex-wrap:wrap}
+    .ai-mode-row{width:100%;display:flex;align-items:center;gap:8px;margin-bottom:2px}
+    .ai-mode-label{font-size:11px;font-weight:700;color:#475569;white-space:nowrap}
+    .ai-mode-select{flex:1;min-width:0;border:1px solid #cbd5e1;border-radius:7px;background:#f8fafc;color:#1e293b;padding:5px 8px;font-size:12px;font-family:inherit;outline:none}
+    .ai-mode-select:focus{border-color:#167343;box-shadow:0 0 0 2px rgba(22,115,67,.12)}
     .ai-input{flex:1;min-width:120px;padding:8px 10px;border:1px solid #d5dde7;border-radius:20px;font-size:13px;outline:none;font-family:inherit}
     .ai-input:focus{border-color:var(--primary)}
     .ai-send{background:var(--primary);color:#fff;border:none;border-radius:18px;min-width:48px;height:34px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
@@ -1015,6 +1019,8 @@ function initAIChat() {
     .ai-citation-preview{font-size:12px;color:#475569;margin-top:5px;white-space:pre-wrap}
     .ai-citation-link{font-size:12px;color:#155eef;text-decoration:none;white-space:nowrap}
     .ai-citation-link:hover{text-decoration:underline}
+    .ai-usage-meta{margin-top:8px;padding:7px 8px;border:1px solid #dbeafe;border-radius:7px;background:#eff6ff;color:#334155;font-size:10.5px;line-height:1.55}
+    .ai-usage-meta strong{color:#1e40af}
     .ai-feedback-section,.ai-feedback-prompt,.ai-feedback-buttons,.ai-feedback-btn,
     .ai-feedback-comment,.ai-feedback-submit,.ai-feedback-confirmation{display:none!important}
     .ai-ocr-docs{margin-top:10px;border-top:1px dashed #bae6fd;padding-top:8px}
@@ -1071,6 +1077,15 @@ function initAIChat() {
         ).join('')}
       </div>
       <div class="ai-input-row">
+        <div class="ai-mode-row">
+          <label class="ai-mode-label" for="aiModelMode">AI 模型</label>
+          <select class="ai-mode-select" id="aiModelMode" title="選擇回答速度與分析深度">
+            <option value="fast">⚡ 快速省錢</option>
+            <option value="pro" selected>⭐ 專業問答</option>
+            <option value="deep">🧠 深度分析</option>
+            <option value="auto">🔄 AI 自動選擇</option>
+          </select>
+        </div>
         <input type="file" id="aiPhotoInput" accept="image/*" style="display:none" onchange="_aiPhotoPreview(this)">
         <button class="ai-photo-btn" onclick="document.getElementById('aiPhotoInput').click()" title="上傳設施照片評估損壞">📷</button>
         <div class="ai-photo-preview-wrap" id="aiPhotoPreviewWrap">
@@ -1307,7 +1322,7 @@ function collectCitations(data) {
   const raw = Array.isArray(data?.structured_citations) && data.structured_citations.length
     ? data.structured_citations
     : (Array.isArray(data?.sources) ? data.sources : []);
-  return raw.slice(0, 4).map((c, index) => {
+  return raw.slice(0, 5).map((c, index) => {
     const href = c.source_href || (c.source_path ? `/api/rag/document?source_path=${encodeURIComponent(c.source_path)}&page=${c.page || c.page_number || 1}` : "");
     return {
       index: c.index || index + 1,
@@ -1421,6 +1436,32 @@ function composeAnswer(query, data) {
        </div>`
     : "";
 
+  const citationsHtml = citations.length
+    ? `<div class="ai-citations">
+         <div style="font-size:11px;color:#475569;font-weight:700;margin-bottom:4px"><i class="fas fa-book-open" style="margin-right:4px"></i>參考資料</div>
+         ${citations.map((c, index) => `
+           <div class="ai-citation">
+             <div class="ai-citation-head">
+               <span>${index + 1}. ${escapeHtml(c.source_file)}</span>
+               ${c.source_href ? `<a class="ai-citation-link" href="${escapeHtml(c.source_href)}" target="_blank" rel="noopener noreferrer">查看原始資料</a>` : ''}
+             </div>
+             ${c.preview ? `<div class="ai-citation-preview">${escapeHtml(c.preview)}</div>` : ''}
+           </div>`).join('')}
+       </div>`
+    : "";
+
+  const usage = data?.ai_usage || {};
+  const isAdmin = typeof HLXAuth !== 'undefined' && HLXAuth.isLoggedIn();
+  const adminMetaHtml = isAdmin && Object.keys(usage).length
+    ? `<div class="ai-usage-meta">
+         <strong>管理員執行資訊</strong><br>
+         模式：${escapeHtml(usage.resolved_mode_label || usage.resolved_mode || '-')}${usage.auto_selected ? '（自動選擇）' : ''}｜
+         模型：${escapeHtml(usage.actual_model || llmLabel || '-')}<br>
+         Provider：${escapeHtml(usage.provider || '-')}｜Input Tokens：${Number(usage.input_tokens || 0).toLocaleString()}｜Output Tokens：${Number(usage.output_tokens || 0).toLocaleString()}<br>
+         處理時間：${Number(usage.response_time || 0).toFixed(2)} 秒｜估計費用：US$${Number(usage.estimated_cost || 0).toFixed(6)}｜RAG chunks：${Number(usage.rag_chunk_count || 0)}${usage.fallback_used ? '｜已啟用備援模型' : ''}
+       </div>`
+    : "";
+
   const _hideProviderNote = !llmLabel
     || llmLabel === "本機知識庫"
     || data?.llm_provider === "management_context"
@@ -1433,8 +1474,10 @@ function composeAnswer(query, data) {
 
   return `
     <div class="ai-answer">${answer ? formatAIAnswer(answer) : fallbackText}</div>
+    ${citationsHtml}
     ${webSourcesHtml}
     ${providerNote}
+    ${adminMetaHtml}
     ${renderFeedbackBlock()}
   `;
 }
@@ -1832,6 +1875,7 @@ async function aiFetchLatestManagementContext(query) {
 }
 
 async function queryRAG(query) {
+  const selectedMode = document.getElementById('aiModelMode')?.value || 'pro';
   // 設施現況、異常與維護優先序可由瀏覽器目前資料庫直接判定。
   // 不需先等待雲端模型與 3.8 萬筆文件檢索，亦可避免模型改寫最新狀態。
   const immediateStatusAnswer = _buildLiveStatusAnswer(query);
@@ -1845,7 +1889,17 @@ async function queryRAG(query) {
       confidence_score: 96,
       policy_label: "即時狀態回答",
       platform_consistency_guard: true,
-      structured_citations: []
+      structured_citations: [{
+        source_file: '橫流溪管理平台即時設施資料庫', page: 1, score: 0.96,
+        preview: '依目前瀏覽器中的最新設施、專業巡查、改善完成日期與未結案狀態計算。',
+        source_href: window.location.href
+      }],
+      ai_usage: {
+        selected_mode: selectedMode, resolved_mode: 'platform_direct',
+        resolved_mode_label: '平台即時查詢', actual_model: '未呼叫模型',
+        provider: 'platform_guard', input_tokens: 0, output_tokens: 0,
+        estimated_cost: 0, response_time: 0, rag_chunk_count: 1, fallback_used: false
+      }
     };
   }
 
@@ -1882,12 +1936,14 @@ async function queryRAG(query) {
   for (const base of bases) {
     try {
       const ctrl = new AbortController();
-      const tid = setTimeout(() => ctrl.abort(), 180000);
+      const timeoutMs = selectedMode === 'deep' ? 90000 : (selectedMode === 'fast' ? 35000 : 60000);
+      const tid = setTimeout(() => ctrl.abort(), timeoutMs);
       const res = await fetch(`${base}/api/smart-ask`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           query,
+          ai_mode: selectedMode,
           use_web: "auto",
           // 已隨請求附上瀏覽器即時快照，不再讓後端重抓同一頁面。
           include_platform_url: false,
@@ -1917,11 +1973,13 @@ async function queryRAG(query) {
         data.llm_model = `${data.llm_model || 'AI'}＋平台即時狀態檢核`;
         data.platform_consistency_guard = true;
       }
-      data.structured_citations = (data.local_evidence || []).map((e, i) => ({
-        index: i + 1, source_file: e.source || "橫流溪資料庫",
-        page: e.page || 1, score: e.confidence || 0.6,
-        preview: e.quote || "", source_href: e.source_href || ""
-      }));
+      if (!Array.isArray(data.structured_citations) || !data.structured_citations.length) {
+        data.structured_citations = (data.local_evidence || []).map((e, i) => ({
+          index: i + 1, source_file: e.source || "橫流溪資料庫",
+          page: e.page || 1, score: e.confidence || 0.6,
+          preview: e.quote || "", source_href: e.source_href || ""
+        }));
+      }
       return data;
     } catch (err) {
       console.warn(`[queryRAG] ${base} 失敗:`, err.message || err);
@@ -2072,7 +2130,7 @@ async function aiSend() {
     setTimeout(() => attachFeedbackListeners(responseDiv, data), 100);
   } catch (error) {
     typing.remove();
-    appendAIMsg(`查詢發生錯誤：${error.message}\n本機知識庫仍可使用，請稍候再試。`, "bot");
+    appendAIMsg("AI 服務目前暫時無法回應，請稍後再試。本機知識庫與平台資料仍保留。", "bot");
   }
 }
 

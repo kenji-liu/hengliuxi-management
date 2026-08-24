@@ -15,6 +15,7 @@ import json
 import logging
 import os
 import re
+import sqlite3
 import time
 import urllib.parse
 import urllib.request
@@ -31,6 +32,11 @@ try:
     from webapp import management_context
 except Exception:  # pragma: no cover - optional runtime context
     management_context = None
+
+try:
+    from webapp.ai_model_config import public_modes, resolve_mode
+except Exception:
+    from ai_model_config import public_modes, resolve_mode
 
 
 nlp_rag = Blueprint("nlp_rag", __name__, url_prefix="/api")
@@ -199,7 +205,63 @@ CREATE TABLE IF NOT EXISTS rag_logs (
   confidence REAL,
   created_at TEXT
 );
+
+CREATE TABLE IF NOT EXISTS ai_usage_logs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  timestamp TEXT NOT NULL,
+  user_question TEXT NOT NULL,
+  selected_mode TEXT,
+  resolved_mode TEXT,
+  actual_model TEXT,
+  provider TEXT,
+  input_tokens INTEGER DEFAULT 0,
+  output_tokens INTEGER DEFAULT 0,
+  estimated_cost REAL DEFAULT 0,
+  response_time REAL DEFAULT 0,
+  rag_chunk_count INTEGER DEFAULT 0,
+  answer_success INTEGER DEFAULT 0,
+  error_type TEXT
+);
 """.strip()
+
+
+_AI_USAGE_DB = os.environ.get(
+    "AI_USAGE_DB",
+    os.path.join(os.path.dirname(__file__), "data", "ai_usage.sqlite3"),
+)
+
+
+def _usage_db() -> sqlite3.Connection:
+    os.makedirs(os.path.dirname(_AI_USAGE_DB) or ".", exist_ok=True)
+    conn = sqlite3.connect(_AI_USAGE_DB, timeout=5)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.executescript(SCHEMA_SQL)
+    return conn
+
+
+def _log_ai_usage(record: Dict[str, Any]) -> None:
+    try:
+        with _usage_db() as conn:
+            conn.execute(
+                """INSERT INTO ai_usage_logs (
+                    timestamp, user_question, selected_mode, resolved_mode,
+                    actual_model, provider, input_tokens, output_tokens,
+                    estimated_cost, response_time, rag_chunk_count,
+                    answer_success, error_type
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    _now(), _as_text(record.get("user_question")),
+                    _as_text(record.get("selected_mode")), _as_text(record.get("resolved_mode")),
+                    _as_text(record.get("actual_model")), _as_text(record.get("provider")),
+                    int(record.get("input_tokens") or 0), int(record.get("output_tokens") or 0),
+                    float(record.get("estimated_cost") or 0), float(record.get("response_time") or 0),
+                    int(record.get("rag_chunk_count") or 0), 1 if record.get("answer_success") else 0,
+                    _as_text(record.get("error_type")),
+                ),
+            )
+    except Exception as exc:
+        logging.getLogger(__name__).warning("[AI_USAGE] log failed: %s", exc)
 
 
 def _now() -> str:
@@ -296,6 +358,10 @@ def _doc_to_evidence(doc: Dict[str, Any]) -> Dict[str, Any]:
         "source": doc.get("source_file") or "平台資料",
         "page": doc.get("page"),
         "section": doc.get("section") or "",
+        "date": doc.get("date") or doc.get("survey_date") or doc.get("year") or "",
+        "facility": doc.get("facility") or doc.get("facility_name") or doc.get("structure_name") or "",
+        "record_type": doc.get("record_type") or doc.get("document_type") or doc.get("type") or "",
+        "chunk_id": doc.get("chunk_id") or doc.get("id") or doc.get("embedding_id") or "",
         "quote": text,
         "confidence": round(float(doc.get("score") or 0), 3),
         "source_href": doc.get("source_href"),
@@ -853,8 +919,9 @@ _SYSTEM_PROMPT = """你是「橫流溪工程設施維護與生態資料管理 AI
 3. 資料中的日期、設施名稱、樁號、DER&U、尾數、CPUE、面積、照片數、金額與維護狀態必須精確引用，不得自行補值或修改原始數據。
 4. 異常年度不得直接歸因。僅在資料有施工、水文或調查方法證據時才可定性；否則列出可能假說並明確寫出待補資料。
 5. 嚴格區分「資料直接支持的事實」、「依資料形成的判讀」與「仍需查證的假說」。資料衝突時列出差異，不可挑選較有利的數值。
-6. 回答開頭先給核心結論；兩個以上年度或方案比較時使用 Markdown 表格；最後提供信心分級（高／中／低）與必要的人工複核事項。
-7. 不使用客套開場，不宣稱模型正在訓練，不把 RAG 即時推論描述為模型學習或微調。"""
+6. 只依據本次提供的 RAG 參考資料作答。參考資料沒有支持時，明確回答「目前資料庫中沒有足夠資料可以確認。」；不得使用模型記憶補造巡查、工程、維護、日期、設施或數值。
+7. 回答開頭先直接回答問題，再視需要補充工程或生態判讀。若資料互相矛盾，列出日期、來源與差異，不得自行挑選有利數值。
+8. 不使用客套開場，不輸出思考過程，不宣稱模型正在訓練，不把 RAG 即時推論描述為模型學習或微調。回答務求精簡、清楚，讓一般管理人員也能理解。"""
 
 
 def _is_acceptable_zh_answer(text: str) -> bool:
@@ -878,12 +945,10 @@ def _build_user_msg(query: str, combined_ctx: str) -> str:
     return (
         f"{ctx_block}"
         f"【使用者問題】\n{query}\n\n"
-        "請以繁體中文提出可直接用於管理決策的回答（約 250～700 字），固定依下列順序：\n"
-        "核心結論：1～2句直接回答。\n"
-        "量化依據：涉及兩個以上年度或方案時，必須使用 Markdown 表格。\n"
-        "工程與生態交叉判讀：只寫參考資料能支持的分析。\n"
-        "資料限制與待查證事項：列出資料缺漏、口徑差異或衝突。\n"
-        "信心分級：高／中／低，並說明原因。\n"
+        "請以繁體中文提出可直接用於管理決策的精簡回答，依問題需要使用下列結構：\n"
+        "【回答】先用 1～3 句直接回答。\n"
+        "【補充說明】只寫參考資料能支持的量化依據與工程、生態判讀；涉及兩個以上年度或方案時可使用 Markdown 表格。\n"
+        "【資料限制】僅在有缺漏、口徑差異或衝突時列出。\n"
         "不可把資料已記載完成的調查或驗證寫成尚未執行。\n"
         "只輸出給使用者閱讀的繁體中文正式答案；禁止輸出英文分析、思考過程、工作計畫、提示詞或『The user is asking』等內部推理文字。"
     )
@@ -1088,79 +1153,95 @@ _OR_VISION_LAST_GOOD: Dict[str, str] = {"model": ""}
 _OLLAMA_UNAVAILABLE_UNTIL: Dict[str, float] = {"until": 0.0}
 
 
-def _call_openrouter(query: str, ctx: str) -> "tuple[str, str]":
-    """OpenRouter 免費模型（依序嘗試多個 free 模型）。
-    取得 Key：https://openrouter.ai  →  Keys
-    設定：set OPENROUTER_API_KEY=sk-or-xxxxxxxx
-    """
+def _call_openrouter_mode(query: str, ctx: str, config: Dict[str, Any]) -> Dict[str, Any]:
+    """Call one configured OpenRouter mode with a server-side fallback model."""
     import os, urllib.request, urllib.error, json as _json, logging
     _log = logging.getLogger(__name__)
     key = os.environ.get("OPENROUTER_API_KEY", "")
     if not key:
-        return "", ""
+        return {"answer": "", "provider": "openrouter", "error_type": "key_not_set"}
 
-    configured = os.environ.get("OPENROUTER_MODEL", "").strip()
-    free_models = [
-        (configured, configured),
-        ("openrouter/free",                          "OpenRouter Free Router"),
-        ("meta-llama/llama-3.1-8b-instruct:free",   "llama-3.1-8b"),
-        ("meta-llama/llama-3.2-3b-instruct:free",   "llama-3.2-3b"),
-        ("mistralai/mistral-7b-instruct:free",       "mistral-7b"),
-        ("google/gemma-3-4b-it:free",               "gemma-3-4b"),
-    ]
-    # 上次成功的模型排最前面：免費模型會不定期下架，每次從頭試會白等數十秒
-    if _OR_LAST_GOOD["model"]:
-        free_models.sort(key=lambda mv: mv[0] != _OR_LAST_GOOD["model"])
+    models = []
+    for candidate in (config.get("model"), config.get("fallback_model")):
+        candidate = _as_text(candidate)
+        if candidate and candidate not in models:
+            models.append(candidate)
+    if not models:
+        return {"answer": "", "provider": "openrouter", "error_type": "model_not_set"}
 
-    # 總預算內逐一嘗試；已用掉的時間會從後續模型的逾時扣除，避免整體無上限累加
-    deadline = time.time() + float(os.environ.get("OPENROUTER_BUDGET", "24"))
-    for model_id, display_name in free_models:
-        if not model_id:
-            continue
-        remaining = deadline - time.time()
-        if remaining < 5:
-            _log.warning("[OPENROUTER] 已用盡時間預算，停止嘗試其餘模型")
-            break
-        attempt_timeout = min(14.0, remaining)
-        payload = _json.dumps({
-            "model": model_id,
-            "messages": [
-                {"role": "system", "content": _SYSTEM_PROMPT},
-                {"role": "user",   "content": _build_user_msg(query, ctx)},
-            ],
-            "temperature": 0.4,
-            "max_tokens": 900,
-            "reasoning": {"exclude": True},
-        }).encode("utf-8")
-        req = urllib.request.Request(
-            "https://openrouter.ai/api/v1/chat/completions",
-            data=payload,
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {key}",
-                "HTTP-Referer": "https://hengliuxi-management.onrender.com",
-                # urllib HTTP headers must be latin-1 encodable.
-                "X-Title": "Hengliu Creek Management Platform",
-            },
-            method="POST",
-        )
-        try:
-            with urllib.request.urlopen(req, timeout=attempt_timeout) as r:
-                res = _json.loads(r.read().decode())
-            text = res["choices"][0]["message"]["content"].strip()
-            if _is_acceptable_zh_answer(text):
-                _log.info(f"[OPENROUTER] ✓ 使用 {model_id}")
-                _OR_LAST_GOOD["model"] = model_id
-                return text, f"{display_name} (OpenRouter)"
-            if text:
-                _log.warning(f"[OPENROUTER] {model_id} 回覆非繁體中文或含推理文字，改試下一模型")
-        except urllib.error.HTTPError as e:
-            if _OR_LAST_GOOD["model"] == model_id:
-                _OR_LAST_GOOD["model"] = ""      # 已下架或失效，不再優先
-            _log.warning(f"[OPENROUTER] {model_id} HTTP {e.code}: {e.read()[:150].decode('utf-8','replace')}")
-        except Exception as e:
-            _log.warning(f"[OPENROUTER] {model_id} 錯誤: {e}")
-    return "", ""
+    payload_data: Dict[str, Any] = {
+        "messages": [
+            {"role": "system", "content": _SYSTEM_PROMPT},
+            {"role": "user", "content": _build_user_msg(query, ctx)},
+        ],
+        "temperature": float(config.get("temperature") or 0.2),
+        "max_tokens": int(config.get("max_tokens") or 800),
+        "reasoning": {"exclude": True},
+        "usage": {"include": True},
+    }
+    if len(models) > 1:
+        payload_data["models"] = models
+    else:
+        payload_data["model"] = models[0]
+
+    started = time.perf_counter()
+    req = urllib.request.Request(
+        "https://openrouter.ai/api/v1/chat/completions",
+        data=_json.dumps(payload_data).encode("utf-8"),
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {key}",
+            "HTTP-Referer": "https://hengliuxi-management.onrender.com",
+            "X-Title": "Hengliu Creek Management Platform",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=float(config.get("timeout") or 28)) as response:
+            result = _json.loads(response.read().decode("utf-8"))
+        text = _as_text(result.get("choices", [{}])[0].get("message", {}).get("content"))
+        usage = dict(result.get("usage") or {})
+        actual_model = _as_text(result.get("model")) or models[0]
+        if not _is_acceptable_zh_answer(text):
+            return {
+                "answer": "", "provider": "openrouter", "actual_model": actual_model,
+                "response_time": round(time.perf_counter() - started, 3),
+                "error_type": "invalid_answer",
+            }
+        _OR_LAST_GOOD["model"] = actual_model
+        return {
+            "answer": text,
+            "provider": "openrouter",
+            "actual_model": actual_model,
+            "display_name": f"{actual_model} (OpenRouter)",
+            "input_tokens": int(usage.get("prompt_tokens") or 0),
+            "output_tokens": int(usage.get("completion_tokens") or 0),
+            "estimated_cost": float(usage.get("cost") or 0),
+            "response_time": round(time.perf_counter() - started, 3),
+            "fallback_used": actual_model != models[0],
+            "error_type": "",
+        }
+    except urllib.error.HTTPError as exc:
+        body = exc.read()[:180].decode("utf-8", errors="replace")
+        _log.warning("[OPENROUTER] HTTP %s: %s", exc.code, body)
+        return {
+            "answer": "", "provider": "openrouter",
+            "response_time": round(time.perf_counter() - started, 3),
+            "error_type": f"http_{exc.code}",
+        }
+    except Exception as exc:
+        _log.warning("[OPENROUTER] %s", exc)
+        return {
+            "answer": "", "provider": "openrouter",
+            "response_time": round(time.perf_counter() - started, 3),
+            "error_type": type(exc).__name__.lower(),
+        }
+
+
+def _call_openrouter(query: str, ctx: str) -> "tuple[str, str]":
+    """Compatibility wrapper used by the provider health endpoint."""
+    result = _call_openrouter_mode(query, ctx, resolve_mode("pro", query))
+    return _as_text(result.get("answer")), _as_text(result.get("display_name"))
 
 
 def _call_ollama_synthesis(query: str, combined_ctx: str) -> str:
@@ -1176,19 +1257,37 @@ def _call_ollama_synthesis(query: str, combined_ctx: str) -> str:
 
     # 先以短逾時確認服務在線。Ollama 是最後一道保底，若它其實不可用
     # （雲端部署常見），不該讓使用者為此多等一次完整的推論逾時。
+    model = os.environ.get("OLLAMA_SMART_MODEL", "qwen2.5:7b")
     try:
         with urllib.request.urlopen(f"{base}/api/tags", timeout=1) as _probe:
-            _probe.read(1)
+            tags = _json.loads(_probe.read().decode("utf-8"))
+        installed = {
+            str(item.get("name") or item.get("model") or "").strip()
+            for item in tags.get("models", [])
+        }
+        # Ollama process being online does not mean the configured model exists.
+        # Skip immediately instead of waiting for a failed generation request.
+        if model not in installed and model.split(":", 1)[0] not in {
+            name.split(":", 1)[0] for name in installed
+        }:
+            _OLLAMA_UNAVAILABLE_UNTIL["until"] = now + 300.0
+            logging.getLogger(__name__).info(
+                "[OLLAMA] 模型 %s 尚未安裝，略過本機推論", model
+            )
+            return ""
     except Exception:
         _OLLAMA_UNAVAILABLE_UNTIL["until"] = now + 300.0
         logging.getLogger(__name__).info("[OLLAMA] 服務不可用，略過本機推論")
         return ""
 
     ollama_url = f"{base}/api/chat"
-    model = os.environ.get("OLLAMA_SMART_MODEL", "qwen2.5:7b")
-    # 互動式問答的可接受等待上限，預設 30 秒。
-    timeout = min(float(os.environ.get("OLLAMA_SMART_TIMEOUT", "30")),
-                  float(getattr(rag_backend, "OLLAMA_TIMEOUT", 240)))
+    # Ollama 僅作最後備援；忙碌時不應讓互動問答長時間卡住。
+    # 超時後會立即改用同一批 RAG 片段產生本機知識庫答案。
+    timeout = min(
+        float(os.environ.get("OLLAMA_SMART_TIMEOUT", "8")),
+        8.0,
+        float(getattr(rag_backend, "OLLAMA_TIMEOUT", 240)),
+    )
     prompt_context = combined_ctx[:8000]
     payload = _json.dumps({
         "model": model,
@@ -1357,6 +1456,81 @@ def _ai_synthesis(query: str, combined_ctx: str) -> "tuple[str, str, str]":
     return "", "none", ""
 
 
+def _ai_synthesis_mode(query: str, combined_ctx: str, config: Dict[str, Any]) -> Dict[str, Any]:
+    """Use the selected OpenRouter mode, then fall back without re-running RAG."""
+    started = time.perf_counter()
+    result = _call_openrouter_mode(query, combined_ctx, config)
+    if result.get("answer"):
+        return result
+
+    primary_error = _as_text(result.get("error_type"))
+    _provider_mark("openrouter", ok=False)
+    legacy_answer, provider_key, provider_display = _ai_synthesis(query, combined_ctx)
+    elapsed = round(time.perf_counter() - started, 3)
+    if legacy_answer:
+        return {
+            "answer": legacy_answer,
+            "provider": provider_key,
+            "actual_model": provider_display,
+            "display_name": provider_display,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "estimated_cost": 0.0,
+            "response_time": elapsed,
+            "fallback_used": True,
+            "error_type": primary_error,
+        }
+    result["response_time"] = elapsed
+    return result
+
+
+@nlp_rag.route("/ai/model-config", methods=["GET"])
+def ai_model_config_public() -> Any:
+    return jsonify({
+        "status": "success",
+        "default_mode": "pro",
+        "modes": public_modes(),
+        "timestamp": _now(),
+    })
+
+
+@nlp_rag.route("/ai/usage-summary", methods=["GET"])
+def ai_usage_summary() -> Any:
+    """Return aggregate usage only; raw user questions are never exposed."""
+    days = max(1, min(365, int(request.args.get("days", 30))))
+    try:
+        with _usage_db() as conn:
+            summary = conn.execute(
+                """SELECT COUNT(*) AS questions,
+                          COALESCE(SUM(input_tokens), 0) AS input_tokens,
+                          COALESCE(SUM(output_tokens), 0) AS output_tokens,
+                          COALESCE(SUM(estimated_cost), 0) AS estimated_cost,
+                          COALESCE(AVG(response_time), 0) AS average_response_time,
+                          COALESCE(AVG(rag_chunk_count), 0) AS average_rag_chunks,
+                          COALESCE(SUM(answer_success), 0) AS successful_answers
+                   FROM ai_usage_logs
+                   WHERE timestamp >= datetime('now', ?)""",
+                (f"-{days} days",),
+            ).fetchone()
+            modes = conn.execute(
+                """SELECT resolved_mode AS mode, COUNT(*) AS questions,
+                          COALESCE(SUM(estimated_cost), 0) AS estimated_cost
+                   FROM ai_usage_logs
+                   WHERE timestamp >= datetime('now', ?)
+                   GROUP BY resolved_mode ORDER BY questions DESC""",
+                (f"-{days} days",),
+            ).fetchall()
+        return jsonify({
+            "status": "success", "days": days,
+            "summary": dict(summary or {}),
+            "by_mode": [dict(row) for row in modes],
+            "timestamp": _now(),
+        })
+    except Exception as exc:
+        logging.getLogger(__name__).warning("[AI_USAGE] summary failed: %s", exc)
+        return jsonify({"status": "error", "message": "用量摘要暫時無法取得"}), 503
+
+
 # ── OCR Drive Index (lazy import to avoid startup failure) ───────────────────
 _ocr_svc = None
 
@@ -1502,8 +1676,11 @@ def smart_ask() -> Any:
       3. Drive OCR 全文索引補充（歷年報告、掃描表單）
       4. AI 綜合推論 → 流暢繁中回答
     """
+    request_started = time.perf_counter()
     data    = request.get_json() or {}
     query   = _as_text(data.get("query") or data.get("question"))
+    mode_config = resolve_mode(_as_text(data.get("ai_mode")) or "pro", query)
+    top_k = int(mode_config.get("top_k") or 4)
     use_web_raw = data.get("use_web", "auto")
     if isinstance(use_web_raw, bool):
         use_web = use_web_raw
@@ -1535,7 +1712,9 @@ def smart_ask() -> Any:
     def _task_local() -> List[Dict[str, Any]]:
         if rag_backend is None:
             return []
-        return _local_keyword_retrieve(query, top_k=8)
+        # 多磁碟備份可能含有同一份報告；多取一些候選後再去重，
+        # 避免相同片段占滿 Top K 而排擠真正不同的證據。
+        return _local_keyword_retrieve(query, top_k=min(15, top_k * 3))
 
     def _task_ocr() -> Dict[str, Any]:
         ocr_svc = _get_ocr_svc()
@@ -1553,12 +1732,12 @@ def smart_ask() -> Any:
             started = bool(ocr_svc.start_indexing(folder_id))
             status = dict(ocr_svc.get_status() or {})
         return {"status": status, "started": started,
-                "hits": ocr_svc.search(query, top_k=5) or []}
+                "hits": ocr_svc.search(query, top_k=top_k) or []}
 
     def _task_management() -> Dict[str, Any]:
         if management_context is None:
             return {}
-        return management_context.build_management_context(query, limit=6) or {}
+        return management_context.build_management_context(query, limit=top_k) or {}
 
     results = _run_parallel({
         "platform":   _task_platform,
@@ -1578,15 +1757,27 @@ def smart_ask() -> Any:
     web_ctx = _format_web_results(web_results) if web_results else ""
 
     # 3. 本機 RAG 補充
-    local_docs: List[Dict[str, Any]] = results.get("local") or []
-    local_evidence = [_doc_to_evidence(d) for d in local_docs[:6]]
+    local_candidates: List[Dict[str, Any]] = results.get("local") or []
+    local_docs: List[Dict[str, Any]] = []
+    local_seen = set()
+    for item in local_candidates:
+        source_name = os.path.basename(_as_text(item.get("source_file") or item.get("source"))).lower()
+        content = _as_text(item.get("full_text") or item.get("preview") or item.get("text"))
+        dedupe_key = (source_name, re.sub(r"\s+", "", content[:320]).lower())
+        if dedupe_key in local_seen:
+            continue
+        local_seen.add(dedupe_key)
+        local_docs.append(item)
+        if len(local_docs) >= top_k:
+            break
+    local_evidence = [_doc_to_evidence(d) for d in local_docs[:top_k]]
     local_ctx = "\n\n".join(
         (
             f"【本機文件 {index}：{_as_text(d.get('source_file') or d.get('source') or '橫流溪資料庫')}"
             f"；頁碼 {_as_text(d.get('page') or d.get('page_number') or '未標示')}】\n"
-            f"{_as_text(d.get('full_text') or d.get('preview') or d.get('text'))[:900]}"
+            f"{_as_text(d.get('full_text') or d.get('preview') or d.get('text'))[:650]}"
         )
-        for index, d in enumerate(local_docs[:8], 1)
+        for index, d in enumerate(local_docs[:top_k], 1)
     ) if local_docs else ""
 
     # 4. Drive OCR 全文搜尋
@@ -1596,7 +1787,7 @@ def smart_ask() -> Any:
     ocr_citations: List[Dict[str, Any]] = []
     ocr_parts: List[str] = []
     for h in (ocr_payload.get("hits") or []):
-        snippet = _as_text(h.get("chunk"))[:600]
+        snippet = _as_text(h.get("chunk"))[:450]
         doc_name = _as_text(h.get("doc_name"))
         year_tag = f"（{h['year']}年）" if h.get("year") else ""
         ocr_parts.append(f"【文件：{doc_name}{year_tag}】\n{snippet}")
@@ -1620,12 +1811,12 @@ def smart_ask() -> Any:
     if client_platform_ctx.strip():
         combined_ctx_parts.append(
             "【瀏覽器目前平台資料庫即時快照（最高優先）】\n"
-            + client_platform_ctx
+            + client_platform_ctx[:6500]
         )
     if platform_ctx.strip():
-        combined_ctx_parts.append(f"【線上平台即時讀取資料】\n{platform_ctx}")
+        combined_ctx_parts.append(f"【線上平台即時讀取資料】\n{platform_ctx[:3500]}")
     if management_ctx.strip():
-        combined_ctx_parts.append(f"【最新巡查與維護管理資料】\n{management_ctx}")
+        combined_ctx_parts.append(f"【最新巡查與維護管理資料】\n{management_ctx[:3500]}")
     if local_ctx.strip():
         combined_ctx_parts.append(f"【橫流溪本機 RAG 資料】\n{local_ctx}")
     if ocr_ctx.strip():
@@ -1634,8 +1825,31 @@ def smart_ask() -> Any:
         combined_ctx_parts.append(f"【外部網路補充資料（不得覆蓋橫流溪原始紀錄）】\n{web_ctx}")
     combined_ctx = "\n\n".join(combined_ctx_parts)
 
-    # ── 7. AI 綜合推論（自動選用可用的免費服務）─────────────────
-    answer, provider_key, provider_display = _ai_synthesis(query, combined_ctx)
+    # ── 7. 指定模式推論；所有模式共用上方同一批 RAG 結果 ─────────
+    evidence_count = (
+        len(local_evidence) + len(ocr_citations) + len(management_evidence)
+        + len(platform_evidence) + len(web_results)
+    )
+    if client_platform_ctx.strip():
+        evidence_count += 1
+    if not combined_ctx.strip() or evidence_count == 0:
+        ai_result = {
+            "answer": "目前資料庫中沒有足夠資料可以確認。請補充設施名稱、樁號、巡查日期或調查年度後再查詢。",
+            "provider": "rag_guard",
+            "actual_model": "未呼叫模型",
+            "display_name": "RAG 資料不足保護",
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "estimated_cost": 0.0,
+            "response_time": round(time.perf_counter() - request_started, 3),
+            "fallback_used": False,
+            "error_type": "insufficient_evidence",
+        }
+    else:
+        ai_result = _ai_synthesis_mode(query, combined_ctx, mode_config)
+    answer = _as_text(ai_result.get("answer"))
+    provider_key = _as_text(ai_result.get("provider")) or "none"
+    provider_display = _as_text(ai_result.get("display_name") or ai_result.get("actual_model"))
 
     # 魚道緊急狀態屬於可由平台即時數據決定的事實，不讓模型改寫成相反結論。
     if client_platform_ctx and re.search(r"魚道", query) and re.search(r"緊急|優先|處理|維護|異常|狀態", query):
@@ -1690,15 +1904,16 @@ def smart_ask() -> Any:
             provider_key = provider_key or "platform_guard"
             provider_display = f"{provider_display or '平台資料'}＋即時狀態一致性檢核"
 
-    # ── 7a. AI 失敗時：若有本機 RAG 知識庫結果則優先顯示，避免顯示與問題無關的巡查摘要 ──
-    if not answer and local_ctx.strip():
-        answer = f"根據橫流溪本機知識庫檢索結果：\n\n{local_ctx}\n\n（AI 推論服務目前無法使用，以上為直接檢索結果，建議對照原始文件確認詳細內容。）"
-        provider_key, provider_display = "local_kb", "本機知識庫"
-
-    # ── 7b. 完全無 RAG 結果時才用管理資料保底 ─────────────────
+    # ── 7a. AI 失敗時優先使用結構化巡查／維護資料，避免操作指南或
+    #         舊版說明文件蓋過最新設施狀態。─────────────────────
     if not answer and management_ctx.strip():
         answer = _management_fallback_answer(query, management_evidence, management_counts)
         provider_key, provider_display = "management_context", "最新巡查與維護資料保底回答"
+
+    # ── 7b. 結構化管理資料也無法回答時，才直接呈現文件 RAG 片段。──
+    if not answer and local_ctx.strip():
+        answer = f"根據橫流溪本機知識庫檢索結果：\n\n{local_ctx}\n\n（AI 推論服務目前無法使用，以上為直接檢索結果，建議對照原始文件確認詳細內容。）"
+        provider_key, provider_display = "local_kb", "本機知識庫"
 
     if not answer:
         answer = _fallback_answer(parse_query(query), []) or (
@@ -1720,6 +1935,72 @@ def smart_ask() -> Any:
     ocr_running_part = "雲端OCR索引建立中 ＋ " if ocr_index_started or ocr_status_data.get("running") else ""
     msg       = f"{platform_part}{web_part}{ocr_part}{ocr_running_part}本機資料 ＋ {ai_part}"
 
+    structured_citations: List[Dict[str, Any]] = []
+    # 最新且具結構欄位的管理資料優先列為來源。
+    for item in management_evidence:
+        structured_citations.append({
+            "source_file": item.get("source") or item.get("title") or "最新巡查與維護紀錄",
+            "page": item.get("page") or 1,
+            "preview": item.get("quote") or item.get("summary") or item.get("description") or "",
+            "score": item.get("confidence") or 0.82,
+            "source_href": item.get("source_href") or item.get("href") or "",
+            "record_id": item.get("record_id") or item.get("id") or "",
+            "source_type": item.get("type") or "管理資料",
+        })
+    for item in local_evidence:
+        structured_citations.append({
+            "source_file": item.get("source") or "橫流溪資料庫",
+            "page": item.get("page") or 1,
+            "section": item.get("section") or "",
+            "preview": item.get("quote") or "",
+            "score": item.get("confidence") or 0,
+            "source_href": item.get("source_href") or "",
+            "chunk_id": item.get("chunk_id") or "",
+            "source_type": "本機 RAG",
+        })
+    for item in ocr_citations:
+        structured_citations.append({
+            "source_file": item.get("title") or "雲端 OCR 文件",
+            "page": item.get("page") or 1,
+            "preview": item.get("snippet") or "",
+            "score": item.get("score") or 0,
+            "source_href": item.get("href") or "",
+            "source_type": "雲端 OCR",
+        })
+    if not structured_citations and client_platform_ctx.strip():
+        structured_citations.append({
+            "source_file": "橫流溪管理平台即時資料庫",
+            "page": 1,
+            "preview": client_platform_ctx[:220],
+            "score": 0.9,
+            "source_href": platform_url,
+            "source_type": "平台即時資料",
+        })
+    structured_citations = structured_citations[:top_k]
+
+    total_response_time = round(time.perf_counter() - request_started, 3)
+    usage = {
+        "selected_mode": mode_config.get("requested_mode"),
+        "selected_mode_label": mode_config.get("requested_label"),
+        "resolved_mode": mode_config.get("mode"),
+        "resolved_mode_label": mode_config.get("label"),
+        "auto_selected": bool(mode_config.get("auto_selected")),
+        "actual_model": _as_text(ai_result.get("actual_model")) or provider_display,
+        "provider": provider_key,
+        "input_tokens": int(ai_result.get("input_tokens") or 0),
+        "output_tokens": int(ai_result.get("output_tokens") or 0),
+        "estimated_cost": round(float(ai_result.get("estimated_cost") or 0), 8),
+        "response_time": total_response_time,
+        "rag_chunk_count": len(structured_citations),
+        "fallback_used": bool(ai_result.get("fallback_used")),
+    }
+    _log_ai_usage({
+        "user_question": query,
+        **usage,
+        "answer_success": bool(answer),
+        "error_type": ai_result.get("error_type"),
+    })
+
     return jsonify({
         "status":           "success",
         "answer":           answer,
@@ -1737,9 +2018,13 @@ def smart_ask() -> Any:
         "ocr_index_started": ocr_index_started,
         "management_evidence": management_evidence,
         "management_counts": management_counts,
-        "confidence_level": "high" if answer else "none",
-        "confidence_score": 90 if answer else 0,
-        "policy_label":     "AI 綜合回答",
+        "structured_citations": structured_citations,
+        "ai_usage": usage,
+        "selected_mode": mode_config.get("requested_mode"),
+        "resolved_mode": mode_config.get("mode"),
+        "confidence_level": "high" if structured_citations and answer else ("low" if answer else "none"),
+        "confidence_score": 90 if structured_citations and answer else (45 if answer else 0),
+        "policy_label":     "RAG 專業回答" if structured_citations else "資料不足提醒",
         "message":          msg,
         "timestamp":        _now(),
     })

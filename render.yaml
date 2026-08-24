@@ -12,3 +12,19 @@ services:
         value: 3.11.0
       - key: FLASK_ENV
         value: production
+      - key: AI_MODEL_FAST
+        value: google/gemini-2.5-flash-lite
+      - key: AI_MODEL_FAST_FALLBACK
+        value: openrouter/free
+      - key: AI_MODEL_PRO
+        value: ~anthropic/claude-sonnet-latest
+      - key: AI_MODEL_PRO_FALLBACK
+        value: openrouter/auto
+      - key: AI_MODEL_DEEP
+        value: openrouter/auto
+      - key: AI_MODEL_DEEP_FALLBACK
+        value: ~anthropic/claude-sonnet-latest
+      - key: AI_PROVIDER_PRIORITY
+        value: gemini,claude,groq
+      - key: OLLAMA_SMART_TIMEOUT
+        value: "8"
