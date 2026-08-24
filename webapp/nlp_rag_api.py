@@ -791,20 +791,43 @@ def localai_status() -> Any:
 #  網路搜尋 + 本機資料 + Ollama 綜合推論  /api/smart-ask
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _ddgs_client():
+    """取得可用的 DuckDuckGo 用戶端。
+
+    duckduckgo_search 已更名為 ddgs，舊名稱雖仍可 import 但查詢一律回傳空結果，
+    這使得「查無平台資料時以網路補充」的設計長期失效卻沒有任何錯誤訊息。
+    因此優先採用新套件，並在兩者皆不可用時明確記錄。
+    """
+    for module_name in ("ddgs", "duckduckgo_search"):
+        try:
+            module = __import__(module_name, fromlist=["DDGS"])
+            return getattr(module, "DDGS"), module_name
+        except Exception:
+            continue
+    return None, ""
+
+
 def _web_search_ddg(query: str, max_results: int = 6) -> List[Dict[str, Any]]:
     """DuckDuckGo 免費搜尋（不需 API Key）。"""
+    _log = logging.getLogger(__name__)
+    ddgs_cls, module_name = _ddgs_client()
+    if ddgs_cls is None:
+        _log.warning("[WEB] 未安裝 ddgs 套件，網路補充功能停用")
+        return []
+
     try:
-        from duckduckgo_search import DDGS
-        with DDGS() as ddgs:
-            return list(ddgs.text(
+        with ddgs_cls() as ddgs:
+            results = list(ddgs.text(
                 query,
                 max_results=max_results,
                 region="tw-zh",
                 safesearch="moderate",
             ))
-    except ImportError:
-        return []          # duckduckgo-search 未安裝時靜默降級
+        if not results:
+            _log.info("[WEB] %s 查無結果：%s", module_name, query[:40])
+        return results
     except Exception as exc:
+        _log.warning("[WEB] %s 搜尋失敗 %s: %s", module_name, type(exc).__name__, exc)
         return []
 
 
@@ -1996,7 +2019,24 @@ def smart_ask() -> Any:
     provider_display = _as_text(ai_result.get("display_name") or ai_result.get("actual_model"))
 
     # 魚道緊急狀態屬於可由平台即時數據決定的事實，不讓模型改寫成相反結論。
-    if client_platform_ctx and re.search(r"魚道", query) and re.search(r"緊急|優先|處理|維護|異常|狀態", query):
+    #
+    # 但這是「整段覆蓋 AI 答案」的強制手段，觸發條件必須嚴格：
+    # 過去只要問題同時出現「魚道」與「維護」就生效，導致像
+    #「魚道AI物件偵測模型的準確率為何？」這種問到 AI 辨識、
+    # 僅順帶提及魚道與維護管理平台的題目，也被覆蓋成魚道座數統計。
+    # 現在必須本題意圖確實是設施現況查詢，且句子在問狀態或急迫性才套用。
+    _guard_intent = intent.get("intent") in ("facility", "inspection", "general")
+    _guard_asking_status = bool(re.search(
+        r"(現況|目前|最新|哪些|幾座|多少|狀態如何|是否正常)"
+        r"|((需要|待|該|要)(緊急|優先|維護|處理|修復))"
+        r"|(緊急處理|優先處理|損壞|異常)",
+        query))
+    # 明顯屬於技術方法、制度或評審提問者一律不套用
+    _guard_excluded = bool(re.search(
+        r"準確率|誤判|辨識|模型|演算法|交叉驗證|方法論|如何計算|評分|構面|委員|簡報",
+        query))
+    if (client_platform_ctx and re.search(r"魚道", query)
+            and _guard_intent and _guard_asking_status and not _guard_excluded):
         summary_match = re.search(
             r"魚道設施共\s*(\d+)\s*座[^。\n]*?正常\s*(\d+)\s*座[^。\n]*?需維護\s*(\d+)\s*座[^。\n]*?損壞\s*(\d+)\s*座",
             client_platform_ctx,

@@ -71,8 +71,10 @@ INTENT_RULES: List[Dict[str, Any]] = [
             r'評審|委員|金質獎|評分|構面|簡報|初評|問答準備|沙盤',
             r'胡培中|李振卿|賴建宏|王宜達|張坤城',
         ],
+        # 評審題以手冊為主，但手冊未涵蓋的技術問題（如模型準確率的業界基準、
+        # 法規標準、他案作法）需要外部資料補充，故保留網路檢索。
         'weights': {'handbook': 1.0, 'docs': 0.6, 'management': 0.3,
-                    'facility': 0.3, 'ecology': 0.3, 'web': 0.0},
+                    'facility': 0.3, 'ecology': 0.3, 'web': 0.5},
     },
     {
         'intent': 'ecology_fish',
@@ -170,6 +172,14 @@ def route_intent(query: str) -> Dict[str, Any]:
     best = max(scores, key=lambda k: scores[k])
     rule = next(r for r in INTENT_RULES if r['intent'] == best)
     weights = dict(rule['weights'])
+
+    # 手冊若近乎逐字命中某一組預期提問，代表這題本來就是評審沙盤推演題，
+    # 此時不論意圖判為何者，都應以手冊為主要依據。
+    top = (search_handbook(text, limit=1) or [{}])[0].get('score', 0)
+    if top >= 12:
+        weights['handbook'] = 1.0
+    elif top >= 5:
+        weights['handbook'] = max(weights.get('handbook', 0.0), 0.7)
 
     # 次要意圖也納入：問題常同時橫跨兩個面向（例如「魚道損壞影響魚類通行嗎」）
     for intent, score in scores.items():
@@ -343,6 +353,11 @@ def needs_web_search(query: str, intent: Dict[str, Any],
         return True
     # 生態習性、學名、分類等問題，平台資料庫多半只有調查數量而無生物學描述
     if re.search(r'習性|食性|生活史|產卵|繁殖|分類|學名|保育等級|適合|喜歡|偏好',
+                 query):
+        return True
+    # 需要業界基準或標準值佐證的技術問題，平台只有本案數據、缺乏比較基準
+    if re.search(r'準確率|誤判|召回率|基準值|標準值|門檻|規範|國家標準|國際標準'
+                 r'|一般而言|通常|業界|文獻|研究指出|如何驗證|方法論',
                  query):
         return True
     if intent.get('weights', {}).get('web', 0) >= 0.5 and local_chars < 1200:
