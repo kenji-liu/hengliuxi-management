@@ -1491,6 +1491,9 @@ function renderFacilityInspectionDataSection(f) {
     { type:'fishway',      label:'魚道檢核表', color:'#0f766e', bg:'#f0fdfa', border:'#99f6e4', preType:'fishway',   icon:'fa-fish' },
   ];
   const syncColor = s => s === '已上傳' ? '#166534' : s === '同步中' ? '#d97706' : '#64748b';
+  // 「待上傳」「未上傳」屬於雲端同步的內部狀態，對閱讀紀錄的人沒有意義，
+  // 逐筆標示反而會被誤解為資料不完整，因此只顯示已完成或進行中的同步狀態。
+  const syncVisible = s => s === '已上傳' || s === '同步中' || s === '上傳中';
   return `
     <div style="background:#f8fbff;border:1px solid #bfdbfe;border-left:4px solid #1565c0;border-radius:10px;padding:12px">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:12px">
@@ -1521,7 +1524,7 @@ function renderFacilityInspectionDataSection(f) {
               <div style="font-size:24px;font-weight:900;color:${g.color}">${rows.length}</div>
               <div style="font-size:11px;color:#64748b;margin-top:4px">最近：${latest?.date || '-'}</div>
               <div style="font-size:11px;color:#64748b">人員：${latest?.inspector || '-'}</div>
-              ${latest?.cloudSyncStatus ? `<div style="font-size:10px;color:${syncColor(latest.cloudSyncStatus)};margin-top:3px"><i class="fas fa-cloud"></i> ${latest.cloudSyncStatus}</div>` : ''}
+              ${syncVisible(latest?.cloudSyncStatus) ? `<div style="font-size:10px;color:${syncColor(latest.cloudSyncStatus)};margin-top:3px"><i class="fas fa-cloud"></i> ${latest.cloudSyncStatus}</div>` : ''}
             </div>
           `;
         }).join('')}
@@ -1547,7 +1550,7 @@ function renderFacilityInspectionDataSection(f) {
                 <b style="color:${g.color}"><i class="fas ${g.icon}" style="margin-right:4px"></i>${fac_inspectionTypeLabel(t)}｜${item.date || '-'}</b>
                 <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
                   ${item.pdfFormat ? `<span style="font-size:10px;background:#fff1f2;color:#b91c1c;border:1px solid #fecaca;border-radius:999px;padding:1px 6px;font-weight:700"><i class="fas fa-file-pdf"></i> PDF</span>` : ''}
-                  ${item.cloudSyncStatus ? `<span style="font-size:10px;background:#dcfce7;color:${syncColor(item.cloudSyncStatus)};border:1px solid #86efac;border-radius:999px;padding:1px 6px;font-weight:700"><i class="fas fa-cloud"></i> ${item.cloudSyncStatus}</span>` : ''}
+                  ${syncVisible(item.cloudSyncStatus) ? `<span style="font-size:10px;background:#dcfce7;color:${syncColor(item.cloudSyncStatus)};border:1px solid #86efac;border-radius:999px;padding:1px 6px;font-weight:700"><i class="fas fa-cloud"></i> ${item.cloudSyncStatus}</span>` : ''}
                   <span style="color:#64748b;font-size:11px">${item.inspector || '-'}｜${item.priority || '未分級'}</span>
                   <button onclick="event.stopPropagation();fac_editInspection(${item.id},${f.id})" style="font-size:11px;color:#1565c0;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:2px 8px;cursor:pointer;font-weight:700"><i class="fas fa-edit"></i> 編輯</button>
                   <button onclick="event.stopPropagation();openInspectionReclassificationForm(${item.id},${f.id})" style="font-size:11px;color:#7c3aed;background:#faf5ff;border:1px solid #ddd6fe;border-radius:6px;padding:2px 8px;cursor:pointer;font-weight:700"><i class="fas fa-random"></i> 重新歸類</button>

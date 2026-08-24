@@ -3215,7 +3215,6 @@ function renderInspDataList(data) {
     const hasAi   = !!item.aiImageAnalysis;
     const name = item.facilityName || item.facility_name || '未指定設施';
     const findings = String(item.findings || item.notes || '').slice(0, 100);
-    const cloudStyle = inspectionCloudSyncColor(item.cloudSyncStatus || '待上傳');
     const pdfLabel = item.pdfFileName || item.pdfTemplate || '';
 
     return `
