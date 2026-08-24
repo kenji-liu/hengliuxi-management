@@ -12,6 +12,7 @@ import os
 import json
 import io
 import logging
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -56,48 +57,65 @@ def _resolve_path(secret_file: str, local_file: str) -> str | None:
     return None
 
 
-def _auth_mode() -> str:
-    """回傳目前可用的認證模式（優先順序）：
-      1. service_account — 服務帳號（Render Secret File 或 env var）
-      2. oauth2_env  — Render 環境變數（GDRIVE_REFRESH_TOKEN 等）
-      3. oauth2_file — 本機 / Secret Files 的 token JSON
-      4. none
-    """
-    # 1. 服務帳號優先（Render 部署使用，永不過期）
+def _available_modes() -> list:
+    """依優先序列出目前可用的認證模式。"""
+    modes = []
     env_sa = os.environ.get('GOOGLE_SERVICE_ACCOUNT_JSON', '').strip()
+    has_sa = False
     if env_sa and env_sa.startswith('{'):
         try:
-            info = json.loads(env_sa)
-            if info.get('client_email'):
-                return 'service_account'
+            has_sa = bool(json.loads(env_sa).get('client_email'))
         except Exception:
-            pass
-    if os.path.exists(_SA_SECRET_FILE):
-        return 'service_account'
-    if os.path.exists(_SA_PATH):
-        return 'service_account'
-    # 2. 環境變數 OAuth2
+            has_sa = False
+    has_sa = has_sa or os.path.exists(_SA_SECRET_FILE) or os.path.exists(_SA_PATH)
+    if has_sa:
+        modes.append('service_account')
     if os.environ.get('GDRIVE_REFRESH_TOKEN') and os.environ.get('GDRIVE_CLIENT_ID'):
-        return 'oauth2_env'
-    # 3. 檔案 OAuth2
-    token  = _resolve_path(_TOKEN_SECRET_FILE, _TOKEN_PATH)
-    secret = _resolve_path(_CLIENT_SECRET_FILE, _SECRET_PATH)
-    if token and secret:
-        return 'oauth2_file'
-    return 'none'
+        modes.append('oauth2_env')
+    if (_resolve_path(_TOKEN_SECRET_FILE, _TOKEN_PATH)
+            and _resolve_path(_CLIENT_SECRET_FILE, _SECRET_PATH)):
+        modes.append('oauth2_file')
+
+    # 服務帳號沒有自己的雲端硬碟容量，只有寫進共用雲端硬碟才有用。
+    # 未設定共用硬碟時（個人 Google 帳號無法建立共用硬碟），OAuth 才是可行路徑，
+    # 因此把服務帳號降到最後，避免每次都先撞一次 storageQuotaExceeded。
+    if 'service_account' in modes and not shared_drive_id() and len(modes) > 1:
+        modes = [m for m in modes if m != 'service_account'] + ['service_account']
+
+    forced = os.environ.get('GDRIVE_AUTH_MODE', '').strip()
+    if forced and forced in modes:
+        modes = [forced] + [m for m in modes if m != forced]
+    return modes
+
+
+def _auth_mode() -> str:
+    """目前優先採用的認證模式，無可用者回傳 'none'。"""
+    modes = _available_modes()
+    return modes[0] if modes else 'none'
 
 
 def is_configured() -> bool:
     return _auth_mode() not in ('none',)
 
 
-def _get_service():
+def _get_service(mode: str = ''):
+    """建立 Drive service。未指定 mode 時使用優先序最高的可用模式並快取。"""
     global _drive_service
-    if _drive_service is not None:
-        return _drive_service
+    if not mode:
+        if _drive_service is not None:
+            return _drive_service
+        mode = _auth_mode()
+        cache = True
+    else:
+        cache = False
 
-    mode = _auth_mode()
+    service = _build_service(mode)
+    if cache:
+        _drive_service = service
+    return service
 
+
+def _build_service(mode: str):
     if mode == 'oauth2_env':
         # 從環境變數直接建立 OAuth2 credentials（最適合 Render）
         from google.oauth2.credentials import Credentials
@@ -113,9 +131,8 @@ def _get_service():
             scopes=_SCOPES,
         )
         creds.refresh(Request())
-        _drive_service = build('drive', 'v3', credentials=creds)
         logger.info('[Drive] OAuth2（env vars）認證成功')
-        return _drive_service
+        return build('drive', 'v3', credentials=creds)
 
     elif mode in ('oauth2_file', 'oauth2'):
         from google.oauth2.credentials import Credentials
@@ -131,9 +148,8 @@ def _get_service():
                     f.write(creds.to_json())
             logger.info('[Drive] OAuth2 Token 已自動刷新')
 
-        _drive_service = build('drive', 'v3', credentials=creds)
         logger.info('[Drive] OAuth2（file）認證成功')
-        return _drive_service
+        return build('drive', 'v3', credentials=creds)
 
     elif mode == 'service_account':
         from google.oauth2 import service_account
@@ -142,28 +158,74 @@ def _get_service():
         sa_info = _load_sa_info()
         creds = service_account.Credentials.from_service_account_info(
             sa_info, scopes=_SCOPES)
-        _drive_service = build('drive', 'v3', credentials=creds)
         logger.info('[Drive] 服務帳號認證成功')
-        return _drive_service
+        return build('drive', 'v3', credentials=creds)
 
     else:
         raise RuntimeError('DRIVE_NOT_CONFIGURED')
 
 
+def _normalize_drive_id(value: str) -> str:
+    """把使用者可能直接貼上的 Drive 網址正規化成純 ID。
+
+    設定環境變數時貼整串網址是很常見的操作，若原樣送進 API 會得到
+    令人困惑的 404 File not found，因此在此統一處理。
+    """
+    text = (value or '').strip().strip('"\'')
+    if not text:
+        return ''
+    if 'drive.google.com' in text:
+        m = re.search(r'/(?:folders|drive/u/\d+/folders)/([A-Za-z0-9_-]+)', text)
+        if m:
+            return m.group(1)
+        m = re.search(r'[?&]id=([A-Za-z0-9_-]+)', text)
+        if m:
+            return m.group(1)
+    # 去掉可能殘留的查詢字串
+    return text.split('?', 1)[0].rstrip('/')
+
+
 def shared_drive_id() -> str:
     """設定中的共用雲端硬碟 ID（未使用共用硬碟時為空字串）。"""
-    return os.environ.get('GDRIVE_SHARED_DRIVE_ID', '').strip()
+    return _normalize_drive_id(os.environ.get('GDRIVE_SHARED_DRIVE_ID', ''))
+
+
+_CONFIG_PATH = os.path.join(_DATA_DIR, 'gdrive_config.json')
+
+
+def load_config() -> dict:
+    """本機 Drive 設定（例如授權後實際可寫入的根資料夾）。"""
+    try:
+        with open(_CONFIG_PATH, encoding='utf-8') as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def save_config(**values) -> dict:
+    """更新並寫回本機 Drive 設定。"""
+    config = load_config()
+    config.update({k: v for k, v in values.items() if v is not None})
+    os.makedirs(_DATA_DIR, exist_ok=True)
+    with open(_CONFIG_PATH, 'w', encoding='utf-8') as f:
+        json.dump(config, f, ensure_ascii=False, indent=2)
+    return config
 
 
 def root_folder_id() -> str:
     """上傳的根資料夾。
 
-    優先序：明確指定的 GDRIVE_ROOT_FOLDER_ID → 共用硬碟根目錄 → 內建常數。
+    優先序：環境變數 GDRIVE_ROOT_FOLDER_ID（雲端部署用）→ 本機設定檔
+    → 共用硬碟根目錄 → 內建常數。
     共用硬碟的根目錄 ID 等同該硬碟的 driveId。
     """
-    explicit = os.environ.get('GDRIVE_ROOT_FOLDER_ID', '').strip()
+    explicit = _normalize_drive_id(os.environ.get('GDRIVE_ROOT_FOLDER_ID', ''))
     if explicit:
         return explicit
+    configured = _normalize_drive_id(str(load_config().get('rootFolderId', '')))
+    if configured:
+        return configured
     return shared_drive_id() or GDRIVE_ROOT_FOLDER_ID
 
 
@@ -282,16 +344,37 @@ def diagnose() -> dict:
     except Exception as exc:
         report['canWrite'] = False
         report['nextStep'] = explain_drive_error(exc)
-        if not report['sharedDrives']:
-            report['nextStep'] += (
-                f" 目前服務帳號（{report['serviceAccountEmail']}）"
-                '尚未被加入任何共用雲端硬碟。')
-        elif not report['rootFolder'].get('inSharedDrive'):
-            report['nextStep'] += (
-                ' 根資料夾不在共用雲端硬碟內，請將 GDRIVE_SHARED_DRIVE_ID 或 '
-                'GDRIVE_ROOT_FOLDER_ID 指向共用硬碟中的資料夾。')
+        report['hints'] = _setup_hints(report)
 
     return report
+
+
+def _setup_hints(report: dict) -> list:
+    """依診斷結果列出具體待辦，讓使用者知道確切卡在哪一步。"""
+    hints = []
+    sa = report.get('serviceAccountEmail') or '（無法讀取服務帳號信箱）'
+    configured = report.get('sharedDriveId', '')
+
+    if not report.get('sharedDrives'):
+        hints.append(
+            f'服務帳號 {sa} 尚未被加入任何共用雲端硬碟。'
+            '請在共用雲端硬碟（不是一般資料夾）的「管理成員」中加入此帳號，'
+            '權限選「內容管理者」。')
+
+    if configured and configured not in [d['id'] for d in report.get('sharedDrives', [])]:
+        hints.append(
+            f'GDRIVE_SHARED_DRIVE_ID 目前為 {configured}，'
+            '但它不是服務帳號可存取的共用雲端硬碟 ID。'
+            '共用雲端硬碟的 ID 通常以 0A 開頭；'
+            '若以 1 開頭，那是一般資料夾的 ID，不是共用硬碟。')
+
+    root = report.get('rootFolder') or {}
+    if root and not root.get('error') and not root.get('inSharedDrive'):
+        hints.append(
+            f"根資料夾「{root.get('name', '')}」位於「我的雲端硬碟」而非共用雲端硬碟；"
+            '服務帳號在此沒有儲存容量，必須改指向共用硬碟內的資料夾。')
+
+    return hints
 
 
 def explain_drive_error(exc: Exception) -> str:
