@@ -5,6 +5,39 @@
 Hengliuxi Stream Smart Management Platform - Web API
 """
 
+import os
+
+# ── 本機開發：載入專案根目錄的 .env ──────────────────────────────────
+# 雲端（Render）的金鑰由平台環境變數提供；本機若沒有對應設定，
+# AI 會一路退到本機知識庫，看起來像「答詢壞掉」，實際只是沒有金鑰。
+# 已存在的環境變數優先，因此正式部署不受影響。
+def _load_local_env() -> None:
+    env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
+    if not os.path.exists(env_path):
+        return
+    try:
+        from dotenv import load_dotenv
+        load_dotenv(env_path, override=False)
+        return
+    except ImportError:
+        pass
+    # 未安裝 python-dotenv 時的簡易解析，避免多一個必要相依
+    try:
+        with open(env_path, encoding='utf-8') as handle:
+            for line in handle:
+                line = line.strip()
+                if not line or line.startswith('#') or '=' not in line:
+                    continue
+                key, value = line.split('=', 1)
+                key, value = key.strip(), value.strip().strip('"\'')
+                if key and key not in os.environ:
+                    os.environ[key] = value
+    except Exception as exc:
+        print(f"[WARNING] 無法讀取 .env：{exc}")
+
+
+_load_local_env()
+
 from flask import Flask, jsonify, request, send_file, send_from_directory, redirect
 from flask_cors import CORS
 from functools import wraps
@@ -12,7 +45,6 @@ from datetime import datetime
 import json
 import io
 import csv
-import os
 import base64
 from urllib.parse import quote
 from database_manager import HengliuxiDatabase
