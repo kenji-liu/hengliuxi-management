@@ -1,7 +1,7 @@
 // 儀表板模組 — 全連動版
 function renderDashboard() {
   const facilities  = DB.getAll('facilities');
-  const fish        = DB.getAll('fish');
+  const fish        = DB.getAll('fish').filter(f => String(f.species || '').trim() !== '粗首馬口鱲');
   const habitats    = DB.getAll('habitats');
   const inspections = DB.getAll('inspections');
 
@@ -32,7 +32,9 @@ function renderDashboard() {
   const uniqueNearThreat = new Set(
     fish.filter(f => f.conservation === '近危').map(f => f.species)
   ).size;
-  const totalFishCount   = fish.reduce((s, f) => s + (f.count || 0), 0);
+  const totalFishCount   = typeof HLX_FISH_GRAND_TOTAL !== 'undefined'
+    ? HLX_FISH_GRAND_TOTAL
+    : fish.reduce((s, f) => s + (f.count || 0), 0);
 
   // ── 設施類型定義 ────────────────────────────────────────
   const typeOrder = [

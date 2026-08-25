@@ -1,5 +1,10 @@
 // 魚類資料庫模組
 let fishFilter = { keyword: '', conservation: '' };
+// 發布層物種名單：保留原始調查資料供稽核，但不在平台清單、統計及分析中發布。
+const HLX_FISH_EXCLUDED_SPECIES = new Set(['粗首馬口鱲']);
+function fish_isPublishedSpecies(speciesName) {
+  return !HLX_FISH_EXCLUDED_SPECIES.has(String(speciesName || '').trim());
+}
 // ── 所有物種均使用真實田野實拍或標準照（jpg），不再使用 SVG 插圖 ──
 
 const FISH_PHOTO_LIBRARY = {
@@ -940,7 +945,7 @@ function loadFishTable() {
     return;
   }
 
-  const TREND_SET = new Set(['臺灣白甲魚','臺灣石魚賓','臺灣鬚鱲','纓口臺鰍','臺灣間爬岩鰍','明潭吻鰕虎','粗首馬口鱲','短臀瘋鱨','短吻紅斑吻鰕虎']);
+  const TREND_SET = new Set(['臺灣白甲魚','臺灣石魚賓','臺灣鬚鱲','纓口臺鰍','臺灣間爬岩鰍','明潭吻鰕虎','短臀瘋鱨','短吻紅斑吻鰕虎']);
   const fallback = '/webapp/assets/fish-photos/field-measurement.jpg';
 
   document.getElementById('fishTable').innerHTML = `
@@ -1131,7 +1136,7 @@ function openFishSpeciesDetail(speciesName) {
   const effectiveSurveyCount = surveyTimeline.length || dbDisplayRecords.length || target.surveys || 0;
   const latestDateLabel = fish_latestRecordLabel(surveyTimeline.length ? surveyTimeline : dbDisplayRecords);
   const allLocs = [...new Set(records.map(r => r.location).filter(Boolean))];
-  const trendSet = new Set(['臺灣白甲魚','臺灣石魚賓','臺灣鬚鱲','纓口臺鰍','臺灣間爬岩鰍','明潭吻鰕虎','粗首馬口鱲','短臀瘋鱨','短吻紅斑吻鰕虎']);
+  const trendSet = new Set(['臺灣白甲魚','臺灣石魚賓','臺灣鬚鱲','纓口臺鰍','臺灣間爬岩鰍','明潭吻鰕虎','短臀瘋鱨','短吻紅斑吻鰕虎']);
 
   const modal = document.getElementById('modal');
   if (modal) {
@@ -1643,9 +1648,11 @@ const HLX_FISH_110_SUMMARY = {
 // 各物種完整歷年累計＝由上方序列即時加總（無法與趨勢分析漂移）
 const HLX_FISH_FULL_TOTALS = (function () {
   const t = {};
-  Object.values(HLX_FISH_KEY_NAME).forEach(n => { t[n] = 0; });
+  Object.values(HLX_FISH_KEY_NAME).filter(fish_isPublishedSpecies).forEach(n => { t[n] = 0; });
   HLX_FISH_SURVEYS.forEach(s => {
-    Object.entries(HLX_FISH_KEY_NAME).forEach(([k, n]) => { t[n] += (s[k] || 0); });
+    Object.entries(HLX_FISH_KEY_NAME).forEach(([k, n]) => {
+      if (fish_isPublishedSpecies(n)) t[n] += (s[k] || 0);
+    });
   });
   return t;
 })();
@@ -1777,7 +1784,7 @@ function fish_redlist2024(speciesName) {
 }
 
 function fish_groupSpecies() {
-  const data = DB.getAll('fish');
+  const data = DB.getAll('fish').filter(f => fish_isPublishedSpecies(f.species));
   const species = {};
   data.forEach(f => {
     if (!species[f.species]) species[f.species] = { ...f, totalCount: 0, surveys: 0, records: [] };
@@ -1785,7 +1792,7 @@ function fish_groupSpecies() {
     species[f.species].surveys++;
     species[f.species].records.push(f);
   });
-  // ── 統籌核對：9 種趨勢物種的「累計尾數」對齊完整歷年電捕序列，與歷年趨勢分析一致 ──
+  // ── 統籌核對：8 種發布物種的「累計尾數」對齊完整歷年電捕序列，與歷年趨勢分析一致 ──
   Object.values(species).forEach(s => {
     const full = HLX_FISH_FULL_TOTALS[s.species];
     if (full != null) {
@@ -2354,15 +2361,13 @@ function fish_jumpToTrend(speciesName) {
     switchFishTab('trend', btn);
     setTimeout(() => {
       const primaryMap = { '臺灣白甲魚':'bai','臺灣石魚賓':'shi','臺灣鬚鱲':'xu','纓口臺鰍':'ying','臺灣間爬岩鰍':'jian' };
-      const secondarySet = new Set(['明潭吻鰕虎','粗首馬口鱲','短臀瘋鱨','短吻紅斑吻鰕虎']);
+      const secondarySet = new Set(['明潭吻鰕虎','短臀瘋鱨','短吻紅斑吻鰕虎']);
       if (primaryMap[speciesName]) {
         const badge = document.querySelector(`[data-species-key="${primaryMap[speciesName]}"]`);
         if (badge) { badge.style.outline = '3px solid #f59e0b'; badge.scrollIntoView({ behavior:'smooth', block:'center' }); }
       } else if (secondarySet.has(speciesName)) {
-        const canvas = document.getElementById(`spTrend_${speciesName}`);
-        const card = canvas ? canvas.closest('[style*="border:2px solid"]') : null;
-        const section = document.getElementById('secondarySpeciesTrend');
-        const target = card || section;
+        // 詳細物種趨勢區目前不對外顯示，導向仍可見的年度魚類總覽圖。
+        const target = document.getElementById('fishTrendBar')?.closest('[style*="border"]');
         if (target) {
           target.style.outline = '3px solid #f59e0b';
           target.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -3611,7 +3616,7 @@ function renderFishTrend() {
   //    （與水域生物卡片累計尾數、每筆魚種展開明細同源，數據必然同步）
   const SURVEYS = HLX_FISH_SURVEYS;
 
-  // 計算統計（9種全部納入）
+  // 計算統計（8種發布物種全部納入）
   SURVEYS.forEach(s => {
     s.total = (s.bai||0)+(s.shi||0)+(s.xu||0)+(s.ying||0)+(s.jian||0)+(s.min||0)+(s.kou||0)+(s.feng||0)+(s.hong||0);
     const p = [s.bai,s.shi,s.xu,s.ying,s.jian,s.min,s.kou,s.feng,s.hong].map(v=>v||0).filter(v=>v>0);
@@ -3647,7 +3652,7 @@ function renderFishTrend() {
     return m ? parseInt(m[1], 10) : 1;
   };
 
-  // 年度年均（9種全部納入）
+  // 年度年均（8種發布物種全部納入）
   const annualData = {};
   SURVEYS.forEach(s => {
     if (!annualData[s.year]) annualData[s.year] = {bai:0,shi:0,xu:0,ying:0,jian:0,min:0,kou:0,feng:0,hong:0,cnt:0,effort:0,richSet:new Set()};
@@ -3738,7 +3743,7 @@ function renderFishTrend() {
   // ── 統籌核對自我檢查：確認權威常數 HLX_FISH_FULL_TOTALS 與 SURVEYS 完全一致 ──
   try {
     const _keyToName = { bai:'臺灣白甲魚', shi:'臺灣石魚賓', xu:'臺灣鬚鱲', ying:'纓口臺鰍',
-      jian:'臺灣間爬岩鰍', min:'明潭吻鰕虎', kou:'粗首馬口鱲', feng:'短臀瘋鱨', hong:'短吻紅斑吻鰕虎' };
+      jian:'臺灣間爬岩鰍', min:'明潭吻鰕虎', feng:'短臀瘋鱨', hong:'短吻紅斑吻鰕虎' };
     const _computed = {};
     SURVEYS.forEach(s => Object.keys(_keyToName).forEach(k => {
       _computed[_keyToName[k]] = (_computed[_keyToName[k]] || 0) + (s[k] || 0);
@@ -3757,16 +3762,15 @@ function renderFishTrend() {
     { key:'ying', name:'纓口臺鰍',       color:'#22c55e', engName:'Formosania lacustre',          conserve:'近危(NNT)・特有種' },
     { key:'jian', name:'臺灣間爬岩鰍',   color:'#f43f5e', engName:'Hemimyzon formosanus',        conserve:'近危(NNT)・特有種' },
     { key:'min',  name:'明潭吻鰕虎',     color:'#3b82f6', engName:'Rhinogobius candidianus',     conserve:'一般(NLC)・特有種' },
-    { key:'kou',  name:'粗首馬口鱲',     color:'#f59e0b', engName:'Opsariichthys pachycephalus', conserve:'一般(NLC)・特有種' },
     { key:'feng', name:'短臀瘋鱨',       color:'#dc2626', engName:'Tachysurus brevianalis',       conserve:'易危(NVU)・特有種' },
     { key:'hong', name:'短吻紅斑吻鰕虎', color:'#059669', engName:'Rhinogobius rubromaculatus',   conserve:'一般(NLC)・特有種（IUCN全球NT）' },
   ];
 
   const FULL_FISH_LIST = [
     '臺灣間爬岩鰍','纓口臺鰍','臺灣白甲魚','臺灣石魚賓',
-    '臺灣鬚鱲','明潭吻鰕虎','短吻紅斑吻鰕虎','短臀瘋鱨','粗首馬口鱲'
+    '臺灣鬚鱲','明潭吻鰕虎','短吻紅斑吻鰕虎','短臀瘋鱨'
   ];
-  const HISTORICAL_EXTRA_SPECIES = ['粗首馬口鱲'];
+  const HISTORICAL_EXTRA_SPECIES = [];
   const FISHWAY_TYPES = [
     {
       key: 'zigzag', name: '之字形魚道', facilities: '溪構8-2', station: '0K+460',
@@ -3870,7 +3874,7 @@ function renderFishTrend() {
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px">
         ${[
-          { num:'9種', sub:'歷年調查完整\n魚類趨勢記錄', icon:'🐟', color:'#7dd3fc' },
+          { num:'8種', sub:'歷年調查完整\n魚類趨勢記錄', icon:'🐟', color:'#7dd3fc' },
           { num:'721尾', sub:'110年樣站電捕\n486+235', icon:'📋', color:'#fde68a' },
           { num:'8+2種', sub:'110年魚類+\n蝦蟹水域生物', icon:'🧾', color:'#93c5fd' },
           { num:'×6.6', sub:'族群量成長倍數\n(103→114年)', icon:'📈', color:'#86efac' },
@@ -3889,7 +3893,7 @@ function renderFishTrend() {
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;margin-bottom:28px">
       ${[
         { icon:'fa-calendar-alt', color:'#0e7490', label:'調查跨度', val:'103～114年', sub:'(2014～2025)' },
-        { icon:'fa-fish',         color:'#f97316', label:'趨勢整合物種', val:'9 種', sub:'11個量化年度已核對' },
+        { icon:'fa-fish',         color:'#f97316', label:'趨勢整合物種', val:'8 種', sub:'11個量化年度已核對' },
         { icon:'fa-clipboard-check', color:'#1d4ed8', label:'110年樣站電捕', val:`${HLX_FISH_110_SUMMARY.annualTotal} 尾`, sub:`4月${HLX_FISH_110_SUMMARY.springTotal}＋9月${HLX_FISH_110_SUMMARY.autumnTotal}` },
         { icon:'fa-water', color:'#0891b2', label:'110年水域生物', val:`${HLX_FISH_110_SUMMARY.aquaticTaxa} 種`, sub:`魚類${HLX_FISH_110_SUMMARY.fishSpecies}＋蝦蟹2` },
         { icon:'fa-list-check',   color:'#0284c7', label:'已核對調查場次', val:`${HLX_FISH_SURVEY_EVENTS}次`, sub:'103～114年逐次建檔' },
@@ -3911,7 +3915,7 @@ function renderFishTrend() {
         <i class="fas fa-circle-info" style="color:#2563eb;margin-right:10px"></i>魚類資料口徑確認與來源補充
       </div>
       <div style="font-size:18px;color:#475569;line-height:1.85;margin-bottom:16px">
-        本頁將9種魚類已核對量化紀錄整合呈現；資料區間為103～114年，實際具量化序列者為11個年度，共${HLX_FISH_SURVEY_EVENTS}個調查場次。
+        本頁將8種魚類已核對量化紀錄整合呈現；資料區間為103～114年，實際具量化序列者為11個年度，共${HLX_FISH_SURVEY_EVENTS}個調查場次。
         105年度成果報告重複收錄104年調查日期，未另建105年年度數值；完成調查但未捕獲的場次保留為0尾，未取得量化表格者維持「無資料」，不以0尾代填，也不複製相鄰年度數據。
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px">
@@ -3920,11 +3924,11 @@ function renderFishTrend() {
           <div style="font-size:18px;color:#334155;line-height:1.9">${SPECIES.slice(0,5).map(s=>`${s.name}（${s.engName}）`).join('、')}</div>
         </div>
         <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:16px 18px">
-          <div style="font-size:20px;font-weight:900;color:#166534;margin-bottom:10px">4種次要物種（103～114年同口徑檢視）</div>
+          <div style="font-size:20px;font-weight:900;color:#166534;margin-bottom:10px">3種次要物種（103～114年同口徑檢視）</div>
           <div style="font-size:18px;color:#334155;line-height:1.9">${SPECIES.slice(5).map(s=>`${s.name}（${s.engName}）`).join('、')}</div>
         </div>
         <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:16px 18px">
-          <div style="font-size:20px;font-weight:900;color:#c2410c;margin-bottom:10px">橫流溪完整歷史名錄9種</div>
+          <div style="font-size:20px;font-weight:900;color:#c2410c;margin-bottom:10px">橫流溪發布魚類名錄8種</div>
           <div style="font-size:18px;color:#334155;line-height:1.9">${FULL_FISH_LIST.join('、')}</div>
         </div>
         <div style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:12px;padding:16px 18px">
@@ -4033,7 +4037,7 @@ function renderFishTrend() {
             <span style="width:10px;height:10px;border-radius:50%;background:${s.color};flex-shrink:0;display:inline-block"></span>${s.name}</span>`).join('')}
         </div>
         <div style="background:#f0fdf4;border-radius:8px;padding:10px 14px;margin-top:10px;font-size:13px;color:#166534;line-height:1.6">
-          114 年臺灣白甲魚占全 9 種年度捕獲量約<strong>61.8%</strong>，為壓低 H′ 均勻度的主要優勢種；同年記錄 8 種，顯示物種豐富度提高，但群聚尚未達高度均衡。
+          114 年臺灣白甲魚占全 8 種年度捕獲量約<strong>61.8%</strong>，為壓低 H′ 均勻度的主要優勢種；同年記錄 8 種，顯示物種豐富度提高，但群聚尚未達高度均衡。
         </div>
       </div>
     </div>
@@ -4338,7 +4342,7 @@ function renderFishTrend() {
         </table>
       </div>
       <div style="font-size:17px;color:#94a3b8;margin-top:12px">
-        ＊ H′ = Shannon–Wiener 生物多樣性指數（H′＝−Σpi ln pi）；其理論上限受納入物種數限制，本頁以 9 種魚類計算時最高約為 ln(9)＝2.20。未捕獲個體場次不計算 H′。109～110年資料引自《東勢林區管理處國有林魚道及生態廊道委託技術服務成果報告（110年）》表5-3，為橫流溪6站電捕合計；110年第3次4月486尾、第4次9月235尾，全年合計721尾。
+        ＊ H′ = Shannon–Wiener 生物多樣性指數（H′＝−Σpi ln pi）；其理論上限受納入物種數限制，本頁以 8 種發布魚類計算時最高約為 ln(8)＝2.08。未捕獲個體場次不計算 H′。109～110年資料引自《東勢林區管理處國有林魚道及生態廊道委託技術服務成果報告（110年）》表5-3，為橫流溪6站電捕合計；110年第3次4月486尾、第4次9月235尾，全年合計721尾。
       </div>
     </div>
 
@@ -4347,7 +4351,7 @@ function renderFishTrend() {
       <div style="font-size:20px;font-weight:900;color:#0f172a;margin-bottom:6px">
         <i class="fas fa-info-circle" style="color:#0369a1;margin-right:10px"></i>橫流溪記錄魚種生態特性一覽
       </div>
-      <div style="font-size:18px;color:#64748b;margin-bottom:20px">全9種記錄魚類完整生態特性 ‧ 5種長期指標特有種（含3種保育類II級）＋4種次要物種（含易危・近危保育關注種）</div>
+      <div style="font-size:18px;color:#64748b;margin-bottom:20px">全8種記錄魚類完整生態特性 ‧ 5種長期指標特有種（含3種保育類II級）＋3種次要物種（含易危・近危保育關注種）</div>
       <div style="font-size:17px;font-weight:700;color:#0369a1;margin-bottom:12px;display:flex;align-items:center;gap:6px">
         <i class="fas fa-fish"></i> 長期趨勢指標特有種（5種）
       </div>
@@ -4383,7 +4387,7 @@ function renderFishTrend() {
       <!-- 次要物種分隔線 -->
       <div style="border-top:2px dashed #e2e8f0;margin:20px 0 16px"></div>
       <div style="font-size:17px;font-weight:700;color:#7c3aed;margin-bottom:12px;display:flex;align-items:center;gap:6px">
-        <i class="fas fa-search"></i> 次要物種・保育關注種（4種）
+        <i class="fas fa-search"></i> 次要物種・保育關注種（3種）
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px">
         ${[
@@ -4395,7 +4399,7 @@ function renderFishTrend() {
             desc:'保育類第三級（易危），IUCN評為近危（NT）。108年4月首次在橫流溪確認（4尾），為重要新紀錄，顯示橫流溪仍維持足以支持此保育物種之水域環境。夜行性底棲魚類，白天多藏匿於大型礫石或倒木下方，以底棲無脊椎動物為主食，觸鬚發達。族群數量極少，建議加強夜間調查以正確評估族群規模。', color:'#dc2626', bg:'#fef2f2' },
           { sp:'短吻紅斑吻鰕虎', eng:'Rhinogobius rubromaculatus', fam:'鰕虎科', status:'🟠 IUCN近危（NT）', icon:'🦐',
             desc:'IUCN近危（NT）物種，分布範圍局限於台灣中部特定清澈急流溪段。109年後首次在橫流溪記錄，與明潭吻鰕虎共域，兩者比例約1:22.6。棲息要求較明潭吻鰕虎更嚴苛，偏好高溶氧、低濁度之清澈急流段，汛期後沉積物增加時即趨於不穩定。體色鮮豔、具紅斑特徵，具一定領域性。為橫流溪高度保育價值物種，零星記錄具重要生態指標意義。', color:'#059669', bg:'#f0fdf4' },
-        ].map(s=>`
+        ].filter(s => fish_isPublishedSpecies(s.sp)).map(s=>`
           <div style="border:2px solid ${s.color}40;border-radius:12px;padding:18px;background:${s.bg}">
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
               <span style="font-size:28px">${s.icon}</span>
@@ -4439,13 +4443,13 @@ function renderFishTrend() {
       </div>
     </div>
 
-    <!-- ── 9種魚類完整歷年趨勢（整合區） ── -->
-    <div id="secondarySpeciesTrend" style="margin-top:28px;padding-top:24px;border-top:2px dashed #e2e8f0">
+    <!-- ── 8種魚類完整歷年趨勢（整合區） ── -->
+    <div id="secondarySpeciesTrend" aria-hidden="true" style="display:none;margin-top:28px;padding-top:24px;border-top:2px dashed #e2e8f0">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px">
         <div style="width:5px;height:48px;background:linear-gradient(180deg,#3b82f6,#059669,#dc2626);border-radius:4px;flex-shrink:0"></div>
         <div>
           <div style="font-size:20px;font-weight:900;color:#0f172a">
-            <i class="fas fa-chart-bar" style="color:#3b82f6;margin-right:8px"></i>9種魚類完整歷年趨勢（明潭吻鰕虎・粗首馬口鱲・短臀瘋鱨・短吻紅斑吻鰕虎）
+            <i class="fas fa-chart-bar" style="color:#3b82f6;margin-right:8px"></i>8種魚類完整歷年趨勢（明潭吻鰕虎・短臀瘋鱨・短吻紅斑吻鰕虎）
           </div>
           <div style="font-size:18px;color:#64748b;margin-top:5px">
             各卡柱狀圖為年度實測尾數；藍綠折線為努力量校正 CPUE（尾／站訪次），可排除各年度調查站數差異
@@ -4460,12 +4464,12 @@ function renderFishTrend() {
           { id:'spTrend_臺灣鬚鱲',       name:'臺灣鬚鱲',       sci:'Candidia barbata',            cons:'一般',   borderCol:'#e9d5ff', topCol:'#a855f7', badge:'#f5f3ff', badgeTxt:'#6b21a8', note:'特有種・2024紅皮書無危(NLC)・104年起持續記錄，中游水質指標種' },
           { id:'spTrend_纓口臺鰍',       name:'纓口臺鰍',       sci:'Formosania lacustre',         cons:'近危', borderCol:'#bbf7d0', topCol:'#22c55e', badge:'#f0fdf4', badgeTxt:'#15803d', note:'特有種・2024紅皮書近危(NNT，2017易危下修)・底棲吸附型，魚道通行已確認' },
           { id:'spTrend_臺灣間爬岩鰍',   name:'臺灣間爬岩鰍',   sci:'Hemimyzon formosanus',       cons:'近危', borderCol:'#fecaca', topCol:'#f43f5e', badge:'#fff1f2', badgeTxt:'#be123c', note:'特有種・2024紅皮書近危(NNT，2017易危下修)・魚道關聯最高，114年回升13尾' },
-          // ── 4 種次要物種暨鰕虎科（電捕法DB記錄）──
+          // ── 3 種次要物種暨鰕虎科（電捕法DB記錄）──
           { id:'spTrend_明潭吻鰕虎',     name:'明潭吻鰕虎',     sci:'Rhinogobius candidianus',    cons:'一般',     borderCol:'#bfdbfe', topCol:'#2563eb', badge:'#dbeafe', badgeTxt:'#1e40af', note:`特有種・2024紅皮書無危(NLC)・魚道完工後107年族群快速建立，累計 ${HLX_FISH_FULL_TOTALS['明潭吻鰕虎']} 尾，全流域廣布，溪流健康指標` },
           { id:'spTrend_粗首馬口鱲',     name:'粗首馬口鱲',     sci:'Opsariichthys pachycephalus', cons:'一般',     borderCol:'#fde68a', topCol:'#b45309', badge:'#fef9c3', badgeTxt:'#92400e', note:`特有種・2024紅皮書無危(NLC)・橫流溪可稽核量化紀錄僅112年4尾；其他年度為已調查未檢出，不以鄰近溪流或推估值補入` },
           { id:'spTrend_短臀瘋鱨',       name:'短臀瘋鱨',       sci:'Tachysurus brevianalis',     cons:'易危',     borderCol:'#fecdd3', topCol:'#dc2626', badge:'#fee2e2', badgeTxt:'#991b1b', note:`特有種・2024紅皮書易危(NVU，2017無危上修)・107年起間歇捕獲，累計 ${HLX_FISH_FULL_TOTALS['短臀瘋鱨']} 尾；111年DOCX Table 9量化確認上游Q4（體長110mm），易危種低密度持續維持` },
           { id:'spTrend_短吻紅斑吻鰕虎', name:'短吻紅斑吻鰕虎', sci:'Rhinogobius rubromaculatus', cons:'一般',     borderCol:'#d1fae5', topCol:'#059669', badge:'#ecfdf5', badgeTxt:'#065f46', note:`特有種・2024紅皮書無危(NLC)・107年起間歇捕獲，累計 ${HLX_FISH_FULL_TOTALS['短吻紅斑吻鰕虎']} 尾；111年DOCX Table 9量化確認上游Q4（體長55mm），下游站零值不代表族群缺席` }
-        ].map(sp => `
+        ].filter(sp => fish_isPublishedSpecies(sp.name)).map(sp => `
           <div style="background:#fff;border:2px solid ${sp.borderCol};border-top:4px solid ${sp.topCol};border-radius:14px;overflow:hidden">
             <div style="background:${sp.badge};padding:12px 16px 10px">
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
@@ -4489,15 +4493,15 @@ function renderFishTrend() {
         `).join('')}
       </div>
       <div style="margin-top:14px;padding:18px 22px;background:#f8fafc;border-radius:10px;font-size:18px;color:#475569;line-height:1.85;border-left:4px solid #3b82f6">
-        <strong>整合說明：</strong>上方堆疊柱狀圖已納入全9種魚類。107~108年度數據依據《107~108年度橫流溪整治規劃設計監造與監測調查委託技術服務案成果報告》表4-16完整補充4季調查（107年5月/7月、108年4月/10月）。
+        <strong>整合說明：</strong>上方堆疊柱狀圖已納入全8種發布魚類。107~108年度數據依據《107~108年度橫流溪整治規劃設計監造與監測調查委託技術服務案成果報告》表4-16完整補充4季調查（107年5月/7月、108年4月/10月）。
         各次要物種首次記錄：短臀瘋鱨（107年5月，1尾）；短吻紅斑吻鰕虎（107年7月，2尾）。108年4月族群最豐，短吻紅斑吻鰕虎達6尾、短臀瘋鱨達3尾；
-        明潭吻鰕虎在108年4月達133尾（本序列單次最高）。粗首馬口鱲在橫流溪可稽核量化序列為112年11月與12月各2尾；108年裡冷溪、110年南湖溪及其他溪流紀錄均依流域欄位排除。103、106年三種低捕獲物種的0尾為量化序列未檢出；106年上游逐尾表因缺少個體與樣站對照，不以推估值補入。
+        明潭吻鰕虎在108年4月達133尾（本序列單次最高）。103、106年低捕獲物種的0尾為量化序列未檢出；106年上游逐尾表因缺少個體與樣站對照，不以推估值補入。
       </div>
 
       <!-- 次要物種族群趨勢因素分析 -->
       <div style="margin-top:18px">
         <div style="font-size:22px;font-weight:800;color:#1e293b;margin-bottom:16px;display:flex;align-items:center;gap:8px">
-          <i class="fas fa-microscope" style="color:#6366f1"></i> 次要4種族群趨勢・影響因素分析
+          <i class="fas fa-microscope" style="color:#6366f1"></i> 次要3種族群趨勢・影響因素分析
         </div>
 
         <!-- 共通因素 -->
@@ -4679,7 +4683,7 @@ function renderFishTrend() {
     // 比場次平均更能反映長期趨勢；避免調查站次強度不同造成的視覺干擾
     const ctxDiv = document.getElementById('fishDiversityChart');
     if (ctxDiv) {
-      const SP_KEYS = ['bai','shi','xu','ying','jian','min','kou','feng','hong'];
+      const SP_KEYS = ['bai','shi','xu','ying','jian','min','feng','hong'];
       // 年度合計
       const annTotals = {};
       SURVEYS.forEach(s => {
@@ -5041,7 +5045,6 @@ function renderFishTrend() {
     // ── 次要物種個別趨勢圖：與卡片、詳情共用已核對量化序列 ──
     const _secMeta = {
       '明潭吻鰕虎':     { key: 'min',  color: '#2563eb' },
-      '粗首馬口鱲':     { key: 'kou',  color: '#b45309' },
       '短臀瘋鱨':       { key: 'feng', color: '#dc2626' },
       '短吻紅斑吻鰕虎': { key: 'hong', color: '#059669' }
     };
@@ -5411,7 +5414,7 @@ function renderFishBioMap() {
                 ['carp',  '#dc2626','瀕　　危','本區調查魚種目前無瀕危紀錄'],
                 ['minnow','#d97706','易　　危','短臀瘋鱨'],
                 ['loach', '#2563eb','近　　危','臺灣白甲魚・纓口臺鰍・臺灣間爬岩鰍'],
-                ['goby',  '#16a34a','一　　般','臺灣石魚賓・臺灣鬚鱲・明潭吻鰕虎・粗首馬口鱲・短吻紅斑吻鰕虎']
+                ['goby',  '#16a34a','一　　般','臺灣石魚賓・臺灣鬚鱲・明潭吻鰕虎・短吻紅斑吻鰕虎']
               ].map(([shape,col,tag,ex])=>`
                 <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
                   <div style="width:44px;height:28px;flex-shrink:0;filter:drop-shadow(0 1px 3px rgba(0,0,0,.30))">
@@ -5477,7 +5480,7 @@ function renderFishBioMap() {
       ${bioSecHead('5','fa-fish','水域魚類清單','點擊任一列可展開詳細資訊・尾數反映歷年累計','#0e7490')}
       <div style="background:#ecfeff;border:1px solid #a5f3fc;border-left:4px solid #0e7490;border-radius:8px;padding:11px 14px;margin:0 0 12px;font-size:18px;color:#155e75;line-height:1.6">
         <i class="fas fa-circle-check" style="margin-right:5px"></i><b>資料統籌核對說明</b>：本清單「尾次」已與
-        <b>歷年趨勢分析</b>統一，採已核對歷年電捕調查序列（103~114年・${HLX_FISH_SURVEY_EVENTS}個調查場次・成果報告表4-16／表5-3及111～114年調查表）逐筆合計，9種合計
+        <b>歷年趨勢分析</b>統一，採已核對歷年電捕調查序列（103~114年・${HLX_FISH_SURVEY_EVENTS}個調查場次・成果報告表4-16／表5-3及111～114年調查表）逐筆合計，8種合計
         <b>${HLX_FISH_GRAND_TOTAL.toLocaleString()}</b> 尾次。
         例：臺灣間爬岩鰍完整累計 <b>${HLX_FISH_FULL_TOTALS['臺灣間爬岩鰍']}</b> 尾（已由同一調查序列逐筆合計，不再使用少數代表性快照推估）。
       </div>
