@@ -1015,6 +1015,43 @@ _SYSTEM_PROMPT = """你是「橫流溪工程設施維護與生態資料管理 AI
 8. 不使用客套開場，不輸出思考過程，不宣稱模型正在訓練，不把 RAG 即時推論描述為模型學習或微調。回答務求精簡、清楚，讓一般管理人員也能理解。"""
 
 
+def _strip_reasoning_preamble(text: str) -> str:
+    """移除模型洩漏在答案前面的英文推理與偽造的工具呼叫標記。
+
+    部分模型（實測 nemotron 系列）會先用英文覆述一遍工具結果與分析步驟，
+    之後才接上繁體中文答案；也有模型在不該呼叫工具時吐出 <tool_call> 文字。
+    直接把整段丟給使用者會很難閱讀，但整段判定為失敗又會浪費一次可用的回答，
+    因此在此擷取真正的中文答案部分。
+    """
+    value = _as_text(text).strip()
+    if not value:
+        return ""
+
+    # 偽造的工具呼叫標記（模型在 tool_choice=none 時仍想查資料）
+    value = re.sub(r"(?is)<tool_call>.*?</tool_call>", " ", value)
+    value = re.sub(r"(?is)<function=[^>]*>.*?</function>", " ", value)
+    # 常見的思考區塊標記
+    value = re.sub(r"(?is)<think(?:ing)?>.*?</think(?:ing)?>", " ", value)
+
+    lines = value.split("\n")
+    for index, line in enumerate(lines):
+        cjk = len(re.findall(r"[㐀-鿿]", line))
+        # 找到第一行「實質中文」就從那裡開始
+        if cjk >= 8 and cjk / max(len(line.strip()), 1) >= 0.25:
+            if index == 0:
+                break
+            head = "\n".join(lines[:index])
+            head_cjk = len(re.findall(r"[㐀-鿿]", head))
+            head_latin = len(re.findall(r"[A-Za-z]", head))
+            # 只有在前段「確實是英文敘述」時才捨棄。
+            # 若只看中文字數，像「**風險分析**」這種合法的中文小標
+            # （字數少）會被誤判為雜訊而刪掉。
+            if head_latin >= 40 and head_latin > head_cjk * 3:
+                return "\n".join(lines[index:]).strip()
+            break
+    return value.strip()
+
+
 def _is_acceptable_zh_answer(text: str) -> bool:
     """Reject leaked planning/reasoning text and answers that are not Traditional Chinese."""
     value = _as_text(text).strip()
@@ -1635,13 +1672,31 @@ def _agent_chat(messages: "List[Dict[str, Any]]", config: Dict[str, Any],
     OpenRouter 的免費模型有「每日上限」（429 free-models-per-day），付費額度
     用盡則回 402。任一情況都會讓問答退回未整理的檢索結果，因此保留第二個閘道。
     """
+    _log = logging.getLogger(__name__)
+    has_zen = bool(os.environ.get("OPENCODE_ZEN_API_KEY", "").strip())
+
+    # OpenRouter 的額度不足（402）與每日免費上限（429）都會持續一段時間。
+    # 若每次問答都先撞一次失敗再轉 Zen，等於每題白白多等數秒到數十秒，
+    # 因此沿用既有的供應商冷卻機制先行略過。
+    if has_zen and _provider_is_cooling("openrouter"):
+        zen = _zen_chat(messages, config, tools=tools)
+        if not zen.get("error_type"):
+            return zen
+        # Zen 也失敗才回頭試 OpenRouter，避免兩邊同時故障時完全無法作答
+        _log.info("[AGENT] Zen %s，回頭嘗試 OpenRouter", zen.get("error_type"))
+
     result = _openrouter_chat(messages, config, tools=tools)
     if not result.get("error_type"):
+        _provider_mark("openrouter", ok=True)
         return result
 
-    if os.environ.get("OPENCODE_ZEN_API_KEY", "").strip():
-        logging.getLogger(__name__).info(
-            "[AGENT] OpenRouter %s，改用 OpenCode Zen", result.get("error_type"))
+    error_type = _as_text(result.get("error_type"))
+    # 額度與速率類錯誤才冷卻；一次性錯誤不應讓供應商被長時間跳過
+    if error_type in ("http_402", "http_429"):
+        _provider_mark("openrouter", ok=False)
+
+    if has_zen:
+        _log.info("[AGENT] OpenRouter %s，改用 OpenCode Zen", error_type)
         zen = _zen_chat(messages, config, tools=tools)
         if not zen.get("error_type"):
             return zen
@@ -1764,11 +1819,17 @@ def _run_agent(query: str, snapshot: Dict[str, Any], grounding: str,
         or _as_text(config.get("fallback_model")) or _as_text(config.get("model"))
     router_config.update(model=router_model, fallback_model="",
                          max_tokens=400, timeout=max(20.0, float(config.get("timeout") or 28)))
+    # Zen 上的模型各有所長（實測）：lightning 選工具最快但統整會夾雜英文推理，
+    # ultra 統整乾淨卻較慢。因此路由用快的、統整用穩的。
+    router_config["zen_model"] = (os.environ.get("ZEN_ROUTER_MODEL", "").strip()
+                                  or "nemotron-3.5-lightning-free")
 
     # 最後一輪要把多個工具結果統整成完整答案，輸出空間需比單次問答寬裕，
     # 否則會出現句子講到一半被截斷的情形。
+    # 統整輸入較大（含工具結果），逾時需比路由輪寬鬆，否則慢速模型會讀取逾時。
     answer_config = dict(config)
     answer_config["max_tokens"] = max(int(config.get("max_tokens") or 800), 1000)
+    answer_config["timeout"] = max(float(config.get("timeout") or 28), 60.0)
 
     for round_index in range(max_rounds):
         # 最後一輪不再提供工具，強制模型產出答案
@@ -1800,11 +1861,8 @@ def _run_agent(query: str, snapshot: Dict[str, Any], grounding: str,
         tool_calls = message.get("tool_calls") or []
 
         if not tool_calls:
-            text = _as_text(message.get("content")).strip()
-            # 保險：部分模型在沒有工具可用時，仍會在文字中吐出偽造的工具呼叫標記
-            if "<tool_call>" in text or "<function=" in text:
-                text = re.sub(r"<tool_call>.*?</tool_call>", "", text,
-                              flags=re.S).strip()
+            # 清掉洩漏的英文推理與偽造的工具呼叫標記，只留真正的中文答案
+            text = _strip_reasoning_preamble(message.get("content"))
             if not _is_acceptable_zh_answer(text):
                 # 非最後一輪就放棄會讓整個 Agent 失效：路由用的快速模型有時會
                 # 略過工具直接作答，且品質不符。此時應交給最後一輪的高品質模型
