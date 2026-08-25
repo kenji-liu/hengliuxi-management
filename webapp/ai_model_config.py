@@ -16,32 +16,33 @@ MODE_LABELS = {
 }
 
 
-# 備援一律指定「免費」模型：兩者會一起送進 OpenRouter 的 models 陣列由平台路由，
-# 帳號額度不足時才能自動降級並照常作答。
-# 若備援也是付費模型（原本 pro 的備援為 openrouter/auto），額度用盡時整個請求
-# 會回 HTTP 402，AI 便退成未整理的檢索結果，看起來像答詢失效。
-_FREE_FALLBACK = "nvidia/nemotron-3-super-120b-a12b:free"
+# OpenCode Go 目前確認可用的穩定模型。三種 UI 模式保留不同輸出限制，
+# 但共用同一個 Go 模型，避免每次問答在多個已失效供應商之間重試。
+_GO_MODEL = "minimax-m3"
 
 _DEFAULTS: Dict[str, Dict[str, Any]] = {
     "fast": {
-        "model": "google/gemini-2.5-flash-lite",
-        "fallback_model": _FREE_FALLBACK,
+        "model": _GO_MODEL,
+        "fallback_model": "",
+        "go_model": _GO_MODEL,
         "temperature": 0.20,
         "max_tokens": 500,
         "top_k": 3,
         "timeout": 18,
     },
     "pro": {
-        "model": "~anthropic/claude-sonnet-latest",
-        "fallback_model": _FREE_FALLBACK,
+        "model": _GO_MODEL,
+        "fallback_model": "",
+        "go_model": _GO_MODEL,
         "temperature": 0.20,
         "max_tokens": 800,
         "top_k": 4,
         "timeout": 28,
     },
     "deep": {
-        "model": "openrouter/auto",
-        "fallback_model": "openrouter/free",
+        "model": _GO_MODEL,
+        "fallback_model": "",
+        "go_model": _GO_MODEL,
         "temperature": 0.15,
         "max_tokens": 1500,
         "top_k": 5,

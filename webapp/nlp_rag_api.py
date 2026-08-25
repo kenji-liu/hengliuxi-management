@@ -1630,10 +1630,15 @@ ZEN_FREE_MODELS = [
 ]
 
 
-# OpenCode Go：訂閱制的低成本模型方案，與 Zen 共用同一把 API 金鑰。
-# 實測其模型在繁中統整上遠優於 Zen 的免費模型
-# （minimax-m3 統整 5.5 秒，免費的 nemotron-3-ultra 需 52 秒）。
+# OpenCode Go：訂閱制模型方案。Go 使用獨立端點與 Go API key，
+# 模型 ID 不使用 OpenRouter 的 provider 前綴。
 GO_ENDPOINT = "https://opencode.ai/zen/go/v1/chat/completions"
+
+
+def _opencode_go_key() -> str:
+    """Read the Go key without exposing it; keep the old name as a migration alias."""
+    return (os.environ.get("OPENCODE_GO_API_KEY") or
+            os.environ.get("OPENCODE_ZEN_API_KEY") or "").strip()
 
 
 def _zen_chat(messages: "List[Dict[str, Any]]", config: Dict[str, Any],
@@ -1643,7 +1648,7 @@ def _zen_chat(messages: "List[Dict[str, Any]]", config: Dict[str, Any],
     """呼叫 OpenCode Zen / Go（OpenAI 相容端點，共用同一把金鑰）。"""
     import urllib.request, urllib.error, json as _json
     _log = logging.getLogger(__name__)
-    key = os.environ.get("OPENCODE_ZEN_API_KEY", "").strip()
+    key = _opencode_go_key()
     if not key:
         return {"error_type": "zen_key_not_set"}
 
@@ -1698,54 +1703,15 @@ def _zen_chat(messages: "List[Dict[str, Any]]", config: Dict[str, Any],
 
 def _agent_chat(messages: "List[Dict[str, Any]]", config: Dict[str, Any],
                 tools: "Optional[List[Dict[str, Any]]]" = None) -> Dict[str, Any]:
-    """Agent 專用的模型呼叫：OpenRouter 優先，失敗時改用 OpenCode Zen。
-
-    OpenRouter 的免費模型有「每日上限」（429 free-models-per-day），付費額度
-    用盡則回 402。任一情況都會讓問答退回未整理的檢索結果，因此保留第二個閘道。
-    """
-    _log = logging.getLogger(__name__)
-    has_zen = bool(os.environ.get("OPENCODE_ZEN_API_KEY", "").strip())
-
-    # OpenCode Go（訂閱制）優先：實測其模型在繁中統整的品質與速度都明顯優於
-    # 免費模型，且不受 OpenRouter 的每日免費上限與付費額度影響。
-    go_model = _as_text(config.get("go_model")) or os.environ.get(
-        "OPENCODE_GO_MODEL", "").strip()
-    if has_zen and go_model and os.environ.get(
-            "OPENCODE_GO_ENABLED", "true").strip().lower() not in ("0", "false", "no", "off"):
-        go = _zen_chat(messages, config, tools=tools,
-                       endpoint=GO_ENDPOINT, model=go_model,
-                       provider_name="opencode_go")
-        if not go.get("error_type"):
-            return go
-        _log.info("[AGENT] OpenCode Go %s，改用其他供應商", go.get("error_type"))
-
-    # OpenRouter 的額度不足（402）與每日免費上限（429）都會持續一段時間。
-    # 若每次問答都先撞一次失敗再轉 Zen，等於每題白白多等數秒到數十秒，
-    # 因此沿用既有的供應商冷卻機制先行略過。
-    if has_zen and _provider_is_cooling("openrouter"):
-        zen = _zen_chat(messages, config, tools=tools)
-        if not zen.get("error_type"):
-            return zen
-        # Zen 也失敗才回頭試 OpenRouter，避免兩邊同時故障時完全無法作答
-        _log.info("[AGENT] Zen %s，回頭嘗試 OpenRouter", zen.get("error_type"))
-
-    result = _openrouter_chat(messages, config, tools=tools)
-    if not result.get("error_type"):
-        _provider_mark("openrouter", ok=True)
-        return result
-
-    error_type = _as_text(result.get("error_type"))
-    # 額度與速率類錯誤才冷卻；一次性錯誤不應讓供應商被長時間跳過
-    if error_type in ("http_402", "http_429"):
-        _provider_mark("openrouter", ok=False)
-
-    if has_zen:
-        _log.info("[AGENT] OpenRouter %s，改用 OpenCode Zen", error_type)
-        zen = _zen_chat(messages, config, tools=tools)
-        if not zen.get("error_type"):
-            return zen
-        result.setdefault("zen_error", zen.get("error_type"))
-    return result
+    """Agent 專用的唯一雲端模型路由：OpenCode Go。"""
+    if not _opencode_go_key():
+        return {"error_type": "opencode_go_key_not_set"}
+    go_model = (_as_text(config.get("go_model")) or
+                os.environ.get("OPENCODE_GO_MODEL", "minimax-m3").strip() or
+                "minimax-m3")
+    return _zen_chat(messages, config, tools=tools,
+                     endpoint=GO_ENDPOINT, model=go_model,
+                     provider_name="opencode_go")
 
 
 def _openrouter_chat(messages: "List[Dict[str, Any]]", config: Dict[str, Any],
@@ -1897,7 +1863,7 @@ def _run_agent(query: str, snapshot: Dict[str, Any], grounding: str,
             tools=None if is_last else agent_tools.TOOL_SCHEMAS)
 
         if result.get("error_type"):
-            return {"answer": "", "provider": "openrouter",
+            return {"answer": "", "provider": "opencode_go",
                     "error_type": result["error_type"],
                     "response_time": round(time.perf_counter() - started, 3),
                     **totals}
@@ -1923,13 +1889,13 @@ def _run_agent(query: str, snapshot: Dict[str, Any], grounding: str,
                                    "請先呼叫對應工具取得後再回答。",
                     })
                     continue
-                return {"answer": "", "provider": "openrouter",
+                return {"answer": "", "provider": "opencode_go",
                         "actual_model": actual_model, "error_type": "invalid_answer",
                         "response_time": round(time.perf_counter() - started, 3), **totals}
             _OR_LAST_GOOD["model"] = actual_model
             return {
                 "answer": text,
-                "provider": "openrouter",
+                "provider": "opencode_go",
                 "actual_model": actual_model,
                 "display_name": f"{actual_model} (Agent)",
                 "tools_used": tools_used,
@@ -1965,59 +1931,58 @@ def _run_agent(query: str, snapshot: Dict[str, Any], grounding: str,
                     {"error": f"{name} 未回傳結果"}, ensure_ascii=False),
             })
 
-    return {"answer": "", "provider": "openrouter", "actual_model": actual_model,
+    return {"answer": "", "provider": "opencode_go", "actual_model": actual_model,
             "error_type": "no_answer_after_tools", "tools_used": tools_used,
             "response_time": round(time.perf_counter() - started, 3), **totals}
 
 
 def _ai_synthesis_mode(query: str, combined_ctx: str, config: Dict[str, Any]) -> Dict[str, Any]:
-    """Use the selected OpenRouter mode and its configured model fallback.
-
-    The legacy provider chain is opt-in only.  OpenRouter already performs the
-    primary/fallback routing, so retrying unavailable Groq/Gemini/Claude/Ollama
-    services would only increase latency and show confusing provider states.
-    """
+    """Use the selected OpenCode Go model without cross-provider retries."""
     started = time.perf_counter()
-    result = _call_openrouter_mode(query, combined_ctx, config)
-    if result.get("answer"):
-        return result
+    if not _opencode_go_key():
+        return {"answer": "", "provider": "opencode_go",
+                "error_type": "opencode_go_key_not_set",
+                "response_time": round(time.perf_counter() - started, 3)}
 
-    primary_error = _as_text(result.get("error_type"))
-    _provider_mark("openrouter", ok=False)
-    legacy_enabled = str(os.environ.get(
-        "AI_ENABLE_LEGACY_PROVIDER_FALLBACK", "false"
-    )).strip().lower() in {"1", "true", "yes", "on"}
-    if not legacy_enabled:
-        result["response_time"] = round(time.perf_counter() - started, 3)
-        result["error_type"] = primary_error
+    messages = [
+        {"role": "system", "content": _SYSTEM_PROMPT},
+        {"role": "user", "content": _build_user_msg(query, combined_ctx)},
+    ]
+    go_model = (_as_text(config.get("go_model")) or
+                os.environ.get("OPENCODE_GO_MODEL", "minimax-m3").strip() or
+                "minimax-m3")
+    result = _zen_chat(messages, config, endpoint=GO_ENDPOINT,
+                       model=go_model, provider_name="opencode_go")
+    text = _strip_reasoning_preamble(
+        (result.get("message") or {}).get("content") or ""
+    )
+    if _is_acceptable_zh_answer(text):
+        result.update({
+            "answer": text,
+            "provider": "opencode_go",
+            "display_name": f"{go_model} (OpenCode Go)",
+            "fallback_used": False,
+            "error_type": "",
+        })
         return result
-
-    legacy_answer, provider_key, provider_display = _ai_synthesis(query, combined_ctx)
-    elapsed = round(time.perf_counter() - started, 3)
-    if legacy_answer:
-        return {
-            "answer": legacy_answer,
-            "provider": provider_key,
-            "actual_model": provider_display,
-            "display_name": provider_display,
-            "input_tokens": 0,
-            "output_tokens": 0,
-            "estimated_cost": 0.0,
-            "response_time": elapsed,
-            "fallback_used": True,
-            "error_type": primary_error,
-        }
-    result["response_time"] = elapsed
+    result["answer"] = ""
+    result["provider"] = "opencode_go"
+    result["error_type"] = result.get("error_type") or "invalid_answer"
+    result["response_time"] = round(time.perf_counter() - started, 3)
     return result
 
 
 @nlp_rag.route("/ai/model-config", methods=["GET"])
 def ai_model_config_public() -> Any:
+    go_key_ready = bool(_opencode_go_key())
     return jsonify({
         "status": "success",
         "default_mode": "pro",
         "modes": public_modes(),
-        "openrouter_ready": bool(os.environ.get("OPENROUTER_API_KEY")),
+        "provider": "opencode_go",
+        "provider_label": "OpenCode Go",
+        "opencode_go_ready": go_key_ready,
+        "opencode_go_model": os.environ.get("OPENCODE_GO_MODEL", "minimax-m3"),
         "rag_ready": rag_backend is not None,
         "timestamp": _now(),
     })
@@ -2771,143 +2736,36 @@ def photo_assess():
 
 @nlp_rag.route("/ai-check", methods=["GET"])
 def ai_check():
-    """快速診斷端點：測試所有 AI 供應商是否可用。"""
+    """快速診斷端點：只測試平台目前啟用的 OpenCode Go。"""
     import os, urllib.request, urllib.error, json as _json, logging
     _log = logging.getLogger(__name__)
     results = {}
 
-    # Groq
-    groq_key = os.environ.get("GROQ_API_KEY", "")
-    if groq_key:
+    go_key = _opencode_go_key()
+    go_model = os.environ.get("OPENCODE_GO_MODEL", "minimax-m3").strip() or "minimax-m3"
+    if go_key:
         try:
-            payload = _json.dumps({"model": "llama-3.3-70b-versatile",
-                "messages": [{"role": "user", "content": "hi"}],
-                "max_tokens": 5}).encode()
-            req = urllib.request.Request(
-                "https://api.groq.com/openai/v1/chat/completions", data=payload,
-                headers={"Content-Type": "application/json", "Authorization": f"Bearer {groq_key}"}, method="POST")
-            with urllib.request.urlopen(req, timeout=10) as r:
-                r.read()
-            results["groq"] = "✓ OK"
-        except urllib.error.HTTPError as e:
-            results["groq"] = f"✗ HTTP {e.code}: {e.read()[:100].decode('utf-8','replace')}"
-        except Exception as e:
-            results["groq"] = f"✗ {type(e).__name__}: {e}"
-    else:
-        results["groq"] = "✗ key not set"
-
-    # Gemini
-    gemini_key = os.environ.get("GOOGLE_API_KEY", "")
-    if gemini_key:
-        try:
-            payload = _json.dumps({"contents": [{"parts": [{"text": "hi"}]}],
-                "generationConfig": {"maxOutputTokens": 5}}).encode()
-            last_error = "no usable model"
-            for model, api_version in _resolve_gemini_candidates(gemini_key):
-                url = f"https://generativelanguage.googleapis.com/{api_version}/models/{model}:generateContent?key={gemini_key}"
-                req = urllib.request.Request(url, data=payload,
-                    headers={"Content-Type": "application/json"}, method="POST")
-                try:
-                    with urllib.request.urlopen(req, timeout=10) as r:
-                        r.read()
-                    results["gemini"] = f"✓ OK ({model})"
-                    break
-                except urllib.error.HTTPError as e:
-                    body = e.read()[:200].decode("utf-8", "replace")
-                    last_error = f"HTTP {e.code}: {body}"
-                    # 429/403 are account-level restrictions; trying more models will not help.
-                    if e.code in (403, 429):
-                        break
-            else:
-                results["gemini"] = f"✗ {last_error}"
-            if "gemini" not in results:
-                results["gemini"] = f"✗ {last_error}"
-        except Exception as e:
-            results["gemini"] = f"✗ {type(e).__name__}: {e}"
-    else:
-        results["gemini"] = "✗ key not set"
-
-    # Claude / Anthropic
-    claude_key = (os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("CLAUDE_API_KEY") or "").strip()
-    if claude_key:
-        try:
-            model = _resolve_claude_model(claude_key)
-            if not model:
-                raise RuntimeError("no available model returned by Anthropic")
             payload = _json.dumps({
-                "model": model,
-                "max_tokens": 5,
-                "messages": [{"role": "user", "content": "Reply OK"}],
+                "model": go_model,
+                "messages": [{"role": "user", "content": "請只回答：OK"}],
+                "max_tokens": 20,
             }).encode("utf-8")
             req = urllib.request.Request(
-                "https://api.anthropic.com/v1/messages", data=payload,
+                GO_ENDPOINT, data=payload,
                 headers={
                     "Content-Type": "application/json",
-                    "x-api-key": claude_key,
-                    "anthropic-version": "2023-06-01",
-                }, method="POST")
-            with urllib.request.urlopen(req, timeout=15) as r:
-                r.read()
-            results["claude"] = f"✓ OK ({model})"
-        except urllib.error.HTTPError as e:
-            results["claude"] = f"✗ HTTP {e.code}: {e.read()[:160].decode('utf-8','replace')}"
-        except Exception as e:
-            results["claude"] = f"✗ {type(e).__name__}: {e}"
-    else:
-        results["claude"] = "✗ key not set"
-
-    # OpenRouter — 實際呼叫測試
-    or_key = os.environ.get("OPENROUTER_API_KEY", "")
-    if or_key:
-        try:
-            or_payload = _json.dumps({
-                "model": os.environ.get("OPENROUTER_MODEL", "").strip() or "openrouter/free",
-                "messages": [{"role": "user", "content": "hi"}],
-                "max_tokens": 5,
-            }).encode()
-            or_req = urllib.request.Request(
-                "https://openrouter.ai/api/v1/chat/completions", data=or_payload,
-                headers={
-                    "Content-Type": "application/json",
-                    "Authorization": f"Bearer {or_key}",
-                    "HTTP-Referer": "https://hengliuxi-management.onrender.com",
-                    "X-Title": "Hengliu Creek Management Platform",
-                }, method="POST")
-            with urllib.request.urlopen(or_req, timeout=15) as r:
-                r.read()
-            results["openrouter"] = "✓ OK (free router)"
-        except urllib.error.HTTPError as e:
-            results["openrouter"] = f"✗ HTTP {e.code}: {e.read()[:150].decode('utf-8','replace')}"
-        except Exception as e:
-            results["openrouter"] = f"✗ {type(e).__name__}: {e}"
-    else:
-        results["openrouter"] = "✗ key not set"
-
-    # OpenCode Zen — 第二個免費閘道（OpenRouter 每日免費上限用完時接手）
-    zen_key = os.environ.get("OPENCODE_ZEN_API_KEY", "").strip()
-    if zen_key:
-        zen_model = os.environ.get("ZEN_MODEL", "").strip() or ZEN_FREE_MODELS[0]
-        try:
-            zen_req = urllib.request.Request(
-                ZEN_ENDPOINT,
-                data=_json.dumps({"model": zen_model,
-                                  "messages": [{"role": "user", "content": "hi"}],
-                                  "max_tokens": 5}).encode(),
-                headers={
-                    "Content-Type": "application/json",
-                    "Authorization": f"Bearer {zen_key}",
-                    # 少了瀏覽器 UA 會被 Cloudflare 以 error 1010 擋下
+                    "Authorization": f"Bearer {go_key}",
                     "User-Agent": _BROWSER_UA,
                 }, method="POST")
-            with urllib.request.urlopen(zen_req, timeout=20) as r:
-                r.read()
-            results["opencode_zen"] = f"✓ OK ({zen_model})"
+            with urllib.request.urlopen(req, timeout=20) as r:
+                response = _json.loads(r.read().decode("utf-8"))
+            results["opencode_go"] = f"✓ OK ({response.get('model') or go_model})"
         except urllib.error.HTTPError as e:
-            results["opencode_zen"] = f"✗ HTTP {e.code}: {e.read()[:120].decode('utf-8','replace')}"
+            results["opencode_go"] = f"✗ HTTP {e.code}: {e.read()[:160].decode('utf-8','replace')}"
         except Exception as e:
-            results["opencode_zen"] = f"✗ {type(e).__name__}: {e}"
+            results["opencode_go"] = f"✗ {type(e).__name__}: {e}"
     else:
-        results["opencode_zen"] = "✗ key not set（可至 opencode.ai 取得免費金鑰）"
+        results["opencode_go"] = "✗ key not set（請在 Render 設定 OPENCODE_GO_API_KEY）"
 
     # Ollama（Render 通常未部署；本機服務可作為穩定備援）
     try:

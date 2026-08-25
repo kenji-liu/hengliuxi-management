@@ -1097,7 +1097,7 @@ function initAIChat() {
         <div class="ai-mode-row">
           <label class="ai-mode-label" for="aiModelMode">AI 模型</label>
           <select class="ai-mode-select" id="aiModelMode" title="選擇回答速度與分析深度"
-            onchange="_renderAiModeStatus(document.getElementById('aiProviderStatus'), window._hlxOpenRouterReady !== false, true)">
+            onchange="_renderAiModeStatus(document.getElementById('aiProviderStatus'), window._hlxGoReady !== false, true)">
             <option value="fast">⚡ 快速省錢</option>
             <option value="pro" selected>⭐ 專業問答</option>
             <option value="deep">🧠 深度分析</option>
@@ -1264,7 +1264,7 @@ function toggleAIChat() {
 function _updateAiSubLabel() {
   const sub = document.getElementById("aiSubLabel");
   if (!sub) return;
-  sub.textContent = "雲端 AI + 橫流溪 RAG 知識庫";
+  sub.textContent = "OpenCode Go + 橫流溪 RAG 知識庫";
 }
 
 let _aiProviderStatusCheckedAt = 0;
@@ -1275,15 +1275,15 @@ const _AI_MODE_LABELS = {
   auto: "🔄 AI 自動選擇"
 };
 
-function _renderAiModeStatus(el, openRouterReady, kbReady) {
+function _renderAiModeStatus(el, goReady, kbReady) {
   if (!el) return;
   const selectedMode = document.getElementById("aiModelMode")?.value || "pro";
   const selectedLabel = _AI_MODE_LABELS[selectedMode] || _AI_MODE_LABELS.pro;
-  const cloudLabel = openRouterReady ? "可用" : "暫時不可用";
+  const cloudLabel = goReady ? "可用" : "暫時不可用";
   const kbLabel = kbReady ? "可用" : "檢查中";
-  el.classList.toggle("warn", !openRouterReady && !kbReady);
-  el.textContent = `目前模式：${selectedLabel}${selectedMode === "pro" ? "（預設）" : ""}｜OpenRouter：${cloudLabel}｜共用 RAG 知識庫：${kbLabel}`;
-  el.title = "可選模式：⚡ 快速省錢、⭐ 專業問答、🧠 深度分析、🔄 AI 自動選擇。所有模式共用同一套 RAG 知識庫。";
+  el.classList.toggle("warn", !goReady && !kbReady);
+  el.textContent = `目前模式：${selectedLabel}${selectedMode === "pro" ? "（預設）" : ""}｜OpenCode Go：${cloudLabel}｜共用 RAG 知識庫：${kbLabel}`;
+  el.title = "三種模式均使用 OpenCode Go；若雲端暫時不可用，仍保留本機 RAG 資料回答。";
 }
 
 async function _refreshAIProviderStatus(force = false) {
@@ -1313,14 +1313,14 @@ async function _refreshAIProviderStatus(force = false) {
       }
     }
     if (!data) throw lastError || new Error("沒有可用的 AI 狀態端點");
-    window._hlxOpenRouterReady = data.openrouter_ready === true;
+    window._hlxGoReady = data.opencode_go_ready === true;
     _renderAiModeStatus(
       el,
-      window._hlxOpenRouterReady,
+      window._hlxGoReady,
       data.rag_ready !== false
     );
   } catch (error) {
-    window._hlxOpenRouterReady = false;
+    window._hlxGoReady = false;
     _renderAiModeStatus(el, false, true);
     el.title = error.message || String(error);
   }
@@ -2013,8 +2013,9 @@ async function queryRAG(query) {
       if (!res.ok) continue;
       const data = await res.json();
       if (data.status !== "success") continue;
-      // 後端無可用 AI（provider=none）或回傳空泛 fallback 時，不可遮蔽本機知識庫
-      const backendUseless = data.llm_provider === "none" || data.llm_provider === "local_kb" ||
+      // 只有真正沒有答案時才改試下一個端點；local_kb 是後端已整理出的
+      // 本機保底回答，必須保留，否則最後會落入未宣告的 kbResult 例外。
+      const backendUseless = data.llm_provider === "none" ||
         !data.answer || data.answer.length < 30 ||
         /目前所有 AI 服務皆無回應|AI 推論服務目前無法使用|未檢索到足以支持判斷/.test(data.answer || "");
       if (backendUseless) {
@@ -2038,6 +2039,9 @@ async function queryRAG(query) {
   }
 
   // ── 5. 完全 fallback：本機知識庫（永遠帶出可用內容，不顯示「無可用 AI」）
+  // 後端已先回傳 local_kb 時會在上方直接採用；此處只處理前端本機
+  // 知識庫的既有結果，使用 window 屬性避免未宣告變數造成 ReferenceError。
+  const kbResult = window.kbResult || null;
   const kbAnswer = kbResult?.answer || "";
   if (kbAnswer && kbAnswer.length > 20) {
     return {
