@@ -17,10 +17,13 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 from typing import Any, Callable, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
+
+_DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 
 # 單一工具回傳的 JSON 上限，避免把 context 撐爆
 MAX_TOOL_RESULT_CHARS = 4000
@@ -160,6 +163,30 @@ TOOL_SCHEMAS: List[Dict[str, Any]] = [
     {
         "type": "function",
         "function": {
+            "name": "search_briefing",
+            "description": (
+                "查詢金質獎評審簡報的實際內容（共 110 頁，依七大評分構面分類）。"
+                "手冊與委員提問常以頁碼引用簡報（如 P.16、P.61、P.121），"
+                "要確認「簡報那一頁到底寫了什麼」時使用。"
+                "可用關鍵字查，也可直接指定頁碼。"
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "查詢關鍵字"},
+                    "page": {"type": "integer", "description": "直接指定簡報頁碼"},
+                    "section": {"type": "string",
+                                "description": "評分構面：維護管理制度／維護作業品質／"
+                                               "維護文件管理／節能減碳／防災與安全／"
+                                               "環境保育／創新科技"},
+                    "limit": {"type": "integer", "description": "回傳頁數上限，預設 4"},
+                },
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "web_search",
             "description": (
                 "外部網路檢索。僅在平台資料查不到、且問題涉及一般專業知識、"
@@ -179,6 +206,15 @@ TOOL_SCHEMAS: List[Dict[str, Any]] = [
 
 
 # ── 工具實作 ──────────────────────────────────────────────────────────
+def query_terms(query: str) -> List[str]:
+    """沿用 answer_engine 的斷詞（具名實體優先），避免魚種名被切成碎片。"""
+    try:
+        from webapp import answer_engine
+    except Exception:
+        import answer_engine  # type: ignore
+    return answer_engine.query_terms(query)
+
+
 def _match(text: Any, keyword: str) -> bool:
     return bool(keyword) and keyword.strip() in str(text or "")
 
@@ -414,6 +450,63 @@ def search_handbook(query: str, limit: int = 3) -> Dict[str, Any]:
     return result
 
 
+_briefing_cache: Dict[str, Any] = {}
+
+
+def load_briefing() -> Dict[str, Any]:
+    if _briefing_cache:
+        return _briefing_cache
+    try:
+        with open(os.path.join(_DATA_DIR, "briefing_slides.json"), encoding="utf-8") as f:
+            _briefing_cache.update(json.load(f))
+    except Exception as exc:
+        logger.info("[ANSWER] 簡報索引未載入：%s", exc)
+    return _briefing_cache
+
+
+def search_briefing(query: str = "", page: Optional[int] = None,
+                    section: str = "", limit: int = 4) -> Dict[str, Any]:
+    data = load_briefing()
+    slides = data.get("slides") or []
+    if not slides:
+        return {"error": "簡報索引尚未建立（請執行 scripts/build_briefing_index.py）。"}
+
+    # 指定頁碼時直接回傳該頁與前後文，這是委員追問「P.61 寫什麼」的主要用法
+    if page:
+        hit = [s for s in slides if int(s.get("page") or 0) == int(page)]
+        if not hit:
+            return {"error": f"簡報無第 {page} 頁（共 {data.get('totalSlides')} 頁）。"}
+        return {"頁碼": page, "章節": hit[0].get("section"),
+                "標題": hit[0].get("title"), "內容": hit[0].get("text"),
+                "備註": hit[0].get("notes") or ""}
+
+    pool = [s for s in slides
+            if not section or section.strip() in str(s.get("section") or "")]
+
+    if not query:
+        return {"章節": section, "頁數": len(pool),
+                "頁面": [{"頁碼": s["page"], "標題": s["title"]} for s in pool[:20]]}
+
+    terms = [t for t in query_terms(query) if t != "橫流溪"]
+    scored = []
+    for slide in pool:
+        haystack = f"{slide.get('title','')}\n{slide.get('text','')}\n{slide.get('notes','')}"
+        score = sum(1.0 for t in terms if t in haystack)
+        if score:
+            scored.append((score, slide))
+    scored.sort(key=lambda x: x[0], reverse=True)
+
+    return {
+        "命中頁數": len(scored),
+        "頁面": [{
+            "頁碼": s["page"],
+            "章節": s.get("section"),
+            "標題": s.get("title"),
+            "內容": str(s.get("text") or "")[:700],
+        } for _, s in scored[:max(1, min(int(limit or 4), 6))]],
+    }
+
+
 def web_search(searcher: Callable[[str, int], List[Dict[str, Any]]],
                query: str) -> Dict[str, Any]:
     try:
@@ -461,6 +554,9 @@ def execute_tool(name: str, arguments: Dict[str, Any], snapshot: Dict[str, Any],
                                       args.get("top_k") or 5)
         elif name == "search_handbook":
             result = search_handbook(str(args.get("query") or ""), args.get("limit") or 3)
+        elif name == "search_briefing":
+            result = search_briefing(str(args.get("query") or ""), args.get("page"),
+                                     str(args.get("section") or ""), args.get("limit") or 4)
         elif name == "web_search":
             result = web_search(searcher, str(args.get("query") or ""))
         else:
