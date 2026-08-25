@@ -1557,6 +1557,98 @@ def _ai_synthesis(query: str, combined_ctx: str) -> "tuple[str, str, str]":
     return "", "none", ""
 
 
+# OpenCode Zen：第二個免費模型閘道，用於 OpenRouter 額度不足或
+# 打到「每日免費模型上限」時接手。模型 ID 與 OpenRouter 不同（無 nvidia/ 等前綴）。
+ZEN_ENDPOINT = "https://opencode.ai/zen/v1/chat/completions"
+# Cloudflare 會依用戶端指紋阻擋（error 1010），必須帶瀏覽器 User-Agent 才能連線。
+_BROWSER_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+               "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
+
+ZEN_FREE_MODELS = [
+    "nemotron-3.5-lightning-free",
+    "hy3-free",
+    "mimo-v2.5-free",
+    "nemotron-3-ultra-free",
+]
+
+
+def _zen_chat(messages: "List[Dict[str, Any]]", config: Dict[str, Any],
+              tools: "Optional[List[Dict[str, Any]]]" = None) -> Dict[str, Any]:
+    """呼叫 OpenCode Zen（OpenAI 相容端點）。"""
+    import urllib.request, urllib.error, json as _json
+    _log = logging.getLogger(__name__)
+    key = os.environ.get("OPENCODE_ZEN_API_KEY", "").strip()
+    if not key:
+        return {"error_type": "zen_key_not_set"}
+
+    model = (os.environ.get("ZEN_MODEL", "").strip()
+             or _as_text(config.get("zen_model"))
+             or ZEN_FREE_MODELS[0])
+    payload: Dict[str, Any] = {
+        "model": model,
+        "messages": messages,
+        "temperature": float(config.get("temperature") or 0.2),
+        "max_tokens": int(config.get("max_tokens") or 800),
+    }
+    if tools:
+        payload["tools"] = tools
+        payload["tool_choice"] = "auto"
+
+    started = time.perf_counter()
+    req = urllib.request.Request(
+        ZEN_ENDPOINT, data=_json.dumps(payload).encode("utf-8"),
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {key}",
+            "User-Agent": _BROWSER_UA,
+        },
+        method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=float(config.get("timeout") or 28)) as response:
+            result = _json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        body = exc.read()[:200].decode("utf-8", "replace")
+        _log.warning("[ZEN] HTTP %s: %s", exc.code, body)
+        return {"error_type": f"zen_http_{exc.code}", "detail": body}
+    except Exception as exc:
+        _log.warning("[ZEN] %s: %s", type(exc).__name__, exc)
+        return {"error_type": f"zen_{type(exc).__name__}"}
+
+    choice = (result.get("choices") or [{}])[0]
+    usage = dict(result.get("usage") or {})
+    return {
+        "message": choice.get("message") or {},
+        "actual_model": _as_text(result.get("model")) or model,
+        "provider": "opencode_zen",
+        "input_tokens": int(usage.get("prompt_tokens") or 0),
+        "output_tokens": int(usage.get("completion_tokens") or 0),
+        "estimated_cost": 0.0,
+        "response_time": round(time.perf_counter() - started, 3),
+        "models": [model],
+    }
+
+
+def _agent_chat(messages: "List[Dict[str, Any]]", config: Dict[str, Any],
+                tools: "Optional[List[Dict[str, Any]]]" = None) -> Dict[str, Any]:
+    """Agent 專用的模型呼叫：OpenRouter 優先，失敗時改用 OpenCode Zen。
+
+    OpenRouter 的免費模型有「每日上限」（429 free-models-per-day），付費額度
+    用盡則回 402。任一情況都會讓問答退回未整理的檢索結果，因此保留第二個閘道。
+    """
+    result = _openrouter_chat(messages, config, tools=tools)
+    if not result.get("error_type"):
+        return result
+
+    if os.environ.get("OPENCODE_ZEN_API_KEY", "").strip():
+        logging.getLogger(__name__).info(
+            "[AGENT] OpenRouter %s，改用 OpenCode Zen", result.get("error_type"))
+        zen = _zen_chat(messages, config, tools=tools)
+        if not zen.get("error_type"):
+            return zen
+        result.setdefault("zen_error", zen.get("error_type"))
+    return result
+
+
 def _openrouter_chat(messages: "List[Dict[str, Any]]", config: Dict[str, Any],
                      tools: "Optional[List[Dict[str, Any]]]" = None,
                      tool_choice: str = "auto") -> Dict[str, Any]:
@@ -1689,7 +1781,7 @@ def _run_agent(query: str, snapshot: Dict[str, Any], grounding: str,
                 "role": "user",
                 "content": "請根據以上工具回傳的資料，用繁體中文直接作答，不要再呼叫工具。",
             })
-        result = _openrouter_chat(
+        result = _agent_chat(
             messages,
             answer_config if is_last else router_config,
             tools=None if is_last else agent_tools.TOOL_SCHEMAS)
@@ -2683,6 +2775,32 @@ def ai_check():
             results["openrouter"] = f"✗ {type(e).__name__}: {e}"
     else:
         results["openrouter"] = "✗ key not set"
+
+    # OpenCode Zen — 第二個免費閘道（OpenRouter 每日免費上限用完時接手）
+    zen_key = os.environ.get("OPENCODE_ZEN_API_KEY", "").strip()
+    if zen_key:
+        zen_model = os.environ.get("ZEN_MODEL", "").strip() or ZEN_FREE_MODELS[0]
+        try:
+            zen_req = urllib.request.Request(
+                ZEN_ENDPOINT,
+                data=_json.dumps({"model": zen_model,
+                                  "messages": [{"role": "user", "content": "hi"}],
+                                  "max_tokens": 5}).encode(),
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {zen_key}",
+                    # 少了瀏覽器 UA 會被 Cloudflare 以 error 1010 擋下
+                    "User-Agent": _BROWSER_UA,
+                }, method="POST")
+            with urllib.request.urlopen(zen_req, timeout=20) as r:
+                r.read()
+            results["opencode_zen"] = f"✓ OK ({zen_model})"
+        except urllib.error.HTTPError as e:
+            results["opencode_zen"] = f"✗ HTTP {e.code}: {e.read()[:120].decode('utf-8','replace')}"
+        except Exception as e:
+            results["opencode_zen"] = f"✗ {type(e).__name__}: {e}"
+    else:
+        results["opencode_zen"] = "✗ key not set（可至 opencode.ai 取得免費金鑰）"
 
     # Ollama（Render 通常未部署；本機服務可作為穩定備援）
     try:
