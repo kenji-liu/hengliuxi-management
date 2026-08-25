@@ -42,6 +42,14 @@ except Exception:  # pragma: no cover - optional runtime context
         answer_engine = None
 
 try:
+    from webapp import agent_tools
+except Exception:  # pragma: no cover - optional runtime context
+    try:
+        import agent_tools  # type: ignore
+    except Exception:
+        agent_tools = None
+
+try:
     from webapp.ai_model_config import public_modes, resolve_mode
 except Exception:
     from ai_model_config import public_modes, resolve_mode
@@ -940,6 +948,44 @@ def _fetch_platform_url_context(query: str, platform_url: str = "") -> Dict[str,
     }
 
 
+_AGENT_SYSTEM_PROMPT = """你是「橫流溪工程設施維護與生態資料管理」的專業幕僚，服務對象是
+林業保育署臺中分署與工程顧問團隊。回答會被用於金質獎評審簡報與維護決策，正確性重於完整性。
+
+【工作方式】
+你有一組工具可以查詢平台資料。請先判斷回答這個問題需要哪些資料，呼叫對應工具取得後再作答。
+・設施現況、DER&U 評等、健康分數 → query_facilities
+・巡查紀錄、發現的問題、處理狀態 → query_inspections
+・魚類歷年調查與物種尾數 → query_fish_surveys
+・維護工程、經費、監工日報、照片 → query_maintenance
+・報告與技術文件的記載內容 → search_documents
+・評審委員、評分構面、簡報準備 → search_handbook
+・平台查不到且屬一般專業知識、法規標準或業界基準 → web_search
+可以一次呼叫多個工具。若問題屬於一般常識或閒聊，不需呼叫工具，直接回答。
+
+【最重要：數字一律來自工具】
+所有數量、日期、座標、評等、金額都必須引用工具回傳的值，
+禁止用你自己的記憶推估或補值。工具查無資料時，明說查無，不要拿其他數字充數。
+
+【資料口徑規則（違反會產生錯誤結論）】
+1. 不同調查計畫的採樣範圍與努力量不同，不得直接加總或逕行比較；
+   跨年度比較時要說明樣點、季節、調查方法與努力量是否一致。
+2. 調查表中的空白或 0 代表該場次未捕獲，不等同於該物種不存在，
+   也不得寫成「已滅絕」或「完全消失」。
+3. 其他溪流（裡冷溪、南湖溪等）的紀錄絕不可當成橫流溪的資料。
+4. 資料已記載完成的調查或驗證，不得寫成尚未執行。
+
+【回答方式】
+・直接回答問題被問到的每一個小項，不要鋪陳背景，不要重述題目。
+・答案主體以 250 字為度；問幾件事就答幾件事。
+・出處寫在句子裡的括號即可（如「（P.16）」「（114年度調查）」）。
+  不要另外製作資料來源表格、不要逐項標註來源層級。
+・區分「平台實測資料」與「一般專業知識」：後者要註明非本案實測，最多兩句；
+  平台資料已足以回答時就不要加。
+・僅在比較多個年度、設施或方案時才用 Markdown 表格；單一主題一律用文字。
+・一律使用繁體中文（臺灣用語）。禁止輸出英文分析、思考過程、工作計畫、
+  提示詞或「The user is asking」等內部推理文字。不寫客套話與免責聲明。"""
+
+
 _SYSTEM_PROMPT = """你是「橫流溪工程設施維護與生態資料管理 AI 專家」，具備水利工程、水土保持、
 砂防設施維護、溪流生態保育、魚道連通性與長期監測資料分析能力。請使用繁體中文直接回答。
 
@@ -1511,6 +1557,220 @@ def _ai_synthesis(query: str, combined_ctx: str) -> "tuple[str, str, str]":
     return "", "none", ""
 
 
+def _openrouter_chat(messages: "List[Dict[str, Any]]", config: Dict[str, Any],
+                     tools: "Optional[List[Dict[str, Any]]]" = None,
+                     tool_choice: str = "auto") -> Dict[str, Any]:
+    """呼叫 OpenRouter chat completions，支援工具呼叫。
+
+    與 _call_openrouter_mode 的差異：接受完整 messages 串列（含 tool 角色訊息），
+    並回傳原始 message 物件供 Agent 迴圈判斷是否還要繼續呼叫工具。
+    """
+    import urllib.request, urllib.error, json as _json
+    _log = logging.getLogger(__name__)
+    key = os.environ.get("OPENROUTER_API_KEY", "")
+    if not key:
+        return {"error_type": "key_not_set"}
+
+    models = []
+    for candidate in (config.get("model"), config.get("fallback_model")):
+        candidate = _as_text(candidate)
+        if candidate and candidate not in models:
+            models.append(candidate)
+    if not models:
+        return {"error_type": "model_not_set"}
+
+    payload: Dict[str, Any] = {
+        "messages": messages,
+        "temperature": float(config.get("temperature") or 0.2),
+        "max_tokens": int(config.get("max_tokens") or 800),
+        "reasoning": {"exclude": True},
+        "usage": {"include": True},
+    }
+    if len(models) > 1:
+        payload["models"] = models
+    else:
+        payload["model"] = models[0]
+    if tools:
+        payload["tools"] = tools
+        # 最後一輪用 "none"：工具宣告仍保留，但要求模型直接作答。
+        # 若改成完全不帶 tools，模型仍會想查資料，於是在文字中吐出偽造的
+        # <tool_call> 標記而非答案。
+        payload["tool_choice"] = tool_choice
+
+    started = time.perf_counter()
+    req = urllib.request.Request(
+        "https://openrouter.ai/api/v1/chat/completions",
+        data=_json.dumps(payload).encode("utf-8"),
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {key}",
+            "HTTP-Referer": "https://hengliuxi-management.onrender.com",
+            "X-Title": "Hengliu Creek Management Platform",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=float(config.get("timeout") or 28)) as response:
+            result = _json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        body = exc.read()[:200].decode("utf-8", "replace")
+        _log.warning("[AGENT] OpenRouter HTTP %s: %s", exc.code, body)
+        return {"error_type": f"http_{exc.code}", "detail": body}
+    except Exception as exc:
+        _log.warning("[AGENT] OpenRouter %s: %s", type(exc).__name__, exc)
+        return {"error_type": type(exc).__name__}
+
+    choice = (result.get("choices") or [{}])[0]
+    usage = dict(result.get("usage") or {})
+    return {
+        "message": choice.get("message") or {},
+        "actual_model": _as_text(result.get("model")) or models[0],
+        "input_tokens": int(usage.get("prompt_tokens") or 0),
+        "output_tokens": int(usage.get("completion_tokens") or 0),
+        "estimated_cost": float(usage.get("cost") or 0.0),
+        "response_time": round(time.perf_counter() - started, 3),
+        "models": models,
+    }
+
+
+def _run_agent(query: str, snapshot: Dict[str, Any], grounding: str,
+               config: Dict[str, Any], max_rounds: int = 2) -> Dict[str, Any]:
+    """工具呼叫式 Agent：讓模型自行決定要查哪些資料，再統整作答。
+
+    相較於「先檢索一堆文字塞進提示詞」的舊做法，這裡模型拿到的數字都來自
+    工具回傳的權威 JSON，因此不需要再用關鍵字閘門覆寫答案。
+    """
+    import json as _json
+    _log = logging.getLogger(__name__)
+    started = time.perf_counter()
+
+    if agent_tools is None:
+        return {"answer": "", "error_type": "agent_tools_unavailable"}
+
+    # 只給簡短定位資訊，不預先塞入大量檢索文字。
+    # 實測若把舊流程的 6000 字 context 一起送上，模型會直接從那段文字作答而不呼叫工具，
+    # 等於退回「檢索後塞提示詞」的老路，失去 Agent 主動查詢的意義。
+    user_content = f"【使用者問題】\n{query}"
+    if grounding.strip():
+        user_content = (f"【背景定位（僅供判斷要查什麼，數據仍須以工具回傳為準）】\n"
+                        f"{grounding.strip()[:800]}\n\n{user_content}")
+
+    messages: List[Dict[str, Any]] = [
+        {"role": "system", "content": _AGENT_SYSTEM_PROMPT},
+        {"role": "user", "content": user_content},
+    ]
+
+    totals = {"input_tokens": 0, "output_tokens": 0, "estimated_cost": 0.0}
+    actual_model = ""
+    tools_used: List[str] = []
+
+    # 第 1 輪只是「決定要查哪些資料」，屬於路由決策，不需要動用最貴最慢的模型；
+    # 實測快速模型 1.8 秒即可正確選出工具與參數，而高階模型要十餘秒。
+    # 真正需要品質的是最後統整那一輪，仍使用使用者選定的模式模型。
+    router_config = dict(config)
+    router_model = os.environ.get("AI_AGENT_ROUTER_MODEL", "").strip() \
+        or _as_text(config.get("fallback_model")) or _as_text(config.get("model"))
+    router_config.update(model=router_model, fallback_model="",
+                         max_tokens=400, timeout=max(20.0, float(config.get("timeout") or 28)))
+
+    # 最後一輪要把多個工具結果統整成完整答案，輸出空間需比單次問答寬裕，
+    # 否則會出現句子講到一半被截斷的情形。
+    answer_config = dict(config)
+    answer_config["max_tokens"] = max(int(config.get("max_tokens") or 800), 1000)
+
+    for round_index in range(max_rounds):
+        # 最後一輪不再提供工具，強制模型產出答案
+        is_last = round_index == max_rounds - 1
+        if is_last:
+            # 最後一輪不帶工具定義，並明確要求直接作答。
+            # 若只是拿掉 tools 而沒有這句指示，模型會在文字中吐出偽造的
+            # <tool_call> 標記而非答案。
+            messages.append({
+                "role": "user",
+                "content": "請根據以上工具回傳的資料，用繁體中文直接作答，不要再呼叫工具。",
+            })
+        result = _openrouter_chat(
+            messages,
+            answer_config if is_last else router_config,
+            tools=None if is_last else agent_tools.TOOL_SCHEMAS)
+
+        if result.get("error_type"):
+            return {"answer": "", "provider": "openrouter",
+                    "error_type": result["error_type"],
+                    "response_time": round(time.perf_counter() - started, 3),
+                    **totals}
+
+        actual_model = result.get("actual_model") or actual_model
+        for key in totals:
+            totals[key] += result.get(key, 0)
+
+        message = result.get("message") or {}
+        tool_calls = message.get("tool_calls") or []
+
+        if not tool_calls:
+            text = _as_text(message.get("content")).strip()
+            # 保險：部分模型在沒有工具可用時，仍會在文字中吐出偽造的工具呼叫標記
+            if "<tool_call>" in text or "<function=" in text:
+                text = re.sub(r"<tool_call>.*?</tool_call>", "", text,
+                              flags=re.S).strip()
+            if not _is_acceptable_zh_answer(text):
+                # 非最後一輪就放棄會讓整個 Agent 失效：路由用的快速模型有時會
+                # 略過工具直接作答，且品質不符。此時應交給最後一輪的高品質模型
+                # 重新產出，而不是直接退回保底樣板。
+                if not is_last:
+                    messages.append({
+                        "role": "user",
+                        "content": "請改用繁體中文重新作答；若需要平台資料，"
+                                   "請先呼叫對應工具取得後再回答。",
+                    })
+                    continue
+                return {"answer": "", "provider": "openrouter",
+                        "actual_model": actual_model, "error_type": "invalid_answer",
+                        "response_time": round(time.perf_counter() - started, 3), **totals}
+            _OR_LAST_GOOD["model"] = actual_model
+            return {
+                "answer": text,
+                "provider": "openrouter",
+                "actual_model": actual_model,
+                "display_name": f"{actual_model} (Agent)",
+                "tools_used": tools_used,
+                "response_time": round(time.perf_counter() - started, 3),
+                "fallback_used": actual_model != (result.get("models") or [""])[0],
+                "error_type": "",
+                **totals,
+            }
+
+        # 並行執行本輪所有工具呼叫
+        messages.append(message)
+        tasks = {}
+        for index, call in enumerate(tool_calls[:5]):
+            fn = call.get("function") or {}
+            name = _as_text(fn.get("name"))
+            try:
+                args = _json.loads(fn.get("arguments") or "{}")
+            except Exception:
+                args = {}
+            tools_used.append(name)
+            tasks[f"{index}:{call.get('id')}:{name}"] = (
+                lambda n=name, a=args: agent_tools.execute_tool(
+                    n, a, snapshot, _local_keyword_retrieve, _web_search_ddg))
+
+        _log.info("[AGENT] 第 %d 輪呼叫工具：%s", round_index + 1, tools_used)
+        outputs = _run_parallel(tasks, timeout=25.0)
+        for task_key, output in outputs.items():
+            _, call_id, name = task_key.split(":", 2)
+            messages.append({
+                "role": "tool",
+                "tool_call_id": call_id,
+                "content": _as_text(output) or _json.dumps(
+                    {"error": f"{name} 未回傳結果"}, ensure_ascii=False),
+            })
+
+    return {"answer": "", "provider": "openrouter", "actual_model": actual_model,
+            "error_type": "no_answer_after_tools", "tools_used": tools_used,
+            "response_time": round(time.perf_counter() - started, 3), **totals}
+
+
 def _ai_synthesis_mode(query: str, combined_ctx: str, config: Dict[str, Any]) -> Dict[str, Any]:
     """Use the selected OpenRouter mode and its configured model fallback.
 
@@ -1788,6 +2048,11 @@ def smart_ask() -> Any:
     platform_url = _as_text(data.get("platform_url") or data.get("source_url")) or DEFAULT_PLATFORM_URL
     include_platform_url = str(data.get("include_platform_url", "true")).lower() not in ("0", "false", "no")
     client_platform_ctx = _as_text(data.get("client_platform_context"))[:24000]
+    # 結構化快照：設施、巡查、魚類調查等資料僅存在瀏覽器端，由前端隨請求送上，
+    # 供 Agent 的工具查詢。舊版的文字快照仍相容保留，作為背景說明使用。
+    client_snapshot = data.get("client_snapshot")
+    if not isinstance(client_snapshot, dict):
+        client_snapshot = {}
 
     if not query:
         return jsonify({"status": "error", "message": "缺少 query"}), 400
@@ -1999,101 +2264,51 @@ def smart_ask() -> Any:
         combined_ctx_parts.append(f"===== 來源：{label}{note} =====\n{text}")
     combined_ctx = "\n\n".join(combined_ctx_parts)
 
-    # ── 7. 指定模式推論；所有模式共用上方同一批 RAG 結果 ─────────
+    # ── 7. 推論：優先走工具呼叫式 Agent ───────────────────────────
     evidence_count = (
         len(local_evidence) + len(ocr_citations) + len(management_evidence)
         + len(platform_evidence) + len(web_results)
     )
     if client_platform_ctx.strip():
         evidence_count += 1
-    if not combined_ctx.strip() or evidence_count == 0:
-        ai_result = {
-            "answer": "目前資料庫中沒有足夠資料可以確認。請補充設施名稱、樁號、巡查日期或調查年度後再查詢。",
-            "provider": "rag_guard",
-            "actual_model": "未呼叫模型",
-            "display_name": "RAG 資料不足保護",
-            "input_tokens": 0,
-            "output_tokens": 0,
-            "estimated_cost": 0.0,
-            "response_time": round(time.perf_counter() - request_started, 3),
-            "fallback_used": False,
-            "error_type": "insufficient_evidence",
-        }
-    else:
-        ai_result = _ai_synthesis_mode(query, combined_ctx, mode_config)
+
+    # Agent 由模型自行決定要查哪些資料，因此不可在工具執行前依 evidence_count
+    # 判斷「資料不足」——那個判斷屬於舊的「先檢索再作答」流程。
+    ai_result: Dict[str, Any] = {}
+    if agent_tools is not None and client_snapshot:
+        page_info = (client_snapshot.get("page") or {}) if client_snapshot else {}
+        counts = (client_snapshot.get("counts") or {}) if client_snapshot else {}
+        grounding = (f"使用者目前所在頁面：{_as_text(page_info.get('section')) or '未標示'}。"
+                     f"平台現有設施 {counts.get('facilities', '?')} 座、"
+                     f"巡查紀錄 {counts.get('inspections', '?')} 筆、"
+                     f"魚類調查 {counts.get('fishSurveys', '?')} 場次。")
+        ai_result = _run_agent(query, client_snapshot, grounding, mode_config)
+
+    if not _as_text(ai_result.get("answer")):
+        # Agent 不可用或未能作答時，退回既有的單次推論流程
+        if not combined_ctx.strip() and evidence_count == 0:
+            ai_result = {
+                "answer": "目前資料庫中沒有足夠資料可以確認。請補充設施名稱、樁號、巡查日期或調查年度後再查詢。",
+                "provider": "rag_guard",
+                "actual_model": "未呼叫模型",
+                "display_name": "RAG 資料不足保護",
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "estimated_cost": 0.0,
+                "response_time": round(time.perf_counter() - request_started, 3),
+                "fallback_used": False,
+                "error_type": "insufficient_evidence",
+            }
+        else:
+            ai_result = _ai_synthesis_mode(query, combined_ctx, mode_config)
     answer = _as_text(ai_result.get("answer"))
     provider_key = _as_text(ai_result.get("provider")) or "none"
     provider_display = _as_text(ai_result.get("display_name") or ai_result.get("actual_model"))
 
-    # 魚道緊急狀態屬於可由平台即時數據決定的事實，不讓模型改寫成相反結論。
-    #
-    # 但這是「整段覆蓋 AI 答案」的強制手段，觸發條件必須嚴格：
-    # 過去只要問題同時出現「魚道」與「維護」就生效，導致像
-    #「魚道AI物件偵測模型的準確率為何？」這種問到 AI 辨識、
-    # 僅順帶提及魚道與維護管理平台的題目，也被覆蓋成魚道座數統計。
-    # 現在必須本題意圖確實是設施現況查詢，且句子在問狀態或急迫性才套用。
-    _guard_intent = intent.get("intent") in ("facility", "inspection", "general")
-    _guard_asking_status = bool(re.search(
-        r"(現況|目前|最新|哪些|幾座|多少|狀態如何|是否正常)"
-        r"|((需要|待|該|要)(緊急|優先|維護|處理|修復))"
-        r"|(緊急處理|優先處理|損壞|異常)",
-        query))
-    # 明顯屬於技術方法、制度或評審提問者一律不套用
-    _guard_excluded = bool(re.search(
-        r"準確率|誤判|辨識|模型|演算法|交叉驗證|方法論|如何計算|評分|構面|委員|簡報",
-        query))
-    if (client_platform_ctx and re.search(r"魚道", query)
-            and _guard_intent and _guard_asking_status and not _guard_excluded):
-        summary_match = re.search(
-            r"魚道設施共\s*(\d+)\s*座[^。\n]*?正常\s*(\d+)\s*座[^。\n]*?需維護\s*(\d+)\s*座[^。\n]*?損壞\s*(\d+)\s*座",
-            client_platform_ctx,
-        )
-        summary_mode = "facility"
-        if not summary_match:
-            summary_match = re.search(
-                r"共\s*(\d+)\s*座魚道[^。\n]*?正常\s*(\d+)\s*座[^。\n]*?"
-                r"(?:需追蹤|需維護)\s*(\d+)\s*座[^。\n]*?(?:緊急|損壞)\s*(\d+)\s*座",
-                client_platform_ctx,
-            )
-            summary_mode = "checklist"
-        if summary_match:
-            total, normal, maintenance, damaged = map(int, summary_match.groups())
-            u4_names = []
-            for match in re.finditer(
-                r"([溪溝構\w\-]+(?:\s*[^\n。；]{0,20}?魚道)?)"
-                r"[^。\n；]{0,35}?(?:D4/E4/R4・U4|U4)[^。\n；]{0,20}",
-                client_platform_ctx,
-            ):
-                name = re.sub(r"^[【（(\s]+|[】）)\s]+$", "", match.group(1)).strip(" ：:")
-                if name and name not in u4_names:
-                    u4_names.append(name)
-            for match in re.finditer(r"★緊急【([^】\n]{2,40})】", client_platform_ctx):
-                name = match.group(1).strip()
-                if name and name not in u4_names:
-                    u4_names.append(name)
-            followups = []
-            for match in re.finditer(
-                r"([溪溝構\w\-]+(?:\s*[^\n。；]{0,20}?魚道)?)"
-                r"[^。\n；]{0,35}?(D\d/E\d/R\d・U[23])",
-                client_platform_ctx,
-            ):
-                item = f"{match.group(1).strip(' ：:')}（{match.group(2)}）"
-                if item not in followups:
-                    followups.append(item)
-            urgent_sentence = (
-                f"需緊急處理的設施為{'、'.join(u4_names)}，其最新狀態為 U4 且尚未結案。"
-                if u4_names else
-                (f"目前有 {damaged} 座魚道標示為損壞，應優先進行現場複核與處置。" if damaged else "目前無 U4 或損壞魚道。")
-            )
-            followup_sentence = f"另有 {maintenance} 座需維護" + (f"：{'、'.join(followups[:4])}。" if followups else "，應持續追蹤。")
-            answer = (
-                f"依目前網頁平台的即時資料，魚道設施共 {total} 座："
-                f"正常 {normal} 座、需維護 {maintenance} 座、損壞 {damaged} 座。"
-                f"{urgent_sentence}{followup_sentence}"
-                "以上為目前頁面最新表徵；較舊紀錄僅作履歷比對，不得覆蓋尚未結案的最新異常。"
-            )
-            provider_key = provider_key or "platform_guard"
-            provider_display = f"{provider_display or '平台資料'}＋即時狀態一致性檢核"
+    # 註：原本這裡有一段 platform_guard，會在特定關鍵字命中時
+    # 用樣板整段覆蓋 AI 的答案，藉此避免模型講錯魚道現況。
+    # 改為工具呼叫式 Agent 後，設施數據直接來自 query_facilities 工具回傳的
+    # 權威 JSON，模型無從竄改，因此不再需要這層覆寫，也不會再誤觸。
 
     # ── 7a. AI 失敗時的保底輸出 ──────────────────────────────────
     # 保底只能呈現「與本題相關」的檢索結果。過去不論問什麼都輸出巡查統計，

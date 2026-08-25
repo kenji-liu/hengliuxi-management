@@ -1956,41 +1956,15 @@ async function aiFetchLatestManagementContext(query) {
 
 async function queryRAG(query) {
   const selectedMode = document.getElementById('aiModelMode')?.value || 'pro';
-  // 設施現況、異常與維護優先序可由瀏覽器目前資料庫直接判定。
-  // 不需先等待雲端模型與 3.8 萬筆文件檢索，亦可避免模型改寫最新狀態。
-  const immediateStatusAnswer = _buildLiveStatusAnswer(query);
-  if (immediateStatusAnswer) {
-    return {
-      status: "success",
-      answer: immediateStatusAnswer,
-      llm_provider: "platform_guard",
-      llm_model: "平台即時資料庫（免等待推論）",
-      confidence_level: "high",
-      confidence_score: 96,
-      policy_label: "即時狀態回答",
-      platform_consistency_guard: true,
-      structured_citations: [{
-        source_file: '橫流溪管理平台即時設施資料庫', page: 1, score: 0.96,
-        preview: '依目前瀏覽器中的最新設施、專業巡查、改善完成日期與未結案狀態計算。',
-        source_href: window.location.href
-      }],
-      ai_usage: {
-        selected_mode: selectedMode, resolved_mode: 'platform_direct',
-        resolved_mode_label: '平台即時查詢', actual_model: '未呼叫模型',
-        provider: 'platform_guard', input_tokens: 0, output_tokens: 0,
-        estimated_cost: 0, response_time: 0, rag_chunk_count: 1, fallback_used: false
-      }
-    };
-  }
+  // 註：此處原本會先呼叫 _buildLiveStatusAnswer()，只要問題同時含「設施/魚道」
+  // 與「維護/狀態/處理」等字就直接回傳樣板、完全不呼叫後端，導致大量問題答非所問
+  // （設施卡片的 AI 分析按鈕更是 100% 落入樣板）。
+  // 現已改由後端的工具呼叫式 Agent 處理：設施數據由 query_facilities 工具回傳，
+  // 資料同樣權威，但改由模型針對問題統整作答。
 
   const latestManagement = await aiFetchLatestManagementContext(query);
+  const structuredSnapshot = buildStructuredSnapshot();
 
-  // ── 1. 先從本機 KB 取得相關背景知識（不管後端在不在都有資料）
-  const kbResult = queryLocalKB(query);
-  const localCtx = [
-    latestManagement?.context ? `【最新巡查與維護管理資料】\n${latestManagement.context}` : "",
-    kbResult?.answer || ""
-  ].filter(Boolean).join("\n\n");
   const livePlatformContext = [
     // 查詢相關的動態數據最先放入，避免全站摘要太長時被 24,000 字上限截斷。
     buildDynamicContext(query),
@@ -2029,7 +2003,9 @@ async function queryRAG(query) {
           include_platform_url: false,
           include_cloud_ocr: needsCloudDocuments,
           platform_url: "https://hengliuxi-management.onrender.com/webapp/",
-          client_platform_context: livePlatformContext
+          client_platform_context: livePlatformContext,
+          // 結構化快照供後端 Agent 的工具查詢（設施／巡查／魚類調查）
+          client_snapshot: structuredSnapshot
         }),
         signal: ctrl.signal
       });
@@ -2045,14 +2021,9 @@ async function queryRAG(query) {
         console.info(`[queryRAG] ${base} 無有效 AI 回答，嘗試下一個端點`);
         continue;
       }
-      // 現況／緊急維護問題必須與使用者眼前的設施清單一致。
-      // 這層在瀏覽器端再次核對，避免任何外部模型忽略最新未結案紀錄。
-      const liveStatusAnswer = _buildLiveStatusAnswer(query);
-      if (liveStatusAnswer) {
-        data.answer = liveStatusAnswer;
-        data.llm_model = `${data.llm_model || 'AI'}＋平台即時狀態檢核`;
-        data.platform_consistency_guard = true;
-      }
+      // 註：此處原本會用 _buildLiveStatusAnswer() 的樣板整段覆蓋後端答案，
+      // 等於花了最長 90 秒推論後把結果丟棄。設施數據現由後端 query_facilities
+      // 工具提供，已是權威來源，不需要再於瀏覽器端覆寫。
       if (!Array.isArray(data.structured_citations) || !data.structured_citations.length) {
         data.structured_citations = (data.local_evidence || []).map((e, i) => ({
           index: i + 1, source_file: e.source || "橫流溪資料庫",
@@ -2087,47 +2058,71 @@ async function queryRAG(query) {
   };
 }
 
-function _buildLiveStatusAnswer(query) {
-  const q = String(query || '');
-  if (!/(魚道|設施)/.test(q) || !/(緊急|優先|維護|異常|狀態|處理)/.test(q)) return '';
-  if (typeof DB === 'undefined') return '';
-
+/**
+ * 組出給後端 AI Agent 工具查詢用的結構化快照。
+ *
+ * 設施、巡查、魚類調查等資料只存在瀏覽器 localStorage 與 fish.js 常數中
+ * （後端 SQLite 為空、synced_facilities.json 不存在），因此必須隨請求送上，
+ * 後端的 query_facilities / query_inspections / query_fish_surveys 才有資料可查。
+ *
+ * 與舊版的 24,000 字文字快照不同，這裡送的是結構化資料：體積更小，
+ * 且工具可以精確篩選與統計，不必讓模型從一大段文字裡自己找數字。
+ */
+function buildStructuredSnapshot() {
+  if (typeof DB === 'undefined') return null;
   try {
-    const allFacilities = DB.getAll('facilities') || [];
-    const fishwayOnly = /魚道/.test(q);
-    const targets = fishwayOnly
-      ? allFacilities.filter(f => /魚道/.test(`${f.name || ''} ${f.type || ''} ${f.subType || ''}`))
-      : allFacilities;
-    if (!targets.length) return '';
-
-    const rows = targets.map(f => {
+    const facilities = (DB.getAll('facilities') || []).map(f => {
       const a = typeof fac_latestProfessionalAssessment === 'function'
         ? fac_latestProfessionalAssessment(f) : null;
       return {
-        name: f.name || f.code || '未命名設施',
-        status: a?.status || f.status || '未標示',
-        der: a?.derLevel || f.derLevel || '-',
-        u: Number(a?.deru?.u || 0),
-        date: a?.assessmentDate || f.assessmentDate || f.lastInspect || '-',
-        strategy: a?.strategy || f.maintenanceStrategy || '-'
+        id: f.id, name: f.name, code: f.code, type: f.type, subType: f.subType,
+        stationKm: f.stationKm,
+        status: a?.status || f.status || '',
+        derLevel: a?.derLevel || f.derLevel || '',
+        deru_u: Number(a?.deru?.u || f.deru_u || 0),
+        riskScore: f.riskScore,
+        maintenanceStrategy: a?.strategy || f.maintenanceStrategy || '',
+        assessmentDate: a?.assessmentDate || f.assessmentDate || f.lastInspect || '',
+        judgement_basis: f.judgement_basis || f.evaluationNotes || ''
       };
     });
-    const urgent = rows.filter(r => r.status === '損壞' || r.u >= 4 || /・U4\b/.test(r.der));
-    const maintenance = rows.filter(r => !urgent.includes(r) &&
-      (r.status === '需維護' || r.u >= 2 || /・U[23]\b/.test(r.der)));
-    const normal = rows.filter(r => !urgent.includes(r) && !maintenance.includes(r));
-    const scope = fishwayOnly ? '魚道設施' : '工程設施';
-    const urgentText = urgent.length
-      ? `需緊急處理者為：${urgent.map(r => `${r.name}（${r.der}，最後表徵 ${r.date}）`).join('、')}。`
-      : '目前沒有 U4 或損壞且尚未結案的設施。';
-    const maintenanceText = maintenance.length
-      ? `另有 ${maintenance.length} 座需維護或追蹤：${maintenance.map(r => `${r.name}（${r.der}，${r.strategy}）`).join('、')}。`
-      : '其餘設施未列入維護或追蹤。';
 
-    return `依目前網頁平台正在顯示的最新資料，${scope}共 ${rows.length} 座：正常 ${normal.length} 座、需維護 ${maintenance.length} 座、損壞 ${urgent.length} 座。${urgentText}${maintenanceText}以上以最新專業巡查、改善完成日期及未結案狀態綜合判定；較舊紀錄僅作歷史履歷，不覆蓋尚未結案的異常。`;
+    // 巡查紀錄體積較大，只送必要欄位並略過照片
+    const inspections = (DB.getAll('inspections') || []).map(r => ({
+      id: r.id, facilityId: r.facilityId, facilityName: r.facilityName,
+      formType: r.formType, date: r.date, inspector: r.inspector,
+      status: r.status, priority: r.priority,
+      deru_d: r.deru_d, deru_e: r.deru_e, deru_r: r.deru_r, deru_u: r.deru_u,
+      findings: String(r.findings || '').slice(0, 300),
+      action: String(r.action || '').slice(0, 200)
+    }));
+
+    const snapshot = {
+      facilities,
+      inspections,
+      habitats: DB.getAll('habitats') || [],
+      counts: {
+        facilities: facilities.length,
+        inspections: inspections.length
+      },
+      page: {
+        url: location.href,
+        section: document.querySelector('.nav-item.active, .tab-btn.active')?.textContent?.trim() || ''
+      }
+    };
+
+    // 魚類歷年調查（fish.js 的模組常數）
+    if (typeof HLX_FISH_SURVEYS !== 'undefined' && Array.isArray(HLX_FISH_SURVEYS)) {
+      snapshot.fishSurveys = HLX_FISH_SURVEYS;
+      snapshot.counts.fishSurveys = HLX_FISH_SURVEYS.length;
+    }
+    if (typeof HLX_FISH_KEY_NAME !== 'undefined') {
+      snapshot.fishKeyNames = HLX_FISH_KEY_NAME;
+    }
+    return snapshot;
   } catch (err) {
-    console.warn('[_buildLiveStatusAnswer] 即時狀態核對失敗:', err.message || err);
-    return '';
+    console.warn('[buildStructuredSnapshot] 快照組裝失敗:', err.message || err);
+    return null;
   }
 }
 
