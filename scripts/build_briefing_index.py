@@ -36,6 +36,17 @@ SECTION_PATTERNS = [
 ]
 
 
+def normalize(text: str) -> str:
+    """統一字元表示，讓內容可被正常檢索。
+
+    簡報中會出現數學粗體等特殊字元（如 𝟭.𝟵𝟲），視覺上是數字，
+    但編碼與一般數字不同，未正規化時「1.96 公頃」永遠搜不到 ——
+    而這正是委員追問的量化數據。NFKC 會把全形與各式變體收斂為標準形。
+    """
+    import unicodedata
+    return unicodedata.normalize("NFKC", text or "")
+
+
 def shape_texts(shapes) -> list:
     """遞迴抽出所有文字，含群組與表格。"""
     out = []
@@ -46,12 +57,13 @@ def shape_texts(shapes) -> list:
                 out += shape_texts(shape.shapes)
                 continue
             if shape.has_text_frame:
-                text = shape.text_frame.text.strip()
+                text = normalize(shape.text_frame.text).strip()
                 if text:
                     out.append(text)
             if getattr(shape, "has_table", False):
                 for row in shape.table.rows:
-                    cells = [c.text.strip().replace("\n", " ") for c in row.cells]
+                    cells = [normalize(c.text).strip().replace("\n", " ")
+                             for c in row.cells]
                     if any(cells):
                         out.append(" | ".join(cells))
         except Exception:

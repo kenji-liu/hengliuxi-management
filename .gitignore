@@ -73,3 +73,9 @@ webapp/data/gdrive_service_account.json
 webapp/data/_gdrive_flow_state.pkl
 _render_env_vars.json
 webapp/data/gdrive_config.json
+
+# 檢索索引（由 scripts/build_vector_index.py 從 vector_store.jsonl 重建）
+# vectors.npy 113MB 超過 GitHub 單檔上限，且屬可重建的衍生檔
+webapp/data/vectors.npy
+webapp/data/chunks_meta.jsonl
+webapp/data/bm25_index.pkl

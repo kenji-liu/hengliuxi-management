@@ -50,6 +50,14 @@ except Exception:  # pragma: no cover - optional runtime context
         agent_tools = None
 
 try:
+    from webapp import retrieval as doc_retrieval
+except Exception:  # pragma: no cover - optional runtime context
+    try:
+        import retrieval as doc_retrieval  # type: ignore
+    except Exception:
+        doc_retrieval = None
+
+try:
     from webapp.ai_model_config import public_modes, resolve_mode
 except Exception:
     from ai_model_config import public_modes, resolve_mode
@@ -541,7 +549,20 @@ def _structured_response(query: str, use_llm: bool = True, top_k: int = 8) -> Di
 
 
 def _local_keyword_retrieve(query: str, top_k: int = 8) -> List[Dict[str, Any]]:
-    """Offline fallback retrieval when embedding model is not available locally."""
+    """文件檢索。
+
+    優先使用 webapp/retrieval.py 的 BM25（含 IDF 權重與長度正規化，
+    並可在設定 JINA_API_KEY 時融合向量語意檢索）。
+    該模組不可用時才退回下方的關鍵字計次法。
+    """
+    if doc_retrieval is not None and doc_retrieval.is_ready():
+        try:
+            hits = doc_retrieval.search(query, top_k=top_k)
+            if hits:
+                return hits
+        except Exception as exc:
+            logging.getLogger(__name__).warning("[RETRIEVAL] 檢索失敗，退回關鍵字比對：%s", exc)
+
     if rag_backend is None:
         return []
     try:
