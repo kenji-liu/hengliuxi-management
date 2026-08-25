@@ -302,9 +302,31 @@ def hybrid_search(query: str, top_k: int = 6) -> List[Dict[str, Any]]:
     return ranked[:top_k]
 
 
+def _dedupe(hits: List[Dict[str, Any]], limit: int) -> List[Dict[str, Any]]:
+    """濾除重複段落。
+
+    來源文件本身就含大量重複內容（同一份報告的頁首頁尾、重複附表），
+    不去重會讓同一段話佔掉數個名額，白白消耗模型的 context。
+    以「檔名＋內文前 120 字（去空白）」為識別鍵。
+    """
+    seen = set()
+    out: List[Dict[str, Any]] = []
+    for hit in hits:
+        text = re.sub(r"\s+", "", str(hit.get("text") or ""))[:120]
+        key = (str(hit.get("source_file") or ""), text)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(hit)
+        if len(out) >= limit:
+            break
+    return out
+
+
 def search(query: str, top_k: int = 6) -> List[Dict[str, Any]]:
     """對外檢索入口，回傳格式與既有 _local_keyword_retrieve 相容。"""
-    hits = hybrid_search(query, top_k=top_k)
+    # 多取一些再去重，避免去重後不足 top_k
+    hits = _dedupe(hybrid_search(query, top_k=top_k * 3), top_k)
     return [{
         "source_file": h.get("source_file"),
         "source_path": h.get("source_file"),
