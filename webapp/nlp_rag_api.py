@@ -1609,16 +1609,26 @@ ZEN_FREE_MODELS = [
 ]
 
 
+# OpenCode Go：訂閱制的低成本模型方案，與 Zen 共用同一把 API 金鑰。
+# 實測其模型在繁中統整上遠優於 Zen 的免費模型
+# （minimax-m3 統整 5.5 秒，免費的 nemotron-3-ultra 需 52 秒）。
+GO_ENDPOINT = "https://opencode.ai/zen/go/v1/chat/completions"
+
+
 def _zen_chat(messages: "List[Dict[str, Any]]", config: Dict[str, Any],
-              tools: "Optional[List[Dict[str, Any]]]" = None) -> Dict[str, Any]:
-    """呼叫 OpenCode Zen（OpenAI 相容端點）。"""
+              tools: "Optional[List[Dict[str, Any]]]" = None,
+              endpoint: str = "", model: str = "",
+              provider_name: str = "opencode_zen") -> Dict[str, Any]:
+    """呼叫 OpenCode Zen / Go（OpenAI 相容端點，共用同一把金鑰）。"""
     import urllib.request, urllib.error, json as _json
     _log = logging.getLogger(__name__)
     key = os.environ.get("OPENCODE_ZEN_API_KEY", "").strip()
     if not key:
         return {"error_type": "zen_key_not_set"}
 
-    model = (os.environ.get("ZEN_MODEL", "").strip()
+    endpoint = endpoint or ZEN_ENDPOINT
+    model = (model
+             or os.environ.get("ZEN_MODEL", "").strip()
              or _as_text(config.get("zen_model"))
              or ZEN_FREE_MODELS[0])
     payload: Dict[str, Any] = {
@@ -1633,7 +1643,7 @@ def _zen_chat(messages: "List[Dict[str, Any]]", config: Dict[str, Any],
 
     started = time.perf_counter()
     req = urllib.request.Request(
-        ZEN_ENDPOINT, data=_json.dumps(payload).encode("utf-8"),
+        endpoint, data=_json.dumps(payload).encode("utf-8"),
         headers={
             "Content-Type": "application/json",
             "Authorization": f"Bearer {key}",
@@ -1645,10 +1655,10 @@ def _zen_chat(messages: "List[Dict[str, Any]]", config: Dict[str, Any],
             result = _json.loads(response.read().decode("utf-8"))
     except urllib.error.HTTPError as exc:
         body = exc.read()[:200].decode("utf-8", "replace")
-        _log.warning("[ZEN] HTTP %s: %s", exc.code, body)
+        _log.warning("[%s] HTTP %s: %s", provider_name.upper(), exc.code, body)
         return {"error_type": f"zen_http_{exc.code}", "detail": body}
     except Exception as exc:
-        _log.warning("[ZEN] %s: %s", type(exc).__name__, exc)
+        _log.warning("[%s] %s: %s", provider_name.upper(), type(exc).__name__, exc)
         return {"error_type": f"zen_{type(exc).__name__}"}
 
     choice = (result.get("choices") or [{}])[0]
@@ -1656,7 +1666,7 @@ def _zen_chat(messages: "List[Dict[str, Any]]", config: Dict[str, Any],
     return {
         "message": choice.get("message") or {},
         "actual_model": _as_text(result.get("model")) or model,
-        "provider": "opencode_zen",
+        "provider": provider_name,
         "input_tokens": int(usage.get("prompt_tokens") or 0),
         "output_tokens": int(usage.get("completion_tokens") or 0),
         "estimated_cost": 0.0,
@@ -1674,6 +1684,19 @@ def _agent_chat(messages: "List[Dict[str, Any]]", config: Dict[str, Any],
     """
     _log = logging.getLogger(__name__)
     has_zen = bool(os.environ.get("OPENCODE_ZEN_API_KEY", "").strip())
+
+    # OpenCode Go（訂閱制）優先：實測其模型在繁中統整的品質與速度都明顯優於
+    # 免費模型，且不受 OpenRouter 的每日免費上限與付費額度影響。
+    go_model = _as_text(config.get("go_model")) or os.environ.get(
+        "OPENCODE_GO_MODEL", "").strip()
+    if has_zen and go_model and os.environ.get(
+            "OPENCODE_GO_ENABLED", "true").strip().lower() not in ("0", "false", "no", "off"):
+        go = _zen_chat(messages, config, tools=tools,
+                       endpoint=GO_ENDPOINT, model=go_model,
+                       provider_name="opencode_go")
+        if not go.get("error_type"):
+            return go
+        _log.info("[AGENT] OpenCode Go %s，改用其他供應商", go.get("error_type"))
 
     # OpenRouter 的額度不足（402）與每日免費上限（429）都會持續一段時間。
     # 若每次問答都先撞一次失敗再轉 Zen，等於每題白白多等數秒到數十秒，
@@ -1823,6 +1846,9 @@ def _run_agent(query: str, snapshot: Dict[str, Any], grounding: str,
     # ultra 統整乾淨卻較慢。因此路由用快的、統整用穩的。
     router_config["zen_model"] = (os.environ.get("ZEN_ROUTER_MODEL", "").strip()
                                   or "nemotron-3.5-lightning-free")
+    router_config["go_model"] = (os.environ.get("OPENCODE_GO_ROUTER_MODEL", "").strip()
+                                 or os.environ.get("OPENCODE_GO_MODEL", "").strip()
+                                 or "minimax-m3")
 
     # 最後一輪要把多個工具結果統整成完整答案，輸出空間需比單次問答寬裕，
     # 否則會出現句子講到一半被截斷的情形。
@@ -1830,6 +1856,8 @@ def _run_agent(query: str, snapshot: Dict[str, Any], grounding: str,
     answer_config = dict(config)
     answer_config["max_tokens"] = max(int(config.get("max_tokens") or 800), 1000)
     answer_config["timeout"] = max(float(config.get("timeout") or 28), 60.0)
+    answer_config["go_model"] = (os.environ.get("OPENCODE_GO_MODEL", "").strip()
+                                 or "minimax-m3")
 
     for round_index in range(max_rounds):
         # 最後一輪不再提供工具，強制模型產出答案
