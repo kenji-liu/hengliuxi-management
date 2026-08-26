@@ -18,6 +18,7 @@ import argparse
 import hashlib
 import json
 import logging
+import os
 import re
 import sys
 import time
@@ -51,20 +52,24 @@ log = logging.getLogger("hlx-index")
 import urllib.request
 import urllib.error
 
-JINA_API_KEY  = os.environ.get('JINA_API_KEY', '')
+JINA_API_KEY  = os.environ.get('JINA_API_KEY', '').strip()
+# Strip non-ASCII chars that break HTTP headers, then strip any leading junk before 'jina_'
+JINA_API_KEY  = JINA_API_KEY.encode('ascii', errors='ignore').decode('ascii')
+if 'jina_' in JINA_API_KEY:
+    JINA_API_KEY = JINA_API_KEY[JINA_API_KEY.index('jina_'):]
 JINA_EMBED_URL = 'https://api.jina.ai/v1/embeddings'
 
 
 def embed_texts_jina(texts: list[str], task: str = 'retrieval.passage') -> list[list[float]] | None:
-    """呼叫 Jina AI API 取得向量。失敗回傳 None。"""
+    """呼叫 Jina AI API 取得向量。失敗回傳 None。429 自動重試最多 5 次。"""
     if not texts:
         return []
-    batch_size = 100
+    batch_size = 20  # 降低 batch 大小避免 429
     all_vecs: list[list[float]] = []
     for i in range(0, len(texts), batch_size):
         batch = texts[i:i + batch_size]
         payload = json.dumps({
-            'model': EMBED_MODEL,            # 'jina-embeddings-v3'
+            'model': EMBED_MODEL,
             'input': batch,
             'task': task,
             'dimensions': 768,
@@ -79,15 +84,26 @@ def embed_texts_jina(texts: list[str], task: str = 'retrieval.passage') -> list[
             },
             method='POST',
         )
-        try:
-            with urllib.request.urlopen(req, timeout=60) as resp:
-                data = json.loads(resp.read())
-            all_vecs.extend(item['embedding'] for item in data['data'])
-        except urllib.error.HTTPError as e:
-            log.error(f"Jina API HTTP {e.code}: {e.reason}")
-            return None
-        except Exception as e:
-            log.error(f"Jina API 錯誤: {e}")
+        for attempt in range(5):
+            try:
+                with urllib.request.urlopen(req, timeout=60) as resp:
+                    data = json.loads(resp.read())
+                all_vecs.extend(item['embedding'] for item in data['data'])
+                time.sleep(0.5)  # 每批次間隔，避免速率限制
+                break
+            except urllib.error.HTTPError as e:
+                if e.code == 429:
+                    wait = 2 ** attempt * 3  # 3, 6, 12, 24, 48 秒
+                    log.warning(f"Jina 429 速率限制，等待 {wait}s 後重試 ({attempt+1}/5)")
+                    time.sleep(wait)
+                else:
+                    log.error(f"Jina API HTTP {e.code}: {e.reason}")
+                    return None
+            except Exception as e:
+                log.error(f"Jina API 錯誤: {e}")
+                return None
+        else:
+            log.error("Jina API 重試 5 次仍失敗")
             return None
     return all_vecs
 
@@ -118,48 +134,93 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
 
 
 # ═══════════════════════════════════════════════════════════════════
-# 1b. Firebase Storage 上傳
+# 1b. GitHub Releases 上傳（取代 Firebase Storage，免費方案）
 # ═══════════════════════════════════════════════════════════════════
 
-FIREBASE_STORAGE_BUCKET      = os.environ.get('FIREBASE_STORAGE_BUCKET', '')
-FIREBASE_VECTOR_STORE_OBJECT = 'hlx/vector_store.jsonl'
+GITHUB_TOKEN       = os.environ.get('GITHUB_TOKEN', '')
+GITHUB_REPO        = 'kenji-liu/hengliuxi-management'
+GITHUB_RELEASE_TAG = 'vector-store'
+GITHUB_ASSET_NAME  = 'vector_store.jsonl'
+GITHUB_API_BASE    = 'https://api.github.com'
 
 
-def upload_to_firebase_storage(local_path: Path) -> bool:
-    """將向量庫 JSONL 上傳至 Firebase Storage。需設定 FIREBASE_STORAGE_BUCKET。"""
-    if not FIREBASE_STORAGE_BUCKET:
-        log.info("FIREBASE_STORAGE_BUCKET 未設定，跳過上傳")
+def upload_to_github_releases(local_path: Path) -> bool:
+    """將向量庫上傳至 GitHub Releases。需設定 GITHUB_TOKEN（repo 權限）。"""
+    if not GITHUB_TOKEN:
+        log.info("GITHUB_TOKEN 未設定，跳過 GitHub 上傳")
+        log.info(f"  請手動建立 Release（tag: {GITHUB_RELEASE_TAG}）並上傳 {local_path.name}")
         return False
 
-    # 優先使用 firebase-admin SDK（有服務帳號 JSON 時）
-    try:
-        import firebase_admin
-        from firebase_admin import credentials, storage
-        if not firebase_admin._apps:
-            cred_path = os.environ.get('GOOGLE_APPLICATION_CREDENTIALS', '')
-            if cred_path and Path(cred_path).exists():
-                cred = credentials.Certificate(cred_path)
-                firebase_admin.initialize_app(cred, {'storageBucket': FIREBASE_STORAGE_BUCKET})
-            else:
-                firebase_admin.initialize_app(options={'storageBucket': FIREBASE_STORAGE_BUCKET})
-        bucket = storage.bucket()
-        blob = bucket.blob(FIREBASE_VECTOR_STORE_OBJECT)
-        blob.upload_from_filename(str(local_path), content_type='application/jsonl')
-        log.info(f"✓ 上傳至 Firebase Storage: gs://{FIREBASE_STORAGE_BUCKET}/{FIREBASE_VECTOR_STORE_OBJECT}")
-        # 設定為公開讀取（讓 Render 後端可以下載）
-        blob.make_public()
-        log.info(f"  公開 URL: {blob.public_url}")
-        return True
-    except ImportError:
-        pass  # firebase-admin 未安裝，改用 REST API
-    except Exception as e:
-        log.error(f"firebase-admin 上傳失敗: {e}")
+    headers = {
+        'Authorization': f'token {GITHUB_TOKEN}',
+        'Accept': 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+        'User-Agent': 'hlx-rag/1.0',
+    }
 
-    # fallback：提示使用者手動上傳
-    log.warning("firebase-admin SDK 未安裝（pip install firebase-admin）")
-    log.warning(f"請手動上傳 {local_path} 至 Firebase Storage:")
-    log.warning(f"  gs://{FIREBASE_STORAGE_BUCKET}/{FIREBASE_VECTOR_STORE_OBJECT}")
-    return False
+    # 1. 取得或建立 Release
+    release_url = f'{GITHUB_API_BASE}/repos/{GITHUB_REPO}/releases/tags/{GITHUB_RELEASE_TAG}'
+    try:
+        req = urllib.request.Request(release_url, headers=headers)
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            release = json.loads(resp.read())
+        log.info(f"找到 Release: {release['html_url']}")
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            log.info(f"建立新 Release（tag: {GITHUB_RELEASE_TAG}）")
+            payload = json.dumps({
+                'tag_name': GITHUB_RELEASE_TAG,
+                'name': '橫流溪 RAG 向量庫',
+                'body': '自動上傳的向量庫索引，由 hlx_index_all.py 維護',
+                'prerelease': True,
+            }).encode('utf-8')
+            create_url = f'{GITHUB_API_BASE}/repos/{GITHUB_REPO}/releases'
+            req = urllib.request.Request(
+                create_url, data=payload,
+                headers={**headers, 'Content-Type': 'application/json'},
+                method='POST',
+            )
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                release = json.loads(resp.read())
+            log.info(f"✓ Release 建立完成: {release['html_url']}")
+        else:
+            log.error(f"GitHub API 錯誤 {e.code}: {e.reason}")
+            return False
+
+    # 2. 刪除已存在的同名 asset（避免重複）
+    upload_url_base = release['upload_url'].split('{')[0]
+    for asset in release.get('assets', []):
+        if asset['name'] == GITHUB_ASSET_NAME:
+            del_url = f"{GITHUB_API_BASE}/repos/{GITHUB_REPO}/releases/assets/{asset['id']}"
+            try:
+                req = urllib.request.Request(del_url, headers=headers, method='DELETE')
+                urllib.request.urlopen(req, timeout=30)
+                log.info(f"  刪除舊 asset: {asset['name']}")
+            except Exception as ex:
+                log.warning(f"  刪除舊 asset 失敗（繼續）: {ex}")
+
+    # 3. 上傳新 asset
+    data = local_path.read_bytes()
+    upload_url = f"{upload_url_base}?name={GITHUB_ASSET_NAME}"
+    req = urllib.request.Request(
+        upload_url, data=data,
+        headers={
+            **headers,
+            'Content-Type': 'application/octet-stream',
+            'Content-Length': str(len(data)),
+        },
+        method='POST',
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=300) as resp:
+            result = json.loads(resp.read())
+        mb = len(data) / 1024 / 1024
+        log.info(f"✓ 上傳至 GitHub Releases 完成（{mb:.1f} MB）")
+        log.info(f"  下載 URL: {result['browser_download_url']}")
+        return True
+    except Exception as e:
+        log.error(f"GitHub 上傳失敗: {e}")
+        return False
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -565,14 +626,14 @@ def index_all(force: bool = False, dry_run: bool = False):
     log.info(f"  各分類統計：{categories}")
     log.info(f"  向量庫位置：{VECTOR_STORE_FILE}")
 
-    # ── 上傳至 Firebase Storage（雲端部署用）────────────────────
-    log.info("嘗試上傳向量庫至 Firebase Storage…")
-    uploaded = upload_to_firebase_storage(VECTOR_STORE_FILE)
+    # ── 上傳至 GitHub Releases（雲端部署用）─────────────────────
+    log.info("嘗試上傳向量庫至 GitHub Releases…")
+    uploaded = upload_to_github_releases(VECTOR_STORE_FILE)
     if uploaded:
-        log.info("✓ Firebase Storage 上傳完成，Render 後端可自動下載最新向量庫")
+        log.info("✓ GitHub Releases 上傳完成，Render 後端可自動下載最新向量庫")
         log.info("  在網頁 AI 問答管理面板按「重新載入知識庫」即生效")
     else:
-        log.info("  跳過 Firebase 上傳（本機模式或未設定 FIREBASE_STORAGE_BUCKET）")
+        log.info("  跳過 GitHub 上傳（未設定 GITHUB_TOKEN 或上傳失敗）")
 
 
 # ═══════════════════════════════════════════════════════════════════

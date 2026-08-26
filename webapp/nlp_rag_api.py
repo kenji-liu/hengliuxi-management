@@ -505,6 +505,8 @@ def _structured_response(query: str, use_llm: bool = True, top_k: int = 8) -> Di
 
         if not docs:
             docs = _local_keyword_retrieve(parsed["rewritten_query"], top_k=top_k)
+        elif answer_engine is not None:
+            docs = answer_engine.filter_retrieved_docs(query, docs, limit=top_k)
 
         if use_llm and docs:
             try:
@@ -557,9 +559,13 @@ def _local_keyword_retrieve(query: str, top_k: int = 8) -> List[Dict[str, Any]]:
     """
     if doc_retrieval is not None and doc_retrieval.is_ready():
         try:
-            hits = doc_retrieval.search(query, top_k=top_k)
+            # 先多取候選，再用問題概念做第二道閘門；BM25 原始分數可能
+            # 讓只提到「橫流溪／魚道」的泛用段落排在真正答案前面。
+            hits = doc_retrieval.search(query, top_k=max(top_k * 3, 12))
             if hits:
-                return hits
+                if answer_engine is not None:
+                    hits = answer_engine.filter_retrieved_docs(query, hits, limit=top_k)
+                return hits[:max(1, int(top_k or 8))]
         except Exception as exc:
             logging.getLogger(__name__).warning("[RETRIEVAL] 檢索失敗，退回關鍵字比對：%s", exc)
 
@@ -604,16 +610,20 @@ def _local_keyword_retrieve(query: str, top_k: int = 8) -> List[Dict[str, Any]]:
     scored.sort(key=lambda item: item[0], reverse=True)
     results = []
     max_score = scored[0][0] if scored else 1.0
-    for raw_score, doc in scored[:top_k]:
+    candidate_docs = []
+    for raw_score, doc in scored:
         normalized = min(0.88, max(0.2, raw_score / max(max_score, 1.0)))
         try:
-            results.append(rag_backend.sanitize_doc_for_output(doc, normalized))
+            candidate_docs.append(rag_backend.sanitize_doc_for_output(doc, normalized))
         except Exception:
             copied = dict(doc)
             copied["score"] = normalized
             copied["preview"] = _as_text(doc.get("text"))[:220]
-            results.append(copied)
-    return results
+            candidate_docs.append(copied)
+    if answer_engine is not None:
+        candidate_docs = answer_engine.filter_retrieved_docs(
+            query, candidate_docs, limit=top_k)
+    return candidate_docs[:max(1, int(top_k or 8))]
 
 
 def _query_terms(query: str) -> List[str]:
@@ -836,6 +846,62 @@ def _ddgs_client():
     return None, ""
 
 
+def _scoped_web_query(query: str) -> str:
+    """Constrain external search to the Hengliuxi context when appropriate."""
+    text = _as_text(query)
+    if not text or answer_engine is None:
+        return text
+    try:
+        if answer_engine.is_hengliuxi_query(text) and "橫流溪" not in text:
+            return f"橫流溪 臺中市和平區 大甲溪 {text}"
+    except Exception:
+        pass
+    return text
+
+
+def _filter_web_results(query: str, results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Keep only external results that address the requested topic.
+
+    Search engines frequently return a plausible-looking but unrelated result
+    for short Chinese queries.  A result must contain a query concept and, for
+    a site-specific query, either location context or more than one matching
+    topic concept.
+    """
+    if not results:
+        return []
+    if answer_engine is None:
+        return results[:6]
+
+    kept: List[Dict[str, Any]] = []
+    required = set()
+    try:
+        required = answer_engine._required_concepts(query)
+    except Exception:
+        pass
+    for result in results:
+        title = _as_text(result.get("title"))
+        body = _as_text(result.get("body") or result.get("snippet"))
+        href = _as_text(result.get("href") or result.get("url"))
+        searchable = f"{title}\n{body}\n{href}"
+        loose = answer_engine.relevance_score(
+            query, searchable, require_all=False)
+        strict = answer_engine.relevance_score(query, searchable, require_all=True)
+        if loose <= 0:
+            continue
+        has_location = any(term in searchable for term in (
+            "橫流溪", "大甲溪", "臺中市和平區", "台中市和平區", "東勢"))
+        access_query = bool(re.search(r"下溪|下去|進場|怎麼走|如何到|到達|路線|周邊環境|交通|人員", query))
+        has_access_context = bool(re.search(r"步道|道路|路線|進場|溪床|岸側|地形|交通|位置", searchable))
+        if required and strict <= 0 and not (access_query and has_location and has_access_context):
+            continue
+        if not has_location and loose < 2:
+            continue
+        kept.append(result)
+        if len(kept) >= 6:
+            break
+    return kept
+
+
 def _web_search_ddg(query: str, max_results: int = 6) -> List[Dict[str, Any]]:
     """DuckDuckGo 免費搜尋（不需 API Key）。"""
     _log = logging.getLogger(__name__)
@@ -847,11 +913,12 @@ def _web_search_ddg(query: str, max_results: int = 6) -> List[Dict[str, Any]]:
     try:
         with ddgs_cls() as ddgs:
             results = list(ddgs.text(
-                query,
+                _scoped_web_query(query),
                 max_results=max_results,
                 region="tw-zh",
                 safesearch="moderate",
             ))
+        results = _filter_web_results(query, results)
         if not results:
             _log.info("[WEB] %s 查無結果：%s", module_name, query[:40])
         return results
@@ -933,7 +1000,9 @@ def _fetch_platform_url_context(query: str, platform_url: str = "") -> Dict[str,
     parts: List[str] = []
 
     page_text = _fetch_platform_page_cached(url)
-    if page_text:
+    if page_text and (
+            answer_engine is None or
+            answer_engine.is_relevant_text(query, page_text, strict=True)):
         parts.append(f"線上平台頁面：{url}\n頁面可讀文字摘要：{page_text}")
         evidence.append({
             "type": "platform_page",
@@ -973,14 +1042,17 @@ _AGENT_SYSTEM_PROMPT = """你是「橫流溪工程設施維護與生態資料管
 林業保育署臺中分署與工程顧問團隊。回答會被用於金質獎評審簡報與維護決策，正確性重於完整性。
 
 【工作方式】
-你有一組工具可以查詢平台資料。請先判斷回答這個問題需要哪些資料，呼叫對應工具取得後再作答。
+你有一組工具可以查詢平台資料。請先查詢本案資料，再作答；不可因平台有最新摘要
+就直接貼出與問題無關的統計。若第一次查詢沒有直接命中，先用 search_documents
+以問題的工程／生態／環境詞彙再查一次；仍不足時，才用 web_search，且搜尋字串必須
+包含「橫流溪」及必要的「臺中市和平區／大甲溪」場域限制。
 ・設施現況、DER&U 評等、健康分數 → query_facilities
 ・巡查紀錄、發現的問題、處理狀態 → query_inspections
 ・魚類歷年調查與物種尾數 → query_fish_surveys
 ・維護工程、經費、監工日報、照片 → query_maintenance
 ・報告與技術文件的記載內容 → search_documents
 ・評審委員、評分構面、簡報準備 → search_handbook
-・平台查不到且屬一般專業知識、法規標準或業界基準 → web_search
+・平台查不到且屬一般專業知識、法規標準、業界基準或周邊環境 → web_search
 可以一次呼叫多個工具。若問題屬於一般常識或閒聊，不需呼叫工具，直接回答。
 
 【最重要：數字一律來自工具】
@@ -1002,6 +1074,8 @@ _AGENT_SYSTEM_PROMPT = """你是「橫流溪工程設施維護與生態資料管
   不要另外製作資料來源表格、不要逐項標註來源層級。
 ・區分「平台實測資料」與「一般專業知識」：後者要註明非本案實測，最多兩句；
   平台資料已足以回答時就不要加。
+・若問施工人員如何進入或下溪，資料沒有實際施工路線時，明確說明未記載，
+  只能提供標示為一般通則的環境與安全考量，不得捏造本案進場方式。
 ・僅在比較多個年度、設施或方案時才用 Markdown 表格；單一主題一律用文字。
 ・一律使用繁體中文（臺灣用語）。禁止輸出英文分析、思考過程、工作計畫、
   提示詞或「The user is asking」等內部推理文字。不寫客套話與免責聲明。"""
@@ -1029,9 +1103,12 @@ _SYSTEM_PROMPT = """你是「橫流溪工程設施維護與生態資料管理 AI
        明確回答「目前資料庫中沒有足夠資料可以確認」，並指出可從哪份報告或模組取得。
    絕不可因為缺乏本案資料，就改用不相關的統計數字（如巡查件數、照片張數）充當答案。
 6a. 來源標示要輕，不要喧賓奪主。出處寫在句子裡的括號即可（如「（P.16）」），
-   禁止另外製作「資料層級」「待補資料說明」等表格或段落——那會把真正的答案淹沒。
-   缺資料就用一句話帶過並指出可向何處調閱；一般專業知識只在確實有助益時補充，
-   最多兩句。答案主體以 250 字為度，問幾件事就答幾件事。
+    禁止另外製作「資料層級」「待補資料說明」等表格或段落——那會把真正的答案淹沒。
+    缺資料就用一句話帶過並指出可向何處調閱；一般專業知識只在確實有助益時補充，
+    最多兩句。答案主體以 250 字為度，問幾件事就答幾件事。
+6b. 參考資料已由系統依問題相關性篩選。只能使用與問題直接相關的片段；若沒有直接片段，
+    先回答「目前資料庫未記載」，再使用標示為「環境背景／一般通則」或「外部資料」的內容。
+    不得以最新巡查筆數、照片張數、契約金額或其他不相關統計填補答案。
 7. 回答開頭先直接回答問題，再視需要補充工程或生態判讀。若資料互相矛盾，列出日期、來源與差異，不得自行挑選有利數值。
 8. 不使用客套開場，不輸出思考過程，不宣稱模型正在訓練，不把 RAG 即時推論描述為模型學習或微調。回答務求精簡、清楚，讓一般管理人員也能理解。"""
 
@@ -1101,6 +1178,8 @@ def _build_user_msg(query: str, combined_ctx: str) -> str:
         "不要另外製作資料來源表格、不要逐項標註來源層級、不要寫「需說明資料層級」。\n"
         "・查無資料時，用一句話說明查無並指出可向何處調閱即可，"
         "不要另闢「待補資料說明」段落；也不得拿不相關的統計數字充當答案。\n"
+        "・若有「環境背景（一般通則）」來源，必須明標非本案實測；若有「外部網路」來源，"
+        "只能補充場域或方法，不得冒充本案施工路線、核定工法或最新狀態。\n"
         "・一般專業知識只在真正有助於回答時才補充，最多兩句並註明非本案實測；"
         "若題目用平台資料已能回答，就不要加這段。\n"
         "・不得虛構數字、日期、座標、物種、文件名稱或頁碼；"
@@ -2125,19 +2204,38 @@ def _management_fallback_answer(
     inspections = [e for e in evidence if e.get("type") == "inspection"][:4]
     maint = [e for e in evidence if e.get("type") == "maintenance"][:4]
 
-    lines = [
-        "依目前最新同步的巡查資料與維護管理資料判讀：",
-        (
-            f"1. 資料量化：巡查紀錄 {counts.get('inspection_records', 0)} 筆"
-            f"（最新日期 {counts.get('latest_inspection') or '未標示'}），"
-            f"維護/搶修工程 {counts.get('maintenance_projects', 0)} 件，"
-            f"施工日誌 {counts.get('maintenance_reports', 0)} 份，"
-            f"照片 {counts.get('maintenance_photos', 0)} 張。"
-        ),
-    ]
+    query_text = _as_text(query)
+    if re.search(r"魚", query_text) and re.search(
+            r"往上游|往下游|上溯|溯游|怎麼知道|如何確認|通行", query_text):
+        lines = ["依橫流溪相關魚道巡查紀錄："]
+        for item in inspections:
+            lines.append(
+                f"- {item.get('date', '')}｜{item.get('title', '')}｜{item.get('summary', '')}"
+            )
+        if inspections:
+            lines.append(
+                "判讀：上述紀錄以魚道現場觀察與通行結果作為證據；若要確認特定日期或魚種數量，"
+                "仍應回查原始魚道檢核表與調查報告。"
+            )
+        return "\n".join(lines)
+
+    asks_statistics = bool(re.search(r"統計|多少|幾筆|幾件|幾座|照片|金額|經費|日報", query_text))
+    lines = ["依與本題直接相關的巡查與維護資料判讀："]
+    if asks_statistics:
+        stats = []
+        if re.search(r"巡查|紀錄|幾筆|統計", query_text):
+            stats.append(f"相關巡查紀錄 {len(inspections)} 筆")
+        if re.search(r"工程|維護|修補|修復|施工|幾件|統計", query_text):
+            stats.append(f"相關維護工程 {len(maint)} 件")
+        if re.search(r"日報", query_text):
+            stats.append(f"施工日誌 {counts.get('maintenance_reports', 0)} 份")
+        if re.search(r"照片", query_text):
+            stats.append(f"維護照片 {counts.get('maintenance_photos', 0)} 張")
+        if stats:
+            lines.append("資料量化：" + "、".join(stats) + "。")
 
     if inspections:
-        lines.append("2. 最新巡查重點：")
+        lines.append("相關巡查重點：")
         for item in inspections:
             lines.append(
                 f"- {item.get('date', '')}｜{item.get('title', '')}｜"
@@ -2146,7 +2244,7 @@ def _management_fallback_answer(
             )
 
     if maint:
-        lines.append("3. 維護管理重點：")
+        lines.append("相關維護工程：")
         for item in maint:
             amount = f"｜金額 {item.get('amount')}" if item.get("amount") else ""
             lines.append(
@@ -2154,11 +2252,24 @@ def _management_fallback_answer(
                 f"{item.get('summary', '')}"
             )
 
-    lines.append(
-        "4. 管理建議：優先追蹤狀態為待處理、處理中或緊急者，並以最新專業巡查或魚道檢核表作為設施狀態評估依據；"
-        "已完成案件則納入後續定期巡查與照片比對。"
-    )
+    if inspections or maint:
+        lines.append(
+            "管理建議：涉及現場處置時，請以最新專業巡查、魚道檢核表及核定施工計畫確認，"
+            "不要以本段摘要取代現勘。"
+        )
     return "\n".join(lines)
+
+
+def _retrieval_method_fallback_answer(query: str, docs: List[Dict[str, Any]]) -> str:
+    """Turn a relevant fish-movement retrieval hit into a direct answer."""
+    if not docs or not re.search(r"往上游|往下游|上溯|溯游|怎麼知道.*魚|如何確認.*魚", query):
+        return ""
+    return (
+        "依橫流溪魚道調查資料，判斷魚是否往上游的作法，是在魚道上游進水口（出口）"
+        "附近設置箱型陷阱與圍網，記錄捕獲或通行情形，再與下游及不同日期的調查結果比對。"
+        "目前檢索片段可確認這套調查方法，但未提供本題指定日期、魚種與尾數，不能僅據此"
+        "宣稱某一尾魚已完成上溯；詳細結果應回查魚道檢核表與原始調查紀錄。"
+    )
 
 
 def _smalltalk_answer(query: str) -> str:
@@ -2189,10 +2300,9 @@ def _smalltalk_answer(query: str) -> str:
 def smart_ask() -> Any:
     """
     智慧問答端點：
-      1. DuckDuckGo 網路搜尋（免費，繁中優先）
-      2. 本機 RAG 補充橫流溪專屬資料
-      3. Drive OCR 全文索引補充（歷年報告、掃描表單）
-      4. AI 綜合推論 → 流暢繁中回答
+      1. 本機 RAG、平台、巡查維護與 Drive OCR 先行
+      2. 本案資料不足時才以 DuckDuckGo 限定範圍補充
+      3. AI 綜合推論；模型失敗時只回傳相關證據或環境通則
     """
     request_started = time.perf_counter()
     data    = request.get_json() or {}
@@ -2201,13 +2311,16 @@ def smart_ask() -> Any:
     top_k = int(mode_config.get("top_k") or 4)
     use_web_raw = data.get("use_web", "auto")
     if isinstance(use_web_raw, bool):
-        use_web = use_web_raw
+        use_web_requested = use_web_raw
     else:
         use_web_text = str(use_web_raw).strip().lower()
         if use_web_text == "auto":
-            use_web = bool(re.search(r"網路|外部|最新法規|新聞|天氣|颱風|氣象|公開資料", query))
+            use_web_requested = "auto"
         else:
-            use_web = use_web_text not in ("0", "false", "no", "off")
+            use_web_requested = use_web_text not in ("0", "false", "no", "off")
+    # 網路補充必須在本機資料檢索之後決定；舊流程在多路資料並行時先查
+    # 網路，模型容易把搜尋結果或泛用平台頁面誤當成橫流溪答案。
+    use_web = False
     include_cloud_ocr = str(data.get("include_cloud_ocr", "true")).lower() not in ("0", "false", "no")
     platform_url = _as_text(data.get("platform_url") or data.get("source_url")) or DEFAULT_PLATFORM_URL
     include_platform_url = str(data.get("include_platform_url", "true")).lower() not in ("0", "false", "no")
@@ -2276,22 +2389,15 @@ def smart_ask() -> Any:
     if answer_engine is not None:
         try:
             intent = answer_engine.route_intent(query)
-            # 生態習性、法規標準等平台資料庫涵蓋不到的題目，自動啟用網路檢索
-            use_web = answer_engine.needs_web_search(
-                query, intent, len(client_platform_ctx), use_web_raw)
         except Exception as exc:
             logging.getLogger(__name__).warning("[ANSWER] 意圖判斷失敗：%s", exc)
 
-    # ── 1~5. 五路資料來源並行擷取 ─────────────────────────────
-    # 這五步彼此獨立，過去循序執行會把各自的網路等待時間相加；
-    # 併行後總耗時降為最慢的一路。
+    # ── 1~4. 本案資料來源並行擷取（網路補充在本機檢索後才啟動） ──
+    # 這四步彼此獨立；先取得本案資料，才能判斷是否真的需要外部內容。
     def _task_platform() -> Dict[str, Any]:
         if not include_platform_url:
             return {}
         return _fetch_platform_url_context(query, platform_url)
-
-    def _task_web() -> List[Dict[str, Any]]:
-        return _web_search_ddg(query, max_results=6) if use_web else []
 
     def _task_local() -> List[Dict[str, Any]]:
         if rag_backend is None:
@@ -2321,11 +2427,21 @@ def smart_ask() -> Any:
     def _task_management() -> Dict[str, Any]:
         if management_context is None:
             return {}
+        # 管理摘要只在問題真的涉及巡查／維護／設施時查詢；例如「魚往
+        # 上游」不應因平台有 77 筆巡查紀錄就被塞入最新巡查清單。
+        management_query = re.search(
+                r"巡查|巡檢|檢查|檢核|維護|維修|修補|修復|補強|搶修|施工|工程|"
+                r"異常|缺失|通報|監工|日報|合約|經費|照片|完工|進度|待處理|管理",
+                query, flags=re.IGNORECASE)
+        movement_query = re.search(r"魚", query) and re.search(
+            r"上游|下游|往上|往下|上溯|下溯|洄游|溯游|通行", query,
+            flags=re.IGNORECASE)
+        if not management_query and not movement_query:
+            return {}
         return management_context.build_management_context(query, limit=top_k) or {}
 
     results = _run_parallel({
         "platform":   _task_platform,
-        "web":        _task_web,
         "local":      _task_local,
         "ocr":        _task_ocr,
         "management": _task_management,
@@ -2333,21 +2449,38 @@ def smart_ask() -> Any:
 
     # 1. 線上平台 URL 即時資料
     platform_payload: Dict[str, Any] = results.get("platform") or {}
-    platform_ctx = _as_text(platform_payload.get("context"))
+    platform_ctx_raw = _as_text(platform_payload.get("context"))
+    platform_ctx = platform_ctx_raw
+    if answer_engine is not None:
+        platform_ctx = answer_engine.scope_context_to_query(
+            query, platform_ctx_raw, max_chars=6500)
     platform_evidence: List[Dict[str, Any]] = list(platform_payload.get("evidence") or [])
+    if answer_engine is not None:
+        platform_evidence = [
+            item for item in platform_evidence
+            if answer_engine.is_relevant_text(
+                query,
+                " ".join(_as_text(item.get(key)) for key in
+                          ("title", "summary", "quote", "description")),
+            )
+        ]
+    scoped_client_ctx = client_platform_ctx
+    if answer_engine is not None:
+        scoped_client_ctx = answer_engine.scope_context_to_query(
+            query, client_platform_ctx, max_chars=6500)
 
-    # 2. 網路搜尋
-    web_results: List[Dict[str, Any]] = results.get("web") or []
-    web_ctx = _format_web_results(web_results) if web_results else ""
-
-    # 3. 本機 RAG 補充
+    # 2. 本機 RAG 補充
     local_candidates: List[Dict[str, Any]] = results.get("local") or []
+    if answer_engine is not None:
+        local_candidates = answer_engine.filter_retrieved_docs(
+            query, local_candidates, limit=max(top_k, 1))
     local_docs: List[Dict[str, Any]] = []
     local_seen = set()
     for item in local_candidates:
-        source_name = os.path.basename(_as_text(item.get("source_file") or item.get("source"))).lower()
         content = _as_text(item.get("full_text") or item.get("preview") or item.get("text"))
-        dedupe_key = (source_name, re.sub(r"\s+", "", content[:320]).lower())
+        # 同一份報告常以不同檔名／備份路徑入庫；以內容去重，避免
+        # 重複片段佔滿 context。
+        dedupe_key = re.sub(r"\s+", "", content[:420]).lower()
         if dedupe_key in local_seen:
             continue
         local_seen.add(dedupe_key)
@@ -2364,13 +2497,22 @@ def smart_ask() -> Any:
         for index, d in enumerate(local_docs[:top_k], 1)
     ) if local_docs else ""
 
-    # 4. Drive OCR 全文搜尋
+    # 3. Drive OCR 全文搜尋
     ocr_payload: Dict[str, Any] = results.get("ocr") or {}
     ocr_status_data: Dict[str, Any] = dict(ocr_payload.get("status") or {})
     ocr_index_started = bool(ocr_payload.get("started"))
     ocr_citations: List[Dict[str, Any]] = []
     ocr_parts: List[str] = []
-    for h in (ocr_payload.get("hits") or []):
+    ocr_hits = list(ocr_payload.get("hits") or [])
+    if answer_engine is not None:
+        ocr_hits = [
+            h for h in ocr_hits
+            if answer_engine.is_relevant_text(
+                query,
+                f"{_as_text(h.get('doc_name'))}\n{_as_text(h.get('chunk'))}",
+            )
+        ]
+    for h in ocr_hits:
         snippet = _as_text(h.get("chunk"))[:450]
         doc_name = _as_text(h.get("doc_name"))
         year_tag = f"（{h['year']}年）" if h.get("year") else ""
@@ -2384,7 +2526,7 @@ def smart_ask() -> Any:
         })
     ocr_ctx = "\n\n".join(ocr_parts)
 
-    # 5. 最新巡查與維護管理資料
+    # 4. 最新巡查與維護管理資料
     mgmt: Dict[str, Any] = results.get("management") or {}
     management_ctx = _as_text(mgmt.get("context"))
     management_evidence: List[Dict[str, Any]] = list(mgmt.get("evidence") or [])
@@ -2394,28 +2536,64 @@ def smart_ask() -> Any:
     # 過去不論問題內容都把所有來源塞進 context，導致問魚類棲地卻回巡查統計。
     # 現在先判斷意圖，只納入與問題相關的來源，不相關者明確排除。
     handbook_ctx = ""
-    if answer_engine is not None:
+    if answer_engine is not None and intent.get("intent") == "review":
         try:
             handbook_ctx = answer_engine.handbook_reference(query)
         except Exception as exc:
             logging.getLogger(__name__).warning("[ANSWER] 手冊檢索失敗：%s", exc)
 
+    # ── 5. 只有本案資料不足或使用者明示時才查外部網路 ─────────────
+    # 這裡刻意放在本機 RAG、OCR、巡查與手冊檢索之後，確保「資料庫優先」。
+    direct_context_chars = sum(len(value) for value in (
+        scoped_client_ctx, platform_ctx, local_ctx, ocr_ctx,
+        management_ctx, handbook_ctx))
+    if answer_engine is not None:
+        use_web = answer_engine.needs_web_search(
+            query, intent, direct_context_chars, use_web_requested)
+    else:
+        use_web = bool(use_web_requested is True)
+    web_results: List[Dict[str, Any]] = (
+        _filter_web_results(query, _web_search_ddg(query, max_results=6))
+        if use_web else []
+    )
+    web_ctx = _format_web_results(web_results) if web_results else ""
+
+    # ── 6. 資料不足時補充環境脈絡，而非拿別的統計數字填空 ───────
+    environment_ctx = ""
+    if answer_engine is not None:
+        evidence_text = "\n".join(
+            value for value in (scoped_client_ctx, platform_ctx, local_ctx, ocr_ctx,
+                                management_ctx, handbook_ctx, web_ctx) if value)
+        if answer_engine.needs_environment_context(query, evidence_text):
+            environment_ctx = answer_engine.build_environment_context(query)
+
+    platform_context = scoped_client_ctx or platform_ctx[:6500]
+
     raw_sources = {
-        "platform":   (client_platform_ctx[:6500] if client_platform_ctx.strip() else "")
-                      or platform_ctx[:3500],
-        "management": management_ctx[:3500],
-        "facility":   platform_ctx[:3500] if client_platform_ctx.strip() else "",
+        "platform":   platform_context,
+        "management": management_ctx[:3500] if management_evidence else "",
+        # 平台快照已經是單一經過相關性篩選的來源，不要再以 facility
+        # 名義複製同一段文字，避免模型把同一證據誤認成兩份資料。
+        "facility":   "",
         "ecology":    ocr_ctx,
         "docs":       local_ctx,
         "handbook":   handbook_ctx,
         "web":        web_ctx,
+        "environment": environment_ctx,
     }
 
     dropped_sources: List[str] = []
     if answer_engine is not None:
         weights = dict(intent.get("weights") or {})
-        # 瀏覽器端即時快照代表使用者眼前的畫面，任何題目都保留
-        weights["platform"] = max(weights.get("platform", 0.0), 1.0)
+        # 只有已通過問題相關性過濾的快照才保留；不再因為它來自瀏覽器
+        # 就無條件以最高權重塞入模型。
+        if platform_context:
+            weights["platform"] = max(weights.get("platform", 0.0), 0.8)
+        if (management_evidence and re.search(r"魚", query) and re.search(
+                r"往上游|往下游|上溯|溯游|怎麼知道|如何確認|通行", query)):
+            # 生態意圖預設不帶管理資料，但魚類上溯的現場巡查是直接證據，
+            # 與一般「最新巡查摘要」不同，應納入模型 context。
+            weights["management"] = max(weights.get("management", 0.0), 0.8)
         used_sources, dropped_sources = answer_engine.filter_sources(raw_sources, weights)
     else:
         used_sources = {k: v for k, v in raw_sources.items() if (v or "").strip()}
@@ -2433,7 +2611,7 @@ def smart_ask() -> Any:
         len(local_evidence) + len(ocr_citations) + len(management_evidence)
         + len(platform_evidence) + len(web_results)
     )
-    if client_platform_ctx.strip():
+    if platform_context.strip():
         evidence_count += 1
 
     # Agent 由模型自行決定要查哪些資料，因此不可在工具執行前依 evidence_count
@@ -2446,6 +2624,11 @@ def smart_ask() -> Any:
                      f"平台現有設施 {counts.get('facilities', '?')} 座、"
                      f"巡查紀錄 {counts.get('inspections', '?')} 筆、"
                      f"魚類調查 {counts.get('fishSurveys', '?')} 場次。")
+        if environment_ctx:
+            grounding += (
+                "\n系統已判定本題缺少本案直接環境／進場資料；以下脈絡只屬一般通則，"
+                "不得當成本案核定工法：\n" + environment_ctx[:1800]
+            )
         ai_result = _run_agent(query, client_snapshot, grounding, mode_config)
 
     if not _as_text(ai_result.get("answer")):
@@ -2466,6 +2649,17 @@ def smart_ask() -> Any:
         else:
             ai_result = _ai_synthesis_mode(query, combined_ctx, mode_config)
     answer = _as_text(ai_result.get("answer"))
+    if answer and answer_engine is not None:
+        # 模型即使收到正確 context，仍可能回到「最新巡查摘要」等泛用答案；
+        # 這種答案不得直接顯示，改走同一問題的相關證據保底。
+        try:
+            if not answer_engine.is_answer_relevant(query, answer):
+                logging.getLogger(__name__).warning(
+                    "[ANSWER] 丟棄疑似答非所問的模型輸出：%s", query[:80])
+                answer = ""
+                ai_result["error_type"] = "off_topic_answer"
+        except Exception as exc:
+            logging.getLogger(__name__).warning("[ANSWER] 相關性檢查失敗：%s", exc)
     provider_key = _as_text(ai_result.get("provider")) or "none"
     provider_display = _as_text(ai_result.get("display_name") or ai_result.get("actual_model"))
 
@@ -2479,23 +2673,53 @@ def smart_ask() -> Any:
     # 才會出現問魚類棲地卻回「巡查紀錄 77 筆、照片 5660 張」這種答非所問。
     if not answer:
         weights = intent.get("weights", {})
+        movement_query = bool(re.search(r"魚", query) and re.search(
+            r"往上游|往下游|上溯|溯游|怎麼知道|如何確認|通行", query))
+        if movement_query and management_evidence:
+            weights = dict(weights)
+            weights["management"] = max(weights.get("management", 0.0), 0.8)
         prefix = ("（AI 推論服務目前無法使用，以下為與本題相關的直接檢索結果，"
                   "尚未經過整理與研判，請對照原始文件確認。）\n\n")
         # 保底來源依本題的意圖權重排序，確保委員題先用手冊、生態題先用文件，
         # 而不是一律拿巡查統計充數。
-        candidates = [
+        candidates = []
+        if environment_ctx:
+            candidates.append((
+                "environment_context", environment_ctx, "橫流溪周邊環境脈絡",
+                lambda text: text,
+            ))
+        retrieval_method_answer = _retrieval_method_fallback_answer(query, local_docs)
+        if retrieval_method_answer:
+            candidates.append((
+                "retrieval_method", retrieval_method_answer, "本機調查方法判讀",
+                lambda text: text,
+            ))
+        candidates.extend([
             ("handbook", handbook_ctx, "評審問答準備手冊",
              lambda text: prefix + text),
             ("local_kb", local_ctx, "本機知識庫（未經 AI 整理）",
              lambda text: prefix + text),
-            ("management_context", management_ctx, "巡查與維護資料保底回答",
-             lambda _text: _management_fallback_answer(
-                 query, management_evidence, management_counts)),
-        ]
+            ("web", web_ctx, "外部網路補充資料",
+             lambda text: "（外部資料補充，非橫流溪實測或核定工法，請人工複核。）\n\n" + text),
+        ])
+        if management_evidence:
+            candidates.append(
+                ("management_context", management_ctx, "巡查與維護資料保底回答",
+                 lambda _text: _management_fallback_answer(
+                     query, management_evidence, management_counts))
+            )
         weight_of = {"handbook": "handbook", "local_kb": "docs",
-                     "management_context": "management"}
+                     "management_context": "management", "environment_context": "environment",
+                     "web": "web", "retrieval_method": "docs"}
+        # 有「進場／下溪」問題時，環境脈絡比泛用管理統計更直接。
+        environment_first = bool(environment_ctx and answer_engine and
+                                  answer_engine.needs_environment_context(
+                                      query, local_ctx + management_ctx + web_ctx))
         candidates.sort(
-            key=lambda item: weights.get(weight_of[item[0]], 0.4), reverse=True)
+            key=lambda item: (
+                1 if movement_query and item[0] == "management_context" else 0,
+                1 if environment_first and item[0] == "environment_context" else 0,
+                weights.get(weight_of[item[0]], 0.4)), reverse=True)
 
         for key, text, display, render in candidates:
             if (text or "").strip() and weights.get(weight_of[key], 0.4) >= 0.25:
@@ -2513,10 +2737,10 @@ def smart_ask() -> Any:
             provider_key, provider_display = "none", "查無相關資料"
 
     if not answer:
-        answer = _fallback_answer(parse_query(query), []) or (
-            "目前所有 AI 服務皆無回應。\n"
-            "請設定至少一組 API Key（GROQ_API_KEY / GOOGLE_API_KEY / ANTHROPIC_API_KEY）"
-            "或確認 Ollama 是否執行中（ollama serve）。"
+        answer = (
+            f"目前查無與「{query}」直接相關的橫流溪資料，"
+            "周邊環境與外部資料也不足以支持可靠判斷。"
+            "請補充設施名稱、樁號、日期或照片後再查詢。"
         )
         provider_key, provider_display = "none", "無可用 AI"
 
@@ -2525,7 +2749,7 @@ def smart_ask() -> Any:
         for r in web_results[:4]
     ]
 
-    platform_part = "線上平台資料＋ " if (platform_ctx or client_platform_ctx) else ""
+    platform_part = "線上平台資料＋ " if platform_context else ""
     web_part  = f"網路搜尋（{len(web_results)} 筆）＋ " if web_results else ""
     ocr_part  = f"雲端文件 {len(ocr_citations)} 筆 ＋ " if ocr_citations else ""
     ai_part   = provider_display or "本機知識庫"
@@ -2564,11 +2788,11 @@ def smart_ask() -> Any:
             "source_href": item.get("href") or "",
             "source_type": "雲端 OCR",
         })
-    if not structured_citations and client_platform_ctx.strip():
+    if not structured_citations and platform_context.strip():
         structured_citations.append({
             "source_file": "橫流溪管理平台即時資料庫",
             "page": 1,
-            "preview": client_platform_ctx[:220],
+            "preview": platform_context[:220],
             "score": 0.9,
             "source_href": platform_url,
             "source_type": "平台即時資料",
@@ -2598,6 +2822,17 @@ def smart_ask() -> Any:
         "error_type": ai_result.get("error_type"),
     })
 
+    if provider_key == "environment_context":
+        answer_confidence_level, answer_confidence_score = "low", 35
+        answer_policy_label = "一般通則，非本案施工紀錄"
+    elif provider_key == "retrieval_method":
+        answer_confidence_level, answer_confidence_score = "medium", 60
+        answer_policy_label = "依調查方法初步判讀，請回查原始紀錄"
+    else:
+        answer_confidence_level = "high" if structured_citations and answer else ("low" if answer else "none")
+        answer_confidence_score = 90 if structured_citations and answer else (45 if answer else 0)
+        answer_policy_label = "RAG 專業回答" if structured_citations else "資料不足提醒"
+
     return jsonify({
         "status":           "success",
         "answer":           answer,
@@ -2606,8 +2841,9 @@ def smart_ask() -> Any:
         "web_search_used":  bool(web_results),
         "web_sources":      web_sources_out,
         "platform_url":      platform_url,
-        "platform_context_used": bool(platform_ctx or client_platform_ctx),
-        "client_platform_context_used": bool(client_platform_ctx),
+        "platform_context_used": bool(platform_context),
+        "client_platform_context_used": bool(scoped_client_ctx),
+        "environment_context_used": bool(environment_ctx),
         "platform_evidence": platform_evidence,
         "local_evidence":   local_evidence,
         "ocr_citations":    ocr_citations,
@@ -2619,9 +2855,9 @@ def smart_ask() -> Any:
         "ai_usage": usage,
         "selected_mode": mode_config.get("requested_mode"),
         "resolved_mode": mode_config.get("mode"),
-        "confidence_level": "high" if structured_citations and answer else ("low" if answer else "none"),
-        "confidence_score": 90 if structured_citations and answer else (45 if answer else 0),
-        "policy_label":     "RAG 專業回答" if structured_citations else "資料不足提醒",
+        "confidence_level": answer_confidence_level,
+        "confidence_score": answer_confidence_score,
+        "policy_label":     answer_policy_label,
         "message":          msg,
         "timestamp":        _now(),
     })

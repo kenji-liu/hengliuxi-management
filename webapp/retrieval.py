@@ -65,7 +65,9 @@ def is_ready() -> bool:
 _JUNK_SOURCE = re.compile(
     r"(PHASE_|_REPORT\.md|_PLAN\.md|README|CHECKLIST|_GUIDE\.md|IMPLEMENTATION"
     r"|ACTION_ITEMS|_STATUS|TEST_|OPTIMIZATION|SETUP|manifest|metadata_index"
-    r"|package|requirements|\.py$|\.js$)", re.I)
+    r"|package|requirements|maintenance_contracts|synced_inspections"
+    r"|maintenance_photo_index|quality_benchmark|gdrive_index|\.json$|\.jsonl$"
+    r"|\.sqlite3?$|\.py$|\.js$)", re.I)
 
 
 def is_project_source(source_file: str) -> bool:
@@ -210,9 +212,16 @@ def bm25_search(query: str, top_k: int = 8) -> List[Dict[str, Any]]:
             denom = freq + _K1 * (1 - _B + _B * length / avg_len)
             scores[doc_id] = scores.get(doc_id, 0.0) + idf * freq * (_K1 + 1) / denom
 
-    ranked = sorted(scores.items(), key=lambda item: item[1], reverse=True)[:top_k]
-    return [{**docs[doc_id], "score": round(score, 4),
-             "text": read_text(docs[doc_id])} for doc_id, score in ranked]
+    ranked = sorted(scores.items(), key=lambda item: item[1], reverse=True)
+    out: List[Dict[str, Any]] = []
+    for doc_id, score in ranked:
+        if not is_project_source(docs[doc_id].get("source_file", "")):
+            continue
+        out.append({**docs[doc_id], "score": round(score, 4),
+                    "text": read_text(docs[doc_id])})
+        if len(out) >= top_k:
+            break
+    return out
 
 
 def vector_search(query_vector, top_k: int = 8) -> List[Dict[str, Any]]:
@@ -240,6 +249,8 @@ def vector_search(query_vector, top_k: int = 8) -> List[Dict[str, Any]]:
             if doc_id is None:      # 該列屬於已過濾掉的開發文件
                 continue
             doc = docs[doc_id]
+            if not is_project_source(doc.get("source_file", "")):
+                continue
             out.append({**doc, "score": round(float(sims[int(row)]), 4),
                         "text": read_text(doc)})
             if len(out) >= top_k:

@@ -489,6 +489,8 @@ function tokenize(query) {
 function buildDynamicContext(query) {
   const q = query.toLowerCase();
   const parts = [];
+  const isFishDataQuery = /魚|魚道|魚類|物種|尾數|捕獲|cpue|努力量|洄游|水域|水棲|鰕虎|鱲|鰍|瘋鱨|馬口/.test(q);
+  const isLandDataQuery = /陸域|植物|植生|石虎|鳥類|哺乳|兩棲|爬蟲|紅外線相機/.test(q);
 
   // ── A. MONITORING_REPORT（chapter4_ecology.js）──────────
   if (typeof MONITORING_REPORT !== 'undefined') {
@@ -537,6 +539,7 @@ function buildDynamicContext(query) {
 
     // ── B. 設施資料（精準比對名稱/代碼/類型）───────────────
     const isGeneralFacQuery = q.includes('設施') || q.includes('構造物') || q.includes('工程') || q.includes('維護');
+    const wantsFacilityOverview = /所有|全部|總覽|統計|多少|幾座|整體|狀態|健康指數|風險/.test(q);
 
     // Score facilities by how specifically they match the query
     const facScored = facilities.map(f => {
@@ -559,7 +562,7 @@ function buildDynamicContext(query) {
     const facMatches = facScored.map(x => x.f);
 
     // 若查詢關鍵字涉及統計摘要
-    if (isGeneralFacQuery && facMatches.length === 0) {
+    if (isGeneralFacQuery && wantsFacilityOverview && facMatches.length === 0) {
       const byType = {};
       facilities.forEach(f => { byType[f.type||'其他'] = (byType[f.type||'其他']||0)+1; });
       const typeStr = Object.entries(byType).map(([t,n]) => `${t}${n}座`).join('、');
@@ -620,7 +623,7 @@ function buildDynamicContext(query) {
     }).sort((a, b) => String(b.date||'').localeCompare(String(a.date||'')));
 
     // 一般查詢：如果沒有特定設施，取最近3筆異常/高優先
-    if (inspMatches.length === 0 && isInspQuery) {
+    if (inspMatches.length === 0 && isInspQuery && /最近|哪些|所有|全部|高優先|待處理|統計|總覽/.test(q)) {
       inspMatches = inspections
         .filter(r => r.priority === '高' || r.priority === '緊急' || r.status === '待處理')
         .sort((a, b) => String(b.date||'').localeCompare(String(a.date||''))).slice(0, 3);
@@ -702,13 +705,35 @@ function buildDynamicContext(query) {
     const isFishQuery = q.includes('魚') || q.includes('生態') || q.includes('物種') ||
                         q.includes('保育') || q.includes('調查') || q.includes('尾數');
 
-    // D-0. 魚類數據統籌核對（權威完整歷年累計，解釋「水域生物 vs 歷年趨勢」落差）
+    // D-0. 魚類數據統籌核對：只帶入本題命中的物種，年度指標與圖表同源。
     if (isFishQuery && typeof HLX_FISH_FULL_TOTALS !== 'undefined') {
-      const totalsLine = Object.entries(HLX_FISH_FULL_TOTALS)
-        .map(([n, v]) => `${n}${v}尾`).join('、');
+      const fishNames = Object.values(HLX_FISH_KEY_NAME || {}).filter(Boolean);
+      const matchedNames = fishNames.filter(name => q.includes(name.toLowerCase()));
+      const targetNames = matchedNames.length ? matchedNames : fishNames;
+      const targetKeys = Object.entries(HLX_FISH_KEY_NAME || {})
+        .filter(([, name]) => targetNames.includes(name)).map(([key]) => key);
+      const totalsLine = targetNames
+        .map(name => `${name}${HLX_FISH_FULL_TOTALS[name] || 0}尾`).join('、');
+      const annual = {};
+      if (typeof HLX_FISH_SURVEYS !== 'undefined') {
+        HLX_FISH_SURVEYS.forEach(row => {
+          const year = Number(row.year);
+          if (!annual[year]) annual[year] = { catch: 0, effort: 0, species: new Set() };
+          const item = annual[year];
+          item.effort += Number(row.stations) || 1;
+          targetKeys.forEach(key => {
+            const count = Number(row[key]) || 0;
+            item.catch += count;
+            if (count > 0) item.species.add(key);
+          });
+        });
+      }
+      const annualLine = Object.keys(annual).sort((a, b) => Number(a) - Number(b))
+        .map(year => `${Number(year) - 1911}年${annual[year].catch}尾/${annual[year].effort}站訪次/CPUE ${annual[year].effort ? (annual[year].catch / annual[year].effort).toFixed(1) : '—'}/物種${annual[year].species.size}`)
+        .join('；');
       parts.push(
-        `【魚類數據統籌核對（權威）】完整歷年電捕調查序列（103~114年・${typeof HLX_FISH_SURVEY_EVENTS!=='undefined'?HLX_FISH_SURVEY_EVENTS:26}次季調查・成果報告表4-16／表5-3）各物種累計尾次：${totalsLine}；8種合計${typeof HLX_FISH_GRAND_TOTAL!=='undefined'?HLX_FISH_GRAND_TOTAL:5381}尾。\n` +
-        `※「水域生物」清單與「歷年趨勢分析」現已統一採此完整序列。先前落差原因：生態資料庫僅載入少數代表性快照記錄（例：臺灣間爬岩鰍只有 103基線8+107報告26+110追蹤2=36 尾），非完整序列；完整累計應為 104 尾。回答數量問題時請以本權威數值為準，並可說明落差來自「快照記錄」與「完整調查序列」的統計範圍不同。`
+        `【魚類數據核對】本題相關物種主序列累計：${totalsLine}。年度量化摘要：${annualLine || '目前未建立年度量化摘要'}。` +
+        `不同調查計畫（固定監測、魚道成效、Survey123）只做來源並列，不重複加總；空白表格、平均體長或文字出現不轉換為尾數。`
       );
     }
 
@@ -728,13 +753,11 @@ function buildDynamicContext(query) {
     const isTrendQuery = isFishQuery && (q.includes('趨勢') || q.includes('下降') || q.includes('減少') ||
       q.includes('cpue') || q.includes('努力') || q.includes('魚道效益') || q.includes('成效') || q.includes('改善'));
     if (isTrendQuery) {
-      const eff = (typeof window !== 'undefined' && window.hlxFishEffortMetrics) ? window.hlxFishEffortMetrics : null;
-      const effLine = eff ? eff.map(m => `${m.label}:CPUE ${m.cpue}(站訪次${m.effort}/物種${m.richness})`).join('、') : '';
+      const eff = (typeof window !== 'undefined' && window.hlxFishAnnualData) ? window.hlxFishAnnualData : null;
+      const effLine = eff ? eff.map(m => `${m.label}:捕獲${m.catch}尾/站訪次${m.effort}/CPUE ${m.cpue}/物種${m.richness}`).join('、') : '';
       parts.push(
-        `【魚道趨勢努力量校正（專業判讀基準）】原始年度總捕獲量受採樣站數影響極大：107年3站、108年4站、109~110年6站、112年後縮回下游1站。` +
-        `故 108年高峰→114年「下降」主因是站數由6站減為1站的「努力量假象」，非魚類資源衰退。` +
-        `應以 CPUE（尾/站訪次）與物種數判讀：103→114年 CPUE 由 17.0 升至 102.5（約6倍）、物種數由2種增至5~8種，呈現魚道改善後連通性與族群恢復趨勢。` +
-        `109年 CPUE 短暫下探為魚道施工擾動期，完工後回升。回答魚道成效或趨勢時，務必用 CPUE+物種數，並提醒勿單看捕獲總數。` +
+        `【魚道趨勢努力量校正】主序列的CPUE＝標準物種捕獲量÷站訪次；年度站位、季節、計畫與水文條件不同，不能把總量直接解讀為族群增減，也不能把關聯物種CPUE當成單一魚道過魚量。` +
+        `物種數下降或上升時，先檢查已調查未捕獲、未完成/未分類列、站位變更與資料來源層級。` +
         (effLine ? `\n各年度校正指標：${effLine}` : '')
       );
     }
@@ -790,7 +813,9 @@ function buildDynamicContext(query) {
                     '水棲昆蟲','甲殼','蝦'];
     const isEcoQuery = ecoKws.some(kw => q.includes(kw));
 
-    if (isEcoQuery) {
+    // 魚類/魚道問題只保留水域資料；只有明確詢問陸域項目時才注入陸域資料，
+    // 避免物種數、CPUE問題被石虎、植物或陸域昆蟲內容污染。
+    if (isEcoQuery && (!isFishDataQuery || isLandDataQuery)) {
       // 從查詢提取 2~4 字滑動視窗，讓 '黑熊' 能匹配 '臺灣黑熊' 等全名
       const qSlices = [];
       for (let len = 2; len <= 4; len++)
@@ -861,6 +886,24 @@ function buildDynamicContext(query) {
 }
 
 // ── 本機知識庫查詢主函數 ───────────────────────────────
+function kbEntryMatchesFocus(entry, query) {
+  const q = String(query || '').toLowerCase();
+  const body = `${entry.title || ''}\n${entry.body || ''}`.toLowerCase();
+  const asksRepair = /修補|修復|補強|維修|施工|清淤|下溪|進場/.test(q);
+  const asksFishway = /魚道|魚梯|魚道口/.test(q);
+  const asksMovement = /上游|下游|往上|往下|溯游|洄游|通行/.test(q) && /魚/.test(q);
+
+  // 單一「魚道」命中不能支撐「如何施工」；兩個概念都要在同一筆
+  // 知識中出現，否則交給後端環境脈絡或明確拒答。
+  if (asksFishway && asksRepair) {
+    return /魚道|魚梯/.test(body) && /修補|修復|補強|維修|施工|清淤/.test(body);
+  }
+  if (asksMovement) {
+    return /魚|魚類|魚道/.test(body) && /上游|下游|通行|溯游|洄游|監測|捕獲|電捕|陷阱|相機/.test(body);
+  }
+  return true;
+}
+
 function queryLocalKB(query) {
   const tokens = tokenize(query);
   const qText = query.toLowerCase();
@@ -869,10 +912,21 @@ function queryLocalKB(query) {
   const scored = HLX_KB.map(entry => ({
     entry,
     score: scoreKBEntry(entry, tokens)
-  })).filter(x => x.score >= 2).sort((a, b) => b.score - a.score);
+  })).filter(x => x.score >= 2 && kbEntryMatchesFocus(x.entry, query))
+    .sort((a, b) => b.score - a.score);
 
   // 2. 動態資料補充
-  const dynamicCtx = buildDynamicContext(query);
+  let dynamicCtx = buildDynamicContext(query);
+  // 動態查詢也必須回答同一個問題。例：「如何下溪修補魚道」不能
+  // 因為只命中「魚道」就退回整批魚道監測統計。
+  if (/魚道/.test(qText) && /修補|修復|補強|維修|施工|清淤|下溪|進場/.test(qText) &&
+      !/修補|修復|補強|維修|施工|清淤|下溪|進場/.test(dynamicCtx)) {
+    dynamicCtx = '';
+  }
+  if (/上游|下游|往上|往下|溯游|洄游|通行/.test(qText) && /魚/.test(qText) &&
+      !/上游|下游|往上|往下|溯游|洄游|通行|捕獲|電捕|陷阱|相機/.test(dynamicCtx)) {
+    dynamicCtx = '';
+  }
 
   // 3. 組合回答
   const topEntries = scored.slice(0, 3);
@@ -1577,71 +1631,102 @@ function buildAllSectionsContext(query) {
       'professional_structure':'專業構造物巡查', 'professional_fishway':'魚道檢核表',
       'maintenance_completion':'維護完工回報'
     };
+    const wantsEcology = /魚|生態|物種|保育|棲地|水質|昆蟲|植物|上游|下游|洄游|通行/.test(q);
+    const isFishAnalysisQuery = /魚|物種|尾數|捕獲|cpue|努力量|年度|趨勢|洄游/.test(q);
+    const ecologyOnly = wantsEcology && isFishAnalysisQuery &&
+      !/設施現況|設施狀態|工程|巡查|巡檢|檢查|維護|維修|修補|施工|DER&U|deru/.test(q);
+    const wantsFacility = !ecologyOnly && /設施|構造物|溪構|魚道|固床工|防砂壩|護岸|步道|平台|deru|健康|狀態|風險/.test(q);
+    const wantsInspection = !ecologyOnly && /巡查|巡檢|檢查|檢核|紀錄|異常|缺失|通報|問題|魚道|溪構/.test(q);
+    const wantsMaintenance = !ecologyOnly && /維護|維修|修補|修復|補強|搶修|施工|工程|清淤|完工|進度|經費|合約|照片/.test(q);
+    const focusTerms = ['魚道','溪構','固床工','防砂壩','護岸','步道','平台','巡查','檢核',
+      '異常','缺失','修補','修復','補強','維護','施工','清淤','上游','下游','魚類',
+      '物種','棲地','水質','洄游','通行'].filter(term => q.includes(term));
 
     // ── 選單1：工程設施管理 ──
-    const byStatus = {};
-    facilities.forEach(f => { const s = f.status||'未知'; byStatus[s] = (byStatus[s]||0)+1; });
-    const urgentFacs = facilities.filter(f => f.status==='損壞' || /C|D/.test(f.derLevel||''));
-    parts.push(
-      `【選單1 工程設施管理（共${facilities.length}座）】` +
-      Object.entries(byStatus).map(([k,v])=>`${k}:${v}座`).join('、') +
-      (urgentFacs.length ? `；⚠高優先：${urgentFacs.map(f=>f.name).join('、')}` : '')
-    );
-    // 每座設施一行摘要（查詢涉及「所有/全部/列出」或「設施狀態/健康指數」時展開）
-    const needFacDetail = /所有設施|全部設施|設施狀態|健康指數|列出|整體摘要|緊急/.test(q);
-    if (needFacDetail) {
-      facilities.forEach(f => {
-        // 以最新專業巡查表徵為準，避免 DB 快取的舊 derLevel 誤導 AI
-        const assess = typeof fac_latestProfessionalAssessment === 'function' ? fac_latestProfessionalAssessment(f) : null;
-        const curStatus = assess?.status || f.status || '未知';
-        const curDer    = assess?.derLevel || f.derLevel || '-';
-        const curHealth = assess?.health ?? (typeof fac_health === 'function' ? fac_health(f) : (f.healthScore || '-'));
-        const curDate   = assess?.assessmentDate || f.lastInspect || '無';
-        parts.push(`  ${f.name}（${f.type||''}${f.subType?'/'+f.subType:''}，${f.stationKm||'-'}）：` +
-          `${curStatus}，健康${curHealth}%，DER&U ${curDer}（最新表徵${curDate}）`);
-      });
+    if (wantsFacility) {
+      const byStatus = {};
+      facilities.forEach(f => { const s = f.status||'未知'; byStatus[s] = (byStatus[s]||0)+1; });
+      const urgentFacs = facilities.filter(f => f.status==='損壞' || /C|D/.test(f.derLevel||''));
+      parts.push(
+        `【選單1 工程設施管理（共${facilities.length}座）】` +
+        Object.entries(byStatus).map(([k,v])=>`${k}:${v}座`).join('、') +
+        (urgentFacs.length ? `；⚠高優先：${urgentFacs.map(f=>f.name).join('、')}` : '')
+      );
+      // 每座設施一行摘要（只有使用者要求總覽或狀態時才展開）。
+      const needFacDetail = /所有設施|全部設施|設施狀態|健康指數|列出|整體摘要|緊急/.test(q);
+      if (needFacDetail) {
+        facilities.forEach(f => {
+          // 以最新專業巡查表徵為準，避免 DB 快取的舊 derLevel 誤導 AI
+          const assess = typeof fac_latestProfessionalAssessment === 'function' ? fac_latestProfessionalAssessment(f) : null;
+          const curStatus = assess?.status || f.status || '未知';
+          const curDer    = assess?.derLevel || f.derLevel || '-';
+          const curHealth = assess?.health ?? (typeof fac_health === 'function' ? fac_health(f) : (f.healthScore || '-'));
+          const curDate   = assess?.assessmentDate || f.lastInspect || '無';
+          parts.push(`  ${f.name}（${f.type||''}${f.subType?'/'+f.subType:''}，${f.stationKm||'-'}）：` +
+            `${curStatus}，健康${curHealth}%，DER&U ${curDer}（最新表徵${curDate}）`);
+        });
+      }
     }
 
     // ── 選單4：巡查資料管理 ──
-    const byType = {};
-    inspections.forEach(i => { const l=FT[i.formType]||i.formType||'巡查'; byType[l]=(byType[l]||0)+1; });
-    parts.push(`【選單4 巡查資料管理（共${inspections.length}筆）】` +
-      Object.entries(byType).map(([k,v])=>`${k}:${v}筆`).join('、'));
-    // 最新7筆（帶表單類型標籤）
-    const recent7 = [...inspections]
-      .sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')))
-      .slice(0,7);
-    recent7.forEach(r => {
-      const l = FT[r.formType]||r.formType||'巡查';
-      const du = r.deru_u != null ? ` D${r.deru_d||0}/E${r.deru_e||0}/R${r.deru_r||0} U${r.deru_u}` : '';
-      parts.push(`  ${r.date||'-'}｜${r.facilityName||'-'}｜${l}${du}｜${r.status||'-'}｜${String(r.findings||'').slice(0,55)}`);
-    });
+    if (wantsInspection) {
+      const byType = {};
+      inspections.forEach(i => { const l=FT[i.formType]||i.formType||'巡查'; byType[l]=(byType[l]||0)+1; });
+      if (/統計|總覽|多少|幾筆|全部|所有/.test(q)) {
+        parts.push(`【選單4 巡查資料管理（共${inspections.length}筆）】` +
+          Object.entries(byType).map(([k,v])=>`${k}:${v}筆`).join('、'));
+      }
+      // 只保留與本題焦點相符的紀錄，禁止把最近幾筆當成通用答案。
+      const recent7 = [...inspections]
+        .filter(r => {
+          if (!focusTerms.length) return false;
+          const txt = `${r.facilityName||''} ${r.formType||''} ${r.findings||''} ${r.action||''}`.toLowerCase();
+          return focusTerms.some(term => txt.includes(term));
+        })
+        .sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')))
+        .slice(0,7);
+      recent7.forEach(r => {
+        const l = FT[r.formType]||r.formType||'巡查';
+        const du = r.deru_u != null ? ` D${r.deru_d||0}/E${r.deru_e||0}/R${r.deru_r||0} U${r.deru_u}` : '';
+        parts.push(`  ${r.date||'-'}｜${r.facilityName||'-'}｜${l}${du}｜${r.status||'-'}｜${String(r.findings||'').slice(0,55)}`);
+      });
+    }
 
     // ── 選單5：維護管理資料 ──
-    const maintRecs = inspections.filter(i => i.formType==='maintenance_completion')
-      .sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
-    if (maintRecs.length) {
-      parts.push(`【選單5 維護管理資料（完工回報${maintRecs.length}筆）】`);
-      maintRecs.slice(0,5).forEach(r => {
-        parts.push(
-          `  ${r.date||'-'}｜${r.facilityName||'-'}` +
-          `｜填表人：${r.reporter||'-'}（${r.reportUnit||'-'}${r.reportTime?'，'+r.reportTime:''}）` +
-          `｜DER&U D${r.deru_d||0}/E${r.deru_e||0}/R${r.deru_r||0} U${r.deru_u||0}` +
-          `｜施工方法：${String(r.method||'').slice(0,50)}` +
-          `｜完工狀況：${String(r.after||'').slice(0,50)}` +
-          (r.followup ? `｜後續：${String(r.followup).slice(0,40)}` : '') +
-          (r.status==='完成'?' ✓已完成':'')
-        );
-      });
-    } else {
-      parts.push(`【選單5 維護管理資料】目前尚無維護完工回報記錄。`);
+    if (wantsMaintenance) {
+      const maintRecs = inspections.filter(i => {
+        if (i.formType !== 'maintenance_completion') return false;
+        if (!focusTerms.length) return true;
+        const txt = `${i.facilityName||''} ${i.method||''} ${i.after||''} ${i.followup||''}`.toLowerCase();
+        return focusTerms.some(term => txt.includes(term));
+      }).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+      if (maintRecs.length) {
+        parts.push(`【選單5 維護管理資料（完工回報${maintRecs.length}筆）】`);
+        maintRecs.slice(0,5).forEach(r => {
+          parts.push(
+            `  ${r.date||'-'}｜${r.facilityName||'-'}` +
+            `｜填表人：${r.reporter||'-'}（${r.reportUnit||'-'}${r.reportTime?'，'+r.reportTime:''}）` +
+            `｜DER&U D${r.deru_d||0}/E${r.deru_e||0}/R${r.deru_r||0} U${r.deru_u||0}` +
+            `｜施工方法：${String(r.method||'').slice(0,50)}` +
+            `｜完工狀況：${String(r.after||'').slice(0,50)}` +
+            (r.followup ? `｜後續：${String(r.followup).slice(0,40)}` : '') +
+            (r.status==='完成'?' ✓已完成':'')
+          );
+        });
+      }
     }
 
     // ── 選單3：生態資料庫 ──
-    if (fish.length) {
-      const total = fish.reduce((s,r)=>s+(Number(r.totalCount)||0), 0);
-      const spList = fish.slice(0,10).map(r=>`${r.chineseName||r.species||''}(${r.totalCount||0}尾,${r.conservationStatus||'一般'})`).join('、');
-      parts.push(`【選單3 生態資料庫（魚類${fish.length}種，累計${total}尾次）】${spList}`);
+    if (wantsEcology && fish.length) {
+      const canonical = typeof fish_groupSpecies === 'function' ? Object.values(fish_groupSpecies()) : fish;
+      const matched = canonical.filter(r => q.includes(String(r.species || r.chineseName || '').toLowerCase()));
+      const focus = matched.length ? matched : canonical;
+      const total = focus.reduce((s, r) => s + (Number(r.totalCount) || 0), 0);
+      const spList = focus.slice(0, 10).map(r => `${r.species || r.chineseName || ''}(${r.totalCount || 0}尾,${r.conservation || r.conservationStatus || '一般'})`).join('、');
+      parts.push(`【選單3 生態資料庫】本題相關標準魚類${focus.length}種，主序列累計${total}尾次：${spList}`);
+      if (isFishAnalysisQuery && Array.isArray(window.hlxFishAnnualData)) {
+        parts.push(`【選單3 年度核對摘要】${window.hlxFishAnnualData.map(row => `${row.label}捕獲${row.catch}尾、站訪次${row.effort}、CPUE${row.cpue}、物種${row.richness}`).join('；')}`);
+      }
     }
 
   } catch(e) {
@@ -1839,6 +1924,9 @@ async function webSearchWiki(query) {
 
 function buildCurrentPlatformPageContext(query = "") {
   const parts = [];
+  const q = String(query || '').toLowerCase();
+  const fishOnlyQuery = /魚|物種|尾數|捕獲|cpue|努力量|年度|趨勢|洄游|水域/.test(q) &&
+    !/設施現況|設施狀態|工程|巡查|巡檢|檢查|維護|維修|施工|deru/.test(q);
   try {
     const pageTitle = document.querySelector(".page-title, h1, h2")?.innerText?.trim() || document.title || "橫流溪管理平台";
     const activeNav = [...document.querySelectorAll(".nav-item.active, .tab-btn.active, .active")]
@@ -1868,7 +1956,7 @@ function buildCurrentPlatformPageContext(query = "") {
         'professional_structure':'專業構造物巡查','professional_fishway':'魚道檢核表',
         'maintenance_completion':'維護完工回報'
       };
-      const recent = [...inspections]
+      const recent = fishOnlyQuery ? '' : [...inspections]
         .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")))
         .slice(0, 5)
         .map(r => {
@@ -1891,12 +1979,22 @@ function buildCurrentPlatformPageContext(query = "") {
         return `${f.name}｜${f.stationKm || f.location || "-"}｜${status}｜${der}｜健康${health}%｜最後表徵${date}`;
       }).join("\n");
 
-      parts.push(
-        `【平台資料庫即時快照】工程設施 ${facilities.length} 筆，巡查/維護紀錄 ${inspections.length} 筆，魚類紀錄 ${fish.length} 筆。` +
-        `設施狀態分布：${Object.entries(byStatus).map(([k, v]) => `${k}${v}`).join("、") || "無"}。` +
-        (matchedFacilities ? `\n查詢命中設施：\n${matchedFacilities}` : "") +
-        (recent ? `\n最近巡查/維護紀錄：\n${recent}` : "")
-      );
+      if (fishOnlyQuery) {
+        const canonical = typeof fish_groupSpecies === 'function' ? Object.values(fish_groupSpecies()) : fish;
+        const matchedFish = canonical.filter(row => q.includes(String(row.species || row.chineseName || '').toLowerCase()));
+        const focusFish = matchedFish.length ? matchedFish : canonical;
+        const fishText = focusFish.slice(0, 12).map(row =>
+          `${row.species || row.chineseName || '魚類'}：${row.totalCount || 0}尾（${row.conservation || row.conservationStatus || '一般'}）`
+        ).join('、');
+        parts.push(`【目前魚類資料頁面】本題相關魚類${focusFish.length}種：${fishText}`);
+      } else {
+        parts.push(
+          `【平台資料庫即時快照】工程設施 ${facilities.length} 筆，巡查/維護紀錄 ${inspections.length} 筆，魚類紀錄 ${fish.length} 筆。` +
+          `設施狀態分布：${Object.entries(byStatus).map(([k, v]) => `${k}${v}`).join("、") || "無"}。` +
+          (matchedFacilities ? `\n查詢命中設施：\n${matchedFacilities}` : "") +
+          (recent ? `\n最近巡查/維護紀錄：\n${recent}` : "")
+        );
+      }
     }
   } catch (_) {}
 
@@ -1954,6 +2052,33 @@ async function aiFetchLatestManagementContext(query) {
   return null;
 }
 
+function buildLocalEnvironmentFallback(query) {
+  const q = String(query || '').toLowerCase();
+  if (/魚道/.test(q) && /修補|修復|補強|維修|施工|清淤|下溪|進場/.test(q)) {
+    return {
+      answer: "目前資料庫未記載這次施工人員實際下溪路線或核定安全計畫。就山區溪流維護的一般通則（非本案施工紀錄），通常先由既有步道或岸側可達點進場，設置警戒與上下游管制，依雨量、流量及水位評估，必要時導水或擋水後分段修補；實際作法仍應以現勘及核定施工計畫為準。",
+      llm_provider: "environment_context",
+      llm_model: "橫流溪周邊環境脈絡",
+      confidence_level: "low",
+      confidence_score: 35,
+      policy_label: "一般通則，非本案施工紀錄",
+      structured_citations: []
+    };
+  }
+  if (/上游|下游|往上|往下|溯游|洄游|通行/.test(q) && /魚/.test(q)) {
+    return {
+      answer: "判定魚是否往上游，不能只靠單次目視；一般會在魚道上游出口或下游入口設陷阱或圍網，搭配電捕、固定攝影或標放回捕，再比對上下游及不同日期的紀錄。這是一般判讀通則，橫流溪特定日期與魚種仍應以魚道檢核表及原始調查紀錄為準。",
+      llm_provider: "environment_context",
+      llm_model: "橫流溪周邊環境脈絡",
+      confidence_level: "low",
+      confidence_score: 35,
+      policy_label: "一般通則，非本案單次實測",
+      structured_citations: []
+    };
+  }
+  return null;
+}
+
 async function queryRAG(query) {
   const selectedMode = document.getElementById('aiModelMode')?.value || 'pro';
   // 註：此處原本會先呼叫 _buildLiveStatusAnswer()，只要問題同時含「設施/魚道」
@@ -1963,7 +2088,7 @@ async function queryRAG(query) {
   // 資料同樣權威，但改由模型針對問題統整作答。
 
   const latestManagement = await aiFetchLatestManagementContext(query);
-  const structuredSnapshot = buildStructuredSnapshot();
+  const structuredSnapshot = buildStructuredSnapshot(query);
 
   const livePlatformContext = [
     // 查詢相關的動態數據最先放入，避免全站摘要太長時被 24,000 字上限截斷。
@@ -2041,7 +2166,7 @@ async function queryRAG(query) {
   // ── 5. 完全 fallback：本機知識庫（永遠帶出可用內容，不顯示「無可用 AI」）
   // 後端已先回傳 local_kb 時會在上方直接採用；此處只處理前端本機
   // 知識庫的既有結果，使用 window 屬性避免未宣告變數造成 ReferenceError。
-  const kbResult = window.kbResult || null;
+  const kbResult = queryLocalKB(query) || window.kbResult || null;
   const kbAnswer = kbResult?.answer || "";
   if (kbAnswer && kbAnswer.length > 20) {
     return {
@@ -2051,6 +2176,8 @@ async function queryRAG(query) {
       policy_label:  kbResult.policy_label || "本機資料庫回答",
     };
   }
+  const environmentResult = buildLocalEnvironmentFallback(query);
+  if (environmentResult) return environmentResult;
   // 連本機都無資料時，給出明確引導而非「無可用 AI」
   return {
     answer: "目前查無相關資料。請輸入更具體的設施名稱、樁號、巡查日期或調查年度後再查詢。",
@@ -2072,10 +2199,15 @@ async function queryRAG(query) {
  * 與舊版的 24,000 字文字快照不同，這裡送的是結構化資料：體積更小，
  * 且工具可以精確篩選與統計，不必讓模型從一大段文字裡自己找數字。
  */
-function buildStructuredSnapshot() {
+function buildStructuredSnapshot(query = '') {
   if (typeof DB === 'undefined') return null;
   try {
-    const facilities = (DB.getAll('facilities') || []).map(f => {
+    const q = String(query || '').toLowerCase();
+    const fishDataOnly = /魚|物種|尾數|捕獲|cpue|努力量|年度|趨勢|洄游|水域/.test(q) &&
+      !/目前狀況|設施|構造物|巡查|巡檢|檢查|檢核|維護|維修|施工|deru/.test(q);
+    const allFacilities = DB.getAll('facilities') || [];
+    const allInspections = DB.getAll('inspections') || [];
+    const facilities = (fishDataOnly ? [] : allFacilities).map(f => {
       const a = typeof fac_latestProfessionalAssessment === 'function'
         ? fac_latestProfessionalAssessment(f) : null;
       return {
@@ -2092,7 +2224,7 @@ function buildStructuredSnapshot() {
     });
 
     // 巡查紀錄體積較大，只送必要欄位並略過照片
-    const inspections = (DB.getAll('inspections') || []).map(r => ({
+    const inspections = (fishDataOnly ? [] : allInspections).map(r => ({
       id: r.id, facilityId: r.facilityId, facilityName: r.facilityName,
       formType: r.formType, date: r.date, inspector: r.inspector,
       status: r.status, priority: r.priority,
@@ -2104,14 +2236,18 @@ function buildStructuredSnapshot() {
     const snapshot = {
       facilities,
       inspections,
-      habitats: DB.getAll('habitats') || [],
+      habitats: fishDataOnly ? [] : DB.getAll('habitats') || [],
       counts: {
-        facilities: facilities.length,
-        inspections: inspections.length
+        facilities: allFacilities.length,
+        inspections: allInspections.length,
+        includedFacilities: facilities.length,
+        includedInspections: inspections.length,
+        fishDataOnly
       },
       page: {
         url: location.href,
-        section: document.querySelector('.nav-item.active, .tab-btn.active')?.textContent?.trim() || ''
+        section: document.querySelector('.nav-item.active, .tab-btn.active')?.textContent?.trim() || '',
+        queryScope: fishDataOnly ? '魚類生態資料' : '綜合管理資料'
       }
     };
 
@@ -2122,6 +2258,12 @@ function buildStructuredSnapshot() {
     }
     if (typeof HLX_FISH_KEY_NAME !== 'undefined') {
       snapshot.fishKeyNames = HLX_FISH_KEY_NAME;
+    }
+    if (typeof window !== 'undefined' && window.hlxFishAnnualData) {
+      snapshot.fishAnnualData = window.hlxFishAnnualData;
+    }
+    if (typeof window !== 'undefined' && window.hlxFishDataAudit) {
+      snapshot.fishDataAudit = window.hlxFishDataAudit;
     }
     return snapshot;
   } catch (err) {

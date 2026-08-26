@@ -48,12 +48,17 @@ JINA_EMBED_MODEL       = 'jina-embeddings-v3'
 JINA_EMBED_DIMS        = 768      # 與 SIMILARITY_THRESHOLD=0.22 相容
 JINA_EMBED_URL         = 'https://api.jina.ai/v1/embeddings'
 
-# ── Firebase Storage（向量庫持久存儲）────────────────────────────
-# Render 環境變數：FIREBASE_STORAGE_BUCKET（格式：xxx.appspot.com）
-# Firebase Storage 安全規則須允許讀取 hlx/vector_store.jsonl
-FIREBASE_STORAGE_BUCKET      = os.environ.get('FIREBASE_STORAGE_BUCKET', '')
-FIREBASE_VECTOR_STORE_OBJECT = 'hlx/vector_store.jsonl'
-VECTOR_STORE_CACHE           = Path('/tmp/hlx_vector_store.jsonl')  # Render 暫存路徑
+# ── GitHub Releases（向量庫持久存儲，免費方案）───────────────────
+# Render 無需設定 token（公開 repo 可直接下載）
+# 本機索引時需設定：GITHUB_TOKEN（用於上傳 Release Asset）
+GITHUB_REPO         = 'kenji-liu/hengliuxi-management'
+GITHUB_RELEASE_TAG  = 'vector-store'
+GITHUB_ASSET_NAME   = 'vector_store.jsonl'
+GITHUB_DOWNLOAD_URL = (
+    f'https://github.com/{GITHUB_REPO}/releases/download/'
+    f'{GITHUB_RELEASE_TAG}/{GITHUB_ASSET_NAME}'
+)
+VECTOR_STORE_CACHE  = Path('/tmp/hlx_vector_store.jsonl')
 
 # Configuration
 MODEL_NAME = 'paraphrase-multilingual-MiniLM-L12-v2'   # 多語言含繁中；比 all-MiniLM-L6-v2 更準
@@ -525,21 +530,15 @@ def jina_embed(texts: List[str], task: str = 'retrieval.passage') -> Optional[np
     return np.array(all_vectors, dtype=np.float32)
 
 
-def download_vector_store_from_firebase() -> bool:
-    """從 Firebase Storage 下載向量庫到 /tmp。成功回傳 True。"""
-    if not FIREBASE_STORAGE_BUCKET:
-        logger.info("FIREBASE_STORAGE_BUCKET 未設定，跳過 Firebase 下載")
-        return False
-
-    encoded_path = quote(FIREBASE_VECTOR_STORE_OBJECT, safe='')
-    url = (
-        f'https://firebasestorage.googleapis.com/v0/b/{FIREBASE_STORAGE_BUCKET}'
-        f'/o/{encoded_path}?alt=media'
-    )
+def download_vector_store_from_github() -> bool:
+    """從 GitHub Releases 下載向量庫到 /tmp。成功回傳 True。"""
     try:
-        logger.info(f"從 Firebase Storage 下載向量庫: {url[:80]}…")
+        logger.info(f"從 GitHub Releases 下載向量庫: {GITHUB_DOWNLOAD_URL}")
         VECTOR_STORE_CACHE.parent.mkdir(parents=True, exist_ok=True)
-        req = urllib.request.Request(url)
+        req = urllib.request.Request(
+            GITHUB_DOWNLOAD_URL,
+            headers={'User-Agent': 'hlx-rag/1.0'},
+        )
         with urllib.request.urlopen(req, timeout=180) as resp:
             raw = resp.read()
         VECTOR_STORE_CACHE.write_bytes(raw)
@@ -547,10 +546,10 @@ def download_vector_store_from_firebase() -> bool:
         logger.info(f"下載完成 {mb:.1f} MB → {VECTOR_STORE_CACHE}")
         return True
     except urllib.error.HTTPError as e:
-        logger.error(f"Firebase Storage HTTP {e.code}: {e.reason}（確認 Storage 規則允許讀取）")
+        logger.error(f"GitHub Releases HTTP {e.code}: {e.reason}（確認 vector-store Release 已建立）")
         return False
     except Exception as e:
-        logger.error(f"Firebase Storage 下載失敗: {e}")
+        logger.error(f"GitHub Releases 下載失敗: {e}")
         return False
 
 
@@ -573,13 +572,13 @@ def load_model():
 
 
 def load_vector_store():
-    """Load vector store from JSONL file (lazy loading, with Firebase Storage fallback)."""
+    """Load vector store from JSONL file (lazy loading, with GitHub Releases fallback)."""
     global _vector_store, _metadata_index, _vector_store_mode
 
     if _vector_store is not None:
         return _vector_store
 
-    # 優先順序：本機檔案 → /tmp 快取 → Firebase Storage 下載 → manifest fallback
+    # 優先順序：本機檔案 → /tmp 快取 → GitHub Releases 下載 → manifest fallback
     target_file: Optional[Path] = None
     if VECTOR_STORE_FILE.exists():
         target_file = VECTOR_STORE_FILE
@@ -587,8 +586,8 @@ def load_vector_store():
         logger.info(f"使用 /tmp 快取向量庫: {VECTOR_STORE_CACHE}")
         target_file = VECTOR_STORE_CACHE
     else:
-        logger.info("本機向量庫不存在，嘗試從 Firebase Storage 下載...")
-        if download_vector_store_from_firebase():
+        logger.info("本機向量庫不存在，嘗試從 GitHub Releases 下載...")
+        if download_vector_store_from_github():
             target_file = VECTOR_STORE_CACHE
 
     if target_file is None:
@@ -1859,13 +1858,34 @@ def chat():
 
         # ── 升級 2：BM25 混合檢索 ────────────────────────
         results = hybrid_search(query, top_k=TOP_K_RESULTS, threshold=SIMILARITY_THRESHOLD)
+        # 混合檢索仍可能把只提到「橫流溪／魚道」的泛用段落排在前面；
+        # 在 legacy /api/rag/chat 也套用同一個問題概念閘門。
+        try:
+            from webapp import answer_engine
+        except Exception:
+            answer_engine = None
+        if answer_engine is not None:
+            results = answer_engine.filter_retrieved_docs(query, results, limit=TOP_K_RESULTS)
         curated_context = get_curated_context(query)
         management_payload = get_management_context_for_query(query, limit=6)
         management_context_text = (management_payload.get("context") or "").strip()
+        management_query = re.search(
+                r"巡查|巡檢|檢查|檢核|維護|維修|修補|修復|補強|搶修|施工|工程|"
+                r"異常|缺失|通報|監工|日報|合約|經費|照片|完工|進度|待處理|管理",
+                query, flags=re.IGNORECASE) if answer_engine is not None else None
+        movement_query = re.search(r"魚", query) and re.search(
+            r"上游|下游|往上|往下|上溯|下溯|洄游|溯游|通行", query,
+            flags=re.IGNORECASE)
+        if answer_engine is not None and not management_query and not movement_query:
+            management_context_text = ""
+        environment_context = ""
+        if answer_engine is not None and answer_engine.needs_environment_context(
+                query, management_context_text):
+            environment_context = answer_engine.build_environment_context(query)
 
         logger.info(f"hybrid_search returned {len(results)} results")
 
-        if not results and not curated_context and not management_context_text:
+        if not results and not curated_context and not management_context_text and not environment_context:
             confidence = classify_answer_confidence([])
             response_data = {
                 'status': 'success',
@@ -1888,10 +1908,12 @@ def chat():
             response_data.update(confidence)
             return jsonify(response_data)
 
-        if not results and (curated_context or management_context_text):
+        if not results and (curated_context or management_context_text or environment_context):
             context = prepare_rag_context([], query)
             if management_context_text:
                 context = "\n---\n".join([f"最新巡查與維護管理資料：\n{management_context_text}", context]).strip()
+            if environment_context:
+                context = "\n---\n".join([environment_context, context]).strip()
             used_habitat_template = is_habitat_model_query(query)
             answer_text = (
                 generate_habitat_model_answer()
@@ -1904,6 +1926,20 @@ def chat():
                 answer_text = generate_answer_with_ollama(query, context, query_type=query_type, history=history)
             if is_ollama_timeout_answer(answer_text):
                 answer_text = generate_rag_fallback_answer(query, [], query_type=query_type)
+            if not answer_text and environment_context:
+                answer_text = environment_context
+                llm_provider = 'environment_context'
+                llm_model = '橫流溪周邊環境脈絡'
+            if not answer_text and movement_query and management_context_text:
+                answer_text = management_context_text
+                llm_provider = 'management_context'
+                llm_model = '橫流溪巡查紀錄'
+            if answer_text and answer_engine is not None and not answer_engine.is_answer_relevant(query, answer_text):
+                answer_text = (management_context_text if movement_query and management_context_text else
+                               answer_engine.build_environment_context(query)) or (
+                    "目前資料庫中的相關內容不足以回答這個問題，請回查原始報告或補充設施、"
+                    "樁號與日期。"
+                )
             if session_id:
                 update_conversation(session_id, query, answer_text)
             confidence = {
@@ -1959,6 +1995,20 @@ def chat():
             answer_text = generate_answer_with_ollama(query, context, query_type=query_type, history=history)
         if is_ollama_timeout_answer(answer_text):
             answer_text = generate_rag_fallback_answer(query, results, query_type=query_type)
+        if not answer_text:
+            if movement_query and management_context_text:
+                answer_text = management_context_text
+            elif results:
+                answer_text = generate_rag_fallback_answer(query, results, query_type=query_type)
+            elif environment_context:
+                answer_text = environment_context
+        if answer_text and answer_engine is not None and not answer_engine.is_answer_relevant(query, answer_text):
+            answer_text = (management_context_text if movement_query and management_context_text else
+                           answer_engine.build_environment_context(query)) or (
+                generate_rag_fallback_answer(query, results, query_type=query_type)
+                if results else
+                "目前資料庫中的相關內容不足以回答這個問題，請回查原始報告或補充設施、樁號與日期。"
+            )
 
         # ── 升級 4：保存對話記憶 ────────────────────────
         if session_id:
@@ -2188,7 +2238,7 @@ def register_rag_blueprint(app):
 @rag.route('/admin/reload', methods=['POST'])
 def admin_reload():
     """
-    重新從 Firebase Storage 下載向量庫並載入記憶體。
+    重新從 GitHub Releases 下載向量庫並載入記憶體。
     需主控登入後呼叫（由前端 AI 問答管理面板觸發）。
     """
     global _vector_store, _metadata_index, _vector_store_mode, _bm25_index, _bm25_doc_map
@@ -2209,7 +2259,7 @@ def admin_reload():
                 'success': True,
                 'chunks': len(store),
                 'mode': _vector_store_mode,
-                'source': 'firebase_storage' if VECTOR_STORE_CACHE.exists() else 'local',
+                'source': 'github_releases' if VECTOR_STORE_CACHE.exists() else 'local',
                 'timestamp': datetime.now().isoformat(),
             })
         else:
@@ -2236,7 +2286,7 @@ def admin_status():
         'mode': _vector_store_mode,
         'jina_configured': bool(JINA_API_KEY),
         'jina_model': JINA_EMBED_MODEL if JINA_API_KEY else None,
-        'firebase_bucket': FIREBASE_STORAGE_BUCKET or None,
+        'github_repo': GITHUB_REPO,
         'categories': cat_counts,
         'local_file_exists': VECTOR_STORE_FILE.exists(),
         'cache_file_exists': VECTOR_STORE_CACHE.exists(),

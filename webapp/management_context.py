@@ -112,6 +112,61 @@ def _matches_query(record: Dict[str, Any], query: str) -> bool:
     return any(t in hay for t in terms)
 
 
+_MANAGEMENT_QUERY_TERMS = re.compile(
+    r"巡查|巡檢|檢查|檢核|維護|維修|修補|修復|補強|搶修|施工|工程|"
+    r"異常|缺失|通報|監工|日報|合約|經費|照片|完工|進度|待處理|管理",
+    re.IGNORECASE,
+)
+_NARROW_MANAGEMENT_QUERY_TERMS = re.compile(
+    r"魚道|溪構|防砂壩|固床工|護岸|步道|平台\s*\d|修補|修復|補強|搶修|"
+    r"施工|異常|缺失|通報|待處理|上游|下游|樁號|里程|\d+K\+\d+|\d{3,4}年",
+    re.IGNORECASE,
+)
+
+
+def _matches_scoped_query(record: Dict[str, Any], query: str) -> bool:
+    """Require co-occurring concepts for a specific management question."""
+    text = _as_text(query).lower()
+    hay = " ".join(_as_text(record.get(key)) for key in (
+        "facilityName", "facility_name", "formType", "sourceType", "position",
+        "structType", "findings", "action", "appearanceOther", "description",
+        "recommendation", "status", "priority",
+    )).lower()
+    if "魚道" in text and re.search(r"修補|修復|補強|維修|搶修|清淤|施工|進場", text):
+        return "魚道" in hay and bool(re.search(
+            r"修補|修復|補強|維修|搶修|清淤|施工|進場", hay))
+    if "魚" in text and re.search(r"上游|下游|往上|往下|溯游|洄游|通行", text):
+        return bool(re.search(r"上游|下游|往上|往下|溯游|洄游|通行", hay)) and bool(
+            re.search(r"通行|魚類|捕獲|電捕|陷阱|觀察|洄游|溯游|相機", hay))
+    return _matches_query(record, query)
+
+
+def _query_rows(rows: List[Dict[str, Any]], query: str) -> List[Dict[str, Any]]:
+    """Select management records relevant to a query.
+
+    A broad request such as "最近巡查" may use the latest records.  A
+    specific request must not silently fall back to the latest unrelated record
+    just because the management files are non-empty.
+    """
+    text = _as_text(query)
+    movement_query = bool(
+        "魚" in text and re.search(r"上游|下游|往上|往下|溯游|洄游|通行", text)
+    )
+    if movement_query:
+        return [row for row in rows if _matches_scoped_query(row, text)]
+    # 「哪些設施需要維護／哪座風險最高」應由設施與 DER&U 查詢回答；
+    # 管理紀錄沒有命中指定設施時，不得以最近幾筆巡查代替設施清單。
+    if (re.search(r"設施|構造物|魚道|溪構|防砂壩|固床工|護岸|步道|平台", text)
+            and re.search(r"哪些|哪個|哪座|需要|優先|最高|全部|所有", text)
+            and not re.search(r"巡查|巡檢|檢查|檢核|紀錄|工程|施工|日報|合約|照片|進度|經費", text)):
+        return []
+    if not text or not _MANAGEMENT_QUERY_TERMS.search(text):
+        return [] if text else rows
+    if not _NARROW_MANAGEMENT_QUERY_TERMS.search(text):
+        return rows
+    return [row for row in rows if _matches_scoped_query(row, text)]
+
+
 def _is_readable_inspection(record: Dict[str, Any]) -> bool:
     content = " ".join(
         _as_text(record.get(k))
@@ -156,6 +211,10 @@ def load_maintenance_photo_index() -> Dict[str, Any]:
 
 def summarize_latest_inspections(query: str = "", limit: int = 6) -> Tuple[str, List[Dict[str, Any]]]:
     rows = [row for row in load_inspections() if _is_readable_inspection(row)]
+    if not rows:
+        return "", []
+
+    rows = _query_rows(rows, query)
     if not rows:
         return "", []
 
@@ -212,6 +271,10 @@ def summarize_maintenance(query: str = "", limit: int = 4) -> Tuple[str, List[Di
     if not isinstance(projects, list) or not projects:
         return "", []
 
+    projects = _query_rows(projects, query)
+    if not projects:
+        return "", []
+
     scored = []
     for project in projects:
         _, dt = _parse_date(project.get("date_end") or project.get("date_start"))
@@ -220,10 +283,16 @@ def summarize_maintenance(query: str = "", limit: int = 4) -> Tuple[str, List[Di
     scored.sort(key=lambda x: x[0], reverse=True)
     selected = [p for _, p in scored[: max(1, limit)]]
 
-    total_amount = _format_money(contracts.get("total_contract_amount"))
-    lines = [
-        f"維護管理資料：共 {contracts.get('total_projects', len(projects))} 件維護/搶修工程，累計契約金額 {total_amount}，施工日誌 {contracts.get('total_reports', '-')} 份。"
-    ]
+    query_text = _as_text(query)
+    lines = ["與本題相關的維護管理資料："]
+    if re.search(r"統計|多少|幾件|經費|金額|合約", query_text):
+        total_amount = _format_money(contracts.get("total_contract_amount"))
+        lines.append(
+            f"維護/搶修工程共 {contracts.get('total_projects', len(projects))} 件，"
+            f"累計契約金額 {total_amount}。"
+        )
+    if re.search(r"日報", query_text):
+        lines.append(f"施工日誌 {contracts.get('total_reports', '-')} 份。")
     evidence: List[Dict[str, Any]] = []
     for p in selected:
         name = _fix_mojibake(_as_text(p.get("project_name") or "未命名維護案件"))
@@ -252,7 +321,7 @@ def summarize_maintenance(query: str = "", limit: int = 4) -> Tuple[str, List[Di
         })
 
     photo_idx = load_maintenance_photo_index()
-    if photo_idx:
+    if photo_idx and re.search(r"照片|影像|相片", query_text):
         total_images = photo_idx.get("totalImages") or photo_idx.get("total_images")
         total_cases = photo_idx.get("totalCases") or photo_idx.get("total_cases")
         if total_images or total_cases:
