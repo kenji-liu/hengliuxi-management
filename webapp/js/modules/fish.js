@@ -1543,19 +1543,48 @@ const HLX_FISH_KEY_NAME = {
   bai:'臺灣白甲魚', shi:'臺灣石魚賓', xu:'臺灣鬚鱲', ying:'纓口臺鰍',
   jian:'臺灣間爬岩鰍', min:'明潭吻鰕虎', kou:'粗首馬口鱲', feng:'短臀瘋鱨', hong:'短吻紅斑吻鰕虎'
 };
+// ★ 發布層魚種鍵（單一事實來源）。粗首馬口鱲已自資料庫下架，不得計入任何
+//   年度統計、物種數、CPUE 或魚道關聯指標；原始資料列仍保留 kou 欄供稽核追查。
+const HLX_FISH_KEYS = Object.keys(HLX_FISH_KEY_NAME).filter(fish_isPublishedSpecies_byKey);
+function fish_isPublishedSpecies_byKey(key) {
+  return fish_isPublishedSpecies(HLX_FISH_KEY_NAME[key]);
+}
+const fish_sumKeys = row => HLX_FISH_KEYS.reduce((a, k) => a + (Number(row[k]) || 0), 0);
 const HLX_FISH_SURVEYS = [
   // label, year, 白甲魚, 石魚賓, 鬚鱲, 纓口臺鰍, 間爬岩鰍, 明潭吻鰕虎, 粗首馬口鱲, 短臀瘋鱨, 短吻紅斑吻鰕虎, note
   // ── 103年：魚道建置前基線（東勢林區管理處麗陽站溪流魚類監測，橫流溪下游1站）──
-  { label:'103年 Q1\n(3月)',  year:2014, m:3,  bai:0,  shi:4,  xu:0,  ying:0,  jian:8,  min:0, kou:0, feng:0, hong:0, note:'電捕法，橫流溪(下游)；魚道建置前基準，石魚賓+間爬岩鰍優勢', preConstruct:true },
-  { label:'103年 Q4\n(12月)', year:2014, m:12, bai:0,  shi:22, xu:0,  ying:0,  jian:0,  min:0, kou:0, feng:0, hong:0, note:'電捕法，橫流溪(下游)；石魚賓為絕對優勢物種，白甲魚未見', preConstruct:true },
-  // ── 104年：上下游2站電捕，四季完整（104/105年度報告均收錄同批調查；日期均為104年） ──
-  // 105年度成果報告（106年2月提交）橫流溪日期全部為104年，無105年獨立調查紀錄
-  // 臺灣爬岩鰍=臺灣間爬岩鰍舊名；Q3明潭吻鰕虎4尾為魚道建置前首次記錄
-  { label:'104年 Q1\n(3月)',  year:2015, m:3,  bai:41, shi:19, xu:6,  ying:6, jian:3, min:0, kou:0, feng:0, hong:0, stations:2, scope:'橫流溪上下游', source:'104年度成果報告', note:'104年第1季，下游(104/02/25)bai17+上游(104/03/25)bai24；臺灣爬岩鰍3尾=間爬岩鰍；來源：104/105年度東勢處溪流魚類調查報告', preConstruct:true },
-  { label:'104年 Q2\n(6月)',  year:2015, m:6,  bai:34, shi:14, xu:2,  ying:1, jian:6, min:0, kou:0, feng:0, hong:0, stations:2, scope:'橫流溪上下游', source:'104年度成果報告', note:'104年第2季，下游(104/06/08)bai14+上游(104/06/23)bai20；來源：104/105年度東勢處溪流魚類調查報告', preConstruct:true },
-  { label:'104年 Q3\n(9月)',  year:2015, m:9,  bai:25, shi:17, xu:2,  ying:0, jian:0, min:4, kou:0, feng:0, hong:0, stations:2, scope:'橫流溪上下游', source:'104年度成果報告', note:'104年第3季，下游(104/08/19)bai13+上游(104/09/17)bai12；明潭吻鰕虎4尾首現於上游（魚道建置前！）；來源：104/105年度東勢處溪流魚類調查報告', preConstruct:true },
-  { label:'104年 Q4\n(11月)', year:2015, m:11, bai:22, shi:15, xu:4,  ying:0, jian:0, min:0, kou:0, feng:0, hong:0, stations:2, scope:'橫流溪上下游', source:'104年度成果報告', note:'104年第4季，下游(104/11/02)bai10+上游(104/11/24)bai12；來源：104/105年度東勢處溪流魚類調查報告', preConstruct:true },
-  // ── 105年（民國104年曆）：無獨立橫流溪調查紀錄，105年度報告重複收錄104年資料 ──
+  // 2026-08 更正：原僅收錄 Q1、Q4 兩季且白甲魚記為 0，與原始調查表不符。
+  // 依「02_魚類與棲地資料庫/施工前魚類調查/10303、10306、10309、10311橫流溪(下)調查.docx」
+  // 逐尾清點，四季分別為 30、24、41、32 尾，全年 127 尾；原始表以舊名「臺灣鏟頷魚」
+  // 記錄臺灣白甲魚，前次解析未對應該異體字而誤判為 0。
+  // 另經「附錄二橫流溪魚類資源監測調查成果表(93~106年)」交叉驗證：103 年四季均記錄
+  // 臺灣白甲魚與臺灣間爬岩鰍，Q3 另有纓口臺鰍，與逐尾清點結果一致。
+  { label:'103年 Q1\n(3月)',  year:2014, m:3,  bai:18, shi:4,  xu:0,  ying:0, jian:8, min:0, kou:0, feng:0, hong:0, stations:1, scope:'橫流溪下游', source:'103年度橫流溪下游原始調查表', note:'電捕法，橫流溪(下游)；魚道建置前基準；逐尾清點 30 尾（10303原始表）', preConstruct:true },
+  { label:'103年 Q2\n(6月)',  year:2014, m:6,  bai:11, shi:5,  xu:0,  ying:0, jian:8, min:0, kou:0, feng:0, hong:0, stations:1, scope:'橫流溪下游', source:'103年度橫流溪下游原始調查表', note:'電捕法，橫流溪(下游)；逐尾清點 24 尾（10306原始表）', preConstruct:true },
+  { label:'103年 Q3\n(9月)',  year:2014, m:9,  bai:18, shi:21, xu:0,  ying:1, jian:1, min:0, kou:0, feng:0, hong:0, stations:1, scope:'橫流溪下游', source:'103年度橫流溪下游原始調查表', note:'電捕法，橫流溪(下游)；逐尾清點 41 尾（10309原始表）；附錄二同季亦記錄纓口臺鰍', preConstruct:true },
+  { label:'103年 Q4\n(11月)', year:2014, m:11, bai:16, shi:13, xu:0,  ying:0, jian:3, min:0, kou:0, feng:0, hong:0, stations:1, scope:'橫流溪下游', source:'103年度橫流溪下游原始調查表', note:'電捕法，橫流溪(下游)；逐尾清點 32 尾（10311原始表）', preConstruct:true },
+  // ── 104年：上下游各1站、四季完整（下游麗陽站／上游鞍馬山站）──────────
+  // 2026-08 更新：依「東勢林區管理處105年度森林溪流魚類監測調查成果報告3.doc」
+  // 表 9～13（欄位：溪流名稱｜調查時間｜魚種(數量)｜平均體長｜平均體重｜調查站別）
+  // 逐筆拆出上下游分站尾數，原本 4 筆「上下游合計」列改為 8 筆分站列。
+  // 年度總計 221 尾、6 物種、8 站訪次均與拆分前一致，僅解析度提高，
+  // 使 104 年得以納入「下游固定單站」的同站可比序列。
+  // 舊名對應：臺灣爬岩鰍＝臺灣間爬岩鰍。Q3 上游明潭吻鰕虎 4 尾為魚道建置前紀錄。
+  { label:'104年 Q1\n(2/25下游)', year:2015, m:2, d:25, bai:17, shi:19, xu:6, ying:6, jian:3, min:0, kou:0, feng:0, hong:0, stations:1, scope:'橫流溪下游', source:'105年度成果報告表9（麗陽站）', dataStatus:'observed', note:'104/02/25 麗陽站；合計 51 尾', preConstruct:true },
+  { label:'104年 Q1\n(3/25上游)', year:2015, m:3, d:25, bai:24, shi:0, xu:0, ying:0, jian:0, min:0, kou:0, feng:0, hong:0, stations:1, scope:'橫流溪上游', source:'105年度成果報告表9（鞍馬山站）', dataStatus:'observed', note:'104/03/25 鞍馬山站；僅記錄臺灣白甲魚 24 尾', preConstruct:true },
+  { label:'104年 Q2\n(6/08下游)', year:2015, m:6, d:8, bai:14, shi:14, xu:0, ying:1, jian:6, min:0, kou:0, feng:0, hong:0, stations:1, scope:'橫流溪下游', source:'105年度成果報告表10（麗陽站）', dataStatus:'observed', note:'104/06/08 麗陽站；合計 35 尾', preConstruct:true },
+  { label:'104年 Q2\n(6/23上游)', year:2015, m:6, d:23, bai:20, shi:0, xu:2, ying:0, jian:0, min:0, kou:0, feng:0, hong:0, stations:1, scope:'橫流溪上游', source:'105年度成果報告表10（鞍馬山站）', dataStatus:'observed', note:'104/06/23 鞍馬山站；合計 22 尾', preConstruct:true },
+  { label:'104年 Q3\n(8/19下游)', year:2015, m:8, d:19, bai:13, shi:16, xu:0, ying:0, jian:0, min:0, kou:0, feng:0, hong:0, stations:1, scope:'橫流溪下游', source:'105年度成果報告表12（麗陽站）', dataStatus:'observed', note:'104/08/19 麗陽站；合計 29 尾', preConstruct:true },
+  { label:'104年 Q3\n(9/17上游)', year:2015, m:9, d:17, bai:12, shi:1, xu:2, ying:0, jian:0, min:4, kou:0, feng:0, hong:0, stations:1, scope:'橫流溪上游', source:'105年度成果報告表12（鞍馬山站）', dataStatus:'observed', note:'104/09/17 鞍馬山站；明潭吻鰕虎 4 尾為魚道建置前的上游紀錄；合計 19 尾', preConstruct:true },
+  { label:'104年 Q4\n(11/02下游)', year:2015, m:11, d:2, bai:10, shi:11, xu:0, ying:0, jian:0, min:0, kou:0, feng:0, hong:0, stations:1, scope:'橫流溪下游', source:'105年度成果報告表13（麗陽站）', dataStatus:'observed', note:'104/11/02 麗陽站；合計 21 尾', preConstruct:true },
+  { label:'104年 Q4\n(11/24上游)', year:2015, m:11, d:24, bai:12, shi:4, xu:4, ying:0, jian:0, min:0, kou:0, feng:0, hong:0, stations:1, scope:'橫流溪上游', source:'105年度成果報告表13（鞍馬山站）', dataStatus:'observed', note:'104/11/24 鞍馬山站；合計 20 尾', preConstruct:true },
+  // ── 105年：無橫流溪獨立調查紀錄 ────────────────────────────────
+  // 2026-08 全文核對「105年度成果報告3.doc」：橫流溪相關的表 9～13 逐筆日期
+  // 全為 104/02/25 ~ 104/11/24，表 14 的四季物種組成亦與 104 年逐季一致，
+  // 全文無任何 105 年度的橫流溪調查日期。該報告為 106 年 2 月提交，
+  // 係以 105 年度計畫名義重刊 104 年調查成果，故 105 年不列入主序列。
+  // ⚠「附錄二(93~106)」在 105 年欄列有短臀瘋鱨，但 105 年度報告的橫流溪
+  //   逐筆表與四季物種表均未出現該種，兩份官方文件不一致，暫不採認。
   // ── 106年：上下游2站電捕調查（下游資料來源：106年度成果報告；上游含鞍馬山站，尾數待補）──
   // 106年Q3文字記錄「明潭吻鰕虎出現於上游」，但未列明確尾數
   { label:'106年 Q1\n(3月)',  year:2017, m:3,  bai:25, shi:2,  xu:0,  ying:1,  jian:3,  min:0, kou:0, feng:0, hong:0, scope:'橫流溪下游', source:'106年度成果報告', note:'106年第1季(106/03/21)，橫流溪下游；106年XLSX確認同季有上游調查(106/04/10)但尾數待解析；來源：106年度成果報告' },
@@ -1583,33 +1612,35 @@ const HLX_FISH_SURVEYS = [
   { label:'110年 Q4上游\n(11月)',year:2021, m:11, d:16, bai:87, shi:8,  xu:53, ying:0, jian:0, min:6,  kou:0, feng:1, hong:1, stations:1, scope:'橫流溪上游', source:'附件一110年ODS', note:'110/11/16橫流溪上游電魚法，鞍馬山工作站；短臀瘋鱨1尾、短吻紅斑吻鰕虎1尾；來源：附件一110年溪流魚調查生態調查資料-東勢處.ods' },
   { label:'110年 Q4下游\n(11月)',year:2021, m:11, d:16, bai:45, shi:29, xu:49, ying:8, jian:0, min:18, kou:0, feng:0, hong:0, stations:1, scope:'橫流溪下游', source:'附件一110年ODS', note:'110/11/16橫流溪下游電魚法，麗陽工作站；明潭吻鰕虎18尾（下游高密度）；來源：附件一110年溪流魚調查生態調查資料-東勢處.ods' },
 
-  // ── 111年：Survey123（下游單站）+ 成果報告DOCX（上游鞍馬山站）兩資料源 ──
-  // Survey123（溪魚調查_18_records_20230309154757.pdf）：5筆，均橫流溪下游，min/feng/hong全0
-  // 111年成果報告DOCX（Table 7/9，鞍馬山上游站）：量化電捕，含體長測量值，非目擊
-  //   Q2（5月）上游：明潭吻鰕虎1尾（體長55mm）
-  //   Q4（11月16日）上游：明潭吻鰕虎≥6尾（平均體長64.167mm）、短臀瘋鱨1尾（110mm）、短吻紅斑1尾（55mm）
-  //   → 兩資料源站位不同；上游量化資料另補充於Survey123條目之後
-  { label:'111年 3月15日', year:2022, m:3, d:15, bai:108,shi:56,xu:40,ying:32,jian:0,min:0,kou:0,feng:0,hong:0, stations:1, scope:'橫流溪下游', source:'111年溪流魚類調查表（去重）', note:'Survey123逐尾表；橫流溪下游單站；min/feng/hong均為0（Survey123僅覆蓋下游）；來源：溪魚調查_18_records_20230309154757.pdf' },
-  { label:'111年 6月28日', year:2022, m:6, d:28, bai:26, shi:36,xu:26,ying:0, jian:0,min:0,kou:0,feng:0,hong:0, stations:1, scope:'橫流溪', source:'111年溪流魚類調查表（去重）', note:'Survey123逐尾表；橫流溪；來源：溪魚調查_18_records_20230309154757.pdf' },
-  { label:'111年 10月3日', year:2022, m:10,d:3,  bai:92, shi:75,xu:24,ying:6, jian:0,min:0,kou:0,feng:0,hong:0, stations:1, scope:'橫流溪下游', source:'111年溪流魚類調查表（去重）', note:'Survey123逐尾表；橫流溪下游；來源：溪魚調查_18_records_20230309154757.pdf' },
-  { label:'111年 12月5日', year:2022, m:12,d:5,  bai:0,  shi:0, xu:0, ying:0, jian:0,min:0,kou:0,feng:0,hong:0, stations:1, scope:'橫流溪', source:'111年溪流魚類調查表（去重）', surveyStatus:'surveyed_no_capture', note:'Survey123逐尾表；完成調查，下游站無捕獲；上游Q4量化資料見DOCX條目；來源：溪魚調查_18_records_20230309154757.pdf' },
-  { label:'111年 12月12日',year:2022, m:12,d:12, bai:26, shi:6, xu:4, ying:7, jian:0,min:0,kou:0,feng:0,hong:0, stations:1, scope:'橫流溪下游', source:'111年溪流魚類調查表（去重）', note:'Survey123逐尾表；橫流溪下游；來源：溪魚調查_18_records_20230309154757.pdf' },
-  // ── 111年上游（鞍馬山站）：111年DOCX Table 7/9 量化電捕，與Survey123為不同站位 ──
-  { label:'111年 5月\n(上游)', year:2022, m:5, bai:0,shi:0,xu:0,ying:0,jian:0,min:1,kou:0,feng:0,hong:0, stations:1, scope:'橫流溪上游', source:'111年成果報告DOCX Table 7', note:'Q2（5月）鞍馬山上游站電捕；明潭吻鰕虎1尾（體長55mm）；資料源：111年_東勢處_森林溪流魚類資源監測調查計畫成果報告.docx Table 7' },
-  { label:'111年 11月16日\n(上游Q4)', year:2022, m:11, d:16, bai:0,shi:0,xu:0,ying:0,jian:0,min:6,kou:0,feng:1,hong:1, stations:1, scope:'橫流溪上游', source:'111年成果報告DOCX Table 9', note:'Q4（11/16）鞍馬山上游站電捕量化捕獲；明潭吻鰕虎≥6尾（平均體長64.167mm，依精度推算6個體）、短臀瘋鱨1尾（體長110mm）、短吻紅斑吻鰕虎1尾（體長55mm）；資料源：111年DOCX Table 9；與Survey123下游站資料互補，非重複' },
+  // ── 111年：Survey123 逐尾工作表（溪魚調查_18_records_20230309154757.pdf）──
+  // 2026-08 全量重解析：原始檔為合併檔（18份工作表），橫流溪 9 份含重複，去重後 5 場；
+  // 其餘 9 份為南湖溪，不納入。逐尾紀錄位於「四十四、魚類體長與體重」段，一列一尾。
+  //
+  // ⚠ 更正：前次解析將明潭吻鰕虎全數記為 0，並註記「Survey123僅覆蓋下游故min為0」。
+  //   經逐頁核對，原始表以異體字「明潭吻蝦虎」書寫，前次未對應該寫法而漏計 34 尾
+  //   （3/15 二十尾 p56、6/28 八尾、10/3 四尾 p99、12/12 二尾 p28）。各場合計不變，
+  //   係前次將漏計數量誤攤入其他魚種，本次一併更正為逐尾實際值。
+  //
+  // ⚠ 移除：原「111年 5月(上游)」與「111年 11月16日(上游Q4)」兩列來自成果報告 DOCX
+  //   Table 7/9，其明潭吻鰕虎尾數係「依平均體長 64.167mm 的小數精度反推 6 個體」，
+  //   為推估值而非實測計數，不符主序列口徑，已改列 HLX_FISH_PRESENCE_ONLY 出現層。
+  { label:'111年 3月15日', year:2022, m:3, d:15, bai:108,shi:56,xu:40,ying:32,jian:0,min:20,kou:0,feng:0,hong:0, stations:1, scope:'橫流溪下游', source:'111年Survey123逐尾工作表（去重）', dataStatus:'observed', note:'逐尾清點 256 尾（p50-65）；明潭吻鰕虎 20 尾原表記為「明潭吻蝦虎」' },
+  { label:'111年 6月28日', year:2022, m:6, d:28, bai:24, shi:36,xu:24,ying:0, jian:0,min:8, kou:0,feng:0,hong:0, stations:1, scope:'橫流溪', source:'111年Survey123逐尾工作表（去重）', dataStatus:'observed_partial', note:'逐尾清點 92 尾（p80-89）；原表「調查地點」僅記橫流溪，未標示上下游' },
+  { label:'111年 10月3日', year:2022, m:10,d:3,  bai:92, shi:75,xu:24,ying:4, jian:0,min:4, kou:0,feng:0,hong:0, stations:1, scope:'橫流溪下游', source:'111年Survey123逐尾工作表（去重）', dataStatus:'observed', note:'逐尾清點 199 尾（p90-103）' },
+  { label:'111年 12月5日', year:2022, m:12,d:5,  bai:0,  shi:0, xu:0, ying:0, jian:0,min:0, kou:0,feng:0,hong:0, stations:1, scope:'橫流溪', source:'111年Survey123逐尾工作表（去重）', dataStatus:'surveyed_no_capture', surveyStatus:'surveyed_no_capture', note:'完成調查但無捕獲（p1-18）；零捕獲不等同未調查' },
+  { label:'111年 12月12日',year:2022, m:12,d:12, bai:26, shi:6, xu:3, ying:6, jian:0,min:2, kou:0,feng:0,hong:0, stations:1, scope:'橫流溪下游', source:'111年Survey123逐尾工作表（去重）', dataStatus:'observed', note:'逐尾清點 43 尾（p25-31）' },
 
-  // ── 112年：10次橫流溪Survey123逐尾調查表（溪魚調查__20230419_160627_559-合併.pdf）──
-  // PDF核查（2026-08-21）：6筆橫流溪確認min實際值：4/18=6、5/30=2、6/21=5、9/22=2、11/27=4、12/26=8（合計27尾）
-  // 4筆（4/27、7/20、11/21、12/25）已確認為橫流溪（使用者核實）
+  // ── 112年：Survey123逐尾調查表（溪魚調查__20230419_160627_559-合併.pdf，10份報告書）──
+  // 2026-08 重新核對每份報告書的「調查地點描述」與 TWD97 坐標：
+  //   橫流溪 6 份（X≈240,4xx~240,8xx／Y≈2,675,2xx~2,678,6xx）→ 納入，逐尾合計 417 尾
+  //   南湖溪 4 份（4/27、7/20、11/21、12/25，X≈278,7xx／Y≈2,688,4xx）→ 移除
+  // ⚠ 前次將該 4 份誤判為橫流溪，使 112 年多計 116 尾，並將南湖溪的臺灣間爬岩鰍 40 尾
+  //   與粗首馬口鱲 4 尾誤植為橫流溪紀錄。兩溪相距約 38 公里，屬不同水系，不得合併。
   { label:'112年 4月18日', year:2023,m:4,d:18,bai:99,shi:27,xu:13,ying:4,jian:1,min:6,kou:0,feng:0,hong:0,stations:1,scope:'橫流溪',source:'112年Survey123逐尾表',note:'PDF核查確認橫流溪；明潭吻鰕虎6尾（PDF原名「明潭吻蝦虎」）；來源：溪魚調查__20230419_160627_559-合併.pdf' },
-  { label:'112年 4月27日', year:2023,m:4,d:27,bai:11,shi:8,xu:0,ying:8,jian:10,min:0,kou:0,feng:0,hong:0,stations:1,scope:'橫流溪',source:'112年Survey123逐尾表',note:'橫流溪；臺灣間爬岩鰍10尾；來源：溪魚調查__20230419_160627_559-合併.pdf' },
   { label:'112年 5月30日', year:2023,m:5,d:30,bai:4,shi:7,xu:9,ying:0,jian:0,min:2,kou:0,feng:1,hong:2,stations:1,scope:'橫流溪上游',source:'112年Survey123逐尾表',note:'PDF核查確認橫流溪上游；明潭吻鰕虎2尾；短臀瘋鱨1尾、短吻紅斑吻鰕虎2尾；來源：溪魚調查__20230419_160627_559-合併.pdf' },
   { label:'112年 6月21日', year:2023,m:6,d:21,bai:26,shi:17,xu:3,ying:0,jian:0,min:5,kou:0,feng:0,hong:0,stations:1,scope:'橫流溪',source:'112年Survey123逐尾表',note:'PDF核查確認橫流溪；明潭吻鰕虎5尾；來源：溪魚調查__20230419_160627_559-合併.pdf' },
-  { label:'112年 7月20日', year:2023,m:7,d:20,bai:0,shi:0,xu:0,ying:2,jian:0,min:0,kou:0,feng:0,hong:0,stations:1,scope:'橫流溪',source:'112年Survey123逐尾表',note:'橫流溪；纓口臺鰍2尾；來源：溪魚調查__20230419_160627_559-合併.pdf' },
   { label:'112年 9月22日', year:2023,m:9,d:22,bai:44,shi:17,xu:2,ying:3,jian:0,min:2,kou:0,feng:0,hong:0,stations:1,scope:'橫流溪',source:'112年Survey123逐尾表',note:'PDF核查確認橫流溪；明潭吻鰕虎2尾；來源：溪魚調查__20230419_160627_559-合併.pdf' },
-  { label:'112年 11月21日',year:2023,m:11,d:21,bai:8,shi:3,xu:0,ying:26,jian:25,min:0,kou:2,feng:0,hong:0,stations:1,scope:'橫流溪',source:'112年Survey123逐尾表',note:'橫流溪；臺灣間爬岩鰍25尾、粗首馬口鱲2尾；來源：溪魚調查__20230419_160627_559-合併.pdf' },
   { label:'112年 11月27日',year:2023,m:11,d:27,bai:35,shi:5,xu:24,ying:0,jian:0,min:4,kou:0,feng:4,hong:1,stations:1,scope:'橫流溪上游',source:'112年Survey123逐尾表',note:'PDF核查確認橫流溪上游；明潭吻鰕虎4尾；短臀瘋鱨4尾、短吻紅斑吻鰕虎1尾；來源：溪魚調查__20230419_160627_559-合併.pdf' },
-  { label:'112年 12月25日',year:2023,m:12,d:25,bai:0,shi:0,xu:0,ying:6,jian:5,min:0,kou:2,feng:0,hong:0,stations:1,scope:'橫流溪',source:'112年Survey123逐尾表',note:'橫流溪；臺灣間爬岩鰍5尾、粗首馬口鱲2尾；來源：溪魚調查__20230419_160627_559-合併.pdf' },
   { label:'112年 12月26日',year:2023,m:12,d:26,bai:19,shi:4,xu:9,ying:10,jian:0,min:8,kou:0,feng:0,hong:0,stations:1,scope:'橫流溪',source:'112年Survey123逐尾表',note:'PDF核查確認橫流溪；明潭吻鰕虎8尾；來源：溪魚調查__20230419_160627_559-合併.pdf' },
 
   // ── 113年：PDF逐頁核查（2026-08-21）溪魚調查__20240715_164059_29848_113合併.pdf（123頁）──
@@ -1632,6 +1663,145 @@ const HLX_FISH_SURVEYS = [
   { label:'114年 12月10日',year:2025,m:12,d:10,bai:31,shi:1,xu:1,ying:0,jian:0,min:2,kou:0,feng:3,hong:0,stations:1,scope:'橫流溪上游',source:'114年Survey123逐尾表',note:'明潭吻鰕虎2尾、短臀瘋鱨3尾；來源：114年Survey123逐尾表' },
   { label:'114年 12月24日',year:2025,m:12,d:24,bai:105,shi:22,xu:2,ying:4,jian:13,min:15,kou:0,feng:0,hong:0,stations:1,scope:'橫流溪下游',source:'114年Survey123逐尾表',note:'明潭吻鰕虎15尾；來源：114年Survey123逐尾表' },
 ];
+
+// ════════════════════════════════════════════════════════════════════════════
+//  出現層：有出現或體長證據、但沒有可核對尾數的紀錄。
+//  ★ 絕不轉換為捕獲尾數，只用於「該年是否出現」的判讀與稀有種偵測率分析。
+// 93～114 年物種出現矩陣。左半取自附錄二出現層，右半由主序列即時推導，
+// 兩層在圖上以分隔線明確區分，並於 tooltip 標示各自口徑。
+function renderOccurrenceMatrix(annualData, annualYears) {
+  const RAMP = ['#eef1ee', '#cde2fb', '#9ec5f4', '#6da7ec', '#3987e5', '#2a78d6', '#1c5cab', '#104281'];
+  const occ = HLX_FISH_OCCURRENCE_9306;
+  const legacyYears = Object.keys(occ.data).map(Number).sort((a, b) => a - b);
+  const modernYears = annualYears.map(y => Number(y) - 1911).sort((a, b) => a - b);
+  const cell = (v, n, year, name, layer) => {
+    const r = n ? v / n : 0;
+    const bg = v === 0 ? RAMP[0] : RAMP[Math.min(7, Math.max(1, Math.round(r * 6) + 1))];
+    const tip = `${year}年 ${name}：${v}/${n} ${layer === 'legacy' ? '季' : '場次'}檢出`
+      + (v === 0 ? '（已調查未檢出）' : '');
+    return `<td title="${tip}" style="padding:0"><div style="height:24px;margin:1px;border-radius:3px;background:${bg}"></div></td>`;
+  };
+  const head = [...legacyYears, ...modernYears]
+    .map((y, i) => `<th style="font-size:9.5px;color:#94a3b8;font-weight:600;padding:0 0 5px;text-align:center;${i === legacyYears.length ? 'border-left:2px dashed #0d6b5b' : ''}">${(y % 2 === 1 || y >= 107) ? y : ''}</th>`)
+    .join('');
+  const rows = HLX_FISH_KEYS.map(k => {
+    const name = HLX_FISH_KEY_NAME[k];
+    const legacy = legacyYears.map(y =>
+      cell(occ.data[y][k] || 0, occ.seasons[y], y, name, 'legacy')).join('');
+    const modern = modernYears.map((y, i) => {
+      const d = annualData[y + 1911];
+      const n = d ? d.cnt : 0;
+      const det = d ? HLX_FISH_SURVEYS.filter(x => Number(x.year) === y + 1911 && (x[k] || 0) > 0).length : 0;
+      return cell(det, n, y, name, 'modern').replace('<td ',
+        i === 0 ? '<td style="border-left:2px dashed #0d6b5b" ' : '<td ');
+    }).join('');
+    return `<tr><th style="font-size:12px;color:#334155;font-weight:600;text-align:right;padding-right:9px;white-space:nowrap">${name}</th>${legacy}${modern}</tr>`;
+  }).join('');
+  return `<div style="overflow-x:auto">
+    <table style="border-collapse:collapse;width:100%;min-width:640px;table-layout:fixed">
+      <colgroup><col style="width:96px"></colgroup>
+      <thead><tr><th></th>${head}</tr></thead><tbody>${rows}</tbody></table>
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:#64748b;margin-top:7px;padding-left:96px">
+      <span>◀ 附錄二出現層（93～106，無尾數）</span><span>平台量化序列（107～114）▶</span>
+    </div>
+  </div>`;
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+//  魚道生態成效實證資料（全部為《110年_東勢林區管理處國有林魚道及生態廊道
+//  成效追蹤》之報告實測值，非本平台推算）
+// ════════════════════════════════════════════════════════════════════════════
+//  鄰溪對照：同一計畫、同一方法、同一期間同步調查橫流溪與十文溪各 6 樣站 × 4 次。
+//  報告第 8 章結論頁 8-2 原文載明兩溪的魚道水理、棲地品質與水質無太大差異。
+const HLX_CONTROL_STREAM = {
+  metrics: [
+    { key:'H',   label:'夏儂多樣性指數 H′', hlx:1.4, ref:0.6, max:2.0, digits:1,
+      note:'歷次樣站平均。橫流溪 6 樣站 4 次調查值介於 0.82～1.76。' },
+    { key:'IBI', label:'生物整合指標 IBI',  hlx:32,  ref:23,  max:40, digits:0,
+      note:'歷次樣站平均。橫流溪 4/6 樣站達 Non-impaired（≥35）；十文溪僅 1 站曾達到。' },
+  ],
+  refName: '十文溪',
+  maxBodyLength: { hlx: 27.8, ref: 22.3, species: '臺灣白甲魚' },
+  source: '110年魚道及生態廊道成效追蹤 第5章、第8章（頁5-5、5-15、8-2）'
+};
+
+//  魚道內實測捕獲（表 5-19）：於 9 座魚道「內部」以電捕法＋蝦籠法直接量測，
+//  非由全溪捕獲量換算。4 次捕捉：109/7、109/10、110/7、110/10。
+const HLX_IN_FISHWAY_CATCH = {
+  byFishway: [
+    { id:'溪構1-1', type:'粗石斜曲面式', total:11 },
+    { id:'溪構1-2', type:'改良型舟通式', total:52 },
+    { id:'溪構2',   type:'階段式',       total:37 },
+    { id:'溪構3',   type:'斜坡式',       total:42 },
+    { id:'溪構4',   type:'階段式',       total:23 },
+    { id:'溪構5-2', type:'潛越式',       total:4  },
+    { id:'溪構6',   type:'階段式',       total:26 },
+    { id:'溪構7',   type:'降壩',         total:76 },
+    { id:'溪構8-2', type:'之字形',       total:35 },
+  ],
+  bySpecies: [
+    { name:'臺灣白甲魚', n:113 }, { name:'臺灣石魚賓', n:62 },
+    { name:'明潭吻鰕虎', n:62 },  { name:'臺灣鬚鱲', n:47 },
+    { name:'纓口臺鰍', n:11 },    { name:'臺灣間爬岩鰍', n:6 },
+    { name:'短吻紅斑吻鰕虎', n:5 },
+  ],
+  total: 306, species: 7,
+  topNote: '溪構7（降壩魚道）以 76 尾、7 種居冠；報告分析為該魚道內部水池較大（最大水池體積 17.7 m³），吸引魚類停駐。',
+  source: '110年魚道及生態廊道成效追蹤 表5-19（頁5-30）'
+};
+
+//  受脅魚種：臺灣淡水魚類紅皮書名錄近危(NNT)以上者
+const HLX_THREATENED_KEYS = ['bai', 'ying', 'jian', 'feng'];
+
+// ════════════════════════════════════════════════════════════════════════════
+const HLX_FISH_PRESENCE_ONLY = [
+  { year:106, species:'明潭吻鰕虎', scope:'橫流溪上游', source:'106年度成果報告',
+    note:'報告文字記載上游有出現，未列明確尾數。' },
+  { year:111, species:'明潭吻鰕虎', scope:'橫流溪上游（鞍馬山站）', source:'111年成果報告DOCX Table 7/9',
+    note:'Q2（5月）體長55mm；Q4（11/16）平均體長64.167mm。原以小數精度反推「6個體」並計入主序列，屬推估值，已移出。' },
+  { year:111, species:'短臀瘋鱨', scope:'橫流溪上游（鞍馬山站）', source:'111年成果報告DOCX Table 9',
+    note:'Q4（11/16）體長110mm；表格未提供尾數。' },
+  { year:111, species:'短吻紅斑吻鰕虎', scope:'橫流溪上游（鞍馬山站）', source:'111年成果報告DOCX Table 9',
+    note:'Q4（11/16）體長55mm；表格未提供尾數。' },
+];
+
+// ════════════════════════════════════════════════════════════════════════════
+//  93～106 年官方出現層（附錄二橫流溪魚類資源監測調查成果表，林務局東勢林區管理處）
+//  值＝該年記錄到該物種的季別數；0 表示該年成果表未列該物種（非「確認不存在」）。
+//  ★ 此層僅有出現紀錄、無尾數，不得與主序列的捕獲量相加。
+//  用途：(1) 補上稀有魚種在魚道建置前的長期出現證據
+//        (2) 交叉驗證主序列 —— 106 年四季物種組成與本層逐季完全吻合
+// ════════════════════════════════════════════════════════════════════════════
+const HLX_FISH_OCCURRENCE_9306 = {
+  seasons: { 93:2, 94:2, 95:2, 96:2, 97:2, 98:2, 99:2, 100:2, 101:2, 102:1, 103:4, 104:4, 105:3, 106:4 },
+  //        白甲 石賓 鬚鱲 纓口 間爬 明潭 瘋鱨 紅斑
+  data: {
+    93:  { bai:2, shi:2, xu:2, ying:2, jian:0, min:2, feng:0, hong:0 },
+    94:  { bai:2, shi:2, xu:0, ying:2, jian:0, min:2, feng:0, hong:1 },
+    95:  { bai:2, shi:2, xu:1, ying:2, jian:1, min:2, feng:0, hong:0 },
+    96:  { bai:2, shi:2, xu:2, ying:2, jian:0, min:2, feng:0, hong:1 },
+    97:  { bai:2, shi:2, xu:1, ying:2, jian:1, min:2, feng:0, hong:2 },
+    98:  { bai:2, shi:2, xu:1, ying:2, jian:0, min:2, feng:0, hong:0 },
+    99:  { bai:2, shi:2, xu:1, ying:2, jian:2, min:2, feng:0, hong:1 },
+    100: { bai:2, shi:2, xu:2, ying:2, jian:2, min:2, feng:0, hong:1 },
+    101: { bai:2, shi:2, xu:2, ying:2, jian:2, min:2, feng:0, hong:0 },
+    102: { bai:1, shi:1, xu:0, ying:1, jian:0, min:1, feng:1, hong:0 },
+    103: { bai:4, shi:4, xu:0, ying:1, jian:4, min:0, feng:0, hong:0 },
+    104: { bai:4, shi:4, xu:1, ying:2, jian:2, min:0, feng:0, hong:0 },
+    105: { bai:3, shi:3, xu:2, ying:3, jian:0, min:3, feng:1, hong:0 },
+    106: { bai:4, shi:3, xu:0, ying:2, jian:2, min:0, feng:0, hong:0 },
+  },
+  source: '11 成果報告/06 附錄二橫流溪魚類資源監測調查成果表(93_106年).pdf',
+  policy: '出現層無尾數，不與主序列相加；0 代表該年成果表未列，不代表確認不存在。'
+};
+
+window.hlxFishDataAudit = {
+  presenceOnly: HLX_FISH_PRESENCE_ONLY,
+  occurrence9306: HLX_FISH_OCCURRENCE_9306,
+  standardSpecies: Object.values(HLX_FISH_KEY_NAME).filter(fish_isPublishedSpecies),
+  policy: '同年度不同計畫並列不相加；空白不視為0尾；平均體長或文字出現不轉換為尾數；他溪紀錄不併入橫流溪。'
+};
+
 const HLX_FISH_110_SUMMARY = {
   springTotal: 486,
   autumnTotal: 235,
@@ -3618,8 +3788,8 @@ function renderFishTrend() {
 
   // 計算統計（8種發布物種全部納入）
   SURVEYS.forEach(s => {
-    s.total = (s.bai||0)+(s.shi||0)+(s.xu||0)+(s.ying||0)+(s.jian||0)+(s.min||0)+(s.kou||0)+(s.feng||0)+(s.hong||0);
-    const p = [s.bai,s.shi,s.xu,s.ying,s.jian,s.min,s.kou,s.feng,s.hong].map(v=>v||0).filter(v=>v>0);
+    s.total = fish_sumKeys(s);
+    const p = HLX_FISH_KEYS.map(k => Number(s[k]) || 0).filter(v => v > 0);
     const N = s.total;
     // 未捕獲個體時沒有可供比較的群聚組成，H' 應為「未計算」而非 0。
     const H = N > 0 && p.length > 1 ? -p.reduce((sum,v) => { const pi=v/N; return sum + (pi>0 ? pi*Math.log(pi) : 0); }, 0) : (N > 0 ? 0 : null);
@@ -3655,20 +3825,21 @@ function renderFishTrend() {
   // 年度年均（8種發布物種全部納入）
   const annualData = {};
   SURVEYS.forEach(s => {
-    if (!annualData[s.year]) annualData[s.year] = {bai:0,shi:0,xu:0,ying:0,jian:0,min:0,kou:0,feng:0,hong:0,cnt:0,effort:0,richSet:new Set()};
+    if (!annualData[s.year]) annualData[s.year] = Object.assign(
+      Object.fromEntries(HLX_FISH_KEYS.map(k => [k, 0])),
+      { cnt:0, effort:0, richSet:new Set() });
     const d = annualData[s.year];
-    d.bai+=(s.bai||0); d.shi+=(s.shi||0); d.xu+=(s.xu||0); d.ying+=(s.ying||0); d.jian+=(s.jian||0);
-    d.min+=(s.min||0); d.kou+=(s.kou||0); d.feng+=(s.feng||0); d.hong+=(s.hong||0);
+    HLX_FISH_KEYS.forEach(k => { d[k] += (Number(s[k]) || 0); });
     d.cnt++;
     d.effort += surveyStations(s);   // 站訪次累加 = 該年所有調查場次的站數總和
-    [s.bai,s.shi,s.xu,s.ying,s.jian,s.min,s.kou,s.feng,s.hong].forEach((v,i)=>{ if(v>0) d.richSet.add(i); });
+    HLX_FISH_KEYS.forEach(k => { if ((Number(s[k]) || 0) > 0) d.richSet.add(k); });
   });
   const annualYears = Object.keys(annualData).sort();
 
   // ── 努力量校正指標：CPUE（尾/站訪次）與物種數，這才是判讀魚道生態效益的正確基準 ──
   const annualEffortMetrics = annualYears.map(year => {
     const d = annualData[year];
-    const totalCatch = d.bai+d.shi+d.xu+d.ying+d.jian+d.min+d.kou+d.feng+d.hong;
+    const totalCatch = fish_sumKeys(d);
     return {
       year,
       label:    `${Number(year) - 1911}年`,
@@ -3821,8 +3992,8 @@ function renderFishTrend() {
       year,
       label: `${Number(year) - 1911}年`,
       bai: d.bai, shi: d.shi, xu: d.xu, ying: d.ying, jian: d.jian,
-      min: d.min, kou: d.kou, feng: d.feng, hong: d.hong,
-      total: d.bai + d.shi + d.xu + d.ying + d.jian + d.min + d.kou + d.feng + d.hong
+      min: d.min, feng: d.feng, hong: d.hong,
+      total: fish_sumKeys(d)
     };
   });
   const fishwayTargetNames = fw => fw.targetKeys
@@ -3839,6 +4010,52 @@ function renderFishTrend() {
     return eff ? +(sum / eff).toFixed(1) : 0;
   });
   const fishwayTargetTrend = fw => fitSmoothedTrend(fishwayTargetCPUE(fw));
+
+  // ── 魚道生態成效實證：受脅魚種 CPUE 與個體基礎稀釋物種數 ──────────────
+  //    稀釋法 Hurlbert (1971)，變異數 Heck et al. (1975)；用於在「相同樣本量」
+  //    下比較群聚完整度，完全排除各年站訪次差異造成的偏誤。
+  const threatenedCPUE = annualEffortMetrics.map(m => {
+    const d = annualData[m.year];
+    const n = HLX_THREATENED_KEYS.reduce((a, k) => a + (d[k] || 0), 0);
+    return { year: m.year, label: m.label, cpue: m.effort ? +(n / m.effort).toFixed(1) : 0,
+             species: HLX_THREATENED_KEYS.filter(k => (d[k] || 0) > 0).length, total: n };
+  });
+  const _lnFact = n => { let t = 0; for (let i = 2; i <= n; i++) t += Math.log(i); return t; };
+  const _lnC = (n, k) => (k < 0 || k > n) ? -Infinity : _lnFact(n) - _lnFact(k) - _lnFact(n - k);
+  function rarefyES(counts, m) {
+    const N = counts.reduce((a, b) => a + b, 0);
+    if (N < m) return null;
+    const pos = counts.filter(v => v > 0);
+    const E = pos.reduce((sum, ni) => sum + (1 - Math.exp(_lnC(N - ni, m) - _lnC(N, m))), 0);
+    let v = pos.reduce((sum, ni) => { const q = Math.exp(_lnC(N - ni, m) - _lnC(N, m)); return sum + q * (1 - q); }, 0);
+    for (let a = 0; a < pos.length; a++) for (let b = a + 1; b < pos.length; b++) {
+      const qa = Math.exp(_lnC(N - pos[a], m) - _lnC(N, m));
+      const qb = Math.exp(_lnC(N - pos[b], m) - _lnC(N, m));
+      const qab = Math.exp(_lnC(N - pos[a] - pos[b], m) - _lnC(N, m));
+      v += 2 * (qab - qa * qb);
+    }
+    return { E, sd: Math.sqrt(Math.max(v, 0)) };
+  }
+  const RAREFY_N = 100;
+  const rarefied = annualEffortMetrics.map(m => {
+    const d = annualData[m.year];
+    const r = rarefyES(HLX_FISH_KEYS.map(k => d[k] || 0), RAREFY_N);
+    return { year: m.year, label: m.label, E: r ? +r.E.toFixed(2) : null,
+             sd: r ? +r.sd.toFixed(2) : null, catch: m.catch, effort: m.effort };
+  });
+  const bestRarefied = rarefied.filter(r => r.E != null).sort((a, b) => b.E - a.E)[0];
+  // 下游固定單站可比子集：建置前基線 vs 最新年度（同河段、同站數、同方法）
+  const _downOne = SURVEYS.filter(s => /下游/.test(s.scope || '') && surveyStations(s) === 1);
+  const _meanOf = rows => rows.length
+    ? rows.reduce((a, s) => a + fish_sumKeys(s), 0) / rows.length : 0;
+  const preDownMean = _meanOf(_downOne.filter(s => s.preConstruct || Number(s.year) <= 2017));
+  const _latestDownYear = Math.max(...(_downOne.filter(s => !s.preConstruct && Number(s.year) > 2017)
+    .map(s => Number(s.year))), 0);
+  const latestDownMean = _meanOf(_downOne.filter(s => Number(s.year) === _latestDownYear));
+
+  window.hlxFishOutcomeEvidence = { controlStream: HLX_CONTROL_STREAM,
+    inFishway: HLX_IN_FISHWAY_CATCH, threatenedCPUE, rarefied };
+
   window.hlxFishwayTrendPayload = { fishwayTypes: FISHWAY_TYPES, annualFishwaySeries, annualEffortMetrics };
 
   el.innerHTML = `
@@ -3864,22 +4081,25 @@ function renderFishTrend() {
       </div>
       <div style="font-size:18px;font-weight:800;line-height:1.7;margin-bottom:20px;color:#fff">
         已核對資料顯示，橫流溪魚類捕獲量與物種組成相較早期基準已有變化；惟各年度採樣站數、範圍與場次不同，應以<span style="color:#86efac;font-size:20px;font-weight:900">努力量校正指標與同口徑長期追蹤</span>判讀，不將變化直接歸因於單一工程。<br>
-        103年12月調查以臺灣石魚賓為優勢（22尾）；107~108年完成9種魚道建置後，110年樣站電捕第3次
+        魚道建置前（103～106年）下游固定單站每次捕獲 <span style="color:#fde68a;font-size:20px;font-weight:900">${preDownMean.toFixed(1)}尾</span>；
+        107~108年完成9座魚道後，110年樣站電捕第3次
         <span style="color:#fde68a;font-size:20px;font-weight:900">${HLX_FISH_110_SUMMARY.springTotal}尾</span>、
         第4次<span style="color:#fde68a;font-size:20px;font-weight:900">${HLX_FISH_110_SUMMARY.autumnTotal}尾</span>，
-        全年合計<span style="color:#fde68a;font-size:20px;font-weight:900">${HLX_FISH_110_SUMMARY.annualTotal}尾</span>；另逐魚道通行彙整確認${HLX_FISH_110_SUMMARY.fishwayPassTotal}尾。
-        至114年12月單次捕獲為<span style="color:#86efac;font-size:20px;font-weight:900">146尾</span>，
-        約為103年12月單次記錄的<span style="color:#86efac;font-size:20px;font-weight:900">6.6倍</span>；
-        此結果可作為後續相同方法、相同樣站與相近水文條件下的追蹤基準。
+        全年合計<span style="color:#fde68a;font-size:20px;font-weight:900">${HLX_FISH_110_SUMMARY.annualTotal}尾</span>；
+        9座魚道內部電捕另確認<span style="color:#fde68a;font-size:20px;font-weight:900">${HLX_IN_FISHWAY_CATCH.total}尾${HLX_IN_FISHWAY_CATCH.species}種</span>，座座有魚。
+        114年下游同一單站平均 <span style="color:#86efac;font-size:20px;font-weight:900">${latestDownMean.toFixed(1)}尾</span>，
+        為建置前基線的 <span style="color:#86efac;font-size:20px;font-weight:900">${(latestDownMean / preDownMean).toFixed(1)}倍</span>；
+        統一抽樣至${RAREFY_N}尾的期望物種數 114年 <span style="color:#86efac;font-size:20px;font-weight:900">${bestRarefied ? bestRarefied.E : '—'}種</span> 為全期最高。
+        以上均為同河段、同方法、同努力量單位的可比較數值。
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px">
         ${[
           { num:'8種', sub:'歷年調查完整\n魚類趨勢記錄', icon:'🐟', color:'#7dd3fc' },
           { num:'721尾', sub:'110年樣站電捕\n486+235', icon:'📋', color:'#fde68a' },
-          { num:'8+2種', sub:'110年魚類+\n蝦蟹水域生物', icon:'🧾', color:'#93c5fd' },
-          { num:'×6.6', sub:'族群量成長倍數\n(103→114年)', icon:'📈', color:'#86efac' },
-          { num:'3種', sub:'保育類第II級\n(保育旗艦)', icon:'🛡️', color:'#fde68a' },
-          { num:'11年度', sub:'103～114年區間\n105年無獨立量化表', icon:'📅', color:'#c4b5fd' },
+          { num:`${HLX_IN_FISHWAY_CATCH.total}尾`, sub:'9座魚道內部實測\n座座有魚・7種', icon:'🧾', color:'#93c5fd' },
+          { num:`×${(latestDownMean / preDownMean).toFixed(1)}`, sub:'下游同一單站\n建置前→114年', icon:'📈', color:'#86efac' },
+          { num:'4種', sub:'紅皮書近危以上\n含第三級保育1種', icon:'🛡️', color:'#fde68a' },
+          { num:'11年度', sub:'103～114年區間\n105年為104年重刊', icon:'📅', color:'#c4b5fd' },
         ].map(c=>`
           <div style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:12px;padding:16px;text-align:center">
             <div style="font-size:22px;margin-bottom:4px">${c.icon}</div>
@@ -4150,12 +4370,126 @@ function renderFishTrend() {
         </div>
       </div>
 
+
+      <!-- ══ 魚道生態成效實證 ══════════════════════════════════════════ -->
+      <div style="border:2px solid #0d6b5b;border-radius:18px;padding:22px 24px;margin-bottom:28px;background:linear-gradient(180deg,#f0f7f5,#ffffff)">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px">
+          <div style="width:6px;height:34px;background:#0d6b5b;border-radius:3px"></div>
+          <div style="font-size:20px;font-weight:900;color:#0f172a">魚道生態成效實證</div>
+        </div>
+        <div style="font-size:14px;color:#475569;line-height:1.75;margin-bottom:18px">
+          以下四項指標<b>不受各年站訪次差異影響</b>，可直接跨年度與跨溪流比較。
+          鄰溪對照與魚道內捕獲為《110年魚道及生態廊道成效追蹤》之報告實測值；
+          受脅魚種 CPUE 與稀釋物種數由本平台歷年序列即時計算。
+        </div>
+
+        <!-- 鄰溪對照 -->
+        <div style="border:1.5px solid #cbd5e1;border-radius:14px;padding:18px 20px;background:#fff;margin-bottom:16px">
+          <div style="font-size:16px;font-weight:900;color:#0f172a;margin-bottom:4px">
+            一、鄰溪對照：橫流溪 vs 十文溪
+            <span style="font-size:12px;font-weight:700;color:#0d6b5b">（同計畫・同方法・同期間・各6樣站×4次）</span>
+          </div>
+          <div style="font-size:13px;color:#64748b;line-height:1.7;margin-bottom:14px">
+            報告載明兩溪的魚道水理、棲地品質與水質經分析並無太大差異，構成近乎理想的對照設計。
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px">
+            ${HLX_CONTROL_STREAM.metrics.map(m => `
+              <div style="border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px">
+                <div style="font-size:14px;font-weight:800;color:#0f172a;margin-bottom:10px">${m.label}</div>
+                ${[['橫流溪', m.hlx, '#0d6b5b'], [HLX_CONTROL_STREAM.refName + '（對照）', m.ref, '#cbd5e1']].map(r => `
+                  <div style="display:flex;align-items:center;gap:10px;margin-bottom:7px">
+                    <div style="width:104px;font-size:12.5px;color:#475569;text-align:right;flex:none">${r[0]}</div>
+                    <div style="flex:1;height:26px;background:#f1f5f9;border-radius:5px;overflow:hidden">
+                      <div style="width:${(r[1] / m.max * 100).toFixed(1)}%;height:100%;background:${r[2]};border-radius:5px"></div>
+                    </div>
+                    <div style="width:46px;font-size:17px;font-weight:900;color:#0f172a;font-variant-numeric:tabular-nums">${r[1].toFixed(m.digits)}</div>
+                  </div>`).join('')}
+                <div style="font-size:12px;color:#0d6b5b;font-weight:800;margin-top:8px">橫流溪為十文溪的 ${(m.hlx / m.ref).toFixed(1)} 倍</div>
+                <div style="font-size:11.5px;color:#94a3b8;line-height:1.6;margin-top:4px">${m.note}</div>
+              </div>`).join('')}
+          </div>
+          <div style="font-size:12.5px;color:#475569;line-height:1.7;margin-top:12px;padding-top:11px;border-top:1px dashed #e2e8f0">
+            <b>魚體規格：</b>魚道內捕獲的最大個體為 ${HLX_CONTROL_STREAM.maxBodyLength.hlx} 公分${HLX_CONTROL_STREAM.maxBodyLength.species}，
+            十文溪為 ${HLX_CONTROL_STREAM.maxBodyLength.ref} 公分；報告並載明橫流溪魚類肥滿度較十文溪優，
+            反映食物來源與環境條件較佳。　<span style="color:#94a3b8">來源：${HLX_CONTROL_STREAM.source}</span>
+          </div>
+        </div>
+
+        <!-- 魚道內實測 -->
+        <div style="border:1.5px solid #cbd5e1;border-radius:14px;padding:18px 20px;background:#fff;margin-bottom:16px">
+          <div style="font-size:16px;font-weight:900;color:#0f172a;margin-bottom:4px">
+            二、九座魚道「內部」實測捕獲
+            <span style="font-size:12px;font-weight:700;color:#0d6b5b">（電捕法＋蝦籠法，可直接歸因到單一設施）</span>
+          </div>
+          <div style="font-size:13px;color:#64748b;line-height:1.7;margin-bottom:12px">
+            9 座魚道<b style="color:#0d6b5b">全數捕獲到魚</b>，合計 ${HLX_IN_FISHWAY_CATCH.total} 尾、${HLX_IN_FISHWAY_CATCH.species} 種，全為臺灣特有種。
+            ${HLX_IN_FISHWAY_CATCH.topNote}
+          </div>
+          <div style="position:relative;height:260px"><canvas id="fishInFishwayChart"></canvas></div>
+          <div style="display:flex;flex-wrap:wrap;gap:7px;margin-top:12px">
+            ${HLX_IN_FISHWAY_CATCH.bySpecies.map(sp => `
+              <span style="font-size:12px;background:#f0f7f5;border:1px solid #cfe3de;border-radius:99px;padding:3px 11px;color:#0f172a">
+                ${sp.name} <b>${sp.n}</b></span>`).join('')}
+          </div>
+          <div style="font-size:11.5px;color:#94a3b8;margin-top:9px">來源：${HLX_IN_FISHWAY_CATCH.source}</div>
+        </div>
+
+        <!-- 受脅魚種 CPUE + 稀釋物種數 -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px">
+          <div style="border:1.5px solid #cbd5e1;border-radius:14px;padding:18px 20px;background:#fff">
+            <div style="font-size:16px;font-weight:900;color:#0f172a;margin-bottom:4px">三、受脅魚種 CPUE</div>
+            <div style="font-size:13px;color:#64748b;line-height:1.7;margin-bottom:12px">
+              近危以上 4 種：臺灣白甲魚、纓口臺鰍、臺灣間爬岩鰍（近危 NNT）與短臀瘋鱨（易危 NVU・第三級保育類）。
+              柱下數字為當年檢出的受脅種數。
+            </div>
+            <div style="position:relative;height:250px"><canvas id="fishThreatenedChart"></canvas></div>
+          </div>
+          <div style="border:1.5px solid #cbd5e1;border-radius:14px;padding:18px 20px;background:#fff">
+            <div style="font-size:16px;font-weight:900;color:#0f172a;margin-bottom:4px">
+              四、稀釋物種數 E[S<sub>${RAREFY_N}</sub>] ± SD
+            </div>
+            <div style="font-size:13px;color:#64748b;line-height:1.7;margin-bottom:12px">
+              把各年統一抽樣至 ${RAREFY_N} 尾後的期望物種數（Hurlbert 個體基礎稀釋）。<b>這是取代「年度出現種數」的正確版本</b> ——
+              原始物種數會隨調查次數單調上升，本指標則完全排除站訪次差異。捕獲量不足 ${RAREFY_N} 尾的年度不列。
+            </div>
+            <div style="position:relative;height:250px"><canvas id="fishRarefiedChart"></canvas></div>
+            ${bestRarefied ? `<div style="font-size:12.5px;color:#0d6b5b;font-weight:800;margin-top:10px">
+              全期最高：${bestRarefied.label} E[S<sub>${RAREFY_N}</sub>] = ${bestRarefied.E}，
+              僅用 ${bestRarefied.effort} 站訪次達成。</div>` : ''}
+          </div>
+        </div>
+
+        <!-- 出現矩陣 -->
+        <div style="border:1.5px solid #cbd5e1;border-radius:14px;padding:18px 20px;background:#fff;margin-top:16px">
+          <div style="font-size:16px;font-weight:900;color:#0f172a;margin-bottom:4px">
+            五、93～114 年物種出現矩陣
+            <span style="font-size:12px;font-weight:700;color:#0d6b5b">（22 年・不受站數影響）</span>
+          </div>
+          <div style="font-size:13px;color:#64748b;line-height:1.7;margin-bottom:14px">
+            左半為附錄二官方出現層（93～106 年，僅有出現紀錄、無尾數）；右半為平台量化序列（107～114 年）。
+            色深代表該年檢出的季別／場次比例，<b>最淺格代表「已調查但未檢出」，不等同物種消失</b>。
+            此圖是稀有魚種唯一誠實的長期呈現方式。
+          </div>
+          ${renderOccurrenceMatrix(annualData, annualYears)}
+          <div style="font-size:11.5px;color:#94a3b8;margin-top:10px">
+            來源：${HLX_FISH_OCCURRENCE_9306.source}；107～114 年為本平台量化序列。
+            ${HLX_FISH_OCCURRENCE_9306.policy}
+          </div>
+        </div>
+      </div>
+
       <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(420px,.85fr);gap:20px;margin-bottom:28px;align-items:start">
         <div style="border:2px solid #e2e8f0;border-radius:18px;padding:20px">
           <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:12px">
             <div>
               <div style="font-size:18px;font-weight:900;color:#0f172a;margin-bottom:8px">魚道型式關聯指標 CPUE 長期趨勢比較<span style="font-size:13px;font-weight:700;color:#0e7490">（努力量校正・尾/站訪次）</span></div>
-              <div style="font-size:14px;color:#64748b;line-height:1.7">主圖以實線呈現各型式年度 CPUE 與年際波動，虛線為3點移動平均趨勢，清楚比較長期方向；原始年度 CPUE 與年際波動仍完整保留於下方各型式圖表。</div>
+              <div style="font-size:14px;color:#64748b;line-height:1.7">主圖以實線呈現各型式年度 CPUE 與年際波動，虛線為3點移動平均趨勢；原始年度 CPUE 仍完整保留於下方各型式圖表。</div>
+              <div style="margin-top:10px;border-left:3px solid #b45309;background:#fffbeb;border-radius:0 8px 8px 0;padding:10px 13px;font-size:12.5px;color:#78350f;line-height:1.7">
+                <b>判讀限制：</b>本圖以<b>全溪</b>關聯魚種捕獲量 ÷ 全年站訪次計算，<b>不是在該座魚道量測</b>，無法歸因到單一設施。
+                又因七種型式的關聯魚種<b>全部包含臺灣白甲魚</b>（佔全期捕獲約四成），各線與白甲魚單物種 CPUE 的相關係數達 0.70～0.90；
+                其中<b>之字形與斜坡式的關聯魚種設定完全相同</b>，兩線在數學上必然重疊。
+                若要呈現單一魚道的實際使用情形，請改用上方「魚道生態成效實證」的<b>九座魚道內部實測捕獲</b>。
+              </div>
             </div>
             <button type="button" onclick="openFishwayTrendModal('all')" style="border:1.5px solid #93c5fd;background:#eff6ff;color:#1d4ed8;border-radius:10px;padding:9px 14px;font-size:14px;font-weight:900;cursor:pointer">
               <i class="fas fa-up-right-and-down-left-from-center"></i> 放大圖表
@@ -4965,6 +5299,124 @@ function renderFishTrend() {
             y: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 12, weight: '700' } }, title: { display: true, text: '物種數', font: { size: 12, weight: '700' } } }
           }
         }
+      });
+    }
+
+
+    // ── 魚道生態成效實證：三張新圖 ─────────────────────────────────
+    const _gridCfg = { color:'#eef2f6' };
+    const _tick = { font:{ size:11 }, color:'#64748b' };
+
+    const ctxInWay = document.getElementById('fishInFishwayChart');
+    if (ctxInWay) new Chart(ctxInWay, {
+      type: 'bar',
+      data: {
+        labels: HLX_IN_FISHWAY_CATCH.byFishway.map(f => f.id),
+        datasets: [{
+          label: '魚道內捕獲尾數',
+          data: HLX_IN_FISHWAY_CATCH.byFishway.map(f => f.total),
+          backgroundColor: HLX_IN_FISHWAY_CATCH.byFishway.map(f => f.total === 76 ? '#0d6b5b' : '#2a78d6'),
+          borderRadius: 4, borderWidth: 0,
+        }]
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        plugins:{
+          legend:{ display:false },
+          tooltip:{ callbacks:{
+            title: it => { const f = HLX_IN_FISHWAY_CATCH.byFishway[it[0].dataIndex]; return `${f.id}（${f.type}魚道）`; },
+            label: c => `魚道內捕獲 ${c.raw} 尾`,
+            afterBody: () => ['4 次捕捉：109/7、109/10、110/7、110/10', '於魚道內部直接量測，非全溪換算'],
+          }}
+        },
+        scales:{
+          y:{ beginAtZero:true, grid:_gridCfg, ticks:_tick, title:{ display:true, text:'尾', font:{size:11}, color:'#94a3b8' } },
+          x:{ grid:{ display:false }, ticks:{ ..._tick, callback(v, i) {
+            const f = HLX_IN_FISHWAY_CATCH.byFishway[i]; return [f.id, f.type];
+          } } }
+        }
+      }
+    });
+
+    const ctxThreat = document.getElementById('fishThreatenedChart');
+    if (ctxThreat) new Chart(ctxThreat, {
+      type: 'bar',
+      data: {
+        labels: threatenedCPUE.map(t => t.label),
+        datasets: [{
+          label:'受脅魚種 CPUE',
+          data: threatenedCPUE.map(t => t.cpue),
+          backgroundColor: threatenedCPUE.map(t => {
+            const pre = HLX_FISH_SURVEYS.some(x => Number(x.year) === Number(t.year) && x.preConstruct);
+            const best = t.cpue === Math.max(...threatenedCPUE.map(z => z.cpue));
+            return best ? '#0d6b5b' : (pre ? '#cde2fb' : '#2a78d6');
+          }),
+          borderColor: threatenedCPUE.map(t =>
+            HLX_FISH_SURVEYS.some(x => Number(x.year) === Number(t.year) && x.preConstruct) ? '#2a78d6' : 'transparent'),
+          borderWidth: 1, borderRadius: 4,
+        }]
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        plugins:{
+          legend:{ display:false },
+          tooltip:{ callbacks:{
+            label: c => `${c.raw} 尾/站訪次`,
+            afterBody: it => { const t = threatenedCPUE[it[0].dataIndex];
+              return [`受脅種捕獲 ${t.total} 尾／站訪次 ${annualMetricByYear[t.year]?.effort}`,
+                      `當年檢出受脅種 ${t.species}/4 種`]; },
+          }}
+        },
+        scales:{
+          y:{ beginAtZero:true, grid:_gridCfg, ticks:_tick, title:{ display:true, text:'尾/站訪次', font:{size:11}, color:'#94a3b8' } },
+          x:{ grid:{ display:false }, ticks:{ ..._tick, callback(v, i) {
+            const t = threatenedCPUE[i]; return [t.label, t.species + '種'];
+          } } }
+        }
+      }
+    });
+
+    const ctxRare = document.getElementById('fishRarefiedChart');
+    const _rare = rarefied.filter(r => r.E != null);
+    if (ctxRare && _rare.length) {
+      // 誤差線以自訂 plugin 疊繪（Chart.js 原生 bar 無 error bar）
+      const errBars = {
+        id: 'hlxErrorBars',
+        afterDatasetsDraw(chart) {
+          const { ctx, scales:{ y } } = chart;
+          const meta = chart.getDatasetMeta(0);
+          ctx.save(); ctx.strokeStyle = '#475569'; ctx.lineWidth = 1.5;
+          meta.data.forEach((bar, i) => {
+            const r = _rare[i]; if (!r || r.sd == null) return;
+            const top = y.getPixelForValue(r.E + r.sd), bot = y.getPixelForValue(Math.max(0, r.E - r.sd));
+            ctx.beginPath();
+            ctx.moveTo(bar.x, top); ctx.lineTo(bar.x, bot);
+            ctx.moveTo(bar.x - 5, top); ctx.lineTo(bar.x + 5, top);
+            ctx.moveTo(bar.x - 5, bot); ctx.lineTo(bar.x + 5, bot);
+            ctx.stroke();
+          });
+          ctx.restore();
+        }
+      };
+      new Chart(ctxRare, {
+        type:'bar',
+        data:{ labels:_rare.map(r => r.label),
+          datasets:[{ label:'E[S100]', data:_rare.map(r => r.E), borderRadius:4, borderWidth:0,
+            backgroundColor:_rare.map(r => r.E === Math.max(..._rare.map(z => z.E)) ? '#0d6b5b' : '#2a78d6') }] },
+        options:{
+          responsive:true, maintainAspectRatio:false,
+          plugins:{ legend:{ display:false },
+            tooltip:{ callbacks:{
+              label: c => `E[S${RAREFY_N}] = ${c.raw} ± ${_rare[c.dataIndex].sd}`,
+              afterBody: it => { const r = _rare[it[0].dataIndex];
+                return [`實際捕獲 ${r.catch} 尾／${r.effort} 站訪次`,
+                        '＝統一抽樣至 ' + RAREFY_N + ' 尾時的期望物種數']; },
+            }} },
+          scales:{ y:{ beginAtZero:true, suggestedMax:8.5, grid:_gridCfg, ticks:_tick,
+              title:{ display:true, text:'期望物種數', font:{size:11}, color:'#94a3b8' } },
+            x:{ grid:{ display:false }, ticks:_tick } }
+        },
+        plugins:[errBars]
       });
     }
 

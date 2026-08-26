@@ -1,14 +1,16 @@
 // 二維水理模擬棲地環境模組 — 二維棲地模擬 + 調查記錄
 
 // ── 二維棲地模擬資料（橫流溪棲地連通性評估，107-108年成果報告）──
+// 保育等級一律採《臺灣淡水魚類紅皮書名錄》，與 fish.js 的 SPECIES 同一口徑。
+// （2026-08 更正：原記白甲魚 EN、纓口臺鰍 VU、石魚賓／明潭吻鰕虎 NT，與 fish.js 不一致。）
 const WUA_DATA = {
   species: [
-    { id: 'stone_loach',  name: '纓口臺鰍',   color: '#1565c0', icon: '🐟', conservation: '易危(VU)' },
-    { id: 'goby',         name: '明潭吻鰕虎', color: '#2e7d32', icon: '🐟', conservation: '近危(NT)' },
-    { id: 'bitterling',   name: '臺灣石魚賓', color: '#6a1b9a', icon: '🐟', conservation: '近危(NT)' },
-    { id: 'white_carp',   name: '臺灣白甲魚', color: '#e65100', icon: '🐟', conservation: '易危(EN)' },
-    { id: 'climbing',     name: '臺灣間爬岩鰍', color: '#00838f', icon: '🐟', conservation: '近危(NT)' },
-    { id: 'torrent_cat',  name: '短臀瘋鱨',   color: '#558b2f', icon: '🐟', conservation: '易危(VU)' },
+    { id: 'stone_loach',  name: '纓口臺鰍',   color: '#1565c0', icon: '🐟', conservation: '近危(NNT)・特有種' },
+    { id: 'goby',         name: '明潭吻鰕虎', color: '#2e7d32', icon: '🐟', conservation: '一般(NLC)・特有種' },
+    { id: 'bitterling',   name: '臺灣石魚賓', color: '#6a1b9a', icon: '🐟', conservation: '一般(NLC)・特有種' },
+    { id: 'white_carp',   name: '臺灣白甲魚', color: '#e65100', icon: '🐟', conservation: '近危(NNT)・特有種' },
+    { id: 'climbing',     name: '臺灣間爬岩鰍', color: '#00838f', icon: '🐟', conservation: '近危(NNT)・特有種' },
+    { id: 'torrent_cat',  name: '短臀瘋鱨',   color: '#558b2f', icon: '🐟', conservation: '易危(NVU)・第三級保育類・特有種' },
   ],
   zones: [
     {
