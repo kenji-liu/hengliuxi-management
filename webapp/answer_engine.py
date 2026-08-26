@@ -666,9 +666,6 @@ def needs_web_search(query: str, intent: Dict[str, Any],
     # 一般閒聊或不相關問題不得因網站有資料而被送去搜尋。
     if local_chars <= 0 and is_hengliuxi_query(query):
         return True
-    if (is_hengliuxi_query(query) and
-            intent.get('weights', {}).get('web', 0) >= 0.5 and local_chars < 1200):
-        return True
     return False
 
 
