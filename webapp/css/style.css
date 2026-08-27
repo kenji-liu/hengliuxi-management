@@ -16,6 +16,20 @@ html[data-font='lg'] { --content-scale: 1.15; }
 .content-area,
 .modal { zoom: var(--content-scale); }
 
+/* Chart.js 與 zoom 的衝突修正
+   ------------------------------------------------------------------
+   Chart.js 以 getBoundingClientRect() 量測容器，在 zoom 環境下拿到的是
+   「已縮放」的尺寸，接著又把該數值寫回 canvas 的 CSS 寬度 —— 而這個 CSS px
+   本身還在 zoom 子樹裡，於是再被乘一次，畫布就比容器寬了一個縮放倍率
+   （實測平台 12 張圖表比值全為 1.149，並把整頁撐出橫向捲軸）。
+   對「直接包住 canvas 的容器」反向縮放，使 Chart.js 量到真實 px。 */
+.content-area div:has(> canvas),
+.modal div:has(> canvas) { zoom: calc(1 / var(--content-scale, 1)); }
+
+/* 保險：畫布永遠不得撐開容器，避免尺寸回饋迴圈（容器被撐寬→量到更寬→更寬） */
+.content-area canvas,
+.modal canvas { max-width: 100%; }
+
 /* ===== CSS 變數 ===== */
 :root {
   --primary: #1a6b3c;
