@@ -453,10 +453,13 @@ function fac_healthFromDeru(d, e, r, text = '') {
   const dNum = Number(d || 0);
   const severity = dNum * 0.45 + Number(e || 1) * 0.2 + Number(r || 1) * 0.35;
   let health = Math.round(100 - severity * 21);
-  if (/完全堵塞|無法通行|喪失通行|嚴重淘空|嚴重淘刷|危及安全|崩塌|倒塌|緊急/.test(text)) health = Math.min(health, 25);
+  // 明確的 D0/E1/R1（A1）評等代表目前健康狀態；歷史或描述性文字
+  // 不得在沒有數值損壞評分時把 A1 壓成低分。
+  if (dNum >= 2 && /完全堵塞|無法通行|喪失通行|嚴重淘空|嚴重淘刷|危及安全|崩塌|倒塌|緊急/.test(text)) health = Math.min(health, 25);
   // 位移/淘空文字上限僅在結構損壞 d≥2 時套用，避免 A 級設施（d=0）因文字提及「位移」被誤壓低至 45
   if (dNum >= 2 && /淘空|淘刷|基礎受.*侵蝕|基礎裸露|導流牆偏移|位移/.test(text)) health = Math.min(health, 45);
   if (/水流正常|結構完整|坡面完整|成功通行|符合通行標準/.test(text)) health = Math.max(health, 86);
+  if (dNum <= 0 && Number(e || 1) <= 1 && Number(r || 1) <= 1) health = Math.max(90, health);
   return Math.max(15, Math.min(95, health));
 }
 
@@ -484,6 +487,9 @@ function fac_inferDeruFromInspection(item = {}) {
   const hasAllExplicitDER = Number.isFinite(Number(item.deru_d)) &&
                              Number.isFinite(Number(item.deru_e)) &&
                              Number.isFinite(Number(item.deru_r));
+  const labeledHealthyGrade = /^(?:A1?|A級)/i.test(String(item.derLevel || item.level || item.deru_label || ''));
+  const explicitHealthyDer = labeledHealthyGrade ||
+    (hasAllExplicitDER && d <= 0 && e <= 1 && r <= 1 && Number(item.deru_u || 1) <= 1);
 
   const hasSevereText = /完全堵塞|無法通行|喪失通行|嚴重淘空|嚴重淘刷|危及安全|崩塌|倒塌|緊急/.test(text);
   const hasScourText = /淘空|淘刷|基礎受.*侵蝕|基礎裸露|導流牆偏移|位移|偏移|沖刷|下刷/.test(text);
@@ -520,7 +526,7 @@ function fac_inferDeruFromInspection(item = {}) {
     // 構造物調查表功能分級（sf_grade）具最高語義優先權：
     // A 級 = 外觀良好功能健全，一律覆蓋為 D=0/E=1/R=1，且完全跳過文字推斷
     // 避免舊巡查文字（如「裂縫」「鏽蝕」）誤覆蓋 A 級分數
-    const sfGradeProtectedA = item.sf_grade === 'A' && !hasSevereText;
+    const sfGradeProtectedA = item.sf_grade === 'A' && (!hasSevereText || explicitHealthyDer);
     const sfGradeProtectedB = item.sf_grade && item.sf_grade.startsWith('B') && !hasSevereText;
 
     if (sfGradeProtectedA) {
@@ -562,7 +568,8 @@ function fac_inferDeruFromInspection(item = {}) {
   const deru = fac_deriveUrgency(d, e, r);
   // 等級保護：A/B級魚道檢核表 → 不讓舊的高 U 值反壓；其他情況保守取 max
   // 例外：表單已完整填寫 d/e/r 且有明確 deru_u 時，以表單 U 值為準（信任現場評定）
-  const isGradeProtected = (item.sf_grade === 'A' || item.fw_grade === 'A') && !hasSevereText;
+  const isGradeProtected = (item.sf_grade === 'A' || item.fw_grade === 'A') &&
+    (!hasSevereText || explicitHealthyDer);
   const hasExplicitU = Number.isFinite(Number(item.deru_u));
   const u = isGradeProtected
     ? deru.u
