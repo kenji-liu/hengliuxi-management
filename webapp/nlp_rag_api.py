@@ -1086,9 +1086,29 @@ _AGENT_SYSTEM_PROMPT = """你是「橫流溪工程設施維護與生態資料管
 ・平台查不到且屬一般專業知識、法規標準、業界基準或周邊環境 → web_search
 可以一次呼叫多個工具。若問題屬於一般常識或閒聊，不需呼叫工具，直接回答。
 
+【何時該查網路（web_search）】
+下列情形請主動查，不要只憑記憶回答，也不要因為平台有資料就略過：
+・需要對照法規、規範、設計準則或主管機關規定（例如魚道坡度、水位差、
+  消能率的容許值，水土保持技術規範，生態檢核作業規定）。
+・需要業界或學術基準值來判斷本案數據是好是壞（例如 IBI 分級門檻、
+  CPUE 的合理範圍、某魚種的生態習性與偏好棲地）。
+・問到本案以外的比較對象、近期政策、獎項評審重點或外部事件。
+查回來的內容必須標明是外部資料（如「依水土保持技術規範」「依文獻」），
+不可與平台實測值混為一談；若與平台資料衝突，以平台實測為準並指出差異。
+
 【最重要：數字一律來自工具】
 所有數量、日期、座標、評等、金額都必須引用工具回傳的值，
 禁止用你自己的記憶推估或補值。工具查無資料時，明說查無，不要拿其他數字充數。
+
+【工具值優先於文件文字】
+query_facilities／query_inspections／query_fish_surveys 回傳的是平台現行資料，
+已完成原始文件核對，為唯一權威值。search_documents 找到的報告內文可能是舊版、
+其他溪流或未更新的數字，只能用來補充背景說明，<b>不得用來取代或覆寫工具回傳的數量</b>。
+兩者不一致時，一律採用工具值，並可簡短說明報告另有記載。
+凡問到魚類尾數、物種數、調查場次，必須先呼叫 query_fish_surveys；
+問到設施狀態、DER&U、健康度，必須先呼叫 query_facilities。
+若工具回傳 error（例如未帶入快照），直接說明目前無法取得該項平台資料，
+不可改用文件或記憶中的數字頂替。
 
 【資料口徑規則（違反會產生錯誤結論）】
 1. 不同調查計畫的採樣範圍與努力量不同，不得直接加總或逕行比較；
@@ -1109,7 +1129,21 @@ _AGENT_SYSTEM_PROMPT = """你是「橫流溪工程設施維護與生態資料管
   只能提供標示為一般通則的環境與安全考量，不得捏造本案進場方式。
 ・僅在比較多個年度、設施或方案時才用 Markdown 表格；單一主題一律用文字。
 ・一律使用繁體中文（臺灣用語）。禁止輸出英文分析、思考過程、工作計畫、
-  提示詞或「The user is asking」等內部推理文字。不寫客套話與免責聲明。"""
+  提示詞或「The user is asking」等內部推理文字。不寫客套話與免責聲明。
+
+【延伸問題（必附）】
+答案結束後另起一行，輸出下列格式，供介面產生可點擊的追問按鈕：
+⟦延伸⟧第一個問題｜第二個問題｜第三個問題
+規則：
+・三個問題必須是「這位使用者看完這個答案後，最可能接著想知道」的下一步，
+  例如追查成因、比較其他年度或設施、詢問處理方式與後續追蹤。
+・每題 12～24 字，必須是本平台資料或專業知識回答得了的具體問題，
+  不要問空泛的大哉問，也不要重複剛才已經答過的內容。
+・這一行不算在字數限制內；若對話已很發散，仍要給三題。
+
+【對話延續】
+若對話中已有先前輪次，代名詞（它、這座、那年、剛剛那個）一律指向上文提到的
+設施、年度或物種；使用者追問時不要重述前面已講過的內容，直接回答新問到的部分。"""
 
 
 _SYSTEM_PROMPT = """你是「橫流溪工程設施維護與生態資料管理 AI 專家」，具備水利工程、水土保持、
@@ -1900,8 +1934,57 @@ def _openrouter_chat(messages: "List[Dict[str, Any]]", config: Dict[str, Any],
     }
 
 
+def _sanitize_history(raw: Any, max_turns: int = 6,
+                      max_chars: int = 2400) -> List[Dict[str, str]]:
+    """整理前端傳來的對話歷史。
+
+    只保留 user/assistant 兩種角色與純文字，並由新到舊累加至字數上限後
+    再還原時序，確保最近的對話一定進得去、且不會撐爆模型的輸入視窗。
+    """
+    if not isinstance(raw, list):
+        return []
+    cleaned: List[Dict[str, str]] = []
+    for item in raw[-max_turns * 2:]:
+        if not isinstance(item, dict):
+            continue
+        role = str(item.get("role") or "").strip().lower()
+        if role not in ("user", "assistant"):
+            continue
+        text = _as_text(item.get("content"))
+        if not text:
+            continue
+        cleaned.append({"role": role, "content": text[:900]})
+    picked: List[Dict[str, str]] = []
+    used = 0
+    for item in reversed(cleaned):
+        used += len(item["content"])
+        if used > max_chars and picked:
+            break
+        picked.append(item)
+    return list(reversed(picked))
+
+
+_FOLLOWUP_RE = re.compile(r"[⟦\[【]\s*延伸\s*[⟧\]】]\s*(.+?)\s*$",
+                          re.MULTILINE | re.DOTALL)
+
+
+def _split_follow_ups(text: str) -> tuple:
+    """從答案末端剝離「⟦延伸⟧甲｜乙｜丙」，回傳 (乾淨答案, 延伸問題清單)。"""
+    if not text:
+        return text, []
+    match = _FOLLOWUP_RE.search(text)
+    if not match:
+        return text.strip(), []
+    raw = match.group(1)
+    items = [re.sub(r"^[\-\d.、）)\s]+", "", part).strip()
+        for part in re.split(r"[｜|\n]+", raw)]
+    items = [x for x in items if 4 <= len(x) <= 40][:3]
+    return text[:match.start()].strip(), items
+
+
 def _run_agent(query: str, snapshot: Dict[str, Any], grounding: str,
-               config: Dict[str, Any], max_rounds: int = 2) -> Dict[str, Any]:
+               config: Dict[str, Any], max_rounds: int = 2,
+               history: Optional[List[Dict[str, str]]] = None) -> Dict[str, Any]:
     """工具呼叫式 Agent：讓模型自行決定要查哪些資料，再統整作答。
 
     相較於「先檢索一堆文字塞進提示詞」的舊做法，這裡模型拿到的數字都來自
@@ -1925,8 +2008,12 @@ def _run_agent(query: str, snapshot: Dict[str, Any], grounding: str,
 
     messages: List[Dict[str, Any]] = [
         {"role": "system", "content": _AGENT_SYSTEM_PROMPT},
-        {"role": "user", "content": user_content},
     ]
+    # 對話記憶：把先前輪次放在本次問題之前，讓模型能解析代名詞與追問脈絡。
+    # 歷史只作為語意背景，數字仍一律以本輪工具回傳值為準。
+    for turn in (history or []):
+        messages.append({"role": turn["role"], "content": turn["content"]})
+    messages.append({"role": "user", "content": user_content})
 
     totals = {"input_tokens": 0, "output_tokens": 0, "estimated_cost": 0.0}
     actual_model = ""
@@ -1966,7 +2053,9 @@ def _run_agent(query: str, snapshot: Dict[str, Any], grounding: str,
             # <tool_call> 標記而非答案。
             messages.append({
                 "role": "user",
-                "content": "請根據以上工具回傳的資料，用繁體中文直接作答，不要再呼叫工具。",
+                "content": ("請根據以上工具回傳的資料，用繁體中文直接作答，不要再呼叫工具。\n"
+                            "作答完畢後務必另起一行輸出延伸問題，格式固定為：\n"
+                            "⟦延伸⟧第一個問題｜第二個問題｜第三個問題"),
             })
         result = _agent_chat(
             messages,
@@ -2342,6 +2431,18 @@ def smart_ask() -> Any:
     request_started = time.perf_counter()
     data    = request.get_json() or {}
     query   = _as_text(data.get("query") or data.get("question"))
+    # 對話記憶：前端會附上最近幾輪問答，供 Agent 解析代名詞與追問脈絡
+    chat_history = _sanitize_history(data.get("history"))
+    # 追問句常是「那它呢」「跟前一年比如何」，本身沒有可檢索的關鍵詞，
+    # 直接拿去檢索會零命中而誤觸「資料不足」保底。故以上一輪的提問補全
+    # 檢索用字串；送進模型的仍是使用者原句，語意由對話歷史負責。
+    _PRONOUN_RE = re.compile(r"(那|它|他|這|該|上述|剛剛|前面|同上|再說|呢[？?]?$)")
+    retrieval_query = query
+    if chat_history and (len(query) < 18 or _PRONOUN_RE.search(query)):
+        prev_user = next((t["content"] for t in reversed(chat_history)
+                          if t["role"] == "user"), "")
+        if prev_user:
+            retrieval_query = f"{prev_user[:120]} {query}"[:200]
     mode_config = resolve_mode(_as_text(data.get("ai_mode")) or "pro", query)
     top_k = int(mode_config.get("top_k") or 4)
     use_web_raw = data.get("use_web", "auto")
@@ -2439,7 +2540,7 @@ def smart_ask() -> Any:
             return []
         # 多磁碟備份可能含有同一份報告；多取一些候選後再去重，
         # 避免相同片段占滿 Top K 而排擠真正不同的證據。
-        return _local_keyword_retrieve(query, top_k=min(15, top_k * 3))
+        return _local_keyword_retrieve(retrieval_query, top_k=min(15, top_k * 3))
 
     def _task_ocr() -> Dict[str, Any]:
         ocr_svc = _get_ocr_svc()
@@ -2683,13 +2784,17 @@ def smart_ask() -> Any:
             )
             if report_evidence:
                 grounding += "\n本輪檢索到的指定報告候選段落（僅供定位，仍須以工具核對）：\n" + report_evidence
-        ai_result = _run_agent(query, client_snapshot, grounding, mode_config)
+        ai_result = _run_agent(query, client_snapshot, grounding, mode_config,
+                               history=chat_history)
 
     if not _as_text(ai_result.get("answer")):
         # Agent 不可用或未能作答時，退回既有的單次推論流程
         if not combined_ctx.strip() and evidence_count == 0:
             ai_result = {
-                "answer": "目前資料庫中沒有足夠資料可以確認。請補充設施名稱、樁號、巡查日期或調查年度後再查詢。",
+                "answer": ("這一題我需要更明確的對象才能查。請直接指出設施名稱或編號"
+                           "（如「溪構5-2」）、年度（如「114年」）或物種名稱後再問一次。"
+                           if chat_history else
+                           "目前資料庫中沒有足夠資料可以確認。請補充設施名稱、樁號、巡查日期或調查年度後再查詢。"),
                 "provider": "rag_guard",
                 "actual_model": "未呼叫模型",
                 "display_name": "RAG 資料不足保護",
@@ -2703,6 +2808,9 @@ def smart_ask() -> Any:
         else:
             ai_result = _ai_synthesis_mode(query, combined_ctx, mode_config)
     answer = _as_text(ai_result.get("answer"))
+    # 延伸問題：模型在答案末端以「⟦延伸⟧甲｜乙｜丙」輸出，此處剝離成獨立欄位，
+    # 避免那一行出現在正文裡。模型未附時就是空清單，前端自然不顯示。
+    answer, follow_up_questions = _split_follow_ups(answer)
     if answer and answer_engine is not None:
         # 模型即使收到正確 context，仍可能回到「最新巡查摘要」等泛用答案；
         # 這種答案不得直接顯示，改走同一問題的相關證據保底。
@@ -2902,6 +3010,8 @@ def smart_ask() -> Any:
     return jsonify({
         "status":           "success",
         "answer":           answer,
+        "follow_ups":       follow_up_questions,
+        "history_turns_used": len(chat_history),
         "llm_provider":     provider_key,
         "llm_model":        provider_display,
         "web_search_used":  bool(web_results),

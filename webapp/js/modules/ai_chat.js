@@ -2084,6 +2084,54 @@ function buildLocalEnvironmentFallback(query) {
   return null;
 }
 
+// ════════════════════════════════════════════════════════════════════
+//  對話記憶：保留最近數輪問答，隨每次請求送出，讓 AI 能解析
+//  「它／這座／那年」等代名詞並延續脈絡。僅存在於本次瀏覽階段，
+//  不寫入資料庫；清除對話時一併清空。
+// ════════════════════════════════════════════════════════════════════
+const AI_HISTORY_MAX_TURNS = 6;          // 最多 6 則（3 組問答）
+window.aiChatHistory = window.aiChatHistory || [];
+
+function aiHistoryPush(role, content) {
+  const text = String(content || '').trim();
+  if (!text) return;
+  window.aiChatHistory.push({ role, content: text.slice(0, 900) });
+  if (window.aiChatHistory.length > AI_HISTORY_MAX_TURNS) {
+    window.aiChatHistory = window.aiChatHistory.slice(-AI_HISTORY_MAX_TURNS);
+  }
+}
+
+function aiHistoryClear() { window.aiChatHistory = []; }
+
+//  延伸問題：後端已把「⟦延伸⟧甲｜乙｜丙」剝離為 follow_ups 陣列，
+//  這裡渲染成可點擊按鈕，點下即直接送出該問題。
+function renderFollowUps(container, items) {
+  if (!container || !Array.isArray(items) || !items.length) return;
+  const wrap = document.createElement('div');
+  wrap.className = 'ai-followups';
+  wrap.style.cssText = 'margin-top:10px;padding-top:9px;border-top:1px dashed #cbd5e1;'
+                     + 'display:flex;flex-wrap:wrap;gap:6px;align-items:center';
+  const label = document.createElement('span');
+  label.textContent = '接著可以問：';
+  label.style.cssText = 'font-size:11.5px;color:#64748b;font-weight:700';
+  wrap.appendChild(label);
+  items.forEach(q => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = q;
+    btn.style.cssText = 'font-size:12px;border:1px solid #93c5fd;background:#eff6ff;color:#1d4ed8;'
+                      + 'border-radius:99px;padding:4px 11px;cursor:pointer;font-weight:600;line-height:1.5';
+    btn.addEventListener('click', () => {
+      const input = document.getElementById('aiInput');
+      if (!input) return;
+      input.value = q;
+      if (typeof aiSend === 'function') aiSend();
+    });
+    wrap.appendChild(btn);
+  });
+  container.appendChild(wrap);
+}
+
 async function queryRAG(query) {
   const selectedMode = document.getElementById('aiModelMode')?.value || 'pro';
   // 註：此處原本會先呼叫 _buildLiveStatusAnswer()，只要問題同時含「設施/魚道」
@@ -2135,7 +2183,9 @@ async function queryRAG(query) {
           platform_url: "https://hengliuxi-management.onrender.com/webapp/",
           client_platform_context: livePlatformContext,
           // 結構化快照供後端 Agent 的工具查詢（設施／巡查／魚類調查）
-          client_snapshot: structuredSnapshot
+          client_snapshot: structuredSnapshot,
+          // 最近數輪對話，供 Agent 解析追問脈絡（數字仍以工具回傳為準）
+          history: window.aiChatHistory || []
         }),
         signal: ctrl.signal
       });
@@ -2281,6 +2331,7 @@ function buildStructuredSnapshot(query = '') {
 
 function clearAIChat() {
   _chatHistory.length = 0;
+  aiHistoryClear();          // 一併清空送給 AI 的對話記憶，避免殘留舊脈絡
   const log = document.getElementById('aiMessages');
   if (log) log.innerHTML = '<div class="ai-msg bot">對話已清除，可繼續提問。</div>';
 }
@@ -2402,6 +2453,10 @@ async function aiSend() {
     const responseDiv = appendAIMsg(composeAnswer(q, data), "bot", true);
     responseDiv.dataset.confidenceLevel = data?.confidence_level || "unknown";
     responseDiv.dataset.confidenceScore = data?.confidence_score || 0;
+    // 先記問題再記答案，順序即為模型看到的對話順序
+    aiHistoryPush('user', q);
+    aiHistoryPush('assistant', data?.answer || '');
+    renderFollowUps(responseDiv, data?.follow_ups);
     setTimeout(() => attachFeedbackListeners(responseDiv, data), 100);
   } catch (error) {
     typing.remove();
