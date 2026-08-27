@@ -4043,9 +4043,11 @@ function renderFishTrend() {
   //  絕對 CPUE 的年際起伏容易被誤讀為「生態變差」，但即使最低的年度仍遠高於
   //  魚道建置前的水準。改以「建置前基線 = 1.0」為參考框架呈現同一組數據，
   //  可同時保留真實波動與正確的判讀基準，不美化也不掩飾任何數值。
+  const PRE_CONSTRUCT_LAST_YEAR = 2017;   // 民國 106 年；107 年起魚道陸續啟用
   const _preYears = annualEffortMetrics
-    .filter(m => SURVEYS.some(x => Number(x.year) === Number(m.year) && x.preConstruct))
-    .map(m => Number(m.year));
+    .map(m => Number(m.year))
+    .filter(y => y <= PRE_CONSTRUCT_LAST_YEAR);
+  const _preLabel = _preYears.map(y => y - 1911).join('・') + ' 年平均';
   const fishwayBaseline = fw => {
     const cp = fishwayTargetCPUE(fw);
     const vals = annualEffortMetrics
@@ -4057,14 +4059,29 @@ function renderFishTrend() {
     const base = fishwayBaseline(fw);
     return fishwayTargetCPUE(fw).map(v => base ? +(v / base).toFixed(2) : 0);
   };
-  // 各型式在建置後的最低倍數 —— 用於說明「最差的一年仍是建置前的幾倍」
+  // 建置後「型式 × 年度」逐格檢視是否高於基線。不做任何修飾：低於 1.0 的
+  // 組合會被如實計出並在圖說中點名，連同成因一併說明。
   const _postIdx = annualEffortMetrics
     .map((m, i) => _preYears.includes(Number(m.year)) ? -1 : i).filter(i => i >= 0);
-  const fishwayWorstPostMultiple = fw => {
-    const mul = fishwayBaselineMultiple(fw);
-    return Math.min(..._postIdx.map(i => mul[i]).filter(v => v > 0));
-  };
-  const overallWorstMultiple = Math.min(...FISHWAY_TYPES.map(fishwayWorstPostMultiple));
+  const baselineAudit = (() => {
+    let total = 0, above = 0; const below = [];
+    FISHWAY_TYPES.forEach(fw => {
+      const mul = fishwayBaselineMultiple(fw);
+      _postIdx.forEach(i => {
+        total++;
+        if (mul[i] >= 0.995) above++;   // 容差：四捨五入後恰為 1.0 者視為持平
+        else below.push({ type: fw.name, label: annualEffortMetrics[i].label, mul: mul[i],
+                          hasJian: fw.targetKeys.includes('jian') });
+      });
+    });
+    const medianMul = (() => {
+      const all = FISHWAY_TYPES.flatMap(fw => {
+        const mul = fishwayBaselineMultiple(fw); return _postIdx.map(i => mul[i]);
+      }).sort((a, b) => a - b);
+      return all.length ? all[Math.floor(all.length / 2)] : 0;
+    })();
+    return { total, above, below, medianMul };
+  })();
 
   // ── 魚道生態成效實證：受脅魚種 CPUE 與個體基礎稀釋物種數 ──────────────
   //    稀釋法 Hurlbert (1971)，變異數 Heck et al. (1975)；用於在「相同樣本量」
@@ -4137,7 +4154,7 @@ function renderFishTrend() {
       <div style="font-size:18px;font-weight:800;line-height:1.7;margin-bottom:20px;color:#fff">
         已核對資料顯示，橫流溪魚類捕獲量與物種組成相較早期基準已有變化；惟各年度採樣站數、範圍與場次不同，應以<span style="color:#86efac;font-size:20px;font-weight:900">努力量校正指標（尾／次）與同口徑長期追蹤</span>判讀，不將變化直接歸因於單一工程。<br>
         魚道建置前（103～106年）下游固定單站每次捕獲 <span style="color:#fde68a;font-size:20px;font-weight:900">${preDownMean.toFixed(1)}尾</span>；
-        107~108年完成9座魚道後，110年6樣站兩輪合計<span style="color:#fde68a;font-size:20px;font-weight:900">${HLX_FISH_110_SUMMARY.annualTotal}尾</span>（<span style="color:#fde68a;font-size:20px;font-weight:900">${(HLX_FISH_110_SUMMARY.annualTotal / HLX_FISH_110_SUMMARY.stationVisits).toFixed(1)}尾／站訪次</span>）；
+        107~108年完成9座魚道後，110年6樣站兩輪合計<span style="color:#fde68a;font-size:20px;font-weight:900">${HLX_FISH_110_SUMMARY.annualTotal}尾</span>（<span style="color:#fde68a;font-size:20px;font-weight:900">${(HLX_FISH_110_SUMMARY.annualTotal / HLX_FISH_110_SUMMARY.stationVisits).toFixed(1)}尾／次</span>）；
         9座魚道內部四輪調查平均<span style="color:#fde68a;font-size:20px;font-weight:900">${(HLX_IN_FISHWAY_CATCH.total / HLX_IN_FISHWAY_CATCH.surveyRounds).toFixed(1)}尾／輪次</span>（累計${HLX_IN_FISHWAY_CATCH.total}尾、${HLX_IN_FISHWAY_CATCH.species}種，座座有魚；全溪完整名錄8種，未在魚道內捕獲的${HLX_IN_FISHWAY_CATCH.absentSpecies}仍在全溪有穩定紀錄）。
         114年下游同一單站平均 <span style="color:#86efac;font-size:20px;font-weight:900">${latestDownMean.toFixed(1)}尾</span>，
         為建置前基線的 <span style="color:#86efac;font-size:20px;font-weight:900">${(latestDownMean / preDownMean).toFixed(1)}倍</span>；
@@ -4346,7 +4363,7 @@ function renderFishTrend() {
           <i class="fas fa-circle-check" style="margin-right:8px"></i>努力量校正後趨勢（魚道生態效益正確判讀基準）
         </div>
         <div style="font-size:14px;color:#475569;line-height:1.7;margin-bottom:12px">
-          CPUE（單位努力捕獲量＝總捕獲 ÷ 站訪次）排除調查站數差異，與物種數同為國際通用的河川魚類監測指標；
+          CPUE（單位努力捕獲量＝總捕獲 ÷ 站次）排除調查站數差異，與物種數同為國際通用的河川魚類監測指標；
           圖中保留年度實測波動，另以同色虛線疊加3點移動平均趨勢，自然呈現族群長期上爬曲線；不改寫任何原始捕獲數據。
         </div>
         <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#fff;border:1px solid #86efac;border-radius:12px;padding:12px 16px;margin-bottom:18px;color:#166534">
@@ -4430,7 +4447,7 @@ function renderFishTrend() {
           <div style="font-size:20px;font-weight:900;color:#0f172a">魚道生態成效實證</div>
         </div>
         <div style="font-size:14px;color:#475569;line-height:1.75;margin-bottom:18px">
-          以下四項指標<b>不受各年站訪次差異影響</b>，可直接跨年度與跨溪流比較。
+          以下四項指標<b>不受各年站次差異影響</b>，可直接跨年度與跨溪流比較。
           鄰溪對照與魚道內捕獲為《110年魚道及生態廊道成效追蹤》之報告實測值；
           受脅魚種 CPUE 與稀釋物種數由本平台歷年序列即時計算。
         </div>
@@ -4583,7 +4600,7 @@ function renderFishTrend() {
             </div>
             <div style="font-size:13px;color:#64748b;line-height:1.7;margin-bottom:12px">
               把各年統一抽樣至 ${RAREFY_N} 尾後的期望物種數（Hurlbert 個體基礎稀釋）。<b>這是取代「年度出現種數」的正確版本</b> ——
-              原始物種數會隨調查次數單調上升，本指標則完全排除站訪次差異。捕獲量不足 ${RAREFY_N} 尾的年度不列。
+              原始物種數會隨調查次數單調上升，本指標則完全排除站次差異。捕獲量不足 ${RAREFY_N} 尾的年度不列。
             </div>
             <div style="position:relative;height:250px"><canvas id="fishRarefiedChart"></canvas></div>
             ${bestRarefied ? `<div style="font-size:12.5px;color:#0d6b5b;font-weight:800;margin-top:10px">
@@ -4621,11 +4638,24 @@ function renderFishTrend() {
                 實線為年度實測、虛線為 3 點移動平均。滑過任一點可看該年的實測尾／次與原始捕獲數。
               </div>
               <div style="margin-top:10px;border-left:3px solid #0d6b5b;background:#f0f7f5;border-radius:0 8px 8px 0;padding:11px 14px;font-size:13px;color:#0f172a;line-height:1.75">
-                <b>怎麼看這張圖：</b>橘色橫線是魚道建置前的水準。
-                <b style="color:#0d6b5b">建置後每一年、每一種型式的曲線都在這條線之上</b> ——
-                即使表現最低的年度，仍是建置前的 <b style="color:#0d6b5b">${overallWorstMultiple.toFixed(1)} 倍</b>。
+                <b>怎麼看這張圖：</b>橘色橫線是魚道建置前的水準（${_preLabel}）。
+                建置後共 ${baselineAudit.total} 個「型式 × 年度」組合，其中
+                <b style="color:#0d6b5b">${baselineAudit.above} 個高於基線</b>，中位數為基線的
+                <b style="color:#0d6b5b">${baselineAudit.medianMul.toFixed(1)} 倍</b>。
                 年際起伏來自豐枯水、季節、樣站配置與河道施工擾動，屬溪流生態的正常波動，
-                <b>不代表生態品質下降</b>；判斷長期方向請看虛線趨勢與是否跌破基線。
+                單一年度的高低不足以判定生態品質；請看虛線趨勢與是否長期跌破基線。
+                ${baselineAudit.below.length ? `
+                <div style="margin-top:8px;padding-top:8px;border-top:1px dashed #cfe3de">
+                  <b>如實揭露：</b>${baselineAudit.below.map(b => `${b.label}的${b.type}（${b.mul.toFixed(2)} 倍）`).join('、')}
+                  低於基線。${baselineAudit.below.every(b => b.hasJian) ? `
+                  這${baselineAudit.below.length === 1 ? '一' : baselineAudit.below.length === 2 ? '兩' : baselineAudit.below.length}種型式的關聯魚種都含<b>臺灣間爬岩鰍</b>，
+                  而該種在 109 年全年零檢出，致其關聯指標同步下探；
+                  <b style="color:#0d6b5b">110 年隨即回升至 32 尾</b>，之後 112 年 41 尾、114 年 13 尾持續有紀錄。
+                  不含間爬岩鰍的其餘 ${FISHWAY_TYPES.length - new Set(baselineAudit.below.map(b => b.type)).size} 種型式，
+                  建置後<b>每一年都在基線之上</b>。` : `
+                  低於基線的年度集中在 109 年，該年臺灣間爬岩鰍全年零檢出，
+                  <b style="color:#0d6b5b">110 年隨即回升至 32 尾</b>，之後 112 年 41 尾、114 年 13 尾持續有紀錄。`}
+                </div>` : ''}
               </div>
               <div style="margin-top:10px;border-left:3px solid #b45309;background:#fffbeb;border-radius:0 8px 8px 0;padding:10px 13px;font-size:12.5px;color:#78350f;line-height:1.7">
                 <b>判讀限制：</b>本圖以<b>全溪</b>關聯魚種捕獲量 ÷ 全年站次計算，<b>不是在該座魚道量測</b>，無法歸因到單一設施。
