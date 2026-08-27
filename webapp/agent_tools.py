@@ -248,6 +248,29 @@ def _classify_status(item: Dict[str, Any]) -> str:
     return status or "正常"
 
 
+def _health_score(item: Dict[str, Any]) -> Optional[int]:
+    """Return health, never confuse the stored riskScore with health."""
+    der_level = str(item.get("derLevel") or "").strip().upper()
+    value = item.get("healthScore")
+    if value is None:
+        value = item.get("health_score")
+    if value is None and item.get("riskScore") is not None:
+        try:
+            value = 100 - float(item.get("riskScore"))
+        except (TypeError, ValueError):
+            value = None
+    try:
+        score = int(round(float(value))) if value is not None else None
+    except (TypeError, ValueError):
+        score = None
+    if score is None:
+        return None
+    # A1/A* means a healthy functional grade; stale riskScore must not contradict it.
+    if der_level.startswith("A"):
+        score = max(90, score)
+    return max(0, min(100, score))
+
+
 def query_facilities(snapshot: Dict[str, Any], name: str = "", facility_type: str = "",
                      status: str = "", min_urgency: int = 0) -> Dict[str, Any]:
     rows = list(snapshot.get("facilities") or [])
@@ -267,13 +290,15 @@ def query_facilities(snapshot: Dict[str, Any], name: str = "", facility_type: st
         urgency = _urgency(item)
         if min_urgency and urgency < min_urgency:
             continue
+        health = _health_score(item)
         out.append({
             "名稱": item.get("name"),
             "類別": item.get("type"),
             "樁號": item.get("stationKm"),
             "狀態": current,
             "DER&U": item.get("derLevel"),
-            "健康分數": item.get("riskScore") or item.get("healthScore"),
+            "健康分數": health,
+            "風險分數": (100 - health) if health is not None else item.get("riskScore"),
             "維護策略": item.get("maintenanceStrategy"),
             "最近評估": item.get("assessmentDate") or item.get("lastInspect"),
             "判斷依據": item.get("judgement_basis") or item.get("evaluationNotes"),

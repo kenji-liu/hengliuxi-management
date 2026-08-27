@@ -573,17 +573,20 @@ function buildDynamicContext(query) {
     // 特定設施命中時，在 context 最前方插入醒目的現況摘要（讓 Groq 優先看到）
     if (facMatches.length > 0) {
       const f0 = facMatches[0];
-      const healthVal = typeof fac_health === 'function' ? fac_health(f0) : (f0.healthScore ?? Math.round((f0.condition || 0) * 20));
+      const latestAssessment = typeof fac_latestProfessionalAssessment === 'function'
+        ? fac_latestProfessionalAssessment(f0) : null;
+      const healthVal = latestAssessment?.health ?? (typeof fac_health === 'function'
+        ? fac_health(f0) : (f0.healthScore ?? Math.max(0, 100 - Number(f0.riskScore || 0))));
       const facInsp = inspections.filter(r => String(r.facilityId || r.facility_id || '') === String(f0.id));
       const openCnt = facInsp.filter(r => r.status !== '完成').length;
       const summaryLines = [
         `【★ 設施現況 ★】資料庫確有此設施記錄，請直接引用以下數值：`,
         `名稱：${f0.name}　類型：${f0.type || '-'}${f0.subType ? '/' + f0.subType : ''}`,
-        `目前狀態：${f0.status || '未知'}　健康指數：${healthVal}%　未結案件：${openCnt} 件`,
-        f0.derLevel ? `DER&U等級：${f0.derLevel}　風險分數：${f0.riskScore || '-'}` : '',
-        f0.maintenanceStrategy ? `維護策略：${f0.maintenanceStrategy}` : '',
-        f0.judgement_basis ? `異常判斷依據：${String(f0.judgement_basis).slice(0, 150)}` : '',
-        `巡查紀錄：共 ${facInsp.length} 筆　最近巡查日期：${f0.lastInspect || '無記錄'}`,
+        `目前狀態：${latestAssessment?.status || f0.status || '未知'}　健康指數：${healthVal}%　未結案件：${openCnt} 件`,
+        (latestAssessment?.derLevel || f0.derLevel) ? `DER&U等級：${latestAssessment?.derLevel || f0.derLevel}　風險分數：${Math.max(0, 100 - Number(healthVal || 0))}` : '',
+        (latestAssessment?.strategy || f0.maintenanceStrategy) ? `維護策略：${latestAssessment?.strategy || f0.maintenanceStrategy}` : '',
+        (latestAssessment?.basis || f0.judgement_basis) ? `最新判斷依據：${String(latestAssessment?.basis || f0.judgement_basis).slice(0, 180)}` : '',
+        `巡查紀錄：共 ${facInsp.length} 筆　最近評估日期：${latestAssessment?.assessmentDate || f0.lastInspect || '無記錄'}`,
         f0.year ? `建造年：${f0.year}　材料：${f0.material || '-'}` : '',
         f0.stationKm ? `里程：${f0.stationKm}` : '',
       ].filter(Boolean).join('\n');
@@ -591,21 +594,23 @@ function buildDynamicContext(query) {
     }
 
     facMatches.slice(0, 4).forEach(f => {
-      const healthVal = typeof fac_health === 'function' ? fac_health(f) : (f.healthScore ?? Math.round((f.condition || 0) * 20));
+      const assessment = typeof fac_latestProfessionalAssessment === 'function'
+        ? fac_latestProfessionalAssessment(f) : null;
+      const healthVal = assessment?.health ?? (typeof fac_health === 'function'
+        ? fac_health(f) : (f.healthScore ?? Math.max(0, 100 - Number(f.riskScore || 0))));
       const hp = healthVal !== undefined && healthVal !== null ? `健康指數 ${healthVal}%` : '';
-      const deruStr = f.derLevel ? `DER&U等級 ${f.derLevel}` : '';
-      const riskStr = f.riskScore ? `風險分數 ${f.riskScore}` : '';
-      const noteStr = f.evaluationNotes ? `評估備註：${f.evaluationNotes}` : '';
-      const inspDate = f.lastInspect ? `最近巡查：${f.lastInspect}` : '未巡查';
-      const strategy = f.maintenanceStrategy ? `維護策略：${f.maintenanceStrategy}` : '';
+      const deruStr = (assessment?.derLevel || f.derLevel) ? `DER&U等級 ${assessment?.derLevel || f.derLevel}` : '';
+      const riskStr = `風險分數 ${Math.max(0, 100 - Number(healthVal || 0))}`;
+      const noteStr = (assessment?.basis || f.evaluationNotes) ? `最新判斷依據：${assessment?.basis || f.evaluationNotes}` : '';
+      const inspDate = assessment?.assessmentDate || f.lastInspect ? `最近評估：${assessment?.assessmentDate || f.lastInspect}` : '未巡查';
+      const strategy = assessment?.strategy || f.maintenanceStrategy ? `維護策略：${assessment?.strategy || f.maintenanceStrategy}` : '';
       parts.push([
         `【設施】${f.name}（${f.type||''}${f.subType?'/'+f.subType:''}，代號${f.code||'-'}）`,
         `位置：${f.stationKm||f.location||'-'}，TWD97(${f.twd97x||'-'},${f.twd97y||'-'})`,
-        `狀態：${f.status||'未知'}，${hp}，${deruStr}，${riskStr}`,
+        `狀態：${assessment?.status || f.status||'未知'}，${hp}，${deruStr}，${riskStr}`,
         `材料：${f.material||'-'}，建造年：${f.year||'-'}`,
         `${inspDate}，${strategy}`,
         noteStr,
-        f.judgement_basis ? `判斷依據：${f.judgement_basis}` : '',
         f.note ? `備註：${f.note}` : ''
       ].filter(Boolean).join('\n  '));
     });
@@ -2215,11 +2220,13 @@ function buildStructuredSnapshot(query = '') {
         stationKm: f.stationKm,
         status: a?.status || f.status || '',
         derLevel: a?.derLevel || f.derLevel || '',
+        healthScore: a?.health ?? (typeof fac_health === 'function'
+          ? fac_health(f) : Math.max(0, 100 - Number(f.riskScore || 0))),
         deru_u: Number(a?.deru?.u || f.deru_u || 0),
         riskScore: f.riskScore,
         maintenanceStrategy: a?.strategy || f.maintenanceStrategy || '',
         assessmentDate: a?.assessmentDate || f.assessmentDate || f.lastInspect || '',
-        judgement_basis: f.judgement_basis || f.evaluationNotes || ''
+        judgement_basis: a?.basis || f.judgement_basis || f.evaluationNotes || ''
       };
     });
 
