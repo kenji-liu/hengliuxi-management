@@ -1976,10 +1976,17 @@ def _split_follow_ups(text: str) -> tuple:
     if not match:
         return text.strip(), []
     raw = match.group(1)
-    items = [re.sub(r"^[\-\d.、）)\s]+", "", part).strip()
-        for part in re.split(r"[｜|\n]+", raw)]
-    items = [x for x in items if 4 <= len(x) <= 40][:3]
-    return text[:match.start()].strip(), items
+    items = []
+    for part in re.split(r"[｜|\n]+", raw):
+        # 只剝真正的條列標記（「1.」「1、」「- 」），保留開頭的年份數字
+        item = re.sub(r"^[\s\-•‧・]*(?:\d{1,2}[.、)）]\s*)?", "", part)
+        item = item.strip(" 　？?。.，,）)】]")
+        if item:
+            items.append(item + "？")
+    # 過短多半是被 max_tokens 截斷的殘句，寧可不顯示也不要給半句話
+    items = [x for x in items if 8 <= len(x) <= 42][:3]
+    # 只剩一則時通常代表整段被截斷，此時不如不顯示
+    return text[:match.start()].strip(), (items if len(items) >= 2 else [])
 
 
 def _run_agent(query: str, snapshot: Dict[str, Any], grounding: str,
@@ -2039,7 +2046,7 @@ def _run_agent(query: str, snapshot: Dict[str, Any], grounding: str,
     # 否則會出現句子講到一半被截斷的情形。
     # 統整輸入較大（含工具結果），逾時需比路由輪寬鬆，否則慢速模型會讀取逾時。
     answer_config = dict(config)
-    answer_config["max_tokens"] = max(int(config.get("max_tokens") or 800), 1000)
+    answer_config["max_tokens"] = max(int(config.get("max_tokens") or 800), 1200)
     answer_config["timeout"] = max(float(config.get("timeout") or 28), 60.0)
     answer_config["go_model"] = (os.environ.get("OPENCODE_GO_MODEL", "").strip()
                                  or "minimax-m3")
@@ -2762,13 +2769,25 @@ def smart_ask() -> Any:
     # Agent 由模型自行決定要查哪些資料，因此不可在工具執行前依 evidence_count
     # 判斷「資料不足」——那個判斷屬於舊的「先檢索再作答」流程。
     ai_result: Dict[str, Any] = {}
-    if agent_tools is not None and client_snapshot:
+    # 不再要求前端必須送 client_snapshot。工具層會以 webapp/data/agent_baseline.json
+    # 補齊缺漏的鍵，因此直接呼叫 API 或前端 DB 尚未初始化時，Agent 仍取得到
+    # 權威數值；沒有這道保障時，模型會改去文件裡找數字而答錯。
+    if agent_tools is not None:
+        effective_snapshot = agent_tools.merge_snapshot(client_snapshot)
         page_info = (client_snapshot.get("page") or {}) if client_snapshot else {}
-        counts = (client_snapshot.get("counts") or {}) if client_snapshot else {}
+        counts = dict((client_snapshot.get("counts") or {}) if client_snapshot else {})
+        for key, field in (("facilities", "facilities"),
+                           ("inspections", "inspections"),
+                           ("fishSurveys", "fishSurveys")):
+            if not counts.get(key):
+                counts[key] = len(effective_snapshot.get(field) or [])
+        snapshot_origin = effective_snapshot.get("_snapshotSources") or {}
         grounding = (f"使用者目前所在頁面：{_as_text(page_info.get('section')) or '未標示'}。"
                      f"平台現有設施 {counts.get('facilities', '?')} 座、"
                      f"巡查紀錄 {counts.get('inspections', '?')} 筆、"
                      f"魚類調查 {counts.get('fishSurveys', '?')} 場次。")
+        if "baseline" in snapshot_origin.values():
+            grounding += "（部分資料取自伺服器端基準檔，與平台前端同源。）"
         if environment_ctx:
             grounding += (
                 "\n系統已判定本題缺少本案直接環境／進場資料；以下脈絡只屬一般通則，"
@@ -2784,7 +2803,7 @@ def smart_ask() -> Any:
             )
             if report_evidence:
                 grounding += "\n本輪檢索到的指定報告候選段落（僅供定位，仍須以工具核對）：\n" + report_evidence
-        ai_result = _run_agent(query, client_snapshot, grounding, mode_config,
+        ai_result = _run_agent(query, effective_snapshot, grounding, mode_config,
                                history=chat_history)
 
     if not _as_text(ai_result.get("answer")):

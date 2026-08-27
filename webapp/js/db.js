@@ -338,7 +338,7 @@ const DB = {
           year: 105, status: '正常', material: '混凝土', length: 18, width: 1.0, condition: 3, lastInspect: '2025-06-15', source: '107-108成果報告 / 114年田野巡查',
           derLevel: 'B1', assessmentDate: '2025-06-15', riskScore: 25, maintenanceStrategy: '定期式', retirementEligible: false, evaluationNotes: '113年崩塌土石清理工程完成後恢復通行功能；114年全溪電捕潛越式 CPUE 達97尾/站訪次（7型式最高），明潭吻鰕虎電捕佔比最高，通行效能確認',
           river_segment: '橫流溪中游', anomaly_type: null, anomaly_level: '正常', maintenance_priority: '低',
-          judgement_basis: '113年清淤工程後入口暢通；110年魚道電捕17尾（溪構5-2佔全段最高），114年 CPUE 97（全型式最高）；通行效能恢復並超越清淤前水準，定期巡查即可',
+          judgement_basis: '113年清淤工程後入口暢通；水理檢核三項均合格（水位差0.2m／消能率246W/m³／越流流速1.12m/s）。110年成效追蹤表5-19魚道內電捕4尾，為9座最低，成因為入流量僅0.15cms（滿流魚道0.60的1/4，報告載「部分水流溢流，河道的水位未全部進入魚道」）且內寬僅1.05m、單池約0.9m³；屬進水口分流的維護課題，非結構失效，列為清淤與導流追蹤重點',
           note: '潛越式魚道（溪構5-2），1K+000節點；113年崩塌土石清理後入口恢復暢通；明潭吻鰕虎偏好此型式低流速潛越區，為保育旗艦種主要通道；定期巡查維持入口斷面即可',
           photos: ['/webapp/assets/report-photos/manual-p38-05-665x498.jpg', '/02_魚類與棲地資料庫/解說牌/潛越式魚道_0.png'] },
 

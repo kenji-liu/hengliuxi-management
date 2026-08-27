@@ -25,6 +25,95 @@ logger = logging.getLogger(__name__)
 
 _DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 
+# ════════════════════════════════════════════════════════════════════════════
+#  基準快照：讓 Agent 不依賴瀏覽器也能取得權威數值
+# ════════════════════════════════════════════════════════════════════════════
+#  工具原本只吃前端送來的 client_snapshot。若請求沒帶快照（直接呼叫 API、
+#  前端 DB 尚未初始化、行動裝置快取失效），工具會回「未帶入快照」，模型便改去
+#  文件裡找數字 —— 實測會答出不存在的魚種與錯誤尾數。
+#
+#  webapp/data/agent_baseline.json 由 scripts/export_agent_baseline.js 自
+#  webapp/js/db.js 與 webapp/js/modules/fish.js 匯出，是同一份唯一真實來源。
+#  合併規則：前端有送且非空的鍵以前端為準（設施狀態等即時資料較新），
+#  其餘由基準值補齊。兩者都沒有時才回報查無。
+_BASELINE_PATH = os.path.join(_DATA_DIR, "agent_baseline.json")
+_BASELINE_CACHE: Dict[str, Any] = {}
+_BASELINE_MTIME: float = 0.0
+
+
+def load_baseline() -> Dict[str, Any]:
+    """讀取基準快照，依檔案 mtime 自動重載，避免改資料後還吃到舊快取。"""
+    global _BASELINE_CACHE, _BASELINE_MTIME
+    try:
+        mtime = os.path.getmtime(_BASELINE_PATH)
+    except OSError:
+        return {}
+    if _BASELINE_CACHE and mtime == _BASELINE_MTIME:
+        return _BASELINE_CACHE
+    try:
+        with open(_BASELINE_PATH, encoding="utf-8") as f:
+            _BASELINE_CACHE = json.load(f) or {}
+        _BASELINE_MTIME = mtime
+        logging.getLogger(__name__).info(
+            "已載入 Agent 基準快照：設施 %s 座、魚類 %s 場次",
+            (_BASELINE_CACHE.get("counts") or {}).get("facilities"),
+            (_BASELINE_CACHE.get("counts") or {}).get("fishSurveys"))
+    except Exception as exc:                      # noqa: BLE001
+        logging.getLogger(__name__).warning("基準快照載入失敗：%s", exc)
+        _BASELINE_CACHE = {}
+    return _BASELINE_CACHE
+
+
+#  可由基準值補齊的鍵。inspections 另有 synced_inspections.json，於下方單獨處理。
+_BASELINE_KEYS = ("facilities", "fishSurveys", "fishKeyNames", "fishAnnualData",
+                  "fishDataAudit", "ecoBenchmark", "inFishwayCatch", "summary110")
+
+
+def _load_synced_inspections() -> List[Dict[str, Any]]:
+    """巡查紀錄的伺服器端來源（前端未送快照時使用）。"""
+    try:
+        with open(os.path.join(_DATA_DIR, "synced_inspections.json"), encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception:                             # noqa: BLE001
+        return []
+    if isinstance(data, dict):
+        for key in ("inspections", "records", "data", "items"):
+            if isinstance(data.get(key), list):
+                return data[key]
+        return []
+    return data if isinstance(data, list) else []
+
+
+def merge_snapshot(snapshot: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """把前端快照疊在基準值之上，回傳工具實際使用的快照。
+
+    前端送來的鍵只要有內容就優先採用（即時性較高）；空的或沒送的才用基準值。
+    另附 _snapshotSources 供除錯與 /api/ai-check 檢視每個鍵的來源。
+    """
+    merged: Dict[str, Any] = dict(snapshot or {})
+    sources: Dict[str, str] = {}
+    baseline = load_baseline()
+
+    for key in _BASELINE_KEYS:
+        if merged.get(key):
+            sources[key] = "client"
+        elif baseline.get(key):
+            merged[key] = baseline[key]
+            sources[key] = "baseline"
+
+    if merged.get("inspections"):
+        sources["inspections"] = "client"
+    else:
+        rows = _load_synced_inspections()
+        if rows:
+            merged["inspections"] = rows
+            sources["inspections"] = "synced_file"
+
+    merged["_snapshotSources"] = sources
+    return merged
+
+
+
 # 單一工具回傳的 JSON 上限，避免把 context 撐爆
 MAX_TOOL_RESULT_CHARS = 4000
 
@@ -601,6 +690,8 @@ def execute_tool(name: str, arguments: Dict[str, Any], snapshot: Dict[str, Any],
     而不是整個問答失敗。
     """
     args = arguments if isinstance(arguments, dict) else {}
+    # 前端沒送到的鍵在此以伺服器端基準值補齊，工具因此不再依賴瀏覽器。
+    snapshot = merge_snapshot(snapshot)
     try:
         if name == "query_facilities":
             result = query_facilities(
