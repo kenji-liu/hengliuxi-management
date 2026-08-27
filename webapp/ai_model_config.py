@@ -18,31 +18,35 @@ MODE_LABELS = {
 
 # OpenCode Go 目前確認可用的穩定模型。三種 UI 模式保留不同輸出限制，
 # 但共用同一個 Go 模型，避免每次問答在多個已失效供應商之間重試。
-_GO_MODEL = "minimax-m3"
+_FAST_MODEL = "minimax-m3"
+_QUALITY_MODEL = "grok-4.6"
 
 _DEFAULTS: Dict[str, Dict[str, Any]] = {
     "fast": {
-        "model": _GO_MODEL,
+        "model": _FAST_MODEL,
+        "provider": "opencode_go",
         "fallback_model": "",
-        "go_model": _GO_MODEL,
+        "go_model": _FAST_MODEL,
         "temperature": 0.20,
         "max_tokens": 500,
         "top_k": 3,
         "timeout": 18,
     },
     "pro": {
-        "model": _GO_MODEL,
+        "model": _QUALITY_MODEL,
+        "provider": "xai",
         "fallback_model": "",
-        "go_model": _GO_MODEL,
+        "go_model": _QUALITY_MODEL,
         "temperature": 0.20,
         "max_tokens": 800,
         "top_k": 4,
         "timeout": 28,
     },
     "deep": {
-        "model": _GO_MODEL,
+        "model": _QUALITY_MODEL,
+        "provider": "xai",
         "fallback_model": "",
-        "go_model": _GO_MODEL,
+        "go_model": _QUALITY_MODEL,
         "temperature": 0.15,
         "max_tokens": 1500,
         "top_k": 5,
@@ -72,6 +76,9 @@ def get_model_config(mode: str) -> Dict[str, Any]:
         "mode": normalized,
         "label": MODE_LABELS[normalized],
         "model": os.environ.get(f"AI_MODEL_{prefix}", config["model"]).strip(),
+        "provider": os.environ.get(
+            f"AI_PROVIDER_{prefix}", config.get("provider", "opencode_go")
+        ).strip().lower(),
         "fallback_model": os.environ.get(
             f"AI_MODEL_{prefix}_FALLBACK", config["fallback_model"]
         ).strip(),

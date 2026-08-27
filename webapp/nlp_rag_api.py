@@ -1743,12 +1743,22 @@ ZEN_FREE_MODELS = [
 # OpenCode Go：訂閱制模型方案。Go 使用獨立端點與 Go API key，
 # 模型 ID 不使用 OpenRouter 的 provider 前綴。
 GO_ENDPOINT = "https://opencode.ai/zen/go/v1/chat/completions"
+XAI_ENDPOINT = "https://api.x.ai/v1/chat/completions"
 
 
 def _opencode_go_key() -> str:
     """Read the Go key without exposing it; keep the old name as a migration alias."""
     return (os.environ.get("OPENCODE_GO_API_KEY") or
             os.environ.get("OPENCODE_ZEN_API_KEY") or "").strip()
+
+
+def _xai_key() -> str:
+    return os.environ.get("XAI_API_KEY", "").strip()
+
+
+def _quality_key_ready() -> bool:
+    """Grok may use the direct xAI key or the existing OpenRouter key."""
+    return bool(_xai_key() or os.environ.get("OPENROUTER_API_KEY", "").strip())
 
 
 def _zen_chat(messages: "List[Dict[str, Any]]", config: Dict[str, Any],
@@ -1811,9 +1821,67 @@ def _zen_chat(messages: "List[Dict[str, Any]]", config: Dict[str, Any],
     }
 
 
+def _xai_chat(messages: "List[Dict[str, Any]]", config: Dict[str, Any],
+              tools: "Optional[List[Dict[str, Any]]]" = None) -> Dict[str, Any]:
+    """xAI OpenAI-compatible chat endpoint for quality modes."""
+    import urllib.request, urllib.error, json as _json
+    key = _xai_key()
+    if not key:
+        return {"error_type": "xai_key_not_set"}
+    model = (_as_text(config.get("model")) or "grok-4.6")
+    payload: Dict[str, Any] = {
+        "model": model,
+        "messages": messages,
+        "temperature": float(config.get("temperature") or 0.2),
+        "max_tokens": int(config.get("max_tokens") or 800),
+    }
+    reasoning_effort = os.environ.get("XAI_REASONING_EFFORT", "").strip()
+    if reasoning_effort:
+        payload["reasoning_effort"] = reasoning_effort
+    if tools:
+        payload["tools"] = tools
+        payload["tool_choice"] = "auto"
+    started = time.perf_counter()
+    req = urllib.request.Request(
+        XAI_ENDPOINT, data=_json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json", "Authorization": f"Bearer {key}"},
+        method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=float(config.get("timeout") or 60)) as response:
+            result = _json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        body = exc.read()[:300].decode("utf-8", "replace")
+        logging.getLogger(__name__).warning("[XAI] HTTP %s: %s", exc.code, body)
+        return {"error_type": f"xai_http_{exc.code}", "detail": body}
+    except Exception as exc:
+        logging.getLogger(__name__).warning("[XAI] %s: %s", type(exc).__name__, exc)
+        return {"error_type": f"xai_{type(exc).__name__}"}
+    choice = (result.get("choices") or [{}])[0]
+    usage = dict(result.get("usage") or {})
+    return {
+        "message": choice.get("message") or {},
+        "actual_model": _as_text(result.get("model")) or model,
+        "provider": "xai",
+        "input_tokens": int(usage.get("prompt_tokens") or 0),
+        "output_tokens": int(usage.get("completion_tokens") or 0),
+        "estimated_cost": 0.0,
+        "response_time": round(time.perf_counter() - started, 3),
+        "models": [model],
+    }
+
+
 def _agent_chat(messages: "List[Dict[str, Any]]", config: Dict[str, Any],
                 tools: "Optional[List[Dict[str, Any]]]" = None) -> Dict[str, Any]:
     """Agent 專用的唯一雲端模型路由：OpenCode Go。"""
+    if config.get("provider") == "xai":
+        if _xai_key():
+            return _xai_chat(messages, config, tools=tools)
+        # Keep compatibility with the existing Grok/OpenRouter deployment.
+        if os.environ.get("OPENROUTER_API_KEY", "").strip():
+            gateway_config = dict(config)
+            gateway_config["model"] = gateway_config.get("model") or "x-ai/grok-4.6"
+            return _openrouter_chat(messages, gateway_config, tools=tools)
+        return {"error_type": "quality_key_not_set"}
     if not _opencode_go_key():
         return {"error_type": "opencode_go_key_not_set"}
     go_model = (_as_text(config.get("go_model")) or
@@ -1945,8 +2013,9 @@ def _run_agent(query: str, snapshot: Dict[str, Any], grounding: str,
     router_config["zen_model"] = (os.environ.get("ZEN_ROUTER_MODEL", "").strip()
                                   or "nemotron-3.5-lightning-free")
     router_config["go_model"] = (os.environ.get("OPENCODE_GO_ROUTER_MODEL", "").strip()
-                                 or os.environ.get("OPENCODE_GO_MODEL", "").strip()
-                                 or "minimax-m3")
+                                  or os.environ.get("OPENCODE_GO_MODEL", "").strip()
+                                  or "minimax-m3")
+    router_config["provider"] = "opencode_go"
 
     # 最後一輪要把多個工具結果統整成完整答案，輸出空間需比單次問答寬裕，
     # 否則會出現句子講到一半被截斷的情形。
@@ -2050,7 +2119,7 @@ def _run_agent(query: str, snapshot: Dict[str, Any], grounding: str,
 def _ai_synthesis_mode(query: str, combined_ctx: str, config: Dict[str, Any]) -> Dict[str, Any]:
     """Use the selected OpenCode Go model without cross-provider retries."""
     started = time.perf_counter()
-    if not _opencode_go_key():
+    if not (_quality_key_ready() if config.get("provider") == "xai" else _opencode_go_key()):
         return {"answer": "", "provider": "opencode_go",
                 "error_type": "opencode_go_key_not_set",
                 "response_time": round(time.perf_counter() - started, 3)}
@@ -2093,6 +2162,9 @@ def ai_model_config_public() -> Any:
         "provider": "opencode_go",
         "provider_label": "OpenCode Go",
         "opencode_go_ready": go_key_ready,
+        "xai_ready": bool(_xai_key()),
+        "quality_provider": os.environ.get("AI_PROVIDER_PRO", "xai"),
+        "quality_model": os.environ.get("AI_MODEL_PRO", "grok-4.6"),
         "opencode_go_model": os.environ.get("OPENCODE_GO_MODEL", "minimax-m3"),
         "opencode_go_vision_model": os.environ.get(
             "OPENCODE_GO_VISION_MODEL", "deepseek-v4-flash-vision-exp"
@@ -3106,7 +3178,7 @@ def photo_assess():
 
 @nlp_rag.route("/ai-check", methods=["GET"])
 def ai_check():
-    """快速診斷端點：只測試平台目前啟用的 OpenCode Go。"""
+    """快速診斷端點：測試快速與高品質模型路由。"""
     import os, urllib.request, urllib.error, json as _json, logging
     _log = logging.getLogger(__name__)
     results = {}
@@ -3136,6 +3208,24 @@ def ai_check():
             results["opencode_go"] = f"✗ {type(e).__name__}: {e}"
     else:
         results["opencode_go"] = "✗ key not set（請在 Render 設定 OPENCODE_GO_API_KEY）"
+
+    if _xai_key():
+        try:
+            probe = _xai_chat(
+                [{"role": "user", "content": "請只回答：OK"}],
+                {"model": os.environ.get("AI_MODEL_PRO", "grok-4.6"),
+                 "max_tokens": 20, "timeout": 20},
+            )
+            results["grok_quality"] = (
+                f"✓ OK ({probe.get('actual_model') or os.environ.get('AI_MODEL_PRO', 'grok-4.6')})"
+                if not probe.get("error_type") else f"✗ {probe.get('error_type')}"
+            )
+        except Exception as exc:
+            results["grok_quality"] = f"✗ {type(exc).__name__}: {exc}"
+    elif os.environ.get("OPENROUTER_API_KEY", "").strip():
+        results["grok_quality"] = "✓ gateway ready (OpenRouter / x-ai/grok-4.6)"
+    else:
+        results["grok_quality"] = "✗ key not set（請設定 XAI_API_KEY 或 OPENROUTER_API_KEY）"
 
     vision_model = os.environ.get(
         "OPENCODE_GO_VISION_MODEL", "deepseek-v4-flash-vision-exp"
