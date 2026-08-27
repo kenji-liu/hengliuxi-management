@@ -6452,6 +6452,19 @@ function saveGeneralPeriodicForm(id) {
 const SF_VISUAL = ['良好','裂縫','磨蝕','淘空','傾倒','沉陷','錯動變形','位移','填土(石)流失','腐朽','火害','外框斷裂','植生覆蓋不良'];
 const SF_DAMAGE_REASONS = ['設計因素','施工因素','材料因素','材料強度因素','水流因素','排水因素','土壓力因素','構造物銜接因素','地質因素','河溪因素','地形因素'];
 const SF_GRADES = ['A','B1','B2','B3','C1','C2','C3','C4','C5'];
+
+/* 編輯既有紀錄時的預設等級。
+   舊資料沒有 sf_grade 欄位，若一律預設 A 級，只要開啟表單再存檔就會把
+   原始表的 B／C 級評定覆寫成「外觀良好、功能健全」。改為先讀紀錄本身的
+   level／deru_label／DER 值，真的都沒有線索時才落到 A。 */
+function sf_defaultGrade(saved = {}) {
+  if (saved.sf_grade && SF_GRADES.includes(saved.sf_grade)) return saved.sf_grade;
+  const text = String(saved.level || saved.deru_label || '');
+  const hit = text.match(/(A|B[123]|C[12345])\s*級/);
+  if (hit && SF_GRADES.includes(hit[1])) return hit[1];
+  if (Number(saved.deru_d || 0) >= 1 || Number(saved.deru_u || 0) >= 2) return 'B2';
+  return 'A';
+}
 const SF_GRADE_DESC = {
   A:'外觀良好，功能健全，例行維護',
   B1:'重要工程，部分受損，DER&U進階定量',
@@ -6595,7 +6608,7 @@ function openStructureInspectionForm(facilityId = null, id = null) {
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
       <div class="form-group"><label>功能評估等級</label>
         <select id="sf_grade">
-          ${SF_GRADES.map(g=>`<option value="${g}" ${(saved.sf_grade||'A')===g?'selected':''}>${g}級 — ${SF_GRADE_DESC[g]}</option>`).join('')}
+          ${SF_GRADES.map(g=>`<option value="${g}" ${sf_defaultGrade(saved)===g?'selected':''}>${g}級 — ${SF_GRADE_DESC[g]}</option>`).join('')}
         </select>
       </div>
       <div class="form-group"><label>縱向廊道影響</label>

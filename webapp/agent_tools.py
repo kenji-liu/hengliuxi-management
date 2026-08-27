@@ -360,6 +360,24 @@ def _health_score(item: Dict[str, Any]) -> Optional[int]:
     return max(0, min(100, score))
 
 
+def _risk_band(risk_score: Any, urgency: int = 1) -> str:
+    """風險分級，門檻與前端 fac_riskBand() 一致。
+
+    模型若拿不到等級就會自行臆測，實測出現過 A1（健康 90、風險 10）
+    被說成「高風險」。這裡直接把等級算好交給模型。
+    """
+    try:
+        risk = float(risk_score)
+    except (TypeError, ValueError):
+        return ""
+    u = int(urgency or 0)
+    if risk >= 75 or u >= 4:
+        return "高風險"
+    if risk >= 50 or u >= 3:
+        return "中風險"
+    return "低風險"
+
+
 def query_facilities(snapshot: Dict[str, Any], name: str = "", facility_type: str = "",
                      status: str = "", min_urgency: int = 0) -> Dict[str, Any]:
     rows = list(snapshot.get("facilities") or [])
@@ -388,6 +406,7 @@ def query_facilities(snapshot: Dict[str, Any], name: str = "", facility_type: st
             "DER&U": item.get("derLevel"),
             "健康分數": health,
             "風險分數": (100 - health) if health is not None else item.get("riskScore"),
+            "風險等級": _risk_band(100 - health, urgency) if health is not None else None,
             "維護策略": item.get("maintenanceStrategy"),
             "最近評估": item.get("assessmentDate") or item.get("lastInspect"),
             "判斷依據": item.get("judgement_basis") or item.get("evaluationNotes"),

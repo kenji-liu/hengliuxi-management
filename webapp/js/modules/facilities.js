@@ -491,6 +491,13 @@ function fac_inferDeruFromInspection(item = {}) {
   const explicitHealthyDer = labeledHealthyGrade ||
     (hasAllExplicitDER && d <= 0 && e <= 1 && r <= 1 && Number(item.deru_u || 1) <= 1);
 
+  // A 級會把 D/E/R 壓成 0/1/1，等同宣告設施完好。若紀錄自身載明 B／C 級、
+  // 有實際損壞值或仍未結案，代表這個 A 來自表單預設值誤植，不得採信。
+  const sfGradeContradicted = /[BC][1-5]?\s*級/.test(String(item.level || item.deru_label || ''))
+    || Number(item.deru_d || 0) >= 1
+    || Number(item.deru_u || 0) >= 2
+    || item.status === '待處理' || item.status === '處理中';
+
   const hasSevereText = /完全堵塞|無法通行|喪失通行|嚴重淘空|嚴重淘刷|危及安全|崩塌|倒塌|緊急/.test(text);
   const hasScourText = /淘空|淘刷|基礎受.*侵蝕|基礎裸露|導流牆偏移|位移|偏移|沖刷|下刷/.test(text);
   const hasModerateText = /裂縫|破損|鏽蝕|淤積|阻塞|裸露|補強|修補|維護計畫/.test(text);
@@ -526,7 +533,8 @@ function fac_inferDeruFromInspection(item = {}) {
     // 構造物調查表功能分級（sf_grade）具最高語義優先權：
     // A 級 = 外觀良好功能健全，一律覆蓋為 D=0/E=1/R=1，且完全跳過文字推斷
     // 避免舊巡查文字（如「裂縫」「鏽蝕」）誤覆蓋 A 級分數
-    const sfGradeProtectedA = item.sf_grade === 'A' && (!hasSevereText || explicitHealthyDer);
+    const sfGradeProtectedA = item.sf_grade === 'A' && !sfGradeContradicted
+      && (!hasSevereText || explicitHealthyDer);
     const sfGradeProtectedB = item.sf_grade && item.sf_grade.startsWith('B') && !hasSevereText;
 
     if (sfGradeProtectedA) {
@@ -569,7 +577,7 @@ function fac_inferDeruFromInspection(item = {}) {
   // 等級保護：A/B級魚道檢核表 → 不讓舊的高 U 值反壓；其他情況保守取 max
   // 例外：表單已完整填寫 d/e/r 且有明確 deru_u 時，以表單 U 值為準（信任現場評定）
   const isGradeProtected = (item.sf_grade === 'A' || item.fw_grade === 'A') &&
-    (!hasSevereText || explicitHealthyDer);
+    !sfGradeContradicted && (!hasSevereText || explicitHealthyDer);
   const hasExplicitU = Number.isFinite(Number(item.deru_u));
   const u = isGradeProtected
     ? deru.u
@@ -862,6 +870,22 @@ function fac_initHistoryChart(facilityId) {
   });
 }
 
+/* ════════════════════════════════════════════════════════════════════════
+   風險分級（單一事實來源）
+   ------------------------------------------------------------------------
+   健康分數 = 100 − (D×0.45 + E×0.2 + R×0.35) × 21，限 [15,95]（fac_healthFromDeru）
+   風險分數 = 100 − 健康分數
+   分級門檻：風險分 ≥75 或 U4 → 高風險；≥50 或 U3 → 中風險；其餘低風險。
+   A1（D0/E1/R1・U1）健康 90、風險 10，必然落在低風險。
+   ════════════════════════════════════════════════════════════════════════ */
+function fac_riskBand(riskScore, maxU = 1) {
+  const risk = Number(riskScore) || 0;
+  const u = Number(maxU) || 0;
+  if (risk >= 75 || u >= 4) return { label: '高風險', className: 'danger', color: '#c62828', bg: '#ffebee' };
+  if (risk >= 50 || u >= 3) return { label: '中風險', className: 'warning', color: '#e65100', bg: '#fff3e0' };
+  return { label: '低風險', className: 'success', color: '#2e7d32', bg: '#e8f5e9' };
+}
+
 function fac_inspectionLinkage(f) {
   const inspections = fac_linkedInspections(f);
   // 只有明確「待處理」或「處理中」才算未結案件
@@ -892,11 +916,7 @@ function fac_inspectionLinkage(f) {
     ? baseHealth
     : Math.max(5, Math.round(baseHealth - penalty));
   const riskScore = Math.min(100, Math.max(0, 100 - linkedHealth + openItems.length * 3 + Math.max(0, maxU - 2) * 6));
-  const riskLevel = riskScore >= 75 || maxU >= 4
-    ? { label: '高風險', className: 'danger', color: '#c62828', bg: '#ffebee' }
-    : riskScore >= 50 || maxU >= 3
-      ? { label: '中風險', className: 'warning', color: '#e65100', bg: '#fff3e0' }
-      : { label: '低風險', className: 'success', color: '#2e7d32', bg: '#e8f5e9' };
+  const riskLevel = fac_riskBand(riskScore, maxU);
 
   const recommendations = [];
   if (!inspections.length) {
@@ -2841,9 +2861,8 @@ function analyzeFacility(id) {
   const linkage = fac_inspectionLinkage(f);
   const statusColor = { '正常': 'success', '需維護': 'warning', '損壞': 'danger' };
   const riskScore = Math.max(0, Math.min(100, 100 - assessment.health));
-  const riskLevel = riskScore >= 80 ? { label: '高風險', color: '#c62828', bg: '#ffebee' }
-    : riskScore >= 55 ? { label: '中風險', color: '#e65100', bg: '#fff3e0' }
-    : { label: '低風險', color: '#2e7d32', bg: '#e8f5e9' };
+  // 與設施風險連動卡共用門檻，避免同一座設施在兩個畫面顯示不同等級
+  const riskLevel = fac_riskBand(riskScore, Number(assessment.deru?.u || 1));
 
   const docSources = {
     '魚道': ['107-108年成果報告（第4章）', '115年棲地連通性簡報', '114-115年巡查紀錄'],

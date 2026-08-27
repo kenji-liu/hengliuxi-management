@@ -108,6 +108,23 @@ const DB = {
       out.photoCount = 0;
     }
 
+    // 自癒：構造物調查表「功能評估等級」預設 A，舊紀錄一經開啟再存檔就會被
+    // 塞進 sf_grade='A'，而 A 級會把 D/E/R 強制覆寫成 0/1/1，把原始表的
+    // B／C 級評定整個蓋掉（例：平臺1 B2級 U3 待處理 → 顯示 A1 健康90分正常）。
+    // 只要 A 級與紀錄自身的 level／DER&U 值互相矛盾，就視為誤植並撤除。
+    if (out.sf_grade === 'A') {
+      const declared = String(out.level || out.deru_label || '');
+      const contradicts = /[BC][1-5]?\s*級/.test(declared)
+        || Number(out.deru_d || 0) >= 1
+        || Number(out.deru_u || 0) >= 2
+        || out.status === '待處理' || out.status === '處理中';
+      if (contradicts) {
+        out.sf_gradeConflict = out.sf_grade;   // 保留原值供稽核
+        delete out.sf_grade;
+        out.sf_gradeAutoFixed = true;
+      }
+    }
+
     // 自癒：修正舊版構造物調查表存檔 bug——A級（外觀良好、D0/E1/R1/U1）卻被誤設為「中」優先度。
     // 該情境（良好且已完成）邏輯上不可能為中優先，故還原為「低」；不動非A級或人工升級之記錄。
     if (out.formType === 'professional_structure'

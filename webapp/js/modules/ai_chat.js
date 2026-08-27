@@ -793,14 +793,54 @@ function buildDynamicContext(query) {
     const isDeruQuery = q.includes('deru') || q.includes('評估') || q.includes('急迫') ||
                         q.includes('ics') || q.includes('優先') || q.includes('風險');
     if (isDeruQuery) {
-      const withDeru = facilities.filter(f => f.derLevel);
-      const urgent   = withDeru.filter(f => f.derLevel && /C|D/.test(f.derLevel)).length;
-      const avgRisk  = withDeru.length ? Math.round(withDeru.reduce((s,f)=>s+(f.riskScore||0),0)/withDeru.length) : 0;
-      parts.push(`【DER&U摘要】${withDeru.length}座設施已評估，緊急/嚴重等級${urgent}座，平均風險分${avgRisk}。`);
-      // 列出最高風險設施
-      withDeru.sort((a,b)=>(b.riskScore||0)-(a.riskScore||0)).slice(0,3).forEach(f => {
-        parts.push(`  高風險：${f.name}（${f.derLevel}，分數${f.riskScore}，策略：${f.maintenanceStrategy||'-'}）`);
-      });
+      // 風險一律由「最新專業巡查」推得的 D/E/R/U 計算，與設施卡片同一來源；
+      // 不可沿用 seed 的靜態 riskScore，否則會出現 A1 卻標成高風險的矛盾。
+      const graded = facilities.map(f => {
+        const a = typeof fac_latestProfessionalAssessment === 'function'
+          ? fac_latestProfessionalAssessment(f) : null;
+        const d = Number(a?.deru?.d ?? f.deru_d ?? 0);
+        const e = Number(a?.deru?.e ?? f.deru_e ?? 1);
+        const r = Number(a?.deru?.r ?? f.deru_r ?? 1);
+        const u = Number(a?.deru?.u ?? f.deru_u ?? 1);
+        const health = Number(a?.health ?? (typeof fac_health === 'function' ? fac_health(f) : 0));
+        const risk = Math.max(0, 100 - health);
+        // 門檻共用設施頁的 fac_riskBand()，避免兩邊各判一套
+        const band = (typeof fac_riskBand === 'function'
+          ? fac_riskBand(risk, u).label
+          : ((risk >= 75 || u >= 4) ? '高風險' : (risk >= 50 || u >= 3) ? '中風險' : '低風險'));
+        return { f, a, d, e, r, u, health, risk, band, derLevel: a?.derLevel || f.derLevel || '' };
+      }).filter(x => x.derLevel);
+
+      if (graded.length) {
+        const cnt = b => graded.filter(x => x.band === b).length;
+        // 緊急/嚴重的判定：U4，或舊制英文分級 C/D 級。
+        // 不可用 /C|D/ 甚至 /^[CD]/ 去比對——非 A1 的等級一律寫成
+        // 「D2/E1/R2・U2」，開頭的 D 是「損壞」軸的代號而非分級，
+        // 兩者混用會把所有非 A1 設施誤報為緊急（實測 20 座報成 10 座）。
+        const isDerAxes = lv => /^D\d+\/E\d+\/R\d+/.test(String(lv || ''));
+        const isSevereGrade = lv => !isDerAxes(lv) && /^[CD]/i.test(String(lv || ''));
+        const urgent = graded.filter(x => x.u >= 4 || isSevereGrade(x.derLevel)).length;
+        const avgRisk = Math.round(graded.reduce((sum,x)=>sum+x.risk,0)/graded.length);
+        parts.push(
+          `【DER&U摘要】${graded.length}座設施已評估：高風險${cnt('高風險')}座、中風險${cnt('中風險')}座、低風險${cnt('低風險')}座；` +
+          `緊急/嚴重（C或D級、或U4）${urgent}座，平均風險分${avgRisk}。
+` +
+          `  計算明細：健康分數＝100−(D×0.45+E×0.2+R×0.35)×21，限[15,95]；風險分＝100−健康分數。
+` +
+          `  分級門檻：風險分≥75或U4→高風險；≥50或U3→中風險；其餘為低風險。
+` +
+          `  A1＝D0/E1/R1・U1（外觀完整、功能正常、低風險），健康90分、風險10分，屬「低風險」，不得稱為高風險。`
+        );
+        const attention = graded.filter(x => x.band !== '低風險').sort((a,b)=>b.risk-a.risk);
+        if (attention.length) {
+          attention.slice(0,5).forEach(x => parts.push(
+            `  ${x.band}：${x.f.name}（${x.derLevel}${isDerAxes(x.derLevel) ? '' : `，D${x.d}/E${x.e}/R${x.r}・U${x.u}`}，健康${x.health}分／風險${x.risk}分，策略：${x.a?.strategy || x.f.maintenanceStrategy || '-'}）`));
+        } else {
+          const top = graded.slice().sort((a,b)=>b.risk-a.risk).slice(0,3);
+          parts.push('  目前無中／高風險設施，全部維持低風險。風險分相對較高者（仍屬低風險）：' +
+            top.map(x=>`${x.f.name}（${x.derLevel}，健康${x.health}分／風險${x.risk}分）`).join('、'));
+        }
+      }
     }
 
   } catch(e) {
@@ -1200,7 +1240,10 @@ function _buildWelcomeMessage() {
         const assess = typeof fac_latestProfessionalAssessment === 'function' ? fac_latestProfessionalAssessment(f) : null;
         const curStatus = assess?.status || f.status || '';
         const curDer    = assess?.derLevel || f.derLevel || '';
-        return f.riskScore >= 50 || curStatus === '損壞' || /C|D/.test(curDer);
+        // /C|D/ 會誤中「D0/E1/R1・U1」這種正常等級，必須錨定開頭
+        const assessHealth = Number(assess?.health ?? (typeof fac_health === 'function' ? fac_health(f) : 100));
+        return (100 - assessHealth) >= 50 || Number(assess?.deru?.u || 0) >= 3 ||
+               curStatus === '損壞' || /^[CD]/i.test(curDer);
       })
       .sort((a,b)=>(b.riskScore||0)-(a.riskScore||0))
       .slice(0,2).map(f => f.name);

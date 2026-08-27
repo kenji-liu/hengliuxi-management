@@ -1867,6 +1867,51 @@ const HLX_FISH_EVIDENCE_NOTES = {
   '短吻紅斑吻鰕虎': '103年與106年橫流溪量化序列未檢出；107年S2（7月）起始有可定位尾數（2尾），呈間歇性低量捕獲。111年Survey123下游站全零值；111年DOCX Table 9確認上游Q4（11/16）量化捕獲1尾（體長55mm），為電捕實測，非目擊。全序列累計21尾（加入111年上游1尾）。零值表示已完成調查但未捕獲，不等同未調查；下游站零值不代表全流域族群缺席。'
 };
 
+// ════════════════════════════════════════════════════════════════════════════
+//  場次備註 → 物種備註
+//  ----------------------------------------------------------------------------
+//  HLX_FISH_SURVEYS 的 note 是「整個場次」的稽核註記，常同時提到多個魚種
+//  與全場合計尾數。直接放進單一物種的明細會誤導閱讀者，實測案例：
+//    ・臺灣白甲魚 111年3月15日 顯示「明潭吻鰕虎 20 尾原表記為『明潭吻蝦虎』」
+//    ・臺灣間爬岩鰍 103年Q3 顯示「附錄二同季亦記錄纓口臺鰍」
+//    ・尾數欄寫 3 尾，備註卻寫「合計 51 尾」（其實是該場次全魚種合計）
+//  規則：備註以「；」切段後，只保留（a）沒有指名任何魚種的敘述，或
+//  （b）指名到本物種的敘述；只提到其他魚種的段落整段移除。全場合計改寫為
+//  「本場次…合計」，讓它不會被誤讀成本物種的尾數。
+// ════════════════════════════════════════════════════════════════════════════
+//  異體字與簡稱：原始表常見「鰕/蝦」「臺/台」互用，且省略「臺灣」屬名前綴。
+function fish_noteNormalize(text) {
+  return String(text || '').replace(/蝦/g, '鰕').replace(/台/g, '臺');
+}
+
+function fish_noteAliases(speciesName) {
+  const full = fish_noteNormalize(speciesName);
+  const set = new Set([full]);
+  const stripped = full.replace(/^臺灣/, '');
+  if (stripped && stripped.length >= 2) set.add(stripped);
+  return [...set];
+}
+
+function fish_noteMentions(segment, speciesName) {
+  const seg = fish_noteNormalize(segment);
+  return fish_noteAliases(speciesName).some(alias => seg.includes(alias));
+}
+
+function fish_speciesScopedNote(note, speciesName) {
+  const raw = String(note || '').trim();
+  if (!raw || !speciesName) return raw;
+  const allNames = Object.values(HLX_FISH_KEY_NAME);
+  const kept = raw.split(/[；;]/).map(x => x.trim()).filter(Boolean).filter(seg => {
+    // 只提到別的魚種 → 整段移除；同時提到本物種 → 保留
+    const mentionsOther = allNames.some(nm => nm !== speciesName && fish_noteMentions(seg, nm));
+    return !mentionsOther || fish_noteMentions(seg, speciesName);
+  }).map(seg => seg
+    // 全場合計加上「本場次」，避免與左欄的物種尾數混淆
+    .replace(/^逐尾清點\s*(\d+)\s*尾/, '本場次全魚種逐尾清點合計 $1 尾')
+    .replace(/^合計\s*(\d+)\s*尾/, '本場次全魚種合計 $1 尾'));
+  return kept.join('；');
+}
+
 // 取得單一物種的完整歷年調查明細（與歷年趨勢分析同源，供卡片展開比對）
 function fish_surveyBreakdown(speciesName) {
   const key = Object.keys(HLX_FISH_KEY_NAME).find(k => HLX_FISH_KEY_NAME[k] === speciesName);
@@ -1881,7 +1926,7 @@ function fish_surveyBreakdown(speciesName) {
       source: s.source || (String(s.note || '').match(/來源：([^；]+)/) || [, ''])[1].trim()
               || (s.preConstruct ? '麗陽站魚道建置前基線' : '橫流溪電捕監測'),
       scope:  s.scope || '橫流溪調查樣站',
-      note:   s.note || ''
+      note:   fish_speciesScopedNote(s.note, speciesName)
     }))
     .filter(r => r.count > 0);
 }
@@ -1900,7 +1945,7 @@ function fish_surveyTimeline(speciesName) {
     status: (Number(s[key]) || 0) > 0 ? 'captured' : 'surveyed_no_capture',
     source: s.source || (s.preConstruct ? '麗陽站魚道建置前基線' : '橫流溪電捕監測'),
     scope: s.scope || '橫流溪調查樣站',
-    note: s.note || ''
+    note: fish_speciesScopedNote(s.note, speciesName)
   }));
 }
 
