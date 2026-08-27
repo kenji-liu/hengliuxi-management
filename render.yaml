@@ -22,17 +22,3 @@ services:
         value: "true"
       - key: OPENCODE_GO_ROUTER_MODEL
         value: minimax-m3
-      - key: XAI_API_KEY
-        sync: false
-      - key: AI_PROVIDER_PRO
-        value: xai
-      - key: AI_MODEL_PRO
-        value: grok-4.6
-      - key: AI_PROVIDER_DEEP
-        value: xai
-      - key: AI_MODEL_DEEP
-        value: grok-4.6
-      - key: AI_PROVIDER_FAST
-        value: opencode_go
-      - key: AI_MODEL_FAST
-        value: minimax-m3
