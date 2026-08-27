@@ -1727,25 +1727,6 @@ const HLX_ECO_BENCHMARK = {
     hMean: 1.4, hMin: 0.82, hMax: 1.76,
     maxBodyLength: 27.8, maxBodySpecies: '臺灣白甲魚',
   },
-  //  區域定位：東勢林區管理處轄內同一監測計畫、同一方法覆蓋 8 條溪流。
-  //  105～106 年度成果報告表 4 的物種出現矩陣（不含水生昆蟲與蝦蟹螺）。
-  regional: {
-    year: 106, sitesTotal: 14, streams: 8,
-    ranking: [
-      { site: '橫流溪上游', n: 5, self: true },
-      { site: '合歡溪下游', n: 4 }, { site: '十文溪上游', n: 4 },
-      { site: '橫流溪下游', n: 4, self: true },
-      { site: '烏石坑溪上游', n: 3 }, { site: '烏石坑溪下游', n: 3 },
-      { site: '麻必浩溪下游', n: 3 }, { site: '南湖溪下游', n: 3 },
-      { site: '裡冷溪上游', n: 3 }, { site: '裡冷溪下游', n: 3 },
-      { site: '十文溪下游', n: 3 }, { site: '南湖溪上游', n: 2 },
-      { site: '麻必浩溪上游', n: 1 }, { site: '合歡溪中游', n: 0 },
-    ],
-    note: '橫流溪上游為全轄區 14 個樣點中魚種數最高者；下游並列第 2。'
-         + '此為魚道建置前的區域定位，說明橫流溪本就是轄內重點溪流。',
-  },
-  //  同計畫同期的鄰溪對照（十文溪）列為佐證，不作為主論述。
-  reference: { name: '十文溪', hMean: 0.6, ibiMean: 23, maxBodyLength: 22.3 },
   source: '110年魚道及生態廊道成效追蹤 表5-2、第5章、第8章（頁5-2、5-5、5-15、8-2）；'
         + '105～106年度東勢處森林溪流魚類監測成果報告 表4'
 };
@@ -1755,6 +1736,7 @@ const HLX_ECO_BENCHMARK = {
 //  ★ 各座魚道的可搜索水體體積與入流量差異極大，直接比較尾數會誤導，
 //    故一併載入水理參數（報告 4.2 節與頁 4-4 的模擬流量表）。
 const HLX_IN_FISHWAY_CATCH = {
+  surveyRounds: 4,
   byFishway: [
     { id:'溪構1-1', type:'粗石斜曲面式', total:11, inflow:0.55, partial:false, poolNote:'水路型態，無水池' },
     { id:'溪構1-2', type:'改良型舟通式', total:52, inflow:0.05, partial:false, poolNote:'水路型態，無水池' },
@@ -1852,6 +1834,7 @@ const HLX_FISH_110_SUMMARY = {
   springTotal: 486,
   autumnTotal: 235,
   annualTotal: 721,
+  stationVisits: 12,
   fishSpecies: 8,
   aquaticTaxa: 10,
   fishwayPassTotal: 74,
@@ -4152,13 +4135,10 @@ function renderFishTrend() {
         ✦ 生態專家綜合評估結論
       </div>
       <div style="font-size:18px;font-weight:800;line-height:1.7;margin-bottom:20px;color:#fff">
-        已核對資料顯示，橫流溪魚類捕獲量與物種組成相較早期基準已有變化；惟各年度採樣站數、範圍與場次不同，應以<span style="color:#86efac;font-size:20px;font-weight:900">努力量校正指標與同口徑長期追蹤</span>判讀，不將變化直接歸因於單一工程。<br>
+        已核對資料顯示，橫流溪魚類捕獲量與物種組成相較早期基準已有變化；惟各年度採樣站數、範圍與場次不同，應以<span style="color:#86efac;font-size:20px;font-weight:900">努力量校正指標（尾／次）與同口徑長期追蹤</span>判讀，不將變化直接歸因於單一工程。<br>
         魚道建置前（103～106年）下游固定單站每次捕獲 <span style="color:#fde68a;font-size:20px;font-weight:900">${preDownMean.toFixed(1)}尾</span>；
-        107~108年完成9座魚道後，110年樣站電捕第3次
-        <span style="color:#fde68a;font-size:20px;font-weight:900">${HLX_FISH_110_SUMMARY.springTotal}尾</span>、
-        第4次<span style="color:#fde68a;font-size:20px;font-weight:900">${HLX_FISH_110_SUMMARY.autumnTotal}尾</span>，
-        全年合計<span style="color:#fde68a;font-size:20px;font-weight:900">${HLX_FISH_110_SUMMARY.annualTotal}尾</span>；
-        9座魚道內部電捕另確認<span style="color:#fde68a;font-size:20px;font-weight:900">${HLX_IN_FISHWAY_CATCH.total}尾${HLX_IN_FISHWAY_CATCH.species}種</span>，座座有魚。
+        107~108年完成9座魚道後，110年6樣站兩輪合計<span style="color:#fde68a;font-size:20px;font-weight:900">${HLX_FISH_110_SUMMARY.annualTotal}尾</span>（<span style="color:#fde68a;font-size:20px;font-weight:900">${(HLX_FISH_110_SUMMARY.annualTotal / HLX_FISH_110_SUMMARY.stationVisits).toFixed(1)}尾／站訪次</span>）；
+        9座魚道內部四輪調查平均<span style="color:#fde68a;font-size:20px;font-weight:900">${(HLX_IN_FISHWAY_CATCH.total / HLX_IN_FISHWAY_CATCH.surveyRounds).toFixed(1)}尾／輪次</span>（累計${HLX_IN_FISHWAY_CATCH.total}尾、${HLX_IN_FISHWAY_CATCH.species}種，座座有魚；全溪完整名錄8種，未在魚道內捕獲的${HLX_IN_FISHWAY_CATCH.absentSpecies}仍在全溪有穩定紀錄）。
         114年下游同一單站平均 <span style="color:#86efac;font-size:20px;font-weight:900">${latestDownMean.toFixed(1)}尾</span>，
         為建置前基線的 <span style="color:#86efac;font-size:20px;font-weight:900">${(latestDownMean / preDownMean).toFixed(1)}倍</span>；
         統一抽樣至${RAREFY_N}尾的期望物種數 114年 <span style="color:#86efac;font-size:20px;font-weight:900">${bestRarefied ? bestRarefied.E : '—'}種</span> 為全期最高。
@@ -4167,8 +4147,8 @@ function renderFishTrend() {
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px">
         ${[
           { num:'8種', sub:'歷年調查完整\n魚類趨勢記錄', icon:'🐟', color:'#7dd3fc' },
-          { num:'721尾', sub:'110年樣站電捕\n486+235', icon:'📋', color:'#fde68a' },
-          { num:`${HLX_IN_FISHWAY_CATCH.total}尾`, sub:'9座魚道內部實測\n座座有魚・7種', icon:'🧾', color:'#93c5fd' },
+          { num:`${(HLX_FISH_110_SUMMARY.annualTotal / HLX_FISH_110_SUMMARY.stationVisits).toFixed(1)}尾／次`, sub:`110年六樣站兩輪\n累計${HLX_FISH_110_SUMMARY.annualTotal}尾・12站訪次`, icon:'📋', color:'#fde68a' },
+          { num:`${(HLX_IN_FISHWAY_CATCH.total / HLX_IN_FISHWAY_CATCH.surveyRounds).toFixed(1)}尾／次`, sub:`魚道內部四輪平均\n累計${HLX_IN_FISHWAY_CATCH.total}尾・7種（全溪8種）`, icon:'🧾', color:'#93c5fd' },
           { num:`×${(latestDownMean / preDownMean).toFixed(1)}`, sub:'下游同一單站\n建置前→114年', icon:'📈', color:'#86efac' },
           { num:'4種', sub:'紅皮書近危以上\n含第三級保育1種', icon:'🛡️', color:'#fde68a' },
           { num:'11年度', sub:'103～114年區間\n105年為104年重刊', icon:'📅', color:'#c4b5fd' },
@@ -4186,7 +4166,7 @@ function renderFishTrend() {
       ${[
         { icon:'fa-calendar-alt', color:'#0e7490', label:'調查跨度', val:'103～114年', sub:'(2014～2025)' },
         { icon:'fa-fish',         color:'#f97316', label:'趨勢整合物種', val:'8 種', sub:'11個量化年度已核對' },
-        { icon:'fa-clipboard-check', color:'#1d4ed8', label:'110年樣站電捕', val:`${HLX_FISH_110_SUMMARY.annualTotal} 尾`, sub:`4月${HLX_FISH_110_SUMMARY.springTotal}＋9月${HLX_FISH_110_SUMMARY.autumnTotal}` },
+        { icon:'fa-clipboard-check', color:'#1d4ed8', label:'110年樣站電捕', val:`${(HLX_FISH_110_SUMMARY.annualTotal / HLX_FISH_110_SUMMARY.stationVisits).toFixed(1)} 尾／次`, sub:`累計${HLX_FISH_110_SUMMARY.annualTotal}尾・12站訪次` },
         { icon:'fa-water', color:'#0891b2', label:'110年水域生物', val:`${HLX_FISH_110_SUMMARY.aquaticTaxa} 種`, sub:`魚類${HLX_FISH_110_SUMMARY.fishSpecies}＋蝦蟹2` },
         { icon:'fa-list-check',   color:'#0284c7', label:'已核對調查場次', val:`${HLX_FISH_SURVEY_EVENTS}次`, sub:'103～114年逐次建檔' },
         { icon:'fa-chart-line',   color:'#22c55e', label:'最高單次捕獲', val:'146 尾', sub:'(114年12月冬季)' },
@@ -4511,28 +4491,28 @@ function renderFishTrend() {
           </div>
 
           <div style="border-top:1px dashed #e2e8f0;padding-top:14px">
-            <div style="font-size:13.5px;font-weight:800;color:#0f172a;margin-bottom:9px">
-              區域定位：東勢林區管理處轄內 ${HLX_ECO_BENCHMARK.regional.streams} 條受監測溪流、${HLX_ECO_BENCHMARK.regional.sitesTotal} 個樣點
-              <span style="font-size:11.5px;font-weight:600;color:#94a3b8">（${HLX_ECO_BENCHMARK.regional.year} 年度・同一計畫・同一方法）</span>
+            <div style="font-size:14px;font-weight:900;color:#0f172a;margin-bottom:10px">臺灣整體溪流保育框架中的橫流溪</div>
+            <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px">
+              <div style="background:#ecfeff;border:1px solid #a5f3fc;border-radius:10px;padding:12px">
+                <b style="color:#0e7490">標準化監測</b><br><span style="font-size:12px;color:#475569;line-height:1.65">依河川、樣站、日期、方法與數量建檔，以尾／次追蹤同口徑長期變化。</span>
+              </div>
+              <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px">
+                <b style="color:#166534">原生與受脅物種</b><br><span style="font-size:12px;color:#475569;line-height:1.65">完整名錄8種，含4種紅皮書近危以上物種，是保育價值與棲地品質的重要訊號。</span>
+              </div>
+              <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:12px">
+                <b style="color:#1d4ed8">縱向連通證據</b><br><span style="font-size:12px;color:#475569;line-height:1.65">9座魚道四輪內部調查皆捕獲魚類，搭配上下游調查與影像資料交叉判讀。</span>
+              </div>
             </div>
-            <div style="display:flex;flex-direction:column;gap:3px">
-              ${HLX_ECO_BENCHMARK.regional.ranking.map(r => `
-                <div style="display:flex;align-items:center;gap:9px">
-                  <div style="width:92px;font-size:12px;text-align:right;flex:none;${r.self ? 'font-weight:900;color:#0d6b5b' : 'color:#64748b'}">${r.site}</div>
-                  <div style="flex:1;height:15px;background:#f1f5f9;border-radius:3px;overflow:hidden">
-                    <div style="width:${(r.n / 5 * 100).toFixed(0)}%;height:100%;background:${r.self ? '#0d6b5b' : '#cbd5e1'};border-radius:3px"></div>
-                  </div>
-                  <div style="width:38px;font-size:12px;font-weight:${r.self ? '900' : '600'};color:${r.self ? '#0d6b5b' : '#64748b'}">${r.n} 種</div>
-                </div>`).join('')}
-            </div>
-            <div style="font-size:12.5px;color:#475569;line-height:1.75;margin-top:11px">${HLX_ECO_BENCHMARK.regional.note}</div>
+            <div style="font-size:12px;color:#64748b;line-height:1.75;margin-top:10px">目前全臺公開資料的調查方法、季節、樣站範圍與努力量並不完全一致，因此不宣稱橫流溪位居全臺第幾名；平台改以全臺通用監測欄位與保育指標呈現其可驗證價值。</div>
           </div>
 
-          <div style="font-size:11.5px;color:#94a3b8;line-height:1.75;margin-top:13px;padding-top:11px;border-top:1px solid #f1f5f9">
-            同計畫同期另設鄰溪 ${HLX_ECO_BENCHMARK.reference.name} 為對照組，其 IBI 平均 ${HLX_ECO_BENCHMARK.reference.ibiMean}、
-            H′ ${HLX_ECO_BENCHMARK.reference.hMean}、魚道內最大個體 ${HLX_ECO_BENCHMARK.reference.maxBodyLength} 公分，三項均低於橫流溪；
-            報告並載明橫流溪魚類肥滿度較優，反映食物來源與環境條件較佳。<br>
-            來源：${HLX_ECO_BENCHMARK.source}
+          <div style="font-size:12px;color:#64748b;line-height:1.8;margin-top:13px;padding-top:11px;border-top:1px solid #f1f5f9">
+            <b style="color:#0d6b5b">全臺定位方式：</b>行政院水利署河川魚類調查資料採河川、測站、日期、物種、方法與數量等欄位，並依季節辦理調查；
+            臺灣魚類 IBI 則須依本土魚相調整，不能把不同流域、不同努力量的單一數值直接排名。
+            因此本平台以「同河段、同方法、尾／次」的長期變化，加上紅皮書保育等級及魚道內實測，呈現橫流溪在臺灣溪流保育中的價值。<br>
+            本地資料：${HLX_ECO_BENCHMARK.source}；
+            <a href="https://data.gov.tw/dataset/25799" target="_blank" rel="noopener" style="color:#0e7490">水利署河川魚類調查資料</a>・
+            <a href="https://www.tbri.gov.tw/view.php?id=777&theme=web_structure" target="_blank" rel="noopener" style="color:#0e7490">2024臺灣淡水魚類紅皮書名錄</a>
           </div>
         </div>
 
@@ -4543,14 +4523,30 @@ function renderFishTrend() {
             <span style="font-size:12px;font-weight:700;color:#0d6b5b">（電捕法＋蝦籠法，可直接歸因到單一設施）</span>
           </div>
           <div style="font-size:13px;color:#64748b;line-height:1.7;margin-bottom:12px">
-            9 座魚道<b style="color:#0d6b5b">全數捕獲到魚</b>，合計 ${HLX_IN_FISHWAY_CATCH.total} 尾、${HLX_IN_FISHWAY_CATCH.species} 種，全為臺灣特有種。
+            9 座魚道<b style="color:#0d6b5b">全數捕獲到魚</b>；109年7月、109年10月及110年7月、110年10月共4輪，
+            平均 <b style="color:#0d6b5b">${(HLX_IN_FISHWAY_CATCH.total / HLX_IN_FISHWAY_CATCH.surveyRounds).toFixed(1)} 尾／輪次</b>，
+            累計 ${HLX_IN_FISHWAY_CATCH.total} 尾、${HLX_IN_FISHWAY_CATCH.species} 種。
+            <b>平台完整歷年名錄為8種；魚道內部4輪實測為其中7種，並非資料漏列。</b>
             ${HLX_IN_FISHWAY_CATCH.topNote}
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:12px">
+            <div style="background:#ecfeff;border:1px solid #a5f3fc;border-radius:10px;padding:12px 14px">
+              <div style="font-size:20px;font-weight:900;color:#0e7490">8 種</div>
+              <div style="font-size:13px;font-weight:800;color:#164e63">平台完整歷年魚類名錄</div>
+              <div style="font-size:12px;color:#475569;line-height:1.65;margin-top:4px">整合全溪、不同年份與不同棲地型態的長期調查。</div>
+            </div>
+            <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px 14px">
+              <div style="font-size:20px;font-weight:900;color:#166534">7 種</div>
+              <div style="font-size:13px;font-weight:800;color:#14532d">9座魚道內部四輪實測</div>
+              <div style="font-size:12px;color:#475569;line-height:1.65;margin-top:4px">未在魚道內捕獲者為${HLX_IN_FISHWAY_CATCH.absentSpecies}；其偏好深潭岩縫且日間偵測率較低，全溪歷年調查仍有紀錄。</div>
+            </div>
           </div>
           <div style="position:relative;height:260px"><canvas id="fishInFishwayChart"></canvas></div>
           <div style="display:flex;flex-wrap:wrap;gap:7px;margin-top:12px">
             ${HLX_IN_FISHWAY_CATCH.bySpecies.map(sp => `
               <span style="font-size:12px;background:#f0f7f5;border:1px solid #cfe3de;border-radius:99px;padding:3px 11px;color:#0f172a">
-                ${sp.name} <b>${sp.n}</b> 尾</span>`).join('')}
+                ${sp.name} <b>${(sp.n / HLX_IN_FISHWAY_CATCH.surveyRounds).toFixed(2)}</b> 尾／次
+                <span style="color:#64748b">（累計${sp.n}尾）</span></span>`).join('')}
           </div>
 
           <div style="margin-top:14px;border-left:3px solid #0d6b5b;background:#f0f7f5;border-radius:0 8px 8px 0;padding:12px 15px;font-size:12.5px;color:#334155;line-height:1.8">
@@ -4558,7 +4554,7 @@ function renderFishTrend() {
           </div>
 
           <div style="margin-top:11px;border-left:3px solid #b45309;background:#fffbeb;border-radius:0 8px 8px 0;padding:12px 15px;font-size:12.5px;color:#78350f;line-height:1.8">
-            <b>為何 ${HLX_IN_FISHWAY_CATCH.lowestNote.id} 只有 4 尾？</b>${HLX_IN_FISHWAY_CATCH.lowestNote.reason}<br>
+            <b>為何 ${HLX_IN_FISHWAY_CATCH.lowestNote.id} 四輪累計只有 4 尾（平均1.0尾／次）？</b>${HLX_IN_FISHWAY_CATCH.lowestNote.reason}<br>
             <span style="color:#0d6b5b;font-weight:800">${HLX_IN_FISHWAY_CATCH.lowestNote.hydraulic}</span><br>
             ${HLX_IN_FISHWAY_CATCH.lowestNote.action}
           </div>
@@ -4566,7 +4562,7 @@ function renderFishTrend() {
           <div style="margin-top:11px;font-size:12px;color:#64748b;line-height:1.75">
             <b>判讀提醒：</b>各座魚道的可搜索水體差異極大（溪構7 最大水池 17.7 m³ vs 溪構5-2 單池約 0.9 m³，相差十九倍），
             進水量亦不同（0.13～0.60 cms，柱下標示 ◆ 者為報告載明的「部分入流」）。
-            <b>本圖的尾數是「各設施實際被利用的證據」，不宜逕行互相比高低。</b>
+            <b>本圖以尾／次統一呈現；原始累計尾數保留於提示資訊，仍不宜忽略水體體積與入流差異逕行排名。</b>
           </div>
           <div style="font-size:11.5px;color:#94a3b8;margin-top:9px">來源：${HLX_IN_FISHWAY_CATCH.source}</div>
         </div>
@@ -5468,8 +5464,8 @@ function renderFishTrend() {
       data: {
         labels: HLX_IN_FISHWAY_CATCH.byFishway.map(f => f.id),
         datasets: [{
-          label: '魚道內捕獲尾數',
-          data: HLX_IN_FISHWAY_CATCH.byFishway.map(f => f.total),
+          label: '魚道內平均捕獲（尾／次）',
+          data: HLX_IN_FISHWAY_CATCH.byFishway.map(f => +(f.total / HLX_IN_FISHWAY_CATCH.surveyRounds).toFixed(1)),
           backgroundColor: HLX_IN_FISHWAY_CATCH.byFishway.map(f => f.total === 76 ? '#0d6b5b' : '#2a78d6'),
           borderRadius: 4, borderWidth: 0,
         }]
@@ -5480,12 +5476,15 @@ function renderFishTrend() {
           legend:{ display:false },
           tooltip:{ callbacks:{
             title: it => { const f = HLX_IN_FISHWAY_CATCH.byFishway[it[0].dataIndex]; return `${f.id}（${f.type}魚道）`; },
-            label: c => `魚道內捕獲 ${c.raw} 尾`,
+            label: c => {
+              const f = HLX_IN_FISHWAY_CATCH.byFishway[c.dataIndex];
+              return `平均 ${c.raw} 尾／次（四輪累計 ${f.total} 尾）`;
+            },
             afterBody: () => ['4 次捕捉：109/7、109/10、110/7、110/10', '於魚道內部直接量測，非全溪換算'],
           }}
         },
         scales:{
-          y:{ beginAtZero:true, grid:_gridCfg, ticks:_tick, title:{ display:true, text:'尾', font:{size:11}, color:'#94a3b8' } },
+          y:{ beginAtZero:true, grid:_gridCfg, ticks:_tick, title:{ display:true, text:'尾／次（四輪平均）', font:{size:11}, color:'#94a3b8' } },
           x:{ grid:{ display:false }, ticks:{ ..._tick, callback(v, i) {
             const f = HLX_IN_FISHWAY_CATCH.byFishway[i]; return [f.id, f.type];
           } } }
