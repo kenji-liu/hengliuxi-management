@@ -1598,7 +1598,7 @@ def normalize_vision_inspection(raw: Dict[str, Any], image_name: str = "", facil
         limitations = "本結果僅作為照片判釋初步篩選，不能取代技師、工程人員或現場勘查。"
 
     return {
-        "version": "Ollama-Vision-Inspection-1.0",
+        "version": "Vision-Inspection-1.1",
         "analysedAt": datetime.now().isoformat(),
         "imageName": image_name or str(raw.get("image_name") or "巡查影像"),
         "abnormalRegions": abnormal_regions,
@@ -1691,6 +1691,122 @@ JSON欄位（直接給值，不加說明文字）：
         "isTraining": False,
         "rawModelResponse": model_text[:1200],
     })
+    return normalized
+
+
+def analyze_inspection_image_with_opencode_go(
+    image_base64: str,
+    facility_name: str = "",
+    findings: str = "",
+    weather: str = "",
+    image_name: str = "",
+    handwriting: bool = False,
+    mime_type: str = "image/jpeg",
+    question: str = "",
+    facility_record: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Analyze a patrol image through the OpenCode Go vision endpoint.
+
+    The model only extracts observations.  DER&U and urgency are normalized by
+    ``normalize_vision_inspection`` so a vision response cannot directly change
+    the platform's scoring rules.
+    """
+    image_payload = _strip_data_url_image(image_base64)
+    key = (os.environ.get("OPENCODE_GO_API_KEY") or
+           os.environ.get("OPENCODE_ZEN_API_KEY") or "").strip()
+    if not key:
+        raise RuntimeError("未設定 OPENCODE_GO_API_KEY")
+
+    handwriting_instruction = (
+        "若照片包含手寫巡查表，請另外辨識可讀文字，並將日期、設施名稱、巡查人員、"
+        "發現事項、處置建議與D/E/R欄位填入 extracted_record；看不清楚的欄位填空字串或null，禁止猜測。"
+        if handwriting else
+        "若照片包含文字，只擷取與本次設施判讀直接相關的內容。"
+    )
+    prompt = f"""你是橫流溪工程設施巡查影像分析助手，請只回傳 JSON，不要 Markdown 或思考過程。
+設施名稱：{facility_name or '未提供'}
+巡查文字：{findings or '未提供'}
+天氣：{weather or '未提供'}
+使用者問題：{question or '請評估照片中的設施損壞狀況'}
+
+請完成：
+1. 判斷照片中的構造物類型與可見異常：裂縫、剝落、磨蝕、淘空/淘刷、位移、沉陷、鏽蝕、堵塞、植生不良或正常。
+2. 估計照片可見範圍內的損壞比例（0-100），不是整座構造物的損壞率。
+3. 依照片可見證據提出 D=0-4、E=1-4、R=1-4 初步值；無法判定時使用保守值並降低信心。
+4. {handwriting_instruction}
+
+JSON格式：
+{{
+  "abnormal_regions": 0,
+  "damage_coverage": 0,
+  "deterioration_features": [],
+  "structure_type": "護岸/固床工/防砂壩/魚道/排水構造/邊坡保護設施/其他／無法判定",
+  "appearance_checklist": {{"good": true, "crack": false, "abrasion": false, "scour": false, "overturn": false, "settlement": false, "deformation": false, "displacement": false, "backfillLoss": false, "decay": false, "fireDamage": false, "frameBreak": false, "poorVegetation": false, "other": false, "otherText": ""}},
+  "d": 0, "e": 1, "r": 1, "confidence": 0.0, "confidence_label": "低/中/高", "severity_grade": "A/B/C/D",
+  "reasoning": "繁體中文，說明照片可見證據與限制",
+  "recommendations": [], "findings_suggestion": "一句摘要", "action_suggestion": "一句建議",
+  "handwriting_text": "",
+  "extracted_record": {{"date": "", "facility_name": "", "inspector": "", "findings": "", "action": "", "d": null, "e": null, "r": null, "u": null}}
+}}
+"""
+
+    payload = json.dumps({
+        "model": os.environ.get("OPENCODE_GO_VISION_MODEL", "deepseek-v4-flash-vision-exp").strip(),
+        "messages": [{"role": "user", "content": [
+            {"type": "text", "text": prompt},
+            {"type": "image_url", "image_url": {
+                "url": f"data:{mime_type or 'image/jpeg'};base64,{image_payload}"
+            }},
+        ]}],
+        "temperature": 0.1,
+        "max_tokens": 1200,
+    }).encode("utf-8")
+    req = urllib.request.Request(
+        "https://opencode.ai/zen/go/v1/chat/completions",
+        data=payload,
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {key}",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131 Safari/537.36",
+        },
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=75) as response:
+        result = json.loads(response.read().decode("utf-8"))
+    message = (result.get("choices") or [{}])[0].get("message") or {}
+    model_text = message.get("content") or ""
+    if isinstance(model_text, list):
+        model_text = "\n".join(str(item.get("text") or "") for item in model_text if isinstance(item, dict))
+    model_text = re.sub(r"<think>[\s\S]*?</think>", "", str(model_text), flags=re.IGNORECASE).strip()
+    parsed = _extract_json_object(model_text)
+    normalized = normalize_vision_inspection(
+        parsed, image_name=image_name, facility_name=facility_name, findings_text=findings
+    )
+    extracted = parsed.get("extracted_record") or parsed.get("extractedRecord") or {}
+    if not isinstance(extracted, dict):
+        extracted = {}
+    normalized.update({
+        "provider": "opencode_go",
+        "model": result.get("model") or os.environ.get("OPENCODE_GO_VISION_MODEL", "deepseek-v4-flash-vision-exp"),
+        "inferenceMode": "opencode_go_vision",
+        "isTraining": False,
+        "handwritingText": str(parsed.get("handwriting_text") or parsed.get("handwritingText") or "").strip(),
+        "extractedRecord": extracted,
+        "rawModelResponse": model_text[:1600],
+    })
+    if isinstance(facility_record, dict) and facility_record:
+        normalized["databaseAssessment"] = {
+            "facilityId": facility_record.get("id"),
+            "facilityName": facility_record.get("name") or facility_name,
+            "status": facility_record.get("status") or "",
+            "derLevel": facility_record.get("derLevel") or "",
+            "riskScore": facility_record.get("riskScore"),
+            "assessmentDate": facility_record.get("assessmentDate") or "",
+        }
+        normalized["databaseAssessmentNote"] = (
+            "影像評估是本次照片的輔助判讀；資料庫評等是既有紀錄，兩者只做並列比較，"
+            "不自動覆寫設施狀態。"
+        )
     return normalized
 
 

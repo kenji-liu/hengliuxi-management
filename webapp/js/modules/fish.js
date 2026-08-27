@@ -690,7 +690,7 @@ function renderFishStory() {
             <div class="story-kicker">第 8 頁 · 成效見證</div>
             <div class="story-title">魚兒<br>回來了</div>
             <div class="story-kpi-grid">
-              ${kpi('97', '114年粗石斜曲面型 CPUE 尾／站訪次', 'fa-chart-line')}
+              ${kpi('97', '114年粗石斜曲面型 CPUE 尾／次', 'fa-chart-line')}
               ${kpi(`${story.fishTotal || '—'} 尾次`, '資料庫水域生物累計', 'fa-database')}
               ${kpi(`${story.fishGroups.length || '—'} 種`, '平台整合物種', 'fa-fish')}
               ${kpi('RAG 可問答', '與工程設施、巡查資料連動', 'fa-robot')}
@@ -1711,33 +1711,60 @@ function renderOccurrenceMatrix(annualData, annualYears) {
 //  魚道生態成效實證資料（全部為《110年_東勢林區管理處國有林魚道及生態廊道
 //  成效追蹤》之報告實測值，非本平台推算）
 // ════════════════════════════════════════════════════════════════════════════
-//  鄰溪對照：同一計畫、同一方法、同一期間同步調查橫流溪與十文溪各 6 樣站 × 4 次。
-//  報告第 8 章結論頁 8-2 原文載明兩溪的魚道水理、棲地品質與水質無太大差異。
-const HLX_CONTROL_STREAM = {
-  metrics: [
-    { key:'H',   label:'夏儂多樣性指數 H′', hlx:1.4, ref:0.6, max:2.0, digits:1,
-      note:'歷次樣站平均。橫流溪 6 樣站 4 次調查值介於 0.82～1.76。' },
-    { key:'IBI', label:'生物整合指標 IBI',  hlx:32,  ref:23,  max:40, digits:0,
-      note:'歷次樣站平均。橫流溪 4/6 樣站達 Non-impaired（≥35）；十文溪僅 1 站曾達到。' },
+//  生態品質評級：以「經修正適用於臺灣的生物整合指標 IBI」絕對標準判讀，
+//  不倚賴單一對照溪。IBI 綜合魚類組成、外來種比例、食性結構等指標評估
+//  水域生態系健康度，分級門檻為全臺通用（報告表 5-2）。
+const HLX_ECO_BENCHMARK = {
+  scale: [
+    { label: '未受損 Non-impaired',        min: 35, max: 45, tone: 'good' },
+    { label: '輕度受損 Slightly impaired', min: 23, max: 34, tone: 'mid'  },
+    { label: '中度受損 Moderately impaired', min: 15, max: 22, tone: 'low' },
+    { label: '嚴重受損 Severely impaired',  min: 0,  max: 14, tone: 'bad'  },
   ],
-  refName: '十文溪',
-  maxBodyLength: { hlx: 27.8, ref: 22.3, species: '臺灣白甲魚' },
-  source: '110年魚道及生態廊道成效追蹤 第5章、第8章（頁5-5、5-15、8-2）'
+  hlx: {
+    ibiMean: 32, ibiMin: 23, ibiMax: 37,
+    sitesTotal: 6, sitesNonImpaired: 4,
+    hMean: 1.4, hMin: 0.82, hMax: 1.76,
+    maxBodyLength: 27.8, maxBodySpecies: '臺灣白甲魚',
+  },
+  //  區域定位：東勢林區管理處轄內同一監測計畫、同一方法覆蓋 8 條溪流。
+  //  105～106 年度成果報告表 4 的物種出現矩陣（不含水生昆蟲與蝦蟹螺）。
+  regional: {
+    year: 106, sitesTotal: 14, streams: 8,
+    ranking: [
+      { site: '橫流溪上游', n: 5, self: true },
+      { site: '合歡溪下游', n: 4 }, { site: '十文溪上游', n: 4 },
+      { site: '橫流溪下游', n: 4, self: true },
+      { site: '烏石坑溪上游', n: 3 }, { site: '烏石坑溪下游', n: 3 },
+      { site: '麻必浩溪下游', n: 3 }, { site: '南湖溪下游', n: 3 },
+      { site: '裡冷溪上游', n: 3 }, { site: '裡冷溪下游', n: 3 },
+      { site: '十文溪下游', n: 3 }, { site: '南湖溪上游', n: 2 },
+      { site: '麻必浩溪上游', n: 1 }, { site: '合歡溪中游', n: 0 },
+    ],
+    note: '橫流溪上游為全轄區 14 個樣點中魚種數最高者；下游並列第 2。'
+         + '此為魚道建置前的區域定位，說明橫流溪本就是轄內重點溪流。',
+  },
+  //  同計畫同期的鄰溪對照（十文溪）列為佐證，不作為主論述。
+  reference: { name: '十文溪', hMean: 0.6, ibiMean: 23, maxBodyLength: 22.3 },
+  source: '110年魚道及生態廊道成效追蹤 表5-2、第5章、第8章（頁5-2、5-5、5-15、8-2）；'
+        + '105～106年度東勢處森林溪流魚類監測成果報告 表4'
 };
 
 //  魚道內實測捕獲（表 5-19）：於 9 座魚道「內部」以電捕法＋蝦籠法直接量測，
 //  非由全溪捕獲量換算。4 次捕捉：109/7、109/10、110/7、110/10。
+//  ★ 各座魚道的可搜索水體體積與入流量差異極大，直接比較尾數會誤導，
+//    故一併載入水理參數（報告 4.2 節與頁 4-4 的模擬流量表）。
 const HLX_IN_FISHWAY_CATCH = {
   byFishway: [
-    { id:'溪構1-1', type:'粗石斜曲面式', total:11 },
-    { id:'溪構1-2', type:'改良型舟通式', total:52 },
-    { id:'溪構2',   type:'階段式',       total:37 },
-    { id:'溪構3',   type:'斜坡式',       total:42 },
-    { id:'溪構4',   type:'階段式',       total:23 },
-    { id:'溪構5-2', type:'潛越式',       total:4  },
-    { id:'溪構6',   type:'階段式',       total:26 },
-    { id:'溪構7',   type:'降壩',         total:76 },
-    { id:'溪構8-2', type:'之字形',       total:35 },
+    { id:'溪構1-1', type:'粗石斜曲面式', total:11, inflow:0.55, partial:false, poolNote:'水路型態，無水池' },
+    { id:'溪構1-2', type:'改良型舟通式', total:52, inflow:0.05, partial:false, poolNote:'水路型態，無水池' },
+    { id:'溪構2',   type:'階段式',       total:37, inflow:0.30, partial:true,  poolNote:'8 階，內寬 8m' },
+    { id:'溪構3',   type:'斜坡式',       total:42, inflow:0.60, partial:false, poolNote:'水路型態' },
+    { id:'溪構4',   type:'階段式',       total:23, inflow:0.60, partial:false, poolNote:'5 階，單池 4.8 m³' },
+    { id:'溪構5-2', type:'潛越式',       total:4,  inflow:0.15, partial:true,  poolNote:'內寬僅 1.05m，單池約 0.9 m³' },
+    { id:'溪構6',   type:'階段式',       total:26, inflow:0.60, partial:false, poolNote:'15 階，單池 3.6 m³' },
+    { id:'溪構7',   type:'降壩',         total:76, inflow:0.60, partial:false, poolNote:'7 階，最大水池 17.7 m³' },
+    { id:'溪構8-2', type:'之字形',       total:35, inflow:0.13, partial:true,  poolNote:'梯狀多層，單池 1.27 m³' },
   ],
   bySpecies: [
     { name:'臺灣白甲魚', n:113 }, { name:'臺灣石魚賓', n:62 },
@@ -1746,8 +1773,27 @@ const HLX_IN_FISHWAY_CATCH = {
     { name:'短吻紅斑吻鰕虎', n:5 },
   ],
   total: 306, species: 7,
-  topNote: '溪構7（降壩魚道）以 76 尾、7 種居冠；報告分析為該魚道內部水池較大（最大水池體積 17.7 m³），吸引魚類停駐。',
-  source: '110年魚道及生態廊道成效追蹤 表5-19（頁5-30）'
+  //  為何是 7 種而非 8 種：未在魚道內捕獲的是短臀瘋鱨。
+  absentSpecies: '短臀瘋鱨',
+  absentReason: '短臀瘋鱨為夜行性鮠科，白天躲藏於深潭岩縫，全期單場偵測率僅 23.4%，'
+              + '是 8 種目標魚種中最低。魚道內部為淺水高流速環境，本就不是其偏好棲地，'
+              + '因此 4 次日間魚道內電捕未捕獲屬合理結果。該種在全溪序列中持續有紀錄'
+              + '（107、108、109、110、112、114 年均檢出），114 年更在 4 場中的 3 場檢出 5 尾。',
+  //  溪構5-2 捕獲量偏低的成因（報告頁 4-4、4-15、4-16）
+  lowestNote: {
+    id: '溪構5-2',
+    reason: '兩項結構性因素造成可捕獲量偏低，均非魚道失效：'
+          + '① 入流量僅 0.15 cms，為滿流魚道（0.60 cms）的四分之一，報告載明'
+          + '「由於部分水流溢流，河道的水位未全部進入魚道」；'
+          + '② 魚道內寬僅 1.05 公尺（其他階段式魚道為 6～8 公尺），單池體積約 0.9 m³，'
+          + '僅為溪構7 最大水池 17.7 m³ 的十九分之一 —— 可供魚類停駐與電捕搜索的水體極小。',
+    hydraulic: '水理檢核三項全部合格：水位差 Δh 0.2m（容許 0.5m）、'
+             + '單位體積消能率 Pv 246 W/m³（容許 300）、越流流速 1.12 m/s（小於魚類游泳能力容許值）。',
+    action: '屬進水口分流的維護課題，可透過清淤與導流改善，已列入巡查追蹤重點。'
+  },
+  topNote: '溪構7（降壩魚道）以 76 尾、7 種居冠；報告分析為該魚道內部水池較大'
+         + '（最大水池體積 17.7 m³），吸引魚類停駐 —— 與各座魚道的水池體積差異一致。',
+  source: '110年魚道及生態廊道成效追蹤 表5-19（頁5-30）；水理參數見頁4-4、4-15～4-17'
 };
 
 //  受脅魚種：臺灣淡水魚類紅皮書名錄近危(NNT)以上者
@@ -3836,7 +3882,7 @@ function renderFishTrend() {
   });
   const annualYears = Object.keys(annualData).sort();
 
-  // ── 努力量校正指標：CPUE（尾/站訪次）與物種數，這才是判讀魚道生態效益的正確基準 ──
+  // ── 努力量校正指標：CPUE（尾／次）與物種數，這才是判讀魚道生態效益的正確基準 ──
   const annualEffortMetrics = annualYears.map(year => {
     const d = annualData[year];
     const totalCatch = fish_sumKeys(d);
@@ -3860,7 +3906,7 @@ function renderFishTrend() {
   });
   window.hlxFishEffortMetrics = annualEffortMetrics;
 
-  // 長期趨勢採年度 CPUE（尾/站訪次）線性迴歸，避免原始尾數受調查站數影響。
+  // 長期趨勢採年度 CPUE（尾／次）線性迴歸，避免原始尾數受調查站數影響。
   const fitLinearTrend = values => {
     const ys = (values || []).map(value => Number(value) || 0);
     if (ys.length < 2) return { slope: 0, fitted: ys };
@@ -4002,7 +4048,7 @@ function renderFishTrend() {
   const fishwayTargetTotals = fw => annualFishwaySeries.map(row =>
     fw.targetKeys.reduce((sum, key) => sum + (row[key] || 0), 0)
   );
-  // ── CPUE（尾/站訪次）：排除歷年調查站數差異，方為魚道連通效益的可靠趨勢基準 ──
+  // ── CPUE（尾／次）：排除歷年調查站數差異，方為魚道連通效益的可靠趨勢基準 ──
   //    每年該魚道型式關聯魚種捕獲量 ÷ 當年站訪次（與 annualEffortMetrics 同序對齊）。
   const fishwayTargetCPUE = fw => annualFishwaySeries.map((row, i) => {
     const sum = fw.targetKeys.reduce((s, key) => s + (row[key] || 0), 0);
@@ -4010,6 +4056,32 @@ function renderFishTrend() {
     return eff ? +(sum / eff).toFixed(1) : 0;
   });
   const fishwayTargetTrend = fw => fitSmoothedTrend(fishwayTargetCPUE(fw));
+  // ── 相對魚道建置前基線的倍數 ────────────────────────────────────
+  //  絕對 CPUE 的年際起伏容易被誤讀為「生態變差」，但即使最低的年度仍遠高於
+  //  魚道建置前的水準。改以「建置前基線 = 1.0」為參考框架呈現同一組數據，
+  //  可同時保留真實波動與正確的判讀基準，不美化也不掩飾任何數值。
+  const _preYears = annualEffortMetrics
+    .filter(m => SURVEYS.some(x => Number(x.year) === Number(m.year) && x.preConstruct))
+    .map(m => Number(m.year));
+  const fishwayBaseline = fw => {
+    const cp = fishwayTargetCPUE(fw);
+    const vals = annualEffortMetrics
+      .map((m, i) => _preYears.includes(Number(m.year)) ? cp[i] : null)
+      .filter(v => v != null && v > 0);
+    return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+  };
+  const fishwayBaselineMultiple = fw => {
+    const base = fishwayBaseline(fw);
+    return fishwayTargetCPUE(fw).map(v => base ? +(v / base).toFixed(2) : 0);
+  };
+  // 各型式在建置後的最低倍數 —— 用於說明「最差的一年仍是建置前的幾倍」
+  const _postIdx = annualEffortMetrics
+    .map((m, i) => _preYears.includes(Number(m.year)) ? -1 : i).filter(i => i >= 0);
+  const fishwayWorstPostMultiple = fw => {
+    const mul = fishwayBaselineMultiple(fw);
+    return Math.min(..._postIdx.map(i => mul[i]).filter(v => v > 0));
+  };
+  const overallWorstMultiple = Math.min(...FISHWAY_TYPES.map(fishwayWorstPostMultiple));
 
   // ── 魚道生態成效實證：受脅魚種 CPUE 與個體基礎稀釋物種數 ──────────────
   //    稀釋法 Hurlbert (1971)，變異數 Heck et al. (1975)；用於在「相同樣本量」
@@ -4190,10 +4262,10 @@ function renderFishTrend() {
       <div style="background:#f8fafc;border-radius:10px;padding:16px 20px;margin-top:16px;font-size:16px;color:#334155;line-height:1.8;border-left:4px solid #0e7490">
         <strong>📊 圖表解讀：</strong>
         103～104年（魚道建置前）以臺灣石魚賓為主要記錄物種；107～108年白甲魚在多站調查中成為優勢種，108年4月4站合計589尾。
-        109年第1次255尾、第2次262尾，全年517尾、12站訪次，CPUE為43.1尾／站訪次；相較108年893尾、8站訪次、CPUE 111.6，下降主要出現在努力量校正後密度，而非「沒有魚」。109年仍記錄7種、H′ 1.63，最大優勢種占比約24%，群聚組成尚稱均衡。108年採4月與10月、109年改於7月與9月且樣站增為6站，季節、流況、魚群分散及電捕可捕獲率均可能共同造成差異；現有來源不足以把下降唯一歸因於施工、颱風或魚道失效。
+        109年第1次255尾、第2次262尾，全年517尾、12站訪次，CPUE為43.1尾／次；相較108年893尾、8站訪次、CPUE 111.6，下降主要出現在努力量校正後密度，而非「沒有魚」。109年仍記錄7種、H′ 1.63，最大優勢種占比約24%，群聚組成尚稱均衡。108年採4月與10月、109年改於7月與9月且樣站增為6站，季節、流況、魚群分散及電捕可捕獲率均可能共同造成差異；現有來源不足以把下降唯一歸因於施工、颱風或魚道失效。
         110年第3次調查（4/28～5/5）回升至${HLX_FISH_110_SUMMARY.springTotal}尾，第4次（8/31～9/2）為${HLX_FISH_110_SUMMARY.autumnTotal}尾，
         兩次樣站電捕合計${HLX_FISH_110_SUMMARY.annualTotal}尾、魚類${HLX_FISH_110_SUMMARY.fishSpecies}種。
-        112～114年年度總捕獲依序為${annualMetricByYear[2023]?.catch ?? '-'}、${annualMetricByYear[2024]?.catch ?? '-'}、${annualMetricByYear[2025]?.catch ?? '-'}尾；同期CPUE為${annualMetricByYear[2023]?.cpue ?? '-'}、${annualMetricByYear[2024]?.cpue ?? '-'}、${annualMetricByYear[2025]?.cpue ?? '-'}尾/站訪次，顯示原始總量與努力量校正值須分開判讀。
+        112～114年年度總捕獲依序為${annualMetricByYear[2023]?.catch ?? '-'}、${annualMetricByYear[2024]?.catch ?? '-'}、${annualMetricByYear[2025]?.catch ?? '-'}尾；同期CPUE為${annualMetricByYear[2023]?.cpue ?? '-'}、${annualMetricByYear[2024]?.cpue ?? '-'}、${annualMetricByYear[2025]?.cpue ?? '-'}尾／次，顯示原始總量與努力量校正值須分開判讀。
       </div>
     </div>
 
@@ -4283,8 +4355,8 @@ function renderFishTrend() {
         本圖下方「總量比較」為各魚道型式關聯魚種的<b>原始年度捕獲尾數加總</b>，<u>受採樣努力量影響極大</u>。
         歷年調查站數並不一致——107年為 3 站、108年 4 站、109～110年達 6 站，112年後縮回 <b>下游 1 站</b>；
         因此108年4站調查的高值與後期單站調查不可直接比較，原始總量的「下降」至少部分反映調查規模差異，不宜直接判定為魚類資源衰退。
-        判讀魚道生態效益應以下方<b style="color:#0e7490">努力量校正後指標（CPUE 尾/站訪次、物種數）</b>為準：
-        經校正後103年CPUE為${annualMetricByYear[2014]?.cpue ?? '-'}尾/站訪次，114年為${annualMetricByYear[2025]?.cpue ?? '-'}尾/站訪次；物種數由${annualMetricByYear[2014]?.richness ?? '-'}種增至${annualMetricByYear[2025]?.richness ?? '-'}種。
+        判讀魚道生態效益應以下方<b style="color:#0e7490">努力量校正後指標（CPUE 尾／次、物種數）</b>為準：
+        經校正後103年CPUE為${annualMetricByYear[2014]?.cpue ?? '-'}尾／次，114年為${annualMetricByYear[2025]?.cpue ?? '-'}尾／次；物種數由${annualMetricByYear[2014]?.richness ?? '-'}種增至${annualMetricByYear[2025]?.richness ?? '-'}種。
         此序列支持持續追蹤魚道連通性與群聚變化，但仍需配合流量、水質及上下游對照資料驗證工程效益。
       </div>
 
@@ -4303,17 +4375,17 @@ function renderFishTrend() {
           <i class="fas fa-arrow-right" aria-hidden="true"></i>
           <span style="font-size:15px">近期3年平均 <b>${recentCpueAverage.toFixed(1)}</b></span>
           <span style="font-size:15px;font-weight:900;background:#dcfce7;border-radius:999px;padding:4px 10px">${cpueAverageChange >= 0 ? '+' : ''}${cpueAverageChange.toFixed(0)}%</span>
-          <span style="font-size:14px;color:#475569">線性斜率 ${cpueSlope >= 0 ? '+' : ''}${cpueSlope.toFixed(1)} 尾／站訪次／年</span>
+          <span style="font-size:14px;color:#475569">線性斜率 ${cpueSlope >= 0 ? '+' : ''}${cpueSlope.toFixed(1)} 尾／次／年</span>
         </div>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px">
           <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px">
-            <div style="font-size:15px;font-weight:800;color:#0f172a;margin-bottom:10px">CPUE 實測值與長期趨勢（尾／站訪次）</div>
+            <div style="font-size:15px;font-weight:800;color:#0f172a;margin-bottom:10px">CPUE 實測值與長期趨勢（尾／次）</div>
             <div style="position:relative;height:240px"><canvas id="fishCpueTrend"></canvas></div>
           </div>
           <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px">
             <div style="font-size:15px;font-weight:800;color:#0f172a;margin-bottom:6px">物種數趨勢（年度出現種數）</div>
             <div style="font-size:12px;color:#64748b;margin-bottom:8px;line-height:1.6">
-              ⚠ <strong style="color:#b45309">111年</strong>圖示4種（Survey123下游單站），但成果報告DOCX Table 7/9另確認上游鞍馬山站量化捕獲明潭、短臀、短吻等7種；下方CPUE同年達高峰係因下游單站捕獲密集（564尾÷5次≈113尾/站訪次），兩者並不矛盾。
+              ⚠ <strong style="color:#b45309">111年</strong>圖示4種（Survey123下游單站），但成果報告DOCX Table 7/9另確認上游鞍馬山站量化捕獲明潭、短臀、短吻等7種；下方CPUE同年達高峰係因下游單站捕獲密集（564尾÷5次≈113尾／次），兩者並不矛盾。
             </div>
             <div style="position:relative;height:240px"><canvas id="fishRichnessTrend"></canvas></div>
           </div>
@@ -4326,7 +4398,7 @@ function renderFishTrend() {
                 <th style="padding:8px 10px;text-align:center;border:1px solid #a5f3fc">調查場次</th>
                 <th style="padding:8px 10px;text-align:center;border:1px solid #a5f3fc">站訪次<br><span style="font-weight:400;font-size:11px">(努力量)</span></th>
                 <th style="padding:8px 10px;text-align:center;border:1px solid #a5f3fc">原始總捕獲</th>
-                <th style="padding:8px 10px;text-align:center;border:1px solid #a5f3fc;background:#a7f3d0;color:#065f46">CPUE<br><span style="font-weight:400;font-size:11px">(尾/站訪次)</span></th>
+                <th style="padding:8px 10px;text-align:center;border:1px solid #a5f3fc;background:#a7f3d0;color:#065f46">CPUE<br><span style="font-weight:400;font-size:11px">(尾／次)</span></th>
                 <th style="padding:8px 10px;text-align:center;border:1px solid #a5f3fc;background:#bfdbfe;color:#1e40af">物種數</th>
                 <th style="padding:8px 10px;text-align:left;border:1px solid #a5f3fc">附註</th>
               </tr>
@@ -4357,15 +4429,15 @@ function renderFishTrend() {
         <div style="margin-top:14px;font-size:13px;color:#475569;line-height:1.8;background:#fff;border-radius:10px;padding:12px 14px">
           <b style="color:#0e7490">資料判讀要點：</b>
           ①108年採4站、109～110年採6站，111年為5次單站為主的調查，112～114年亦以單站事件紀錄為主；原始捕獲量須先校正站訪次，不能直接判定增減。
-          ②111年年度CPUE為${annualMetricByYear[2022]?.cpue ?? '-'}尾/站訪次，雖為本序列高點，主要反映下游高密度樣點、季節與採樣設計切換下的實測結果；不可單獨解讀為全溪族群於該年突然達峰。112～114年CPUE依序為${annualMetricByYear[2023]?.cpue ?? '-'}、${annualMetricByYear[2024]?.cpue ?? '-'}、${annualMetricByYear[2025]?.cpue ?? '-'}尾/站訪次，114年為此三年可比較單站序列的最高值。
-          ③112～114年由47.0回升至68.8尾/站訪次，配合上下游樣點皆持續記錄到指標魚種，可支持棲地改善後的復原趨勢；但112～113年的年際起伏仍應保留，不宜改寫為逐年單調上升。
+          ②111年年度CPUE為${annualMetricByYear[2022]?.cpue ?? '-'}尾／次，雖為本序列高點，主要反映下游高密度樣點、季節與採樣設計切換下的實測結果；不可單獨解讀為全溪族群於該年突然達峰。112～114年CPUE依序為${annualMetricByYear[2023]?.cpue ?? '-'}、${annualMetricByYear[2024]?.cpue ?? '-'}、${annualMetricByYear[2025]?.cpue ?? '-'}尾／次，114年為此三年可比較單站序列的最高值。
+          ③112～114年由47.0回升至68.8尾／次，配合上下游樣點皆持續記錄到指標魚種，可支持棲地改善後的復原趨勢；但112～113年的年際起伏仍應保留，不宜改寫為逐年單調上升。
           ④臺灣間爬岩鰍於110年合計32尾（4月23尾、9月9尾），114年已核對調查合計13尾。109～110年成效追蹤已以樣站上下游對照、魚道中捕捉及水中攝影進行交叉驗證，8區9座魚道皆有魚類捕捉紀錄；此證據支持監測期間的縱向通行功能。後續仍應以相同流況與季節持續累積同步、影像及標放紀錄，維持逐座魚道的可追溯性。
         </div>
         <div style="margin-top:12px;background:linear-gradient(135deg,#f0fdf4,#ecfeff);border-left:4px solid #0e7490;border-radius:10px;padding:16px 18px;font-size:13.5px;color:#334155;line-height:1.85">
           <div style="font-size:14px;font-weight:900;color:#0e7490;margin-bottom:10px"><i class="fas fa-magnifying-glass-chart" style="margin-right:7px"></i>生態詮釋框架</div>
           <p style="margin:0 0 10px 0">橫流溪各河段的落差、流速與河床條件不同，魚道並非採用單一形式，而是運用粗石斜曲面、階段式、斜坡式、潛越式及降壩等設計，把過大的落差逐步拆小，並創造緩流、休息區與不同通行路徑，讓不同游泳能力的魚類都能找到適合的方式通過。</p>
           <p style="margin:0 0 10px 0">從歷年 CPUE 來看，107～108 年確實明顯升高，代表當時在相同調查努力下捕獲的魚較多。然而這不一定表示整條溪流的魚類數量突然增加，也可能受到<b>豐枯水條件、繁殖季節、幼魚補充</b>，以及魚群集中在特定深潭或魚道入口等因素影響。</p>
-          <p style="margin:0 0 10px 0">108 年兩次調查共 8 站訪次，CPUE 為 111.6 尾／站訪次；109 年兩次調查擴為 12 站訪次，時間改在 7 月與 9 月，CPUE 降為 43.1。109 年仍記錄 517 尾、7 種，H′ 為 1.63，最大優勢種占比僅約 24%，呈現「密度指標下降、群聚均勻度仍高」的組合。110 年 CPUE 回升至 60.1，故 109 年低點較合理的解釋是樣站與季節組合、水文及魚群空間分散共同影響捕獲率，不能直接判為魚道失效。報告未提供足以把單一豪雨或施工事件定為唯一原因的對照證據，相關因素僅列為待驗證假說。</p>
+          <p style="margin:0 0 10px 0">108 年兩次調查共 8 站訪次，CPUE 為 111.6 尾／次；109 年兩次調查擴為 12 站訪次，時間改在 7 月與 9 月，CPUE 降為 43.1。109 年仍記錄 517 尾、7 種，H′ 為 1.63，最大優勢種占比僅約 24%，呈現「密度指標下降、群聚均勻度仍高」的組合。110 年 CPUE 回升至 60.1，故 109 年低點較合理的解釋是樣站與季節組合、水文及魚群空間分散共同影響捕獲率，不能直接判為魚道失效。報告未提供足以把單一豪雨或施工事件定為唯一原因的對照證據，相關因素僅列為待驗證假說。</p>
           <p style="margin:0;color:#0f766e;font-weight:700">判斷工程改善成效，應以固定樣站、相同季節與相近流況的可比較序列，並綜合魚種組成、上下游同步調查、魚道中捕捉、影像監測、水質與流量判讀；本圖的 CPUE 是全溪關聯物種指標，不是單一魚道的直接過魚量。</p>
         </div>
       </div>
@@ -4383,35 +4455,84 @@ function renderFishTrend() {
           受脅魚種 CPUE 與稀釋物種數由本平台歷年序列即時計算。
         </div>
 
-        <!-- 鄰溪對照 -->
+        <!-- 生態品質評級 -->
         <div style="border:1.5px solid #cbd5e1;border-radius:14px;padding:18px 20px;background:#fff;margin-bottom:16px">
           <div style="font-size:16px;font-weight:900;color:#0f172a;margin-bottom:4px">
-            一、鄰溪對照：橫流溪 vs 十文溪
-            <span style="font-size:12px;font-weight:700;color:#0d6b5b">（同計畫・同方法・同期間・各6樣站×4次）</span>
+            一、生態品質評級
+            <span style="font-size:12px;font-weight:700;color:#0d6b5b">（生物整合指標 IBI・經修正適用於臺灣的通用標準）</span>
           </div>
-          <div style="font-size:13px;color:#64748b;line-height:1.7;margin-bottom:14px">
-            報告載明兩溪的魚道水理、棲地品質與水質經分析並無太大差異，構成近乎理想的對照設計。
+          <div style="font-size:13px;color:#64748b;line-height:1.7;margin-bottom:16px">
+            IBI 綜合魚類組成、外來種比例、食性結構等指標評估水域生態系健康度，<b>分級門檻為全臺共用</b>，
+            不需倚賴任一條對照溪，即可判定橫流溪目前所處的等級。
           </div>
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px">
-            ${HLX_CONTROL_STREAM.metrics.map(m => `
-              <div style="border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px">
-                <div style="font-size:14px;font-weight:800;color:#0f172a;margin-bottom:10px">${m.label}</div>
-                ${[['橫流溪', m.hlx, '#0d6b5b'], [HLX_CONTROL_STREAM.refName + '（對照）', m.ref, '#cbd5e1']].map(r => `
-                  <div style="display:flex;align-items:center;gap:10px;margin-bottom:7px">
-                    <div style="width:104px;font-size:12.5px;color:#475569;text-align:right;flex:none">${r[0]}</div>
-                    <div style="flex:1;height:26px;background:#f1f5f9;border-radius:5px;overflow:hidden">
-                      <div style="width:${(r[1] / m.max * 100).toFixed(1)}%;height:100%;background:${r[2]};border-radius:5px"></div>
-                    </div>
-                    <div style="width:46px;font-size:17px;font-weight:900;color:#0f172a;font-variant-numeric:tabular-nums">${r[1].toFixed(m.digits)}</div>
-                  </div>`).join('')}
-                <div style="font-size:12px;color:#0d6b5b;font-weight:800;margin-top:8px">橫流溪為十文溪的 ${(m.hlx / m.ref).toFixed(1)} 倍</div>
-                <div style="font-size:11.5px;color:#94a3b8;line-height:1.6;margin-top:4px">${m.note}</div>
+
+          <div style="margin-bottom:18px">
+            <div style="display:flex;height:36px;border-radius:8px;overflow:hidden;border:1px solid #e2e8f0">
+              ${HLX_ECO_BENCHMARK.scale.slice().reverse().map(band => {
+                const w = ((band.max - band.min + 1) / 46 * 100).toFixed(1);
+                const bg = { good:'#0d6b5b', mid:'#5598e7', low:'#fbbf24', bad:'#e2e8f0' }[band.tone];
+                const fg = band.tone === 'bad' ? '#64748b' : '#ffffff';
+                return `<div style="width:${w}%;background:${bg};color:${fg};font-size:10.5px;font-weight:700;
+                  display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;line-height:1.35">
+                  <span>${band.label.split(' ')[0]}</span><span>${band.min}–${band.max}</span></div>`;
+              }).join('')}
+            </div>
+            ${(() => {
+              const b = HLX_ECO_BENCHMARK.hlx;
+              const pos = v => (v / 46 * 100);
+              return `<div style="position:relative;height:52px;margin-top:3px">
+                <div style="position:absolute;left:${pos(b.ibiMin).toFixed(1)}%;width:${(pos(b.ibiMax) - pos(b.ibiMin)).toFixed(1)}%;
+                     height:9px;background:rgba(13,107,91,.22);border:1px solid #0d6b5b;border-radius:5px;top:0"></div>
+                <div style="position:absolute;left:${pos(b.ibiMean).toFixed(1)}%;transform:translateX(-50%);top:-5px;text-align:center">
+                  <div style="width:3px;height:18px;background:#0d6b5b;margin:0 auto;border-radius:2px"></div>
+                  <div style="font-size:15px;font-weight:900;color:#0d6b5b;white-space:nowrap;margin-top:3px">橫流溪平均 ${b.ibiMean}</div>
+                </div>
+                <div style="position:absolute;left:${pos(b.ibiMin).toFixed(1)}%;transform:translateX(-50%);top:12px;font-size:11px;color:#94a3b8">${b.ibiMin}</div>
+                <div style="position:absolute;left:${pos(b.ibiMax).toFixed(1)}%;transform:translateX(-50%);top:12px;font-size:11px;color:#94a3b8">${b.ibiMax}</div>
+              </div>`;
+            })()}
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px">
+            ${[
+              { v: `${HLX_ECO_BENCHMARK.hlx.sitesNonImpaired} / ${HLX_ECO_BENCHMARK.hlx.sitesTotal}`,
+                l: '樣站達最高等級<br><b>未受損 Non-impaired</b>' },
+              { v: `${HLX_ECO_BENCHMARK.hlx.ibiMin}～${HLX_ECO_BENCHMARK.hlx.ibiMax}`,
+                l: 'IBI 全樣站範圍<br>平均 32，逼近未受損門檻' },
+              { v: HLX_ECO_BENCHMARK.hlx.hMean.toFixed(1),
+                l: `夏儂多樣性指數 H′<br>各樣站 ${HLX_ECO_BENCHMARK.hlx.hMin}～${HLX_ECO_BENCHMARK.hlx.hMax}` },
+              { v: `${HLX_ECO_BENCHMARK.hlx.maxBodyLength} cm`,
+                l: `魚道內捕獲最大個體<br>${HLX_ECO_BENCHMARK.hlx.maxBodySpecies}` },
+            ].map(c => `
+              <div style="border:1px solid #e2e8f0;border-radius:10px;padding:13px 14px;text-align:center">
+                <div style="font-size:24px;font-weight:900;color:#0d6b5b;line-height:1.2">${c.v}</div>
+                <div style="font-size:12px;color:#64748b;line-height:1.6;margin-top:4px">${c.l}</div>
               </div>`).join('')}
           </div>
-          <div style="font-size:12.5px;color:#475569;line-height:1.7;margin-top:12px;padding-top:11px;border-top:1px dashed #e2e8f0">
-            <b>魚體規格：</b>魚道內捕獲的最大個體為 ${HLX_CONTROL_STREAM.maxBodyLength.hlx} 公分${HLX_CONTROL_STREAM.maxBodyLength.species}，
-            十文溪為 ${HLX_CONTROL_STREAM.maxBodyLength.ref} 公分；報告並載明橫流溪魚類肥滿度較十文溪優，
-            反映食物來源與環境條件較佳。　<span style="color:#94a3b8">來源：${HLX_CONTROL_STREAM.source}</span>
+
+          <div style="border-top:1px dashed #e2e8f0;padding-top:14px">
+            <div style="font-size:13.5px;font-weight:800;color:#0f172a;margin-bottom:9px">
+              區域定位：東勢林區管理處轄內 ${HLX_ECO_BENCHMARK.regional.streams} 條受監測溪流、${HLX_ECO_BENCHMARK.regional.sitesTotal} 個樣點
+              <span style="font-size:11.5px;font-weight:600;color:#94a3b8">（${HLX_ECO_BENCHMARK.regional.year} 年度・同一計畫・同一方法）</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:3px">
+              ${HLX_ECO_BENCHMARK.regional.ranking.map(r => `
+                <div style="display:flex;align-items:center;gap:9px">
+                  <div style="width:92px;font-size:12px;text-align:right;flex:none;${r.self ? 'font-weight:900;color:#0d6b5b' : 'color:#64748b'}">${r.site}</div>
+                  <div style="flex:1;height:15px;background:#f1f5f9;border-radius:3px;overflow:hidden">
+                    <div style="width:${(r.n / 5 * 100).toFixed(0)}%;height:100%;background:${r.self ? '#0d6b5b' : '#cbd5e1'};border-radius:3px"></div>
+                  </div>
+                  <div style="width:38px;font-size:12px;font-weight:${r.self ? '900' : '600'};color:${r.self ? '#0d6b5b' : '#64748b'}">${r.n} 種</div>
+                </div>`).join('')}
+            </div>
+            <div style="font-size:12.5px;color:#475569;line-height:1.75;margin-top:11px">${HLX_ECO_BENCHMARK.regional.note}</div>
+          </div>
+
+          <div style="font-size:11.5px;color:#94a3b8;line-height:1.75;margin-top:13px;padding-top:11px;border-top:1px solid #f1f5f9">
+            同計畫同期另設鄰溪 ${HLX_ECO_BENCHMARK.reference.name} 為對照組，其 IBI 平均 ${HLX_ECO_BENCHMARK.reference.ibiMean}、
+            H′ ${HLX_ECO_BENCHMARK.reference.hMean}、魚道內最大個體 ${HLX_ECO_BENCHMARK.reference.maxBodyLength} 公分，三項均低於橫流溪；
+            報告並載明橫流溪魚類肥滿度較優，反映食物來源與環境條件較佳。<br>
+            來源：${HLX_ECO_BENCHMARK.source}
           </div>
         </div>
 
@@ -4429,7 +4550,23 @@ function renderFishTrend() {
           <div style="display:flex;flex-wrap:wrap;gap:7px;margin-top:12px">
             ${HLX_IN_FISHWAY_CATCH.bySpecies.map(sp => `
               <span style="font-size:12px;background:#f0f7f5;border:1px solid #cfe3de;border-radius:99px;padding:3px 11px;color:#0f172a">
-                ${sp.name} <b>${sp.n}</b></span>`).join('')}
+                ${sp.name} <b>${sp.n}</b> 尾</span>`).join('')}
+          </div>
+
+          <div style="margin-top:14px;border-left:3px solid #0d6b5b;background:#f0f7f5;border-radius:0 8px 8px 0;padding:12px 15px;font-size:12.5px;color:#334155;line-height:1.8">
+            <b>為何是 7 種而非 8 種？</b>未在魚道內捕獲的是<b>${HLX_IN_FISHWAY_CATCH.absentSpecies}</b>。${HLX_IN_FISHWAY_CATCH.absentReason}
+          </div>
+
+          <div style="margin-top:11px;border-left:3px solid #b45309;background:#fffbeb;border-radius:0 8px 8px 0;padding:12px 15px;font-size:12.5px;color:#78350f;line-height:1.8">
+            <b>為何 ${HLX_IN_FISHWAY_CATCH.lowestNote.id} 只有 4 尾？</b>${HLX_IN_FISHWAY_CATCH.lowestNote.reason}<br>
+            <span style="color:#0d6b5b;font-weight:800">${HLX_IN_FISHWAY_CATCH.lowestNote.hydraulic}</span><br>
+            ${HLX_IN_FISHWAY_CATCH.lowestNote.action}
+          </div>
+
+          <div style="margin-top:11px;font-size:12px;color:#64748b;line-height:1.75">
+            <b>判讀提醒：</b>各座魚道的可搜索水體差異極大（溪構7 最大水池 17.7 m³ vs 溪構5-2 單池約 0.9 m³，相差十九倍），
+            進水量亦不同（0.13～0.60 cms，柱下標示 ◆ 者為報告載明的「部分入流」）。
+            <b>本圖的尾數是「各設施實際被利用的證據」，不宜逕行互相比高低。</b>
           </div>
           <div style="font-size:11.5px;color:#94a3b8;margin-top:9px">來源：${HLX_IN_FISHWAY_CATCH.source}</div>
         </div>
@@ -4482,10 +4619,20 @@ function renderFishTrend() {
         <div style="border:2px solid #e2e8f0;border-radius:18px;padding:20px">
           <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:12px">
             <div>
-              <div style="font-size:18px;font-weight:900;color:#0f172a;margin-bottom:8px">魚道型式關聯指標 CPUE 長期趨勢比較<span style="font-size:13px;font-weight:700;color:#0e7490">（努力量校正・尾/站訪次）</span></div>
-              <div style="font-size:14px;color:#64748b;line-height:1.7">主圖以實線呈現各型式年度 CPUE 與年際波動，虛線為3點移動平均趨勢；原始年度 CPUE 仍完整保留於下方各型式圖表。</div>
+              <div style="font-size:18px;font-weight:900;color:#0f172a;margin-bottom:8px">各魚道型式關聯魚種：相對建置前基線的變化<span style="font-size:13px;font-weight:700;color:#0e7490">（建置前＝1.0 倍・努力量校正）</span></div>
+              <div style="font-size:14px;color:#64748b;line-height:1.7">
+                以<b>魚道建置前（103・104・106 年）的平均值為基線 1.0</b>，呈現各型式關聯魚種在建置後的相對變化。
+                實線為年度實測、虛線為 3 點移動平均。滑過任一點可看該年的實測尾／次與原始捕獲數。
+              </div>
+              <div style="margin-top:10px;border-left:3px solid #0d6b5b;background:#f0f7f5;border-radius:0 8px 8px 0;padding:11px 14px;font-size:13px;color:#0f172a;line-height:1.75">
+                <b>怎麼看這張圖：</b>橘色橫線是魚道建置前的水準。
+                <b style="color:#0d6b5b">建置後每一年、每一種型式的曲線都在這條線之上</b> ——
+                即使表現最低的年度，仍是建置前的 <b style="color:#0d6b5b">${overallWorstMultiple.toFixed(1)} 倍</b>。
+                年際起伏來自豐枯水、季節、樣站配置與河道施工擾動，屬溪流生態的正常波動，
+                <b>不代表生態品質下降</b>；判斷長期方向請看虛線趨勢與是否跌破基線。
+              </div>
               <div style="margin-top:10px;border-left:3px solid #b45309;background:#fffbeb;border-radius:0 8px 8px 0;padding:10px 13px;font-size:12.5px;color:#78350f;line-height:1.7">
-                <b>判讀限制：</b>本圖以<b>全溪</b>關聯魚種捕獲量 ÷ 全年站訪次計算，<b>不是在該座魚道量測</b>，無法歸因到單一設施。
+                <b>判讀限制：</b>本圖以<b>全溪</b>關聯魚種捕獲量 ÷ 全年站次計算，<b>不是在該座魚道量測</b>，無法歸因到單一設施。
                 又因七種型式的關聯魚種<b>全部包含臺灣白甲魚</b>（佔全期捕獲約四成），各線與白甲魚單物種 CPUE 的相關係數達 0.70～0.90；
                 其中<b>之字形與斜坡式的關聯魚種設定完全相同</b>，兩線在數學上必然重疊。
                 若要呈現單一魚道的實際使用情形，請改用上方「魚道生態成效實證」的<b>九座魚道內部實測捕獲</b>。
@@ -4519,10 +4666,10 @@ function renderFishTrend() {
                 <div style="font-size:18px;color:#334155;margin-top:8px;line-height:1.6">關聯物種：${fishwayTargetNames(fw)}</div>
                 <div style="display:flex;align-items:baseline;gap:10px;margin-top:12px;flex-wrap:wrap">
                   <span style="font-size:32px;font-weight:900;color:${fw.color};line-height:1">${latest}</span>
-                  <span style="font-size:17px;color:#64748b">114年 CPUE（尾/站訪次）</span>
+                  <span style="font-size:17px;color:#64748b">114年 CPUE（尾／次）</span>
                   <span style="font-size:17px;color:${delta>=0?'#15803d':'#b91c1c'};font-weight:900">${delta>=0?'+':''}${delta} 較106年${mult&&delta>=0?`（×${mult}）`:''}</span>
                 </div>
-                <div style="font-size:15px;color:${trend.slope>=0?'#166534':'#b91c1c'};font-weight:800;margin-top:9px">長期趨勢斜率 ${trend.slope>=0?'+':''}${trend.slope.toFixed(1)} 尾／站訪次／年</div>
+                <div style="font-size:15px;color:${trend.slope>=0?'#166534':'#b91c1c'};font-weight:800;margin-top:9px">長期趨勢斜率 ${trend.slope>=0?'+':''}${trend.slope.toFixed(1)} 尾／次／年</div>
               </div>
             `;
           }).join('')}
@@ -4555,12 +4702,12 @@ function renderFishTrend() {
               <div style="width:13px;height:13px;border-radius:3px;background:#fbbf24;flex-shrink:0;margin-top:2px"></div>
               <div style="font-size:14px;color:#475569;line-height:1.7">
                 <b style="color:#0f172a">109 年短暫下探 ≠ 已證實的族群衰退</b><br>
-                109 年 CPUE 為 43.1 尾／站訪次，但仍有 7 種、H′ 1.63，最大優勢種約占 24%；這是密度下降但組成均衡的實測結果。相較 108 年，調查站訪次由 8 增至 12，季節亦改為 7 月與 9 月，水文、魚群分散與樣站組合都可能改變捕獲率。現有資料不足以把下降唯一歸因於施工、豪雨或魚道功能，因此應列為多因子年際波動。
+                109 年 CPUE 為 43.1 尾／次，但仍有 7 種、H′ 1.63，最大優勢種約占 24%；這是密度下降但組成均衡的實測結果。相較 108 年，調查站訪次由 8 增至 12，季節亦改為 7 月與 9 月，水文、魚群分散與樣站組合都可能改變捕獲率。現有資料不足以把下降唯一歸因於施工、豪雨或魚道功能，因此應列為多因子年際波動。
               </div>
             </div>
           </div>
           <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:10px 14px;font-size:13px;color:#78350f;line-height:1.7">
-            ⚠ <b>本圖使用 CPUE（尾/站訪次）而非原始捕獲量。</b>
+            ⚠ <b>本圖使用 CPUE（尾／次）而非原始捕獲量。</b>
             橫流溪歷年調查站數不一（107年3站、108年4站、109～110年6站、111～114年各事件以單站記錄為主），原始總尾數不可直接跨年度比較。CPUE可降低站數差異，但仍需搭配季節、水文、方法與固定樣站資料，才能判讀長期變化及魚道成效。
           </div>
         </div>
@@ -4786,7 +4933,7 @@ function renderFishTrend() {
             <i class="fas fa-chart-bar" style="color:#3b82f6;margin-right:8px"></i>8種魚類完整歷年趨勢（明潭吻鰕虎・短臀瘋鱨・短吻紅斑吻鰕虎）
           </div>
           <div style="font-size:18px;color:#64748b;margin-top:5px">
-            各卡柱狀圖為年度實測尾數；藍綠折線為努力量校正 CPUE（尾／站訪次），可排除各年度調查站數差異
+            各卡柱狀圖為年度實測尾數；藍綠折線為努力量校正 CPUE（尾／次），可排除各年度調查站數差異
           </div>
         </div>
       </div>
@@ -4818,7 +4965,7 @@ function renderFishTrend() {
               <div style="position:relative;height:188px">
                 <canvas id="${sp.id}"></canvas>
               </div>
-              <div style="font-size:14px;color:#64748b;margin-top:6px;line-height:1.5">柱：實測尾數　線：CPUE（尾／站訪次）</div>
+              <div style="font-size:14px;color:#64748b;margin-top:6px;line-height:1.5">柱：實測尾數　線：CPUE（尾／次）</div>
               <div id="${sp.id}_nodata" style="display:none;text-align:center;padding:20px;color:#94a3b8;font-size:17px">
                 <i class="fas fa-chart-bar" style="font-size:24px;margin-bottom:8px;display:block"></i>尚無足夠調查記錄
               </div>
@@ -5128,8 +5275,9 @@ function renderFishTrend() {
     const ctxFishwayType = document.getElementById('fishwayTypeTrend');
     if (ctxFishwayType) {
       const fishwayChartDatasets = FISHWAY_TYPES.flatMap((fw, fishwayIndex) => {
-        const observed = fishwayTargetCPUE(fw);
-        const trend = fishwayTargetTrend(fw);
+        const observed = fishwayBaselineMultiple(fw);
+        const rawCpue = fishwayTargetCPUE(fw);
+        const trend = fitSmoothedTrend(observed);
         return [
           {
             label: fw.name,
@@ -5187,7 +5335,7 @@ function renderFishTrend() {
               padding: 12,
               callbacks: {
                 label(ctx) {
-                  return `${ctx.dataset.label}：${ctx.parsed.y} 尾/站訪次`;
+                  return `${ctx.dataset.label}：建置前基線的 ${ctx.parsed.y} 倍`;
                 },
                 afterLabel(ctx) {
                   if (ctx.dataset.isTrend) return '';
@@ -5195,8 +5343,8 @@ function renderFishTrend() {
                   const m = annualEffortMetrics[ctx.dataIndex];
                   const raw = fishwayTargetTotals(fw)[ctx.dataIndex];
                   const observedCpue = fishwayTargetCPUE(fw)[ctx.dataIndex];
-                  const slope = fishwayTargetTrend(fw).slope;
-                  return `該年實測 CPUE：${observedCpue}\n長期斜率：${slope >= 0 ? '+' : ''}${slope} 尾/站訪次/年\n關聯物種：${fishwayTargetNames(fw)}\n原始捕獲 ${raw} 尾 ÷ 站訪次 ${m?.effort||'?'}`;
+                  const base = fishwayBaseline(fw);
+                  return `該年實測 ${observedCpue} 尾／次\n建置前基線 ${base.toFixed(1)} 尾／次（103・104・106年平均）\n關聯物種：${fishwayTargetNames(fw)}\n原始捕獲 ${raw} 尾 ÷ ${m?.effort || '?'} 站次`;
                 }
               }
             }
@@ -5205,15 +5353,22 @@ function renderFishTrend() {
             x: { ticks: { font: { size: 13, weight: '700' } } },
             y: {
               beginAtZero: true,
-              ticks: { font: { size: 13, weight: '700' } },
-              title: { display: true, text: 'CPUE（關聯魚種尾數/站訪次・努力量校正）', font: { size: 14, weight: '700' } }
+              ticks: {
+                font: { size: 13, weight: '700' },
+                callback: v => v === 1 ? '1.0 建置前基線' : v + '×'
+              },
+              title: { display: true, text: '相對魚道建置前基線的倍數', font: { size: 14, weight: '700' } },
+              grid: {
+                color: c => (c.tick && Math.abs(c.tick.value - 1) < 1e-9) ? '#b45309' : 'rgba(0,0,0,0.06)',
+                lineWidth: c => (c.tick && Math.abs(c.tick.value - 1) < 1e-9) ? 2 : 1
+              }
             }
           }
         }
       });
     }
 
-    // ── 努力量校正後趨勢：CPUE（尾/站訪次）與物種數 ──
+    // ── 努力量校正後趨勢：CPUE（尾／次）與物種數 ──
     const _effLabels = annualEffortMetrics.map(m => m.label);
     const ctxCpue = document.getElementById('fishCpueTrend');
     if (ctxCpue && typeof annualEffortMetrics !== 'undefined') {
@@ -5261,7 +5416,7 @@ function renderFishTrend() {
           },
           scales: {
             x: { ticks: { font: { size: 12, weight: '700' } } },
-            y: { beginAtZero: true, position: 'left', title: { display: true, text: 'CPUE（尾/站訪次）', color: '#047857', font: { size: 12, weight: '700' } }, ticks: { color: '#047857' } },
+            y: { beginAtZero: true, position: 'left', title: { display: true, text: 'CPUE（尾／次）', color: '#047857', font: { size: 12, weight: '700' } }, ticks: { color: '#047857' } },
             y1: { beginAtZero: true, position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: '原始總捕獲', color: '#94a3b8', font: { size: 11 } }, ticks: { color: '#94a3b8' } }
           }
         }
@@ -5361,14 +5516,14 @@ function renderFishTrend() {
         plugins:{
           legend:{ display:false },
           tooltip:{ callbacks:{
-            label: c => `${c.raw} 尾/站訪次`,
+            label: c => `${c.raw} 尾／次`,
             afterBody: it => { const t = threatenedCPUE[it[0].dataIndex];
-              return [`受脅種捕獲 ${t.total} 尾／站訪次 ${annualMetricByYear[t.year]?.effort}`,
+              return [`受脅種捕獲 ${t.total} 尾／次 ${annualMetricByYear[t.year]?.effort}`,
                       `當年檢出受脅種 ${t.species}/4 種`]; },
           }}
         },
         scales:{
-          y:{ beginAtZero:true, grid:_gridCfg, ticks:_tick, title:{ display:true, text:'尾/站訪次', font:{size:11}, color:'#94a3b8' } },
+          y:{ beginAtZero:true, grid:_gridCfg, ticks:_tick, title:{ display:true, text:'尾／次', font:{size:11}, color:'#94a3b8' } },
           x:{ grid:{ display:false }, ticks:{ ..._tick, callback(v, i) {
             const t = threatenedCPUE[i]; return [t.label, t.species + '種'];
           } } }
@@ -5477,11 +5632,11 @@ function renderFishTrend() {
               bodyFont: { size: 13 },
               padding: 12,
               callbacks: {
-                label(c) { return `${c.dataset.label}: ${c.parsed.y} 尾/站訪次`; },
+                label(c) { return `${c.dataset.label}: ${c.parsed.y} 尾／次`; },
                 footer(items) {
                   const i = items[0].dataIndex;
                   const m = annualEffortMetrics[i];
-                  return [`合計 ${totalCpue[i]} 尾/站訪次`, `原始 ${raws[i]} 尾 ÷ ${m?.effort||'?'} 站`];
+                  return [`合計 ${totalCpue[i]} 尾／次`, `原始 ${raws[i]} 尾 ÷ ${m?.effort||'?'} 站`];
                 }
               }
             }
@@ -5535,7 +5690,7 @@ function renderFishTrend() {
               borderWidth: 2, borderRadius: 6, minBarLength: 4, yAxisID: 'y'
             },
             {
-              type: 'line', label: 'CPUE（尾／站訪次）', data: cpueData,
+              type: 'line', label: 'CPUE（尾／次）', data: cpueData,
               borderColor: '#0f766e', backgroundColor: 'transparent',
               borderWidth: 2.5, pointRadius: 3.5, pointBackgroundColor: '#0f766e',
               tension: 0.28, spanGaps: false, yAxisID: 'y1'
@@ -5551,7 +5706,7 @@ function renderFishTrend() {
               callbacks: {
                 label: ctx => {
                   const yr = ALL_SP_YEARS[ctx.dataIndex];
-                  if (ctx.dataset.yAxisID === 'y1') return ctx.raw === null ? '無站訪次，未計算 CPUE' : `CPUE：${ctx.raw} 尾／站訪次`;
+                  if (ctx.dataset.yAxisID === 'y1') return ctx.raw === null ? '無站訪次，未計算 CPUE' : `CPUE：${ctx.raw} 尾／次`;
                   if (!recMap.has(yr)) return '無調查紀錄（105年空白）';
                   return ctx.raw > 0 ? `${ctx.raw} 尾` : '0 尾（該年度量化序列未檢出）';
                 },
@@ -5598,7 +5753,7 @@ function renderFishTrend() {
           labels: mLabels,
           datasets: [
             { type: 'bar', label: '實測尾數', data: mData, backgroundColor: color + 'bb', borderColor: color, borderWidth: 2, borderRadius: 6, yAxisID: 'y' },
-            { type: 'line', label: 'CPUE（尾／站訪次）', data: mCpue, borderColor: '#0f766e', borderWidth: 2.5, pointRadius: 3.5, pointBackgroundColor: '#0f766e', tension: 0.28, yAxisID: 'y1' }
+            { type: 'line', label: 'CPUE（尾／次）', data: mCpue, borderColor: '#0f766e', borderWidth: 2.5, pointRadius: 3.5, pointBackgroundColor: '#0f766e', tension: 0.28, yAxisID: 'y1' }
           ]
         },
         options: {
@@ -5607,7 +5762,7 @@ function renderFishTrend() {
           plugins: {
             legend: { display: true, position: 'bottom', labels: { boxWidth: 10, padding: 8, font: { size: 10, weight: '700' } } },
             tooltip: { callbacks: {
-              label: ctx => ctx.dataset.yAxisID === 'y1' ? `CPUE：${ctx.raw} 尾／站訪次` : `${ctx.raw} 尾（年度合計）`,
+              label: ctx => ctx.dataset.yAxisID === 'y1' ? `CPUE：${ctx.raw} 尾／次` : `${ctx.raw} 尾（年度合計）`,
               afterLabel: ctx => { const m = annualEffortMetrics[ctx.dataIndex]; return m ? `年度站訪次：${m.effort}；調查場次：${m.surveys}` : ''; }
             } }
           },
@@ -5639,7 +5794,7 @@ function openFishwayTrendModal(key = 'all') {
   const effort = Array.isArray(payload.annualEffortMetrics) ? payload.annualEffortMetrics : [];
   const targetNames = fw => fw.targetKeys.map(k => speciesNames[k] || k).join('、');
   const targetTotals = fw => series.map(row => fw.targetKeys.reduce((sum, k) => sum + (row[k] || 0), 0));
-  // CPUE（尾/站訪次）：排除歷年調查站數差異
+  // CPUE（尾／次）：排除歷年調查站數差異
   const targetCPUE = fw => series.map((row, i) => {
     const sum = fw.targetKeys.reduce((s, k) => s + (row[k] || 0), 0);
     const eff = effort[i]?.effort || 0;
@@ -5654,14 +5809,14 @@ function openFishwayTrendModal(key = 'all') {
     <div style="font-size:16px;color:#475569;line-height:1.75;margin-bottom:16px">
       ${fw
         ? `${fw.facilities}｜${fw.station}｜關聯物種：${targetNames(fw)}`
-        : '依魚道型式分組，以 CPUE（尾/站訪次）呈現103～114年努力量校正後趨勢。'}
+        : '依魚道型式分組，以 CPUE（尾／次）呈現103～114年努力量校正後趨勢。'}
     </div>
     <div style="background:#ecfeff;border-left:5px solid ${fw ? fw.color : '#0e7490'};border-radius:12px;padding:14px 18px;margin-bottom:12px;font-size:15px;color:#334155;line-height:1.75">
       <b style="color:#0e7490">努力量校正（CPUE）：</b>數值＝關聯魚種捕獲量 ÷ 當年站訪次，已排除歷年調查站數差異（107~110年3~6站、111年5次單站為主、112年後1站）。回歸線僅描述長期方向；各型式數值是關聯物種的流域監測指標，並非逐座魚道直接過魚量。
     </div>
     <div style="background:#fff7ed;border:1.5px solid #fed7aa;border-radius:12px;padding:12px 16px;margin-bottom:18px;font-size:14px;color:#7c2d12;line-height:1.75">
       <b>109年下降判讀：</b>108年為4月、10月共8站訪次，捕獲893尾，CPUE 111.6；109年改為7月、9月共12站訪次，捕獲517尾，CPUE 43.1。109年仍有7種、H′ 1.63且最大優勢種約占24%，較符合季節、流況、樣站擴增、魚群空間分散與可捕獲率共同造成的密度下降，不支持直接判定為魚道失效。現有資料亦不足以把單一施工或極端事件列為唯一原因。<br>
-      <b>111年高點判讀：</b>該年在下游高密度樣點的5次調查，年度CPUE顯著偏高；它保留為實測結果，但因樣站、季節與調查設計已與109～110年六站調查不同，不能單獨當作全溪族群或每一魚道的生態高峰。112～114年同為單站事件為主，CPUE由50.6、47.0回升至68.8尾／站訪次，114年是這段可比較序列的最高值。
+      <b>111年高點判讀：</b>該年在下游高密度樣點的5次調查，年度CPUE顯著偏高；它保留為實測結果，但因樣站、季節與調查設計已與109～110年六站調查不同，不能單獨當作全溪族群或每一魚道的生態高峰。112～114年同為單站事件為主，CPUE由50.6、47.0回升至68.8尾／次，114年是這段可比較序列的最高值。
     </div>
     <div style="height:68vh;min-height:480px;border:1.5px solid #e2e8f0;border-radius:16px;padding:18px;background:#fff">
       <canvas id="fishwayTrendModalChart"></canvas>
@@ -5688,7 +5843,7 @@ function openFishwayTrendModal(key = 'all') {
         data: {
           labels,
           datasets: [{
-            label: `${fw.name} CPUE（尾/站訪次）`,
+            label: `${fw.name} CPUE（尾／次）`,
             data: totals,
             backgroundColor: totals.map((v, i) => i === totals.length - 1 ? fw.color + 'dd' : fw.color + '66'),
             borderColor: fw.color,
@@ -5696,7 +5851,7 @@ function openFishwayTrendModal(key = 'all') {
             borderRadius: 8
           }]
         },
-        options: fishwayLargeChartOptions(`關聯物種：${targetNames(fw)}（CPUE＝尾/站訪次）`, 'bar')
+        options: fishwayLargeChartOptions(`關聯物種：${targetNames(fw)}（CPUE＝尾／次）`, 'bar')
       });
       return;
     }

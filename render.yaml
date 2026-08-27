@@ -16,6 +16,8 @@ services:
         sync: false
       - key: OPENCODE_GO_MODEL
         value: minimax-m3
+      - key: OPENCODE_GO_VISION_MODEL
+        value: deepseek-v4-flash-vision-exp
       - key: OPENCODE_GO_ENABLED
         value: "true"
       - key: OPENCODE_GO_ROUTER_MODEL

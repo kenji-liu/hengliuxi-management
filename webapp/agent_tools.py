@@ -354,6 +354,12 @@ def query_fish_surveys(snapshot: Dict[str, Any], species: str = "",
             return {"error": f"查無物種「{species}」。可查詢的物種："
                              + "、".join(name_to_key.keys())}
 
+    # 使用者常以民國年提問；快照內部使用西元年，先統一比較口徑。
+    if year_from and 1 <= int(year_from) < 1911:
+        year_from = int(year_from) + 1911
+    if year_to and 1 <= int(year_to) < 1911:
+        year_to = int(year_to) + 1911
+
     rows = []
     for item in surveys:
         year = item.get("year")
@@ -366,8 +372,13 @@ def query_fish_surveys(snapshot: Dict[str, Any], species: str = "",
         record = {
             "場次": str(item.get("label") or "").replace("\n", " "),
             "西元年": year,
+            "民國年": (int(year) - 1911) if year else None,
             "月份": item.get("m"),
             "魚道建置前": bool(item.get("preConstruct")),
+            "範圍": item.get("scope") or "未標示",
+            "資料狀態": item.get("dataStatus") or "observed",
+            "來源": item.get("source") or "未標示",
+            "未分類或待核對": item.get("unclassified") or 0,
             "說明": str(item.get("note") or "")[:110],
         }
         if target_key:
@@ -390,6 +401,39 @@ def query_fish_surveys(snapshot: Dict[str, Any], species: str = "",
         result["物種"] = key_names.get(target_key, species)
         result["該物種合計尾數"] = sum(int(r.get("尾數") or 0) for r in rows)
         result["捕獲場次數"] = sum(1 for r in rows if int(r.get("尾數") or 0) > 0)
+
+    # 年度彙整與圖表使用同一快照，避免模型從逐筆資料自行誤加不同資料層。
+    annual_rows = list(snapshot.get("fishAnnualData") or [])
+    if year_from:
+        annual_rows = [row for row in annual_rows if (row.get("year") or 0) >= year_from]
+    if year_to:
+        annual_rows = [row for row in annual_rows if (row.get("year") or 0) <= year_to]
+    if target_key:
+        result["年度彙整"] = [{
+            "民國年": (int(row.get("year")) - 1911) if row.get("year") else None,
+            "物種": key_names.get(target_key, target_key),
+            "尾數": row.get(target_key, 0),
+            "站訪次": row.get("effort", 0),
+            "物種數": row.get("richness", 0),
+            "資料層": row.get("sources", []),
+        } for row in annual_rows]
+    elif annual_rows:
+        result["年度彙整"] = [{
+            "民國年": (int(row.get("year")) - 1911) if row.get("year") else None,
+            "標準物種總尾數": row.get("catch", 0),
+            "站訪次": row.get("effort", 0),
+            "CPUE": row.get("cpue", 0),
+            "物種數": row.get("richness", 0),
+            "資料層": row.get("sources", []),
+        } for row in annual_rows]
+
+    audit = snapshot.get("fishDataAudit") or {}
+    if audit:
+        result["資料核對政策"] = audit.get("policy") or "不同資料層並列，不重複加總。"
+        if target_key:
+            target_name = key_names.get(target_key, species)
+            result["該物種非尾數證據"] = [item for item in (audit.get("presenceOnly") or [])
+                                     if item.get("species") == target_name]
     return result
 
 

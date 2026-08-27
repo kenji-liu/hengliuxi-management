@@ -1159,7 +1159,7 @@ function initAIChat() {
           </select>
         </div>
         <input type="file" id="aiPhotoInput" accept="image/*" style="display:none" onchange="_aiPhotoPreview(this)">
-        <button class="ai-photo-btn" onclick="document.getElementById('aiPhotoInput').click()" title="上傳設施照片評估損壞">📷</button>
+        <button class="ai-photo-btn" onclick="document.getElementById('aiPhotoInput').click()" title="上傳構造物照片或手寫巡查表">📷</button>
         <div class="ai-photo-preview-wrap" id="aiPhotoPreviewWrap">
           <img id="aiPhotoThumb" src="" alt="預覽">
           <span style="font-size:12px;color:#15803d">照片已選取</span>
@@ -2279,27 +2279,53 @@ function clearAIChat() {
 }
 
 // ── 照片評估 ──────────────────────────────────────────────────────
-let _aiPhoto = { b64: null, mime: null };
+let _aiPhoto = { active: false, b64: null, mime: null, ready: Promise.resolve() };
+
+function _aiCompressImage(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = event => {
+      const image = new Image();
+      image.onload = () => {
+        const maxSide = 1600;
+        const scale = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+        canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+        canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', 0.82));
+      };
+      image.onerror = reject;
+      image.src = event.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 
 function _aiPhotoPreview(input) {
   const file = input.files[0];
   if (!file) return;
-  _aiPhoto.mime = file.type || "image/jpeg";
+  const state = { active: true, b64: null, mime: 'image/jpeg', ready: null };
+  _aiPhoto = state;
   const reader = new FileReader();
   reader.onload = e => {
-    _aiPhoto.b64 = e.target.result.split(",")[1];
     document.getElementById("aiPhotoThumb").src = e.target.result;
     document.getElementById("aiPhotoPreviewWrap").style.display = "flex";
     document.getElementById("aiInput").placeholder = "（選填）輸入問題，或直接按送出讓 AI 評估照片…";
   };
   reader.readAsDataURL(file);
+  state.ready = _aiCompressImage(file).then(dataUrl => {
+    state.b64 = dataUrl.split(',', 2)[1];
+    return state;
+  });
 }
 
 function _aiPhotoCancel() {
-  _aiPhoto = { b64: null, mime: null };
+  _aiPhoto = { active: false, b64: null, mime: null, ready: Promise.resolve() };
   document.getElementById("aiPhotoInput").value = "";
   document.getElementById("aiPhotoPreviewWrap").style.display = "none";
-  document.getElementById("aiInput").placeholder = "輸入問題…如：溪構5-2 魚道現況？";
+  document.getElementById("aiInput").placeholder = "輸入問題…如：溪構5-2 魚道現況？或請辨識手寫巡查表";
 }
 
 async function aiSend() {
@@ -2307,19 +2333,40 @@ async function aiSend() {
   const q = (input.value || "").trim();
 
   // ── 有照片 → 呼叫 photo-assess ──────────────────────────────
-  if (_aiPhoto.b64) {
+  if (_aiPhoto.active) {
     const question = q || "請評估照片中的設施損壞狀況";
     input.value = "";
     const thumb = document.getElementById("aiPhotoThumb").src;
     appendAIMsg(`<img src="${thumb}" style="max-width:180px;max-height:130px;border-radius:8px;display:block;margin-bottom:4px"><span>${question}</span>`, "user", true);
     const typing = appendTyping();
-    const b64 = _aiPhoto.b64, mime = _aiPhoto.mime;
-    _aiPhotoCancel();
+    const photoState = _aiPhoto;
     try {
+      await (photoState.ready || Promise.resolve());
+      const b64 = photoState.b64, mime = photoState.mime || 'image/jpeg';
+      if (!b64) throw new Error('圖片壓縮失敗');
+      _aiPhotoCancel();
+      const facility = (typeof DB !== 'undefined' && DB.getAll)
+        ? (DB.getAll('facilities') || []).find(f =>
+            question.includes(f.name || '') || (f.code && question.toLowerCase().includes(String(f.code).toLowerCase())))
+        : null;
       const resp = await fetch("/api/photo-assess", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image_base64: b64, mime_type: mime, question }),
+        body: JSON.stringify({
+          image_base64: b64,
+          mime_type: mime,
+          question,
+          facility_name: facility?.name || '',
+          facility_record: facility ? {
+            id: facility.id,
+            name: facility.name,
+            status: facility.status,
+            derLevel: facility.derLevel,
+            riskScore: facility.riskScore,
+            assessmentDate: facility.assessmentDate || facility.lastInspect
+          } : {},
+          handwriting: /手寫|表單|巡查表|照片問答/.test(question)
+        }),
       });
       const data = await resp.json();
       typing.remove();

@@ -2062,6 +2062,9 @@ def ai_model_config_public() -> Any:
         "provider_label": "OpenCode Go",
         "opencode_go_ready": go_key_ready,
         "opencode_go_model": os.environ.get("OPENCODE_GO_MODEL", "minimax-m3"),
+        "opencode_go_vision_model": os.environ.get(
+            "OPENCODE_GO_VISION_MODEL", "deepseek-v4-flash-vision-exp"
+        ),
         "rag_ready": rag_backend is not None,
         "timestamp": _now(),
     })
@@ -2863,8 +2866,8 @@ def smart_ask() -> Any:
     })
 
 
-@nlp_rag.route("/photo-assess", methods=["POST"])
-def photo_assess():
+# Legacy OpenRouter implementation is intentionally not registered.
+def photo_assess_legacy():
     """照片損壞評估 — 使用 OpenRouter 免費視覺模型。
     接受 multipart/form-data（欄位 photo + question）
     或 application/json（image_base64, mime_type, question）。
@@ -2970,6 +2973,74 @@ def photo_assess():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
+@nlp_rag.route("/photo-assess", methods=["POST"])
+def photo_assess():
+    """OpenCode Go vision assessment with deterministic DER&U normalization."""
+    import base64 as _b64
+    try:
+        body = request.get_json(silent=True) or {}
+        image_b64 = ""
+        image_name = "巡查影像"
+        mime_type = "image/jpeg"
+        if "multipart" in (request.content_type or ""):
+            photo = request.files.get("photo")
+            if not photo:
+                return jsonify({"status": "error", "message": "未收到 photo 欄位"}), 400
+            image_b64 = _b64.b64encode(photo.read()).decode("ascii")
+            image_name = photo.filename or image_name
+            mime_type = photo.content_type or mime_type
+        else:
+            image_b64 = str(body.get("image_base64") or body.get("image") or "").strip()
+            mime_type = str(body.get("mime_type") or mime_type)
+            image_name = str(body.get("image_name") or image_name)
+        if not image_b64:
+            return jsonify({"status": "error", "message": "未收到圖片資料"}), 400
+
+        question = str((request.form.get("question") if request.form else None)
+                       or body.get("question") or "請評估照片中的設施損壞狀況")
+        facility_name = str((request.form.get("facility_name") if request.form else None)
+                            or body.get("facility_name") or body.get("facilityName") or "")
+        facility_record = body.get("facility_record") or body.get("facilityRecord") or {}
+        findings = str((request.form.get("findings") if request.form else None)
+                       or body.get("findings") or body.get("context") or "")
+        weather = str((request.form.get("weather") if request.form else None)
+                      or body.get("weather") or "")
+        handwriting_raw = ((request.form.get("handwriting") if request.form else None)
+                           or body.get("handwriting"))
+        handwriting = bool(handwriting_raw) or bool(re.search(r"手寫|表單|巡查表|照片問答", question))
+        if rag_backend is None or not hasattr(rag_backend, "analyze_inspection_image_with_opencode_go"):
+            return jsonify({"status": "error", "message": "OpenCode Go 視覺模組未載入"}), 503
+
+        analysis = rag_backend.analyze_inspection_image_with_opencode_go(
+            image_b64, facility_name=facility_name, findings=findings,
+            weather=weather, image_name=image_name, handwriting=handwriting,
+            mime_type=mime_type, question=question, facility_record=facility_record
+        )
+        deru = analysis.get("deru") or {}
+        lines = [
+            f"構造物類型：{analysis.get('structureType') or '無法判定'}",
+            f"照片可見損壞比例：約 {analysis.get('damageCoverage', 0)}%（非整座構造物損壞率）",
+            f"異常特徵：{'、'.join(analysis.get('deteriorationFeatures') or ['未明確辨識'])}",
+            f"DER&U：D{deru.get('d', 0)}/E{deru.get('e', 1)}/R{deru.get('r', 1)}・U{deru.get('u', 1)}（{deru.get('label', 'U1 定期巡查')}）",
+            f"辨識信心：{analysis.get('confidenceLabel', '低')}（{round(float(analysis.get('confidence', 0)) * 100)}%）",
+            f"判讀：{analysis.get('reasoning', '')}",
+            f"建議：{'；'.join(str(item) for item in (analysis.get('recommendations') or [])) or analysis.get('actionSuggestion', '')}",
+        ]
+        if analysis.get("handwritingText"):
+            lines.append(f"手寫辨識：{analysis['handwritingText']}")
+        return jsonify({
+            "status": "success",
+            "assessment": "\n".join(line for line in lines if line.split('：', 1)[-1].strip()),
+            "analysis": analysis,
+            "model": analysis.get("model", "deepseek-v4-flash-vision-exp"),
+            "provider": "opencode_go",
+            "timestamp": _now(),
+        })
+    except Exception as exc:
+        logging.getLogger(__name__).warning("[PHOTO_ASSESS] %s", exc)
+        return jsonify({"status": "error", "message": f"OpenCode Go 視覺辨識失敗：{type(exc).__name__}"}), 503
+
+
 @nlp_rag.route("/ai-check", methods=["GET"])
 def ai_check():
     """快速診斷端點：只測試平台目前啟用的 OpenCode Go。"""
@@ -3002,6 +3073,30 @@ def ai_check():
             results["opencode_go"] = f"✗ {type(e).__name__}: {e}"
     else:
         results["opencode_go"] = "✗ key not set（請在 Render 設定 OPENCODE_GO_API_KEY）"
+
+    vision_model = os.environ.get(
+        "OPENCODE_GO_VISION_MODEL", "deepseek-v4-flash-vision-exp"
+    ).strip() or "deepseek-v4-flash-vision-exp"
+    if go_key:
+        try:
+            models_req = urllib.request.Request(
+                "https://opencode.ai/zen/go/v1/models",
+                headers={"Authorization": f"Bearer {go_key}", "User-Agent": _BROWSER_UA},
+            )
+            with urllib.request.urlopen(models_req, timeout=15) as r:
+                model_payload = _json.loads(r.read().decode("utf-8"))
+            available = {
+                str(item.get("id")) for item in model_payload.get("data", [])
+                if item.get("id")
+            }
+            results["opencode_go_vision"] = (
+                f"✓ model listed ({vision_model})" if vision_model in available
+                else f"✗ model unavailable ({vision_model})"
+            )
+        except Exception as e:
+            results["opencode_go_vision"] = f"✗ check failed: {type(e).__name__}"
+    else:
+        results["opencode_go_vision"] = "✗ key not set"
 
     # Ollama（Render 通常未部署；本機服務可作為穩定備援）
     try:

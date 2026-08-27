@@ -1,7 +1,7 @@
 // 儀表板模組 — 全連動版
 function renderDashboard() {
   const facilities  = DB.getAll('facilities');
-  const fish        = DB.getAll('fish').filter(f => String(f.species || '').trim() !== '粗首馬口鱲');
+  const fish        = DB.getAll('fish');
   const habitats    = DB.getAll('habitats');
   const inspections = DB.getAll('inspections');
 
