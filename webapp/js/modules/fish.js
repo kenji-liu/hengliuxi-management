@@ -4108,7 +4108,7 @@ function renderFishTrend() {
     .map(s => Number(s.year))), 0);
   const latestDownMean = _meanOf(_downOne.filter(s => Number(s.year) === _latestDownYear));
 
-  window.hlxFishOutcomeEvidence = { controlStream: HLX_CONTROL_STREAM,
+  window.hlxFishOutcomeEvidence = { controlStream: null, // 已改為台灣整體框架
     inFishway: HLX_IN_FISHWAY_CATCH, threatenedCPUE, rarefied };
 
   window.hlxFishwayTrendPayload = { fishwayTypes: FISHWAY_TYPES, annualFishwaySeries, annualEffortMetrics };
