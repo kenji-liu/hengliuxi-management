@@ -559,12 +559,43 @@ def _local_keyword_retrieve(query: str, top_k: int = 8) -> List[Dict[str, Any]]:
     """
     if doc_retrieval is not None and doc_retrieval.is_ready():
         try:
+            # 具名成果報告問題必須在指定報告內取證，不能讓索引說明或後續評估
+            # 報告因重複出現報告名稱而佔滿候選。其餘問題維持一般混合檢索。
+            named_report = bool(re.search(
+                r'(?:成果報告|報告書|技術服務案|設計書架)', query, re.IGNORECASE)
+                and re.search(r'\d{3,4}\s*[~～-]\s*\d{2,4}|\d{3,4}年度', query))
+            candidate_k = max(top_k * 12, 60) if named_report else max(top_k * 3, 12)
             # 先多取候選，再用問題概念做第二道閘門；BM25 原始分數可能
             # 讓只提到「橫流溪／魚道」的泛用段落排在真正答案前面。
-            hits = doc_retrieval.search(query, top_k=max(top_k * 3, 12))
+            hits = doc_retrieval.search(query, top_k=candidate_k)
+            if named_report:
+                report_hits = [
+                    hit for hit in hits
+                    if re.search(r'\.(?:pdf|docx?|pptx?)$',
+                                 _as_text(hit.get('source_file') or hit.get('source')),
+                                 re.IGNORECASE)
+                ]
+                # 查詢含有年度範圍時，檔名也必須包含該範圍；其他報告
+                # 內文引用本案年度，不代表它就是使用者指定的報告。
+                years = re.findall(r'(?<!\d)(\d{3,4})(?!\d)', query)
+                if len(years) >= 2:
+                    year_hits = [
+                        hit for hit in report_hits
+                        if all(year in _as_text(hit.get('source_file') or hit.get('source'))
+                               for year in years[:2])
+                    ]
+                    if year_hits:
+                        report_hits = year_hits
+                if report_hits:
+                    hits = report_hits
             if hits:
                 if answer_engine is not None:
-                    hits = answer_engine.filter_retrieved_docs(query, hits, limit=top_k)
+                    filtered_hits = answer_engine.filter_retrieved_docs(query, hits, limit=top_k)
+                    # 具名報告已通過檔名與年度範圍鎖定；若段落本身是
+                    # 目錄、表格或設計圖說，嚴格概念閘門可能誤判為無關，
+                    # 此時保留指定報告段落，不得退回其他文件。
+                    hits = filtered_hits or (hits[:max(1, int(top_k or 8))]
+                                              if named_report else filtered_hits)
                 return hits[:max(1, int(top_k or 8))]
         except Exception as exc:
             logging.getLogger(__name__).warning("[RETRIEVAL] 檢索失敗，退回關鍵字比對：%s", exc)
@@ -1888,8 +1919,9 @@ def _run_agent(query: str, snapshot: Dict[str, Any], grounding: str,
     # 等於退回「檢索後塞提示詞」的老路，失去 Agent 主動查詢的意義。
     user_content = f"【使用者問題】\n{query}"
     if grounding.strip():
+        grounding_limit = 5000 if "指定成果報告查詢" in grounding else 800
         user_content = (f"【背景定位（僅供判斷要查什麼，數據仍須以工具回傳為準）】\n"
-                        f"{grounding.strip()[:800]}\n\n{user_content}")
+                        f"{grounding.strip()[:grounding_limit]}\n\n{user_content}")
 
     messages: List[Dict[str, Any]] = [
         {"role": "system", "content": _AGENT_SYSTEM_PROMPT},
@@ -2602,7 +2634,16 @@ def smart_ask() -> Any:
         used_sources = {k: v for k, v in raw_sources.items() if (v or "").strip()}
 
     combined_ctx_parts = []
-    for name, text in used_sources.items():
+    source_order = list(used_sources)
+    if intent.get("intent") == "report":
+        # 報告題先讓模型看到報告段落，再看目前管理資料的對照；
+        # 原本 platform/management 先出現時，模型容易把摘要當成主答案。
+        priority = ["docs", "facility", "ecology", "management", "platform",
+                    "handbook", "environment", "web"]
+        source_order = [name for name in priority if name in used_sources]
+        source_order += [name for name in used_sources if name not in source_order]
+    for name in source_order:
+        text = used_sources[name]
         label = (answer_engine.SOURCE_LABELS.get(name, name)
                  if answer_engine is not None else name)
         note = "（外部資料，不得覆蓋橫流溪原始紀錄）" if name == "web" else ""
@@ -2632,6 +2673,16 @@ def smart_ask() -> Any:
                 "\n系統已判定本題缺少本案直接環境／進場資料；以下脈絡只屬一般通則，"
                 "不得當成本案核定工法：\n" + environment_ctx[:1800]
             )
+        if intent.get("intent") == "report":
+            # 指定報告題不能只靠 Agent 自行猜工具；先把本輪已篩選的
+            # 報告段落摘要放入定位資訊，並要求 search_documents 以該報告核對。
+            report_evidence = local_ctx[:4200] or ocr_ctx[:1800]
+            grounding += (
+                "\n本題是指定成果報告查詢。必須先使用 search_documents，"
+                "優先查詢使用者問題中的完整報告名稱；不可用巡查統計或其他報告代替。"
+            )
+            if report_evidence:
+                grounding += "\n本輪檢索到的指定報告候選段落（僅供定位，仍須以工具核對）：\n" + report_evidence
         ai_result = _run_agent(query, client_snapshot, grounding, mode_config)
 
     if not _as_text(ai_result.get("answer")):
@@ -2760,8 +2811,18 @@ def smart_ask() -> Any:
     msg       = f"{platform_part}{web_part}{ocr_part}{ocr_running_part}本機資料 ＋ {ai_part}"
 
     structured_citations: List[Dict[str, Any]] = []
-    # 最新且具結構欄位的管理資料優先列為來源。
-    for item in management_evidence:
+    # 指定報告題先列報告證據；一般維護題才先列最新管理資料，避免
+    # 前端只顯示前幾筆引用時把指定報告截掉。
+    citation_groups = (
+        [("local", item) for item in local_evidence]
+        + [("management", item) for item in management_evidence]
+        if intent.get("intent") == "report"
+        else [("management", item) for item in management_evidence]
+        + [("local", item) for item in local_evidence]
+    )
+    for group, item in citation_groups:
+        if group != "management":
+            continue
         structured_citations.append({
             "source_file": item.get("source") or item.get("title") or "最新巡查與維護紀錄",
             "page": item.get("page") or 1,
@@ -2771,7 +2832,9 @@ def smart_ask() -> Any:
             "record_id": item.get("record_id") or item.get("id") or "",
             "source_type": item.get("type") or "管理資料",
         })
-    for item in local_evidence:
+    for group, item in citation_groups:
+        if group != "local":
+            continue
         structured_citations.append({
             "source_file": item.get("source") or "橫流溪資料庫",
             "page": item.get("page") or 1,

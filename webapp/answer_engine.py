@@ -65,6 +65,16 @@ REVIEWERS = ["胡培中", "李振卿", "賴建宏", "王宜達", "張坤城"]
 # weights：該意圖下各資料來源的權重（0 表示不採用）
 INTENT_RULES: List[Dict[str, Any]] = [
     {
+        'intent': 'report',
+        'label': '指定報告與工程設計內容',
+        'patterns': [
+            r'成果報告|報告書|技術服務案|設計書架|設計重點|設計依據|報告內容',
+        ],
+        # 具名報告問題必須先讀報告；管理資料只用來回答題目明確要求的現況關聯。
+        'weights': {'docs': 1.0, 'facility': 0.7, 'ecology': 0.5,
+                    'management': 0.35, 'handbook': 0.2, 'web': 0.0},
+    },
+    {
         'intent': 'review',
         'label': '評審簡報與委員問答',
         'patterns': [
@@ -439,6 +449,9 @@ def route_intent(query: str) -> Dict[str, Any]:
     # 設施詞，否則委員題會被誤路由到一般工程資料。
     if 'review' in scores and re.search(r'評審|委員|金質獎|評分|構面|簡報|初評|問答準備|沙盤', text):
         best = 'review'
+    elif 'report' in scores and re.search(
+            r'成果報告|報告書|技術服務案|設計書架|設計重點|設計依據|報告內容', text):
+        best = 'report'
     else:
         best = max(scores, key=lambda k: scores[k])
     rule = next(r for r in INTENT_RULES if r['intent'] == best)
@@ -447,9 +460,9 @@ def route_intent(query: str) -> Dict[str, Any]:
     # 手冊若近乎逐字命中某一組預期提問，代表這題本來就是評審沙盤推演題，
     # 此時不論意圖判為何者，都應以手冊為主要依據。
     top = (search_handbook(text, limit=1) or [{}])[0].get('score', 0)
-    if top >= 12:
+    if best != 'report' and top >= 12:
         weights['handbook'] = 1.0
-    elif top >= 5:
+    elif best != 'report' and top >= 5:
         weights['handbook'] = max(weights.get('handbook', 0.0), 0.7)
 
     # 次要意圖也納入：問題常同時橫跨兩個面向（例如「魚道損壞影響魚類通行嗎」）
