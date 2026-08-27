@@ -873,7 +873,8 @@ function fac_initHistoryChart(facilityId) {
 /* ════════════════════════════════════════════════════════════════════════
    風險分級（單一事實來源）
    ------------------------------------------------------------------------
-   健康分數 = 100 − (D×0.45 + E×0.2 + R×0.35) × 21，限 [15,95]（fac_healthFromDeru）
+   基礎健康分數 = 100 − (D×0.45 + E×0.2 + R×0.35) × 21，限 [15,95]（fac_healthFromDeru）
+   A1（D0/E1/R1・U1）依平台校正規則統一為健康 90；重大描述另套用分數上下限。
    風險分數 = 100 − 健康分數
    分級門檻：風險分 ≥75 或 U4 → 高風險；≥50 或 U3 → 中風險；其餘低風險。
    A1（D0/E1/R1・U1）健康 90、風險 10，必然落在低風險。
@@ -2109,7 +2110,13 @@ function loadFacilitiesTable() {
                   const _d = assessment.deru.d, _e = assessment.deru.e, _r = assessment.deru.r;
                   const _u = assessment.deru.u;
                   const _uScore = assessment.deru.score;
-                  const _sev = (_d*0.45 + _e*0.2 + _r*0.35).toFixed(2);
+                  const _sevNum = _d*0.45 + _e*0.2 + _r*0.35;
+                  const _sev = _sevNum.toFixed(2);
+                  const _rawHealth = Math.max(15, Math.min(95, Math.round(100 - _sevNum * 21)));
+                  const _healthRule = hp === _rawHealth ? ''
+                    : (_d <= 0 && _e <= 1 && _r <= 1
+                      ? `；基礎值 ${_rawHealth} 分，A1 校正為 90 分`
+                      : `；基礎值 ${_rawHealth} 分，再依巡查文字規則校正`);
                   const _uThr = (_d <= 0 && _r <= 1) ? 'D=0 且 R≤1 → U1' : _u >= 4 ? `${_uScore}≥3.2 → U4` : _u === 3 ? `${_uScore}≥2.5 → U3` : _u === 2 ? `${_uScore}≥1.5 → U2` : `${_uScore}<1.5 → U1`;
                   return `<details style="margin-bottom:10px">
                     <summary style="cursor:pointer;font-size:12px;color:#1d4ed8;font-weight:700;list-style:none;display:flex;align-items:center;gap:4px">
@@ -2118,8 +2125,9 @@ function loadFacilitiesTable() {
                     <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 12px;margin-top:6px;font-size:12px;line-height:1.85;color:#1e3a8a">
                       <div><b>D（損壞）= ${_d}</b>　E（效能）= ${_e}　R（風險）= ${_r}</div>
                       <div style="border-top:1px solid #bfdbfe;margin:5px 0;padding-top:5px">
-                        <b>健康分數</b> = 100 − (D×0.45 + E×0.2 + R×0.35) × 21，限[15,95]<br>
-                        &nbsp;&nbsp;= 100 − ${_sev} × 21 = <b style="color:#1565c0">${hp} 分</b>
+                        <b>基礎健康分數</b> = 100 − (D×0.45 + E×0.2 + R×0.35) × 21，限[15,95]<br>
+                        &nbsp;&nbsp;= 100 − ${_sev} × 21 = ${_rawHealth} 分${_healthRule}<br>
+                        &nbsp;&nbsp;最終健康分數 = <b style="color:#1565c0">${hp} 分</b>
                       </div>
                       <div style="border-top:1px solid #bfdbfe;margin:5px 0;padding-top:5px">
                         <b>U級加權</b> = D×0.4 + E×0.25 + R×0.35 = ${_uScore}　→ ${_uThr}

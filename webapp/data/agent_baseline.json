@@ -1,10 +1,10 @@
 {
- "generatedAt": "2026-08-27T11:20:00.609Z",
+ "generatedAt": "2026-08-27T12:58:44.941Z",
  "generator": "scripts/export_agent_baseline.js",
  "note": "後端 Agent 的預設資料。前端有送 client_snapshot 時以前端為準，此檔僅補齊缺漏的鍵，確保無瀏覽器時仍能取得權威數值。",
  "sourceHashes": {
   "webapp/js/db.js": "7a498a907348edf3",
-  "webapp/js/modules/fish.js": "eae96865d233dd91"
+  "webapp/js/modules/fish.js": "b7c2ced9d236d426"
  },
  "facilities": [
   {
@@ -5734,25 +5734,25 @@
  "ecoBenchmark": {
   "scale": [
    {
-    "label": "未受損 Non-impaired",
+    "label": "A級 生態品質佳",
     "min": 35,
     "max": 45,
     "tone": "good"
    },
    {
-    "label": "輕度受損 Slightly impaired",
+    "label": "B級 生態品質良好",
     "min": 23,
     "max": 34,
     "tone": "mid"
    },
    {
-    "label": "中度受損 Moderately impaired",
+    "label": "C級 生態品質待關注",
     "min": 15,
     "max": 22,
     "tone": "low"
    },
    {
-    "label": "嚴重受損 Severely impaired",
+    "label": "D級 生態品質優先改善",
     "min": 0,
     "max": 14,
     "tone": "bad"
@@ -5763,7 +5763,41 @@
    "ibiMin": 23,
    "ibiMax": 37,
    "sitesTotal": 6,
-   "sitesNonImpaired": 4,
+   "sitesGradeA": 4,
+   "annualMeans": [
+    {
+     "year": "109年",
+     "value": 31.7,
+     "min": 23,
+     "max": 37,
+     "rounds": "夏季 30.3｜秋季 33.0"
+    },
+    {
+     "year": "110年",
+     "value": 30.7,
+     "min": 23,
+     "max": 37,
+     "rounds": "夏季 31.7｜秋季 29.7"
+    }
+   ],
+   "surveyMeans": [
+    {
+     "label": "109年夏季",
+     "value": 30.3
+    },
+    {
+     "label": "109年秋季",
+     "value": 33
+    },
+    {
+     "label": "110年夏季",
+     "value": 31.7
+    },
+    {
+     "label": "110年秋季",
+     "value": 29.7
+    }
+   ],
    "hMean": 1.4,
    "hMin": 0.82,
    "hMax": 1.76,

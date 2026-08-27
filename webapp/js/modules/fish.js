@@ -1716,14 +1716,24 @@ function renderOccurrenceMatrix(annualData, annualYears) {
 //  水域生態系健康度，分級門檻為全臺通用（報告表 5-2）。
 const HLX_ECO_BENCHMARK = {
   scale: [
-    { label: '未受損 Non-impaired',        min: 35, max: 45, tone: 'good' },
-    { label: '輕度受損 Slightly impaired', min: 23, max: 34, tone: 'mid'  },
-    { label: '中度受損 Moderately impaired', min: 15, max: 22, tone: 'low' },
-    { label: '嚴重受損 Severely impaired',  min: 0,  max: 14, tone: 'bad'  },
+    { label: 'A級 生態品質佳', min: 35, max: 45, tone: 'good' },
+    { label: 'B級 生態品質良好', min: 23, max: 34, tone: 'mid'  },
+    { label: 'C級 生態品質待關注', min: 15, max: 22, tone: 'low' },
+    { label: 'D級 生態品質優先改善', min: 0,  max: 14, tone: 'bad'  },
   ],
   hlx: {
     ibiMean: 32, ibiMin: 23, ibiMax: 37,
-    sitesTotal: 6, sitesNonImpaired: 4,
+    sitesTotal: 6, sitesGradeA: 4,
+    annualMeans: [
+      { year: '109年', value: 31.7, min: 23, max: 37, rounds: '夏季 30.3｜秋季 33.0' },
+      { year: '110年', value: 30.7, min: 23, max: 37, rounds: '夏季 31.7｜秋季 29.7' },
+    ],
+    surveyMeans: [
+      { label: '109年夏季', value: 30.3 },
+      { label: '109年秋季', value: 33.0 },
+      { label: '110年夏季', value: 31.7 },
+      { label: '110年秋季', value: 29.7 },
+    ],
     hMean: 1.4, hMin: 0.82, hMax: 1.76,
     maxBodyLength: 27.8, maxBodySpecies: '臺灣白甲魚',
   },
@@ -4504,8 +4514,8 @@ function renderFishTrend() {
             <span style="font-size:12px;font-weight:700;color:#0d6b5b">（生物整合指標 IBI・經修正適用於臺灣的通用標準）</span>
           </div>
           <div style="font-size:13px;color:#64748b;line-height:1.7;margin-bottom:16px">
-            IBI 綜合魚類組成、外來種比例、食性結構等指標評估水域生態系健康度，<b>分級門檻為全臺共用</b>，
-            不需倚賴任一條對照溪，即可判定橫流溪目前所處的等級。
+            IBI 綜合魚類組成、外來種比例、食性結構等指標評估水域生態系健康度。平台以中性的 A～D 級呈現，
+            並另列 109～110 年各期調查值，避免分級名稱被誤解為工程造成的負面影響。
           </div>
 
           <div style="margin-bottom:18px">
@@ -4516,7 +4526,7 @@ function renderFishTrend() {
                 const fg = band.tone === 'bad' ? '#64748b' : '#ffffff';
                 return `<div style="width:${w}%;background:${bg};color:${fg};font-size:10.5px;font-weight:700;
                   display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;line-height:1.35">
-                  <span>${band.label.split(' ')[0]}</span><span>${band.min}–${band.max}</span></div>`;
+                  <span>${band.label}</span><span>${band.min}–${band.max}</span></div>`;
               }).join('')}
             </div>
             ${(() => {
@@ -4537,10 +4547,10 @@ function renderFishTrend() {
 
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px">
             ${[
-              { v: `${HLX_ECO_BENCHMARK.hlx.sitesNonImpaired} / ${HLX_ECO_BENCHMARK.hlx.sitesTotal}`,
-                l: '樣站達最高等級<br><b>未受損 Non-impaired</b>' },
+              { v: `${HLX_ECO_BENCHMARK.hlx.sitesGradeA} / ${HLX_ECO_BENCHMARK.hlx.sitesTotal}`,
+                l: '樣站曾達最高等級<br><b>A級（35～45分）</b>' },
               { v: `${HLX_ECO_BENCHMARK.hlx.ibiMin}～${HLX_ECO_BENCHMARK.hlx.ibiMax}`,
-                l: 'IBI 全樣站範圍<br>平均 32，逼近未受損門檻' },
+                l: 'IBI 全樣站範圍<br>報告整體平均 32' },
               { v: HLX_ECO_BENCHMARK.hlx.hMean.toFixed(1),
                 l: `夏儂多樣性指數 H′<br>各樣站 ${HLX_ECO_BENCHMARK.hlx.hMin}～${HLX_ECO_BENCHMARK.hlx.hMax}` },
               { v: `${HLX_ECO_BENCHMARK.hlx.maxBodyLength} cm`,
@@ -4550,6 +4560,34 @@ function renderFishTrend() {
                 <div style="font-size:24px;font-weight:900;color:#0d6b5b;line-height:1.2">${c.v}</div>
                 <div style="font-size:12px;color:#64748b;line-height:1.6;margin-top:4px">${c.l}</div>
               </div>`).join('')}
+          </div>
+
+          <div style="border-top:1px dashed #e2e8f0;padding-top:14px;margin-bottom:14px">
+            <div style="font-size:14px;font-weight:900;color:#0f172a;margin-bottom:9px">109～110年逐年 IBI 結果</div>
+            <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:12px">
+              ${HLX_ECO_BENCHMARK.hlx.annualMeans.map((item, idx) => `
+                <div style="background:${idx % 2 ? '#f0fdfa' : '#f8fafc'};border:1px solid #cbd5e1;border-radius:10px;padding:12px 14px">
+                  <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:10px">
+                    <div style="font-size:15px;font-weight:900;color:#0f172a">${item.year}</div>
+                    <div style="font-size:24px;font-weight:900;color:#0d6b5b;line-height:1">${item.value.toFixed(1)}</div>
+                  </div>
+                  <div style="font-size:11.5px;color:#64748b;line-height:1.65;margin-top:7px">
+                    年平均｜樣站範圍 ${item.min}～${item.max}<br>${item.rounds}
+                  </div>
+                </div>`).join('')}
+            </div>
+            <div style="font-size:12px;font-weight:800;color:#334155;margin-bottom:7px">各期樣站平均</div>
+            <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px">
+              ${HLX_ECO_BENCHMARK.hlx.surveyMeans.map((item, idx) => `
+                <div style="background:${idx % 2 ? '#f0fdfa' : '#f8fafc'};border:1px solid #cbd5e1;border-radius:9px;padding:10px;text-align:center">
+                  <div style="font-size:11px;color:#64748b">${item.label}</div>
+                  <div style="font-size:20px;font-weight:900;color:#0d6b5b;margin-top:2px">${item.value.toFixed(1)}</div>
+                </div>`).join('')}
+            </div>
+            <div style="font-size:11.5px;color:#64748b;line-height:1.65;margin-top:7px">
+              四期平均約 30.3 → 33.0 → 31.7 → 29.7，呈期別波動，不能解讀為逐年單調上升；應配合季節、水文與調查條件判讀。<br>
+              <b>資料界線：</b>原報告僅提供109、110年同口徑IBI結果；其他年份未提供可直接比較的IBI值，平台不以物種數或捕獲尾數代算補值。
+            </div>
           </div>
 
           <div style="border-top:1px dashed #e2e8f0;padding-top:14px">
