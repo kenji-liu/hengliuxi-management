@@ -1,10 +1,10 @@
 {
- "generatedAt": "2026-08-28T10:36:39.656Z",
+ "generatedAt": "2026-08-28T12:44:22.330Z",
  "generator": "scripts/export_agent_baseline.js",
  "note": "後端 Agent 的預設資料。前端有送 client_snapshot 時以前端為準，此檔僅補齊缺漏的鍵，確保無瀏覽器時仍能取得權威數值。",
  "sourceHashes": {
   "webapp/js/db.js": "4690c47bd4831118",
-  "webapp/js/modules/fish.js": "b8419ac5aa769460"
+  "webapp/js/modules/fish.js": "d15ba03f1ea7b86a"
  },
  "facilities": [
   {
