@@ -1,9 +1,9 @@
 {
- "generatedAt": "2026-08-28T10:27:37.592Z",
+ "generatedAt": "2026-08-28T10:36:39.656Z",
  "generator": "scripts/export_agent_baseline.js",
  "note": "後端 Agent 的預設資料。前端有送 client_snapshot 時以前端為準，此檔僅補齊缺漏的鍵，確保無瀏覽器時仍能取得權威數值。",
  "sourceHashes": {
-  "webapp/js/db.js": "9347994c5b2c1810",
+  "webapp/js/db.js": "4690c47bd4831118",
   "webapp/js/modules/fish.js": "b8419ac5aa769460"
  },
  "facilities": [
@@ -4423,7 +4423,13 @@
    "sourcePage": 32,
    "sourceFormBatch": "115年構造物調查表",
    "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-   "photos": [],
+   "photos": [
+    "/webapp/assets/inspection-photos/115/溪構8-2/01.jpg",
+    "/webapp/assets/inspection-photos/115/溪構8-2/02.jpg",
+    "/webapp/assets/inspection-photos/115/溪構8-2/03.jpg"
+   ],
+   "photoCount": 3,
+   "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）",
    "secondaryTags": [
     "魚道現況"
    ],
@@ -4440,8 +4446,7 @@
    "inspectionClassLabel": "專業巡查",
    "inspectionItem": "構造物調查表",
    "inspectionSubcategory": "專業巡查紀錄",
-   "sourceType": "專業巡查-構造物調查表",
-   "photoCount": 0
+   "sourceType": "專業巡查-構造物調查表"
   },
   {
    "id": 8209,
@@ -4466,7 +4471,12 @@
    "sourcePage": 29,
    "sourceFormBatch": "115年構造物調查表",
    "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-   "photos": [],
+   "photos": [
+    "/webapp/assets/inspection-photos/115/溪構8-1/01.jpg",
+    "/webapp/assets/inspection-photos/115/溪構8-1/02.jpg"
+   ],
+   "photoCount": 2,
+   "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）",
    "deru_d": 0,
    "deru_e": 1,
    "deru_r": 1,
@@ -4480,8 +4490,7 @@
    "inspectionClassLabel": "專業巡查",
    "inspectionItem": "構造物調查表",
    "inspectionSubcategory": "專業巡查紀錄",
-   "sourceType": "專業巡查-構造物調查表",
-   "photoCount": 0
+   "sourceType": "專業巡查-構造物調查表"
   },
   {
    "id": 8213,
@@ -4506,7 +4515,13 @@
    "sourcePage": 41,
    "sourceFormBatch": "115年構造物調查表",
    "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-   "photos": [],
+   "photos": [
+    "/webapp/assets/inspection-photos/115/溪構11/01.jpg",
+    "/webapp/assets/inspection-photos/115/溪構11/02.jpg",
+    "/webapp/assets/inspection-photos/115/溪構11/03.jpg"
+   ],
+   "photoCount": 3,
+   "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）",
    "deru_d": 0,
    "deru_e": 1,
    "deru_r": 1,
@@ -4520,8 +4535,7 @@
    "inspectionClassLabel": "專業巡查",
    "inspectionItem": "構造物調查表",
    "inspectionSubcategory": "專業巡查紀錄",
-   "sourceType": "專業巡查-構造物調查表",
-   "photoCount": 0
+   "sourceType": "專業巡查-構造物調查表"
   },
   {
    "id": 8208,
@@ -4546,7 +4560,14 @@
    "sourcePage": 26,
    "sourceFormBatch": "115年構造物調查表",
    "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-   "photos": [],
+   "photos": [
+    "/webapp/assets/inspection-photos/115/溪構7/01.jpg",
+    "/webapp/assets/inspection-photos/115/溪構7/02.jpg",
+    "/webapp/assets/inspection-photos/115/溪構7/03.jpg",
+    "/webapp/assets/inspection-photos/115/溪構7/04.jpg"
+   ],
+   "photoCount": 4,
+   "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）",
    "secondaryTags": [
     "魚道現況"
    ],
@@ -4563,8 +4584,7 @@
    "inspectionClassLabel": "專業巡查",
    "inspectionItem": "構造物調查表",
    "inspectionSubcategory": "專業巡查紀錄",
-   "sourceType": "專業巡查-構造物調查表",
-   "photoCount": 0
+   "sourceType": "專業巡查-構造物調查表"
   },
   {
    "id": 8207,
@@ -4589,7 +4609,12 @@
    "sourcePage": 23,
    "sourceFormBatch": "115年構造物調查表",
    "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-   "photos": [],
+   "photos": [
+    "/webapp/assets/inspection-photos/115/溪構6/01.jpg",
+    "/webapp/assets/inspection-photos/115/溪構6/02.jpg"
+   ],
+   "photoCount": 2,
+   "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）",
    "secondaryTags": [
     "魚道現況"
    ],
@@ -4610,8 +4635,7 @@
    "inspectionClassLabel": "專業巡查",
    "inspectionItem": "構造物調查表",
    "inspectionSubcategory": "專業巡查紀錄",
-   "sourceType": "專業巡查-構造物調查表",
-   "photoCount": 0
+   "sourceType": "專業巡查-構造物調查表"
   },
   {
    "id": 8205,
@@ -4636,7 +4660,13 @@
    "sourcePage": 17,
    "sourceFormBatch": "115年構造物調查表",
    "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-   "photos": [],
+   "photos": [
+    "/webapp/assets/inspection-photos/115/溪構5-1/01.jpg",
+    "/webapp/assets/inspection-photos/115/溪構5-1/02.jpg",
+    "/webapp/assets/inspection-photos/115/溪構5-1/03.jpg"
+   ],
+   "photoCount": 3,
+   "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）",
    "deru_d": 0,
    "deru_e": 1,
    "deru_r": 1,
@@ -4650,8 +4680,7 @@
    "inspectionClassLabel": "專業巡查",
    "inspectionItem": "構造物調查表",
    "inspectionSubcategory": "專業巡查紀錄",
-   "sourceType": "專業巡查-構造物調查表",
-   "photoCount": 0
+   "sourceType": "專業巡查-構造物調查表"
   },
   {
    "id": 8206,
@@ -4676,7 +4705,13 @@
    "sourcePage": 20,
    "sourceFormBatch": "115年構造物調查表",
    "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-   "photos": [],
+   "photos": [
+    "/webapp/assets/inspection-photos/115/溪構5-2/01.jpg",
+    "/webapp/assets/inspection-photos/115/溪構5-2/02.jpg",
+    "/webapp/assets/inspection-photos/115/溪構5-2/03.jpg"
+   ],
+   "photoCount": 3,
+   "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）",
    "secondaryTags": [
     "魚道現況"
    ],
@@ -4693,8 +4728,7 @@
    "inspectionClassLabel": "專業巡查",
    "inspectionItem": "構造物調查表",
    "inspectionSubcategory": "專業巡查紀錄",
-   "sourceType": "專業巡查-構造物調查表",
-   "photoCount": 0
+   "sourceType": "專業巡查-構造物調查表"
   },
   {
    "id": 8212,
@@ -4719,7 +4753,13 @@
    "sourcePage": 38,
    "sourceFormBatch": "115年構造物調查表",
    "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-   "photos": [],
+   "photos": [
+    "/webapp/assets/inspection-photos/115/溪構10/01.jpg",
+    "/webapp/assets/inspection-photos/115/溪構10/02.jpg",
+    "/webapp/assets/inspection-photos/115/溪構10/03.jpg"
+   ],
+   "photoCount": 3,
+   "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）",
    "deru_d": 3,
    "deru_e": 1,
    "deru_r": 3,
@@ -4739,8 +4779,7 @@
    "inspectionClassLabel": "專業巡查",
    "inspectionItem": "構造物調查表",
    "inspectionSubcategory": "專業巡查紀錄",
-   "sourceType": "專業巡查-構造物調查表",
-   "photoCount": 0
+   "sourceType": "專業巡查-構造物調查表"
   },
   {
    "id": 8204,
@@ -4765,7 +4804,12 @@
    "sourcePage": 14,
    "sourceFormBatch": "115年構造物調查表",
    "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-   "photos": [],
+   "photos": [
+    "/webapp/assets/inspection-photos/115/溪構4/01.jpg",
+    "/webapp/assets/inspection-photos/115/溪構4/02.jpg"
+   ],
+   "photoCount": 2,
+   "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）",
    "secondaryTags": [
     "魚道現況"
    ],
@@ -4782,8 +4826,7 @@
    "inspectionClassLabel": "專業巡查",
    "inspectionItem": "構造物調查表",
    "inspectionSubcategory": "專業巡查紀錄",
-   "sourceType": "專業巡查-構造物調查表",
-   "photoCount": 0
+   "sourceType": "專業巡查-構造物調查表"
   },
   {
    "id": 8203,
@@ -4808,7 +4851,13 @@
    "sourcePage": 11,
    "sourceFormBatch": "115年構造物調查表",
    "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-   "photos": [],
+   "photos": [
+    "/webapp/assets/inspection-photos/115/溪構3/01.jpg",
+    "/webapp/assets/inspection-photos/115/溪構3/02.jpg",
+    "/webapp/assets/inspection-photos/115/溪構3/03.jpg"
+   ],
+   "photoCount": 3,
+   "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）",
    "secondaryTags": [
     "魚道現況"
    ],
@@ -4825,8 +4874,7 @@
    "inspectionClassLabel": "專業巡查",
    "inspectionItem": "構造物調查表",
    "inspectionSubcategory": "專業巡查紀錄",
-   "sourceType": "專業巡查-構造物調查表",
-   "photoCount": 0
+   "sourceType": "專業巡查-構造物調查表"
   },
   {
    "id": 8211,
@@ -4851,7 +4899,11 @@
    "sourcePage": 35,
    "sourceFormBatch": "115年構造物調查表",
    "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-   "photos": [],
+   "photos": [
+    "/webapp/assets/inspection-photos/115/溪構9/01.jpg"
+   ],
+   "photoCount": 1,
+   "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）",
    "deru_d": 0,
    "deru_e": 1,
    "deru_r": 1,
@@ -4865,8 +4917,7 @@
    "inspectionClassLabel": "專業巡查",
    "inspectionItem": "構造物調查表",
    "inspectionSubcategory": "專業巡查紀錄",
-   "sourceType": "專業巡查-構造物調查表",
-   "photoCount": 0
+   "sourceType": "專業巡查-構造物調查表"
   },
   {
    "id": 8202,
@@ -4891,7 +4942,12 @@
    "sourcePage": 8,
    "sourceFormBatch": "115年構造物調查表",
    "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-   "photos": [],
+   "photos": [
+    "/webapp/assets/inspection-photos/115/溪構2/01.jpg",
+    "/webapp/assets/inspection-photos/115/溪構2/02.jpg"
+   ],
+   "photoCount": 2,
+   "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）",
    "secondaryTags": [
     "魚道現況"
    ],
@@ -4908,8 +4964,7 @@
    "inspectionClassLabel": "專業巡查",
    "inspectionItem": "構造物調查表",
    "inspectionSubcategory": "專業巡查紀錄",
-   "sourceType": "專業巡查-構造物調查表",
-   "photoCount": 0
+   "sourceType": "專業巡查-構造物調查表"
   },
   {
    "id": 8200,
@@ -4934,7 +4989,13 @@
    "sourcePage": 2,
    "sourceFormBatch": "115年構造物調查表",
    "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-   "photos": [],
+   "photos": [
+    "/webapp/assets/inspection-photos/115/溪構1-1/01.jpg",
+    "/webapp/assets/inspection-photos/115/溪構1-1/02.jpg",
+    "/webapp/assets/inspection-photos/115/溪構1-1/03.jpg"
+   ],
+   "photoCount": 3,
+   "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）",
    "secondaryTags": [
     "魚道現況"
    ],
@@ -4955,8 +5016,7 @@
    "inspectionClassLabel": "專業巡查",
    "inspectionItem": "構造物調查表",
    "inspectionSubcategory": "專業巡查紀錄",
-   "sourceType": "專業巡查-構造物調查表",
-   "photoCount": 0
+   "sourceType": "專業巡查-構造物調查表"
   },
   {
    "id": 8201,
@@ -4981,7 +5041,13 @@
    "sourcePage": 5,
    "sourceFormBatch": "115年構造物調查表",
    "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-   "photos": [],
+   "photos": [
+    "/webapp/assets/inspection-photos/115/溪構1-2/01.jpg",
+    "/webapp/assets/inspection-photos/115/溪構1-2/02.jpg",
+    "/webapp/assets/inspection-photos/115/溪構1-2/03.jpg"
+   ],
+   "photoCount": 3,
+   "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）",
    "secondaryTags": [
     "魚道現況"
    ],
@@ -4998,8 +5064,7 @@
    "inspectionClassLabel": "專業巡查",
    "inspectionItem": "構造物調查表",
    "inspectionSubcategory": "專業巡查紀錄",
-   "sourceType": "專業巡查-構造物調查表",
-   "photoCount": 0
+   "sourceType": "專業巡查-構造物調查表"
   },
   {
    "id": 8214,
@@ -5024,7 +5089,14 @@
    "sourcePage": 45,
    "sourceFormBatch": "115年構造物調查表",
    "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-   "photos": [],
+   "photos": [
+    "/webapp/assets/inspection-photos/115/0K510護岸/01.jpg",
+    "/webapp/assets/inspection-photos/115/0K510護岸/02.jpg",
+    "/webapp/assets/inspection-photos/115/0K510護岸/03.jpg",
+    "/webapp/assets/inspection-photos/115/0K510護岸/04.jpg"
+   ],
+   "photoCount": 4,
+   "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）",
    "deru_d": 3,
    "deru_e": 3,
    "deru_r": 3,
@@ -5042,8 +5114,7 @@
    "inspectionClassLabel": "專業巡查",
    "inspectionItem": "構造物調查表",
    "inspectionSubcategory": "專業巡查紀錄",
-   "sourceType": "專業巡查-構造物調查表",
-   "photoCount": 0
+   "sourceType": "專業巡查-構造物調查表"
   },
   {
    "id": 8215,
@@ -5068,7 +5139,13 @@
    "sourcePage": 48,
    "sourceFormBatch": "115年構造物調查表",
    "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-   "photos": [],
+   "photos": [
+    "/webapp/assets/inspection-photos/115/1K000護岸/01.jpg",
+    "/webapp/assets/inspection-photos/115/1K000護岸/02.jpg",
+    "/webapp/assets/inspection-photos/115/1K000護岸/03.jpg"
+   ],
+   "photoCount": 3,
+   "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）",
    "deru_d": 0,
    "deru_e": 1,
    "deru_r": 1,
@@ -5082,8 +5159,7 @@
    "inspectionClassLabel": "專業巡查",
    "inspectionItem": "構造物調查表",
    "inspectionSubcategory": "專業巡查紀錄",
-   "sourceType": "專業巡查-構造物調查表",
-   "photoCount": 0
+   "sourceType": "專業巡查-構造物調查表"
   },
   {
    "id": 8216,
@@ -5108,7 +5184,13 @@
    "sourcePage": 51,
    "sourceFormBatch": "115年構造物調查表",
    "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-   "photos": [],
+   "photos": [
+    "/webapp/assets/inspection-photos/115/1K170護岸/01.jpg",
+    "/webapp/assets/inspection-photos/115/1K170護岸/02.jpg",
+    "/webapp/assets/inspection-photos/115/1K170護岸/03.jpg"
+   ],
+   "photoCount": 3,
+   "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）",
    "deru_d": 0,
    "deru_e": 1,
    "deru_r": 1,
@@ -5122,8 +5204,7 @@
    "inspectionClassLabel": "專業巡查",
    "inspectionItem": "構造物調查表",
    "inspectionSubcategory": "專業巡查紀錄",
-   "sourceType": "專業巡查-構造物調查表",
-   "photoCount": 0
+   "sourceType": "專業巡查-構造物調查表"
   },
   {
    "id": 8217,
@@ -5148,7 +5229,14 @@
    "sourcePage": 54,
    "sourceFormBatch": "115年構造物調查表",
    "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-   "photos": [],
+   "photos": [
+    "/webapp/assets/inspection-photos/115/1K260護岸/01.jpg",
+    "/webapp/assets/inspection-photos/115/1K260護岸/02.jpg",
+    "/webapp/assets/inspection-photos/115/1K260護岸/03.jpg",
+    "/webapp/assets/inspection-photos/115/1K260護岸/04.jpg"
+   ],
+   "photoCount": 4,
+   "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）",
    "deru_d": 0,
    "deru_e": 1,
    "deru_r": 1,
@@ -5162,8 +5250,7 @@
    "inspectionClassLabel": "專業巡查",
    "inspectionItem": "構造物調查表",
    "inspectionSubcategory": "專業巡查紀錄",
-   "sourceType": "專業巡查-構造物調查表",
-   "photoCount": 0
+   "sourceType": "專業巡查-構造物調查表"
   },
   {
    "id": 8218,
@@ -5188,7 +5275,12 @@
    "sourcePage": 58,
    "sourceFormBatch": "115年構造物調查表",
    "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-   "photos": [],
+   "photos": [
+    "/webapp/assets/inspection-photos/115/0K000步道/01.jpg",
+    "/webapp/assets/inspection-photos/115/0K000步道/02.jpg"
+   ],
+   "photoCount": 2,
+   "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）",
    "deru_d": 0,
    "deru_e": 1,
    "deru_r": 1,
@@ -5202,8 +5294,7 @@
    "inspectionClassLabel": "專業巡查",
    "inspectionItem": "構造物調查表",
    "inspectionSubcategory": "專業巡查紀錄",
-   "sourceType": "專業巡查-構造物調查表",
-   "photoCount": 0
+   "sourceType": "專業巡查-構造物調查表"
   },
   {
    "id": 8219,
@@ -5228,7 +5319,12 @@
    "sourcePage": 61,
    "sourceFormBatch": "115年構造物調查表",
    "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-   "photos": [],
+   "photos": [
+    "/webapp/assets/inspection-photos/115/0K370步道/01.jpg",
+    "/webapp/assets/inspection-photos/115/0K370步道/02.jpg"
+   ],
+   "photoCount": 2,
+   "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）",
    "deru_d": 0,
    "deru_e": 1,
    "deru_r": 1,
@@ -5242,8 +5338,7 @@
    "inspectionClassLabel": "專業巡查",
    "inspectionItem": "構造物調查表",
    "inspectionSubcategory": "專業巡查紀錄",
-   "sourceType": "專業巡查-構造物調查表",
-   "photoCount": 0
+   "sourceType": "專業巡查-構造物調查表"
   },
   {
    "id": 8220,
@@ -5268,7 +5363,13 @@
    "sourcePage": 64,
    "sourceFormBatch": "115年構造物調查表",
    "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-   "photos": [],
+   "photos": [
+    "/webapp/assets/inspection-photos/115/0K400步道/01.jpg",
+    "/webapp/assets/inspection-photos/115/0K400步道/02.jpg",
+    "/webapp/assets/inspection-photos/115/0K400步道/03.jpg"
+   ],
+   "photoCount": 3,
+   "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）",
    "deru_d": 0,
    "deru_e": 1,
    "deru_r": 1,
@@ -5282,8 +5383,7 @@
    "inspectionClassLabel": "專業巡查",
    "inspectionItem": "構造物調查表",
    "inspectionSubcategory": "專業巡查紀錄",
-   "sourceType": "專業巡查-構造物調查表",
-   "photoCount": 0
+   "sourceType": "專業巡查-構造物調查表"
   },
   {
    "id": 8221,
@@ -5308,7 +5408,12 @@
    "sourcePage": 67,
    "sourceFormBatch": "115年構造物調查表",
    "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-   "photos": [],
+   "photos": [
+    "/webapp/assets/inspection-photos/115/0K600步道/01.jpg",
+    "/webapp/assets/inspection-photos/115/0K600步道/02.jpg"
+   ],
+   "photoCount": 2,
+   "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）",
    "deru_d": 0,
    "deru_e": 1,
    "deru_r": 1,
@@ -5326,8 +5431,7 @@
    "inspectionClassLabel": "專業巡查",
    "inspectionItem": "構造物調查表",
    "inspectionSubcategory": "專業巡查紀錄",
-   "sourceType": "專業巡查-構造物調查表",
-   "photoCount": 0
+   "sourceType": "專業巡查-構造物調查表"
   },
   {
    "id": 8222,
@@ -5352,7 +5456,14 @@
    "sourcePage": 70,
    "sourceFormBatch": "115年構造物調查表",
    "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-   "photos": [],
+   "photos": [
+    "/webapp/assets/inspection-photos/115/0K800步道/01.jpg",
+    "/webapp/assets/inspection-photos/115/0K800步道/02.jpg",
+    "/webapp/assets/inspection-photos/115/0K800步道/03.jpg",
+    "/webapp/assets/inspection-photos/115/0K800步道/04.jpg"
+   ],
+   "photoCount": 4,
+   "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）",
    "deru_d": 0,
    "deru_e": 1,
    "deru_r": 1,
@@ -5366,8 +5477,7 @@
    "inspectionClassLabel": "專業巡查",
    "inspectionItem": "構造物調查表",
    "inspectionSubcategory": "專業巡查紀錄",
-   "sourceType": "專業巡查-構造物調查表",
-   "photoCount": 0
+   "sourceType": "專業巡查-構造物調查表"
   },
   {
    "id": 8223,
@@ -5392,7 +5502,12 @@
    "sourcePage": 73,
    "sourceFormBatch": "115年構造物調查表",
    "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-   "photos": [],
+   "photos": [
+    "/webapp/assets/inspection-photos/115/1K200步道/01.jpg",
+    "/webapp/assets/inspection-photos/115/1K200步道/02.jpg"
+   ],
+   "photoCount": 2,
+   "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）",
    "defectType": "表層沖蝕",
    "repairMethod": "配合周邊倒木進行刨木作業並重新鋪設",
    "repairScale": "6m2",
@@ -5406,8 +5521,7 @@
    "inspectionClassLabel": "專業巡查",
    "inspectionItem": "構造物調查表",
    "inspectionSubcategory": "專業巡查紀錄",
-   "sourceType": "專業巡查-構造物調查表",
-   "photoCount": 0
+   "sourceType": "專業巡查-構造物調查表"
   },
   {
    "id": 8224,
@@ -5432,7 +5546,14 @@
    "sourcePage": 77,
    "sourceFormBatch": "115年構造物調查表",
    "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-   "photos": [],
+   "photos": [
+    "/webapp/assets/inspection-photos/115/平臺1/01.jpg",
+    "/webapp/assets/inspection-photos/115/平臺1/02.jpg",
+    "/webapp/assets/inspection-photos/115/平臺1/03.jpg",
+    "/webapp/assets/inspection-photos/115/平臺1/04.jpg"
+   ],
+   "photoCount": 4,
+   "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）",
    "deru_d": 0,
    "deru_e": 1,
    "deru_r": 1,
@@ -5446,8 +5567,7 @@
    "inspectionClassLabel": "專業巡查",
    "inspectionItem": "構造物調查表",
    "inspectionSubcategory": "專業巡查紀錄",
-   "sourceType": "專業巡查-構造物調查表",
-   "photoCount": 0
+   "sourceType": "專業巡查-構造物調查表"
   },
   {
    "id": 8225,
@@ -5472,7 +5592,11 @@
    "sourcePage": 80,
    "sourceFormBatch": "115年構造物調查表",
    "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-   "photos": [],
+   "photos": [
+    "/webapp/assets/inspection-photos/115/平臺2/01.jpg"
+   ],
+   "photoCount": 1,
+   "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）",
    "deru_d": 0,
    "deru_e": 1,
    "deru_r": 1,
@@ -5486,8 +5610,7 @@
    "inspectionClassLabel": "專業巡查",
    "inspectionItem": "構造物調查表",
    "inspectionSubcategory": "專業巡查紀錄",
-   "sourceType": "專業巡查-構造物調查表",
-   "photoCount": 0
+   "sourceType": "專業巡查-構造物調查表"
   },
   {
    "id": 8226,
@@ -5512,7 +5635,14 @@
    "sourcePage": 83,
    "sourceFormBatch": "115年構造物調查表",
    "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-   "photos": [],
+   "photos": [
+    "/webapp/assets/inspection-photos/115/平臺3/01.jpg",
+    "/webapp/assets/inspection-photos/115/平臺3/02.jpg",
+    "/webapp/assets/inspection-photos/115/平臺3/03.jpg",
+    "/webapp/assets/inspection-photos/115/平臺3/04.jpg"
+   ],
+   "photoCount": 4,
+   "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）",
    "deru_d": 0,
    "deru_e": 1,
    "deru_r": 1,
@@ -5526,8 +5656,7 @@
    "inspectionClassLabel": "專業巡查",
    "inspectionItem": "構造物調查表",
    "inspectionSubcategory": "專業巡查紀錄",
-   "sourceType": "專業巡查-構造物調查表",
-   "photoCount": 0
+   "sourceType": "專業巡查-構造物調查表"
   },
   {
    "id": 8227,
@@ -5552,7 +5681,13 @@
    "sourcePage": 86,
    "sourceFormBatch": "115年構造物調查表",
    "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-   "photos": [],
+   "photos": [
+    "/webapp/assets/inspection-photos/115/平臺4/01.jpg",
+    "/webapp/assets/inspection-photos/115/平臺4/02.jpg",
+    "/webapp/assets/inspection-photos/115/平臺4/03.jpg"
+   ],
+   "photoCount": 3,
+   "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）",
    "deru_d": 0,
    "deru_e": 1,
    "deru_r": 1,
@@ -5566,8 +5701,7 @@
    "inspectionClassLabel": "專業巡查",
    "inspectionItem": "構造物調查表",
    "inspectionSubcategory": "專業巡查紀錄",
-   "sourceType": "專業巡查-構造物調查表",
-   "photoCount": 0
+   "sourceType": "專業巡查-構造物調查表"
   },
   {
    "id": 9103,

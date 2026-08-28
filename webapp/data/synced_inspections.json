@@ -2160,7 +2160,11 @@
   "sourcePage": 2,
   "sourceFormBatch": "115年構造物調查表",
   "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-  "photos": [],
+  "photos": [
+   "/webapp/assets/inspection-photos/115/溪構1-1/01.jpg",
+   "/webapp/assets/inspection-photos/115/溪構1-1/02.jpg",
+   "/webapp/assets/inspection-photos/115/溪構1-1/03.jpg"
+  ],
   "secondaryTags": [
    "魚道現況"
   ],
@@ -2171,7 +2175,9 @@
   "appearanceOther": "下游部份格框消能設施基礎淘空",
   "repairMethod": "格框消能設施基礎修補",
   "repairScale": "24m2",
-  "repairCost": 50
+  "repairCost": 50,
+  "photoCount": 3,
+  "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）"
  },
  {
   "id": 8201,
@@ -2196,14 +2202,20 @@
   "sourcePage": 5,
   "sourceFormBatch": "115年構造物調查表",
   "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-  "photos": [],
+  "photos": [
+   "/webapp/assets/inspection-photos/115/溪構1-2/01.jpg",
+   "/webapp/assets/inspection-photos/115/溪構1-2/02.jpg",
+   "/webapp/assets/inspection-photos/115/溪構1-2/03.jpg"
+  ],
   "secondaryTags": [
    "魚道現況"
   ],
   "deru_d": 0,
   "deru_e": 1,
   "deru_r": 1,
-  "deru_u": 1
+  "deru_u": 1,
+  "photoCount": 3,
+  "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）"
  },
  {
   "id": 8202,
@@ -2228,14 +2240,19 @@
   "sourcePage": 8,
   "sourceFormBatch": "115年構造物調查表",
   "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-  "photos": [],
+  "photos": [
+   "/webapp/assets/inspection-photos/115/溪構2/01.jpg",
+   "/webapp/assets/inspection-photos/115/溪構2/02.jpg"
+  ],
   "secondaryTags": [
    "魚道現況"
   ],
   "deru_d": 0,
   "deru_e": 1,
   "deru_r": 1,
-  "deru_u": 1
+  "deru_u": 1,
+  "photoCount": 2,
+  "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）"
  },
  {
   "id": 8203,
@@ -2260,14 +2277,20 @@
   "sourcePage": 11,
   "sourceFormBatch": "115年構造物調查表",
   "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-  "photos": [],
+  "photos": [
+   "/webapp/assets/inspection-photos/115/溪構3/01.jpg",
+   "/webapp/assets/inspection-photos/115/溪構3/02.jpg",
+   "/webapp/assets/inspection-photos/115/溪構3/03.jpg"
+  ],
   "secondaryTags": [
    "魚道現況"
   ],
   "deru_d": 0,
   "deru_e": 1,
   "deru_r": 1,
-  "deru_u": 1
+  "deru_u": 1,
+  "photoCount": 3,
+  "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）"
  },
  {
   "id": 8204,
@@ -2292,14 +2315,19 @@
   "sourcePage": 14,
   "sourceFormBatch": "115年構造物調查表",
   "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-  "photos": [],
+  "photos": [
+   "/webapp/assets/inspection-photos/115/溪構4/01.jpg",
+   "/webapp/assets/inspection-photos/115/溪構4/02.jpg"
+  ],
   "secondaryTags": [
    "魚道現況"
   ],
   "deru_d": 0,
   "deru_e": 1,
   "deru_r": 1,
-  "deru_u": 1
+  "deru_u": 1,
+  "photoCount": 2,
+  "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）"
  },
  {
   "id": 8205,
@@ -2324,11 +2352,17 @@
   "sourcePage": 17,
   "sourceFormBatch": "115年構造物調查表",
   "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-  "photos": [],
+  "photos": [
+   "/webapp/assets/inspection-photos/115/溪構5-1/01.jpg",
+   "/webapp/assets/inspection-photos/115/溪構5-1/02.jpg",
+   "/webapp/assets/inspection-photos/115/溪構5-1/03.jpg"
+  ],
   "deru_d": 0,
   "deru_e": 1,
   "deru_r": 1,
-  "deru_u": 1
+  "deru_u": 1,
+  "photoCount": 3,
+  "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）"
  },
  {
   "id": 8206,
@@ -2353,14 +2387,20 @@
   "sourcePage": 20,
   "sourceFormBatch": "115年構造物調查表",
   "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-  "photos": [],
+  "photos": [
+   "/webapp/assets/inspection-photos/115/溪構5-2/01.jpg",
+   "/webapp/assets/inspection-photos/115/溪構5-2/02.jpg",
+   "/webapp/assets/inspection-photos/115/溪構5-2/03.jpg"
+  ],
   "secondaryTags": [
    "魚道現況"
   ],
   "deru_d": 0,
   "deru_e": 1,
   "deru_r": 1,
-  "deru_u": 1
+  "deru_u": 1,
+  "photoCount": 3,
+  "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）"
  },
  {
   "id": 8207,
@@ -2385,7 +2425,10 @@
   "sourcePage": 23,
   "sourceFormBatch": "115年構造物調查表",
   "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-  "photos": [],
+  "photos": [
+   "/webapp/assets/inspection-photos/115/溪構6/01.jpg",
+   "/webapp/assets/inspection-photos/115/溪構6/02.jpg"
+  ],
   "secondaryTags": [
    "魚道現況"
   ],
@@ -2396,7 +2439,9 @@
   "appearanceOther": "部份格框消能設施基礎淘空",
   "repairMethod": "格框消能設施基礎修補",
   "repairScale": "16m2",
-  "repairCost": 50
+  "repairCost": 50,
+  "photoCount": 2,
+  "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）"
  },
  {
   "id": 8208,
@@ -2421,14 +2466,21 @@
   "sourcePage": 26,
   "sourceFormBatch": "115年構造物調查表",
   "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-  "photos": [],
+  "photos": [
+   "/webapp/assets/inspection-photos/115/溪構7/01.jpg",
+   "/webapp/assets/inspection-photos/115/溪構7/02.jpg",
+   "/webapp/assets/inspection-photos/115/溪構7/03.jpg",
+   "/webapp/assets/inspection-photos/115/溪構7/04.jpg"
+  ],
   "secondaryTags": [
    "魚道現況"
   ],
   "deru_d": 0,
   "deru_e": 1,
   "deru_r": 1,
-  "deru_u": 1
+  "deru_u": 1,
+  "photoCount": 4,
+  "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）"
  },
  {
   "id": 8209,
@@ -2453,11 +2505,16 @@
   "sourcePage": 29,
   "sourceFormBatch": "115年構造物調查表",
   "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-  "photos": [],
+  "photos": [
+   "/webapp/assets/inspection-photos/115/溪構8-1/01.jpg",
+   "/webapp/assets/inspection-photos/115/溪構8-1/02.jpg"
+  ],
   "deru_d": 0,
   "deru_e": 1,
   "deru_r": 1,
-  "deru_u": 1
+  "deru_u": 1,
+  "photoCount": 2,
+  "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）"
  },
  {
   "id": 8210,
@@ -2482,14 +2539,20 @@
   "sourcePage": 32,
   "sourceFormBatch": "115年構造物調查表",
   "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-  "photos": [],
+  "photos": [
+   "/webapp/assets/inspection-photos/115/溪構8-2/01.jpg",
+   "/webapp/assets/inspection-photos/115/溪構8-2/02.jpg",
+   "/webapp/assets/inspection-photos/115/溪構8-2/03.jpg"
+  ],
   "secondaryTags": [
    "魚道現況"
   ],
   "deru_d": 0,
   "deru_e": 1,
   "deru_r": 1,
-  "deru_u": 1
+  "deru_u": 1,
+  "photoCount": 3,
+  "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）"
  },
  {
   "id": 8211,
@@ -2514,11 +2577,15 @@
   "sourcePage": 35,
   "sourceFormBatch": "115年構造物調查表",
   "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-  "photos": [],
+  "photos": [
+   "/webapp/assets/inspection-photos/115/溪構9/01.jpg"
+  ],
   "deru_d": 0,
   "deru_e": 1,
   "deru_r": 1,
-  "deru_u": 1
+  "deru_u": 1,
+  "photoCount": 1,
+  "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）"
  },
  {
   "id": 8212,
@@ -2543,7 +2610,11 @@
   "sourcePage": 38,
   "sourceFormBatch": "115年構造物調查表",
   "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-  "photos": [],
+  "photos": [
+   "/webapp/assets/inspection-photos/115/溪構10/01.jpg",
+   "/webapp/assets/inspection-photos/115/溪構10/02.jpg",
+   "/webapp/assets/inspection-photos/115/溪構10/03.jpg"
+  ],
   "deru_d": 3,
   "deru_e": 1,
   "deru_r": 3,
@@ -2553,7 +2624,9 @@
   "repairScale": "-",
   "repairCost": 20,
   "notes": "原巴威颱風報告圖1 將本項鋼條位移標註為 114.04.18，經確認為誤植，實際檢測日期為 115.07.18，已更正。",
-  "dateCorrected": "原報告圖1誤植 114.04.18 → 更正為 115.07.18"
+  "dateCorrected": "原報告圖1誤植 114.04.18 → 更正為 115.07.18",
+  "photoCount": 3,
+  "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）"
  },
  {
   "id": 8213,
@@ -2578,11 +2651,17 @@
   "sourcePage": 41,
   "sourceFormBatch": "115年構造物調查表",
   "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-  "photos": [],
+  "photos": [
+   "/webapp/assets/inspection-photos/115/溪構11/01.jpg",
+   "/webapp/assets/inspection-photos/115/溪構11/02.jpg",
+   "/webapp/assets/inspection-photos/115/溪構11/03.jpg"
+  ],
   "deru_d": 0,
   "deru_e": 1,
   "deru_r": 1,
-  "deru_u": 1
+  "deru_u": 1,
+  "photoCount": 3,
+  "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）"
  },
  {
   "id": 8214,
@@ -2607,7 +2686,12 @@
   "sourcePage": 45,
   "sourceFormBatch": "115年構造物調查表",
   "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-  "photos": [],
+  "photos": [
+   "/webapp/assets/inspection-photos/115/0K510護岸/01.jpg",
+   "/webapp/assets/inspection-photos/115/0K510護岸/02.jpg",
+   "/webapp/assets/inspection-photos/115/0K510護岸/03.jpg",
+   "/webapp/assets/inspection-photos/115/0K510護岸/04.jpg"
+  ],
   "deru_d": 3,
   "deru_e": 3,
   "deru_r": 3,
@@ -2615,7 +2699,9 @@
   "appearanceOther": "既有涵管遭沖毀，致使護岸背填土方流失（分析時 alpha 值取 2）",
   "repairMethod": "護岸補強並回填背填土",
   "repairScale": "3.5*5*1.7m",
-  "repairCost": 100
+  "repairCost": 100,
+  "photoCount": 4,
+  "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）"
  },
  {
   "id": 8215,
@@ -2640,11 +2726,17 @@
   "sourcePage": 48,
   "sourceFormBatch": "115年構造物調查表",
   "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-  "photos": [],
+  "photos": [
+   "/webapp/assets/inspection-photos/115/1K000護岸/01.jpg",
+   "/webapp/assets/inspection-photos/115/1K000護岸/02.jpg",
+   "/webapp/assets/inspection-photos/115/1K000護岸/03.jpg"
+  ],
   "deru_d": 0,
   "deru_e": 1,
   "deru_r": 1,
-  "deru_u": 1
+  "deru_u": 1,
+  "photoCount": 3,
+  "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）"
  },
  {
   "id": 8216,
@@ -2669,11 +2761,17 @@
   "sourcePage": 51,
   "sourceFormBatch": "115年構造物調查表",
   "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-  "photos": [],
+  "photos": [
+   "/webapp/assets/inspection-photos/115/1K170護岸/01.jpg",
+   "/webapp/assets/inspection-photos/115/1K170護岸/02.jpg",
+   "/webapp/assets/inspection-photos/115/1K170護岸/03.jpg"
+  ],
   "deru_d": 0,
   "deru_e": 1,
   "deru_r": 1,
-  "deru_u": 1
+  "deru_u": 1,
+  "photoCount": 3,
+  "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）"
  },
  {
   "id": 8217,
@@ -2698,11 +2796,18 @@
   "sourcePage": 54,
   "sourceFormBatch": "115年構造物調查表",
   "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-  "photos": [],
+  "photos": [
+   "/webapp/assets/inspection-photos/115/1K260護岸/01.jpg",
+   "/webapp/assets/inspection-photos/115/1K260護岸/02.jpg",
+   "/webapp/assets/inspection-photos/115/1K260護岸/03.jpg",
+   "/webapp/assets/inspection-photos/115/1K260護岸/04.jpg"
+  ],
   "deru_d": 0,
   "deru_e": 1,
   "deru_r": 1,
-  "deru_u": 1
+  "deru_u": 1,
+  "photoCount": 4,
+  "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）"
  },
  {
   "id": 8218,
@@ -2727,11 +2832,16 @@
   "sourcePage": 58,
   "sourceFormBatch": "115年構造物調查表",
   "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-  "photos": [],
+  "photos": [
+   "/webapp/assets/inspection-photos/115/0K000步道/01.jpg",
+   "/webapp/assets/inspection-photos/115/0K000步道/02.jpg"
+  ],
   "deru_d": 0,
   "deru_e": 1,
   "deru_r": 1,
-  "deru_u": 1
+  "deru_u": 1,
+  "photoCount": 2,
+  "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）"
  },
  {
   "id": 8219,
@@ -2756,11 +2866,16 @@
   "sourcePage": 61,
   "sourceFormBatch": "115年構造物調查表",
   "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-  "photos": [],
+  "photos": [
+   "/webapp/assets/inspection-photos/115/0K370步道/01.jpg",
+   "/webapp/assets/inspection-photos/115/0K370步道/02.jpg"
+  ],
   "deru_d": 0,
   "deru_e": 1,
   "deru_r": 1,
-  "deru_u": 1
+  "deru_u": 1,
+  "photoCount": 2,
+  "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）"
  },
  {
   "id": 8220,
@@ -2785,11 +2900,17 @@
   "sourcePage": 64,
   "sourceFormBatch": "115年構造物調查表",
   "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-  "photos": [],
+  "photos": [
+   "/webapp/assets/inspection-photos/115/0K400步道/01.jpg",
+   "/webapp/assets/inspection-photos/115/0K400步道/02.jpg",
+   "/webapp/assets/inspection-photos/115/0K400步道/03.jpg"
+  ],
   "deru_d": 0,
   "deru_e": 1,
   "deru_r": 1,
-  "deru_u": 1
+  "deru_u": 1,
+  "photoCount": 3,
+  "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）"
  },
  {
   "id": 8221,
@@ -2814,7 +2935,10 @@
   "sourcePage": 67,
   "sourceFormBatch": "115年構造物調查表",
   "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-  "photos": [],
+  "photos": [
+   "/webapp/assets/inspection-photos/115/0K600步道/01.jpg",
+   "/webapp/assets/inspection-photos/115/0K600步道/02.jpg"
+  ],
   "deru_d": 0,
   "deru_e": 1,
   "deru_r": 1,
@@ -2822,7 +2946,9 @@
   "notes": "巴威颱風不定期巡查報告第8頁載明：步道0K+600處之上邊坡崩塌裸露，因鄰近步道且邊坡陡峭裸露，易有落石或崩塌之虞，建議設置擋土牆並刨除危石。惟同報告表3、表5與本調查表功能評估均列為A級，兩者不一致，本欄依原始文件如實併陳，實際處置以現地複核為準。",
   "secondaryTags": [
    "邊坡崩塌待複核"
-  ]
+  ],
+  "photoCount": 2,
+  "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）"
  },
  {
   "id": 8222,
@@ -2847,11 +2973,18 @@
   "sourcePage": 70,
   "sourceFormBatch": "115年構造物調查表",
   "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-  "photos": [],
+  "photos": [
+   "/webapp/assets/inspection-photos/115/0K800步道/01.jpg",
+   "/webapp/assets/inspection-photos/115/0K800步道/02.jpg",
+   "/webapp/assets/inspection-photos/115/0K800步道/03.jpg",
+   "/webapp/assets/inspection-photos/115/0K800步道/04.jpg"
+  ],
   "deru_d": 0,
   "deru_e": 1,
   "deru_r": 1,
-  "deru_u": 1
+  "deru_u": 1,
+  "photoCount": 4,
+  "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）"
  },
  {
   "id": 8223,
@@ -2876,11 +3009,16 @@
   "sourcePage": 73,
   "sourceFormBatch": "115年構造物調查表",
   "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-  "photos": [],
+  "photos": [
+   "/webapp/assets/inspection-photos/115/1K200步道/01.jpg",
+   "/webapp/assets/inspection-photos/115/1K200步道/02.jpg"
+  ],
   "defectType": "表層沖蝕",
   "repairMethod": "配合周邊倒木進行刨木作業並重新鋪設",
   "repairScale": "6m2",
-  "repairCost": 10
+  "repairCost": 10,
+  "photoCount": 2,
+  "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）"
  },
  {
   "id": 8224,
@@ -2905,11 +3043,18 @@
   "sourcePage": 77,
   "sourceFormBatch": "115年構造物調查表",
   "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-  "photos": [],
+  "photos": [
+   "/webapp/assets/inspection-photos/115/平臺1/01.jpg",
+   "/webapp/assets/inspection-photos/115/平臺1/02.jpg",
+   "/webapp/assets/inspection-photos/115/平臺1/03.jpg",
+   "/webapp/assets/inspection-photos/115/平臺1/04.jpg"
+  ],
   "deru_d": 0,
   "deru_e": 1,
   "deru_r": 1,
-  "deru_u": 1
+  "deru_u": 1,
+  "photoCount": 4,
+  "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）"
  },
  {
   "id": 8225,
@@ -2934,11 +3079,15 @@
   "sourcePage": 80,
   "sourceFormBatch": "115年構造物調查表",
   "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-  "photos": [],
+  "photos": [
+   "/webapp/assets/inspection-photos/115/平臺2/01.jpg"
+  ],
   "deru_d": 0,
   "deru_e": 1,
   "deru_r": 1,
-  "deru_u": 1
+  "deru_u": 1,
+  "photoCount": 1,
+  "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）"
  },
  {
   "id": 8226,
@@ -2963,11 +3112,18 @@
   "sourcePage": 83,
   "sourceFormBatch": "115年構造物調查表",
   "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-  "photos": [],
+  "photos": [
+   "/webapp/assets/inspection-photos/115/平臺3/01.jpg",
+   "/webapp/assets/inspection-photos/115/平臺3/02.jpg",
+   "/webapp/assets/inspection-photos/115/平臺3/03.jpg",
+   "/webapp/assets/inspection-photos/115/平臺3/04.jpg"
+  ],
   "deru_d": 0,
   "deru_e": 1,
   "deru_r": 1,
-  "deru_u": 1
+  "deru_u": 1,
+  "photoCount": 4,
+  "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）"
  },
  {
   "id": 8227,
@@ -2992,11 +3148,17 @@
   "sourcePage": 86,
   "sourceFormBatch": "115年構造物調查表",
   "importedFrom": "115維護管理 構造物調查表_簽.pdf 逐頁判讀",
-  "photos": [],
+  "photos": [
+   "/webapp/assets/inspection-photos/115/平臺4/01.jpg",
+   "/webapp/assets/inspection-photos/115/平臺4/02.jpg",
+   "/webapp/assets/inspection-photos/115/平臺4/03.jpg"
+  ],
   "deru_d": 0,
   "deru_e": 1,
   "deru_r": 1,
-  "deru_u": 1
+  "deru_u": 1,
+  "photoCount": 3,
+  "photoSource": "115年構造物調查表 PDF 現況照片（依版面裁切）"
  },
  {
   "id": 9101,
