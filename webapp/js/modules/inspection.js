@@ -3942,14 +3942,23 @@ function renderMaintenancePhotoArchive() {
           const sl = stageLabels[photo.stage] || photo.stage;
           return `
             <button type="button"
-              onclick="maintOpenViewer(${globalIdx})"
+              onclick="${photo.kind === 'video'
+                ? `window.open('${inspectionEscape(photo.src)}','_blank','noopener')`
+                : `maintOpenViewer(${globalIdx})`}"
               style="border:1px solid #e2e8f0;background:#fff;border-radius:10px;padding:0;overflow:hidden;cursor:pointer;
                      aspect-ratio:1;position:relative;transition:box-shadow .15s"
               onmouseover="this.style.boxShadow='0 4px 16px rgba(15,23,42,.14)'"
               onmouseout="this.style.boxShadow=''">
-              <img src="${inspectionEscape(photo.src)}" alt="${inspectionAttr(photo.name)}" loading="lazy"
-                style="width:100%;height:100%;object-fit:cover;display:block"
-                onerror="this.style.display='none';this.parentElement.style.background='#f1f5f9'">
+              ${photo.kind === 'video'
+                ? `<div style="width:100%;height:100%;display:flex;flex-direction:column;
+                               align-items:center;justify-content:center;gap:6px;
+                               background:linear-gradient(135deg,#1e293b,#334155);color:#fff">
+                     <i class="fas fa-circle-play" style="font-size:30px;opacity:.92"></i>
+                     <span style="font-size:11px;opacity:.75">影片</span>
+                   </div>`
+                : `<img src="${inspectionEscape(photo.src)}" alt="${inspectionAttr(photo.name)}" loading="lazy"
+                     style="width:100%;height:100%;object-fit:cover;display:block"
+                     onerror="this.style.display='none';this.parentElement.style.background='#f1f5f9'">`}
               <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(15,23,42,.62);color:#fff;
                           font-size:11px;padding:4px 6px;display:flex;justify-content:space-between">
                 <span style="color:${sc};font-weight:700">${sl}</span>
