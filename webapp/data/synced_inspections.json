@@ -2551,7 +2551,9 @@
   "appearanceOther": "連接溪構5-2魚道保護工部分鋼條位移",
   "repairMethod": "魚道保護工頂部鋼條修補",
   "repairScale": "-",
-  "repairCost": 20
+  "repairCost": 20,
+  "notes": "原巴威颱風報告圖1 將本項鋼條位移標註為 114.04.18，經確認為誤植，實際檢測日期為 115.07.18，已更正。",
+  "dateCorrected": "原報告圖1誤植 114.04.18 → 更正為 115.07.18"
  },
  {
   "id": 8213,
@@ -2816,7 +2818,11 @@
   "deru_d": 0,
   "deru_e": 1,
   "deru_r": 1,
-  "deru_u": 1
+  "deru_u": 1,
+  "notes": "巴威颱風不定期巡查報告第8頁載明：步道0K+600處之上邊坡崩塌裸露，因鄰近步道且邊坡陡峭裸露，易有落石或崩塌之虞，建議設置擋土牆並刨除危石。惟同報告表3、表5與本調查表功能評估均列為A級，兩者不一致，本欄依原始文件如實併陳，實際處置以現地複核為準。",
+  "secondaryTags": [
+   "邊坡崩塌待複核"
+  ]
  },
  {
   "id": 8222,
@@ -2991,5 +2997,92 @@
   "deru_e": 1,
   "deru_r": 1,
   "deru_u": 1
+ },
+ {
+  "id": 9101,
+  "facilityId": 16,
+  "facilityName": "橫流溪全段（步道0K+000~1K+290）",
+  "formType": "general_periodic",
+  "date": "2026-06-12",
+  "rocYear": 115,
+  "inspector": "陳英吉、汪竣泰",
+  "inspectUnit": "林業保育署臺中分署麗陽工作站",
+  "weather": "",
+  "findings": "步道正常；邊坡正常；平臺/護欄正常；護岸正常；魚道/防砂設施正常；告示牌/解說牌正常；救生圈正常",
+  "action": "繼續定期巡查",
+  "status": "完成",
+  "priority": "低",
+  "sourcePdf": "115維護管理/一般性定期巡查表單11506.pdf",
+  "sourceFormBatch": "115年一般性定期巡查表單",
+  "importedFrom": "115維護管理 一般性定期巡查表單（含內嵌現場照片）",
+  "photos": [
+   "/webapp/assets/inspection-photos/general/2026-06-12/01.jpeg",
+   "/webapp/assets/inspection-photos/general/2026-06-12/02.jpeg",
+   "/webapp/assets/inspection-photos/general/2026-06-12/03.jpeg",
+   "/webapp/assets/inspection-photos/general/2026-06-12/04.jpeg",
+   "/webapp/assets/inspection-photos/general/2026-06-12/05.jpeg",
+   "/webapp/assets/inspection-photos/general/2026-06-12/06.jpeg",
+   "/webapp/assets/inspection-photos/general/2026-06-12/07.jpeg"
+  ],
+  "photoCount": 7,
+  "photoSource": "一般性定期巡查表單 PDF 現場照片（7 項設施各一張）"
+ },
+ {
+  "id": 9102,
+  "facilityId": 16,
+  "facilityName": "橫流溪全段（步道0K+000~1K+290）",
+  "formType": "general_periodic",
+  "date": "2026-07-06",
+  "rocYear": 115,
+  "inspector": "張森源、陳英吉",
+  "inspectUnit": "林業保育署臺中分署麗陽工作站",
+  "weather": "",
+  "findings": "步道正常；邊坡正常；平臺/護欄正常；護岸正常；魚道/防砂設施正常；告示牌/解說牌正常；救生圈正常",
+  "action": "繼續定期巡查",
+  "status": "完成",
+  "priority": "低",
+  "sourcePdf": "115維護管理/一般性定期巡查表單11507.pdf",
+  "sourceFormBatch": "115年一般性定期巡查表單",
+  "importedFrom": "115維護管理 一般性定期巡查表單（含內嵌現場照片）",
+  "photos": [
+   "/webapp/assets/inspection-photos/general/2026-07-06/01.jpeg",
+   "/webapp/assets/inspection-photos/general/2026-07-06/02.jpeg",
+   "/webapp/assets/inspection-photos/general/2026-07-06/03.jpeg",
+   "/webapp/assets/inspection-photos/general/2026-07-06/04.jpeg",
+   "/webapp/assets/inspection-photos/general/2026-07-06/05.jpeg",
+   "/webapp/assets/inspection-photos/general/2026-07-06/06.jpeg",
+   "/webapp/assets/inspection-photos/general/2026-07-06/07.jpeg"
+  ],
+  "photoCount": 7,
+  "photoSource": "一般性定期巡查表單 PDF 現場照片（7 項設施各一張）"
+ },
+ {
+  "id": 9103,
+  "facilityId": 16,
+  "facilityName": "橫流溪全段（步道0K+000~1K+290）",
+  "formType": "general_periodic",
+  "date": "2026-08-17",
+  "rocYear": 115,
+  "inspector": "張森源、汪竣泰",
+  "inspectUnit": "林業保育署臺中分署麗陽工作站",
+  "weather": "",
+  "findings": "步道正常；邊坡正常；平臺/護欄正常；護岸正常；魚道/防砂設施正常；告示牌/解說牌正常；救生圈正常",
+  "action": "繼續定期巡查",
+  "status": "完成",
+  "priority": "低",
+  "sourcePdf": "115維護管理/一般性定期巡查表單11508.pdf",
+  "sourceFormBatch": "115年一般性定期巡查表單",
+  "importedFrom": "115維護管理 一般性定期巡查表單（含內嵌現場照片）",
+  "photos": [
+   "/webapp/assets/inspection-photos/general/2026-08-17/01.jpg",
+   "/webapp/assets/inspection-photos/general/2026-08-17/02.jpg",
+   "/webapp/assets/inspection-photos/general/2026-08-17/03.jpg",
+   "/webapp/assets/inspection-photos/general/2026-08-17/04.jpg",
+   "/webapp/assets/inspection-photos/general/2026-08-17/05.jpg",
+   "/webapp/assets/inspection-photos/general/2026-08-17/06.jpg",
+   "/webapp/assets/inspection-photos/general/2026-08-17/07.jpg"
+  ],
+  "photoCount": 7,
+  "photoSource": "一般性定期巡查表單 PDF 現場照片（7 項設施各一張）"
  }
 ]
