@@ -690,7 +690,7 @@ function renderFishStory() {
             <div class="story-kicker">第 8 頁 · 成效見證</div>
             <div class="story-title">魚兒<br>回來了</div>
             <div class="story-kpi-grid">
-              ${kpi('97', '114年粗石斜曲面型 CPUE 尾／次', 'fa-chart-line')}
+              ${kpi('97', '114年粗石斜曲面型 尾／次', 'fa-chart-line')}
               ${kpi(`${story.fishTotal || '—'} 尾次`, '資料庫水域生物累計', 'fa-database')}
               ${kpi(`${story.fishGroups.length || '—'} 種`, '平台整合物種', 'fa-fish')}
               ${kpi('RAG 可問答', '與工程設施、巡查資料連動', 'fa-robot')}
@@ -1767,7 +1767,7 @@ const HLX_IN_FISHWAY_CATCH = {
   total: 306, species: 7,
   //  為何是 7 種而非 8 種：未在魚道內捕獲的是短臀瘋鱨。
   absentSpecies: '短臀瘋鱨',
-  absentReason: '短臀瘋鱨為夜行性鮠科，白天躲藏於深潭岩縫，全期單場偵測率僅 23.4%，'
+  absentReason: '短臀瘋鱨為夜行性鮠科，白天躲藏於深潭岩縫，全期單場出現頻度僅 23.4%，'
               + '是 8 種目標魚種中最低。魚道內部為淺水高流速環境，本就不是其偏好棲地，'
               + '因此 4 次日間魚道內電捕未捕獲屬合理結果。該種在全溪序列中持續有紀錄'
               + '（107、108、109、110、112、114 年均檢出），114 年更在 4 場中的 3 場檢出 5 尾。',
@@ -1791,255 +1791,148 @@ const HLX_IN_FISHWAY_CATCH = {
 //  受脅魚種：臺灣淡水魚類紅皮書名錄近危(NNT)以上者
 const HLX_THREATENED_KEYS = ['bai', 'ying', 'jian', 'feng'];
 
+
 // ════════════════════════════════════════════════════════════════════════════
-//  金質獎成效指標層（HLX Eco KPI）
+//  生態監測資料層（HLX Eco Monitor）
 //  ----------------------------------------------------------------------------
-//  設計原則（對應「數值必須可回推驗算」的要求）：
-//   1. 一切數值由 HLX_FISH_SURVEYS 原始列即時計算，本檔不存放任何預先算好的
-//      統計結果；改動任一場次資料，所有指標同步變動，不可能對不上。
-//   2. 每個指標都標明公式與出處，評審可用原始場次表自行驗算。
-//   3. 各年度調查次數、季節、樣站與方法不同 → 一律採「努力量中性」的指標
-//      （個體基礎稀釋、比例型指數、存在基礎相似度），並於介面標註限制。
-//   4. 不做補值。未調查或未解析的年度與分層一律排除，不補 0。
+//  定位：呈現「歷年調查數據中的環境與物種組成變化訊號」，不做正負評分。
 //
-//  改善前後分界：107 年起 9 座魚道陸續啟用，故 103～106 年為改善前，
-//  107～114 年為改善後。105 年度報告係 104 年資料重刊，無獨立調查場次。
+//  單位一律採「尾／次」——「1 次」＝一個樣站完成一次調查。
+//  這是調查紀錄表上最直接的單位，一般讀者可以直接理解「平均每次調查抓到幾尾」。
+//
+//  ★ 呈現原則
+//   1. 全部數值由 HLX_FISH_SURVEYS 原始列即時計算，不預存、不補值、不修改。
+//   2. 數值下降不作負面標示。物種數量的年際變化屬族群量波動與棲地利用轉換，
+//      應對照水文、潭瀨組成、底質與流況等環境條件解讀，而非逕行判定好壞。
+//   3. 顏色依「年度／時期／物種」的身分區分，不用來表示好壞。
+//      年度與時期採同色系深淺（早→晚），物種採固定分類色序。
+//
+//  時期分界：107 年起 9 座魚道陸續啟用，103～106 年為改善前、107～114 年為改善後。
+//  105 年度報告係 104 年資料重刊，無獨立調查場次。
 // ════════════════════════════════════════════════════════════════════════════
 const HLX_ECO_PRE_LAST_YEAR = 2017;          // 民國 106 年
-const HLX_ECO_RAREFY_N      = 100;           // 稀釋基準個體數
 
-//  生態恢復指數 ERI 權重（公開、可驗算，已做敏感度檢定）
-const HLX_ERI_WEIGHTS = { rich: 0.35, div: 0.25, cons: 0.25, bal: 0.15 };
-
-/* ── 標準生態統計式（皆為教科書公式，未做任何自訂調整）── */
-//  Shannon–Wiener H' = −Σ pi·ln(pi)
-function hlxEco_shannon(c) {
-  const n = c.reduce((a, b) => a + b, 0);
-  if (!n) return 0;
-  return -c.filter(v => v > 0).reduce((a, v) => { const p = v / n; return a + p * Math.log(p); }, 0);
-}
-//  Simpson 多樣性 1−D，D = Σ pi²
-function hlxEco_simpson(c) {
-  const n = c.reduce((a, b) => a + b, 0);
-  if (!n) return 0;
-  return 1 - c.reduce((a, v) => a + Math.pow(v / n, 2), 0);
-}
-//  Pielou 均勻度 J' = H' / ln(S)
-function hlxEco_pielou(c) {
-  const S = c.filter(v => v > 0).length;
-  return S < 2 ? 0 : hlxEco_shannon(c) / Math.log(S);
-}
-//  優勢種個體佔比（最大單一物種尾數 ÷ 總捕獲）
-function hlxEco_dominance(c) {
-  const n = c.reduce((a, b) => a + b, 0);
-  return n ? Math.max.apply(null, c) / n : 0;
-}
-//  Hurlbert (1971) 個體基礎稀釋 E[S_m]，變異數用 Heck et al. (1975)
-//  ——「年度出現種數」會隨調查次數單調上升，本指標把各年統一抽樣到 m 尾後
-//     再比較，是唯一能跨不同努力量年度公平比較物種豐富度的方式。
-function hlxEco_rarefy(counts, m) {
-  const c = counts.filter(v => v > 0);
-  const N = c.reduce((a, b) => a + b, 0);
-  if (N < m || !c.length) return null;
-  const lnFact = n => { let s = 0; for (let i = 2; i <= n; i++) s += Math.log(i); return s; };
-  const lnC = (n, k) => (k < 0 || k > n) ? -Infinity : lnFact(n) - lnFact(k) - lnFact(n - k);
-  const lnCNm = lnC(N, m);
-  const pAbsent = c.map(ni => Math.exp(lnC(N - ni, m) - lnCNm));
-  const ES = pAbsent.reduce((a, p) => a + (1 - p), 0);
-  let v = 0;
-  for (let i = 0; i < c.length; i++) {
-    v += pAbsent[i] * (1 - pAbsent[i]);
-    for (let j = 0; j < c.length; j++) {
-      if (i === j) continue;
-      v += (Math.exp(lnC(N - c[i] - c[j], m) - lnCNm) - pAbsent[i] * pAbsent[j]);
-    }
-  }
-  return { ES: ES, sd: Math.sqrt(Math.max(0, v)) };
-}
-//  群聚相似度：Jaccard、Sørensen 為存在基礎（對努力量差異較不敏感）；
-//  Bray–Curtis 含豐度，對上下游努力量不平衡敏感，僅列為輔助並標註限制。
-function hlxEco_jaccard(A, B) {
-  const inter = [...A].filter(x => B.has(x)).length;
-  const uni = new Set([...A, ...B]).size;
-  return uni ? inter / uni : 0;
-}
-function hlxEco_sorensen(A, B) {
-  const inter = [...A].filter(x => B.has(x)).length;
-  return (A.size + B.size) ? 2 * inter / (A.size + B.size) : 0;
-}
-function hlxEco_brayCurtis(a, b) {
-  let num = 0, den = 0;
-  HLX_FISH_KEYS.forEach(k => {
-    const x = Number(a[k]) || 0, y = Number(b[k]) || 0;
-    num += Math.min(x, y); den += x + y;
-  });
-  return den ? 2 * num / den : 0;
-}
-//  站訪次：優先取 stations 欄，其次由備註「N站」解析，皆無則以 1 站計
-function hlxEco_stations(s) {
+//  「1 次」的定義：優先取 stations 欄，其次由備註「N站」解析，皆無則以 1 計
+function hlxEco_times(s) {
   if (Number(s.stations) > 0) return Number(s.stations);
   const m = String(s.note || '').match(/(\d+)\s*站/);
   return m ? parseInt(m[1], 10) : 1;
 }
-//  上下游分層：僅採 scope 明確標示者；「橫流溪」未標上下游者不猜測、不歸類
-function hlxEco_stratum(s) {
+//  河段分層：僅採 scope 明確標示者；標為「橫流溪」而未分上下游者不猜測
+function hlxEco_segment(s) {
   const sc = String(s.scope || '');
   if (sc.indexOf('上游') >= 0) return '上游';
   if (sc.indexOf('下游') >= 0) return '下游';
   return '未標示';
 }
 
-/* ════════════════════════════════════════════════════════════════════════
-   主計算：回傳金質獎儀表板所需的全部指標
-   ════════════════════════════════════════════════════════════════════════ */
-let _hlxEcoKPICache = null;
-function hlxEcoKPI() {
-  if (_hlxEcoKPICache) return _hlxEcoKPICache;
-  const KEYS = HLX_FISH_KEYS, POOL = KEYS.length;
+/* ── 物種身分色（固定順序，僅用於區分物種，不含好壞意涵）──
+   取自通過色盲分離度檢定的分類色序：正常視覺最小 ΔE 19.6、
+   protan 最小 ΔE 9.1，且一律搭配圖例與資料表作為第二重辨識。 */
+const HLX_ECO_SPECIES_COLOR = {
+  bai : '#2a78d6', shi : '#eb6834', xu  : '#1baf7a', ying: '#eda100',
+  jian: '#e87ba4', min : '#008300', feng: '#4a3aa7', hong: '#e34948'
+};
+/* ── 年度色階（同一藍色系由淺到深，代表時間先後，不代表優劣）── */
+const HLX_ECO_YEAR_RAMP = ['#cde2fb','#b7d3f6','#9ec5f4','#86b6ef','#6da7ec','#5598e7',
+                           '#3987e5','#2a78d6','#256abf','#1c5cab','#184f95'];
+/* ── 時期色（同色系淺→深＝早期→近期）── */
+const HLX_ECO_PHASE_COLOR = { pre: '#86b6ef', post: '#1c5cab' };
+/* ── 河段色（僅作身分區分）── */
+const HLX_ECO_SEG_COLOR = { up: '#4a3aa7', down: '#1baf7a' };
+/* ── 版面用中性色 ── */
+const HLX_ECO_INK = { t1:'#0f172a', t2:'#475569', t3:'#94a3b8', line:'#e2e8f0' };
+
+let _hlxEcoMonitorCache = null;
+function hlxEcoMonitor() {
+  if (_hlxEcoMonitorCache) return _hlxEcoMonitorCache;
+  const KEYS = HLX_FISH_KEYS;
   const isPost = y => y > HLX_ECO_PRE_LAST_YEAR;
 
-  // ── 1. 年度彙整與 ERI ────────────────────────────────────────
+  // ── 年度序列 ──────────────────────────────────────────────
   const ymap = new Map();
   HLX_FISH_SURVEYS.forEach(s => {
     if (!ymap.has(s.year)) ymap.set(s.year, {
-      year: s.year, roc: s.year - 1911, surveys: 0, effort: 0, counts: {} });
+      year: s.year, roc: s.year - 1911, events: 0, times: 0, counts: {} });
     const d = ymap.get(s.year);
-    d.surveys++; d.effort += hlxEco_stations(s);
+    d.events++; d.times += hlxEco_times(s);
     KEYS.forEach(k => { d.counts[k] = (d.counts[k] || 0) + (Number(s[k]) || 0); });
   });
   const years = [...ymap.values()].sort((a, b) => a.year - b.year).map(d => {
-    const c = KEYS.map(k => d.counts[k]);
-    const total = c.reduce((a, b) => a + b, 0);
-    const r = hlxEco_rarefy(c, HLX_ECO_RAREFY_N);
-    const thr = HLX_THREATENED_KEYS.filter(k => d.counts[k] > 0).length;
-    const sub = {
-      rich: r ? r.ES / POOL : null,                         // 努力量校正後的豐富度
-      div : hlxEco_shannon(c) / Math.log(POOL),             // H' 相對區域物種庫上限
-      cons: thr / HLX_THREATENED_KEYS.length,               // 受脅種檢出率
-      bal : 1 - hlxEco_dominance(c)                         // 群聚平衡
-    };
+    const vals = KEYS.map(k => d.counts[k]);
+    const total = vals.reduce((a, b) => a + b, 0);
+    const rank = KEYS.map(k => ({ key: k, n: d.counts[k] })).sort((a, b) => b.n - a.n);
     return Object.assign({}, d, {
-      total: total, richness: c.filter(v => v > 0).length,
-      cpue: d.effort ? total / d.effort : 0,
-      H: hlxEco_shannon(c), simpson: hlxEco_simpson(c),
-      pielou: hlxEco_pielou(c), dominance: hlxEco_dominance(c),
-      es100: r ? r.ES : null, es100sd: r ? r.sd : null,
-      threatened: thr, sub: sub,
-      eri: r ? 100 * (HLX_ERI_WEIGHTS.rich * sub.rich + HLX_ERI_WEIGHTS.div * sub.div
-                    + HLX_ERI_WEIGHTS.cons * sub.cons + HLX_ERI_WEIGHTS.bal * sub.bal) : null,
-      phase: isPost(d.year) ? '改善後' : '改善前'
+      total: total,
+      species: vals.filter(v => v > 0).length,
+      perTime: d.times ? total / d.times : 0,                      // 平均尾／次
+      perTimeBy: KEYS.reduce((o, k) => { o[k] = d.times ? d.counts[k] / d.times : 0; return o; }, {}),
+      shareBy:   KEYS.reduce((o, k) => { o[k] = total ? d.counts[k] / total * 100 : 0; return o; }, {}),
+      dominant: rank[0], second: rank[1],
+      phase: isPost(d.year) ? 'post' : 'pre'
     });
   });
 
-  const mean = (arr, f) => {
-    const v = arr.map(f).filter(x => x !== null && x !== undefined && !isNaN(x));
-    return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
-  };
-  const pre = years.filter(y => y.phase === '改善前');
-  const post = years.filter(y => y.phase === '改善後');
-  const delta = (a, b) => ({ post: a, pre: b, diff: (a - b), pct: b ? (a - b) / b * 100 : null });
+  const pre  = years.filter(y => y.phase === 'pre');
+  const post = years.filter(y => y.phase === 'post');
+  const mean = (arr, f) => arr.length ? arr.reduce((a, x) => a + f(x), 0) / arr.length : 0;
 
-  const community = {
-    richness  : delta(mean(post, y => y.richness),  mean(pre, y => y.richness)),
-    es100     : delta(mean(post, y => y.es100),     mean(pre, y => y.es100)),
-    shannon   : delta(mean(post, y => y.H),         mean(pre, y => y.H)),
-    simpson   : delta(mean(post, y => y.simpson),   mean(pre, y => y.simpson)),
-    pielou    : delta(mean(post, y => y.pielou),    mean(pre, y => y.pielou)),
-    dominance : delta(mean(post, y => y.dominance) * 100, mean(pre, y => y.dominance) * 100),
-    threatened: delta(mean(post, y => y.threatened), mean(pre, y => y.threatened)),
-    eri       : delta(mean(post, y => y.eri),       mean(pre, y => y.eri))
-  };
+  // ── 改善前後：各物種平均尾／次（保留全部數值，含下降者）──
+  const bySpecies = KEYS.map(k => {
+    const a = mean(pre,  y => y.perTimeBy[k]);
+    const b = mean(post, y => y.perTimeBy[k]);
+    return {
+      key: k, name: HLX_FISH_KEY_NAME[k], color: HLX_ECO_SPECIES_COLOR[k],
+      pre: a, post: b, diff: b - a,
+      total: HLX_FISH_SURVEYS.reduce((s, r) => s + (Number(r[k]) || 0), 0),
+      //  出現年度數：呈現該物種在序列中被記錄到的年度範圍，中性描述
+      yearsPre:  pre.filter(y => y.counts[k] > 0).length,
+      yearsPost: post.filter(y => y.counts[k] > 0).length
+    };
+  }).sort((a, b) => b.post - a.post);
 
-  // ── 2. 上下游連通性（僅取同年度同時具上、下游明確標示者）──────
-  const cmap = new Map();
+  // ── 河段 × 時期 ────────────────────────────────────────────
+  const smap = new Map();
   HLX_FISH_SURVEYS.forEach(s => {
-    const st = hlxEco_stratum(s);
-    if (st === '未標示') return;
-    const key = s.year + '|' + st;
-    if (!cmap.has(key)) cmap.set(key, { year: s.year, stratum: st, surveys: 0, effort: 0, counts: {} });
-    const d = cmap.get(key);
-    d.surveys++; d.effort += hlxEco_stations(s);
+    const seg = hlxEco_segment(s);
+    if (seg === '未標示') return;
+    const key = (isPost(s.year) ? 'post' : 'pre') + '|' + seg;
+    if (!smap.has(key)) smap.set(key, { phase: key.split('|')[0], seg: seg, events: 0, times: 0, counts: {} });
+    const d = smap.get(key);
+    d.events++; d.times += hlxEco_times(s);
     KEYS.forEach(k => { d.counts[k] = (d.counts[k] || 0) + (Number(s[k]) || 0); });
   });
-  const pairedYears = [...new Set([...cmap.values()].map(d => d.year))]
-    .filter(y => cmap.has(y + '|上游') && cmap.has(y + '|下游')).sort((a, b) => a - b);
-  const connRows = pairedYears.map(y => {
-    const up = cmap.get(y + '|上游'), dn = cmap.get(y + '|下游');
-    const A = new Set(KEYS.filter(k => up.counts[k] > 0));
-    const B = new Set(KEYS.filter(k => dn.counts[k] > 0));
+  const segments = ['pre|上游', 'pre|下游', 'post|上游', 'post|下游'].map(key => {
+    const d = smap.get(key);
+    if (!d) return null;
+    const total = KEYS.reduce((a, k) => a + d.counts[k], 0);
     return {
-      year: y, roc: y - 1911, phase: isPost(y) ? '改善後' : '改善前',
-      upSpecies: A.size, downSpecies: B.size,
-      shared: [...A].filter(x => B.has(x)).length,
-      union: new Set([...A, ...B]).size,
-      jaccard: hlxEco_jaccard(A, B), sorensen: hlxEco_sorensen(A, B),
-      brayCurtis: hlxEco_brayCurtis(up.counts, dn.counts),
-      upEffort: up.effort, downEffort: dn.effort,
-      upCatch: KEYS.reduce((a, k) => a + up.counts[k], 0),
-      downCatch: KEYS.reduce((a, k) => a + dn.counts[k], 0),
-      upKeys: [...A], downKeys: [...B]
+      key: key, phase: d.phase, seg: d.seg, times: d.times, events: d.events, total: total,
+      species: KEYS.filter(k => d.counts[k] > 0).length,
+      perTime: d.times ? total / d.times : 0,
+      perTimeBy: KEYS.reduce((o, k) => { o[k] = d.times ? d.counts[k] / d.times : 0; return o; }, {}),
+      shareBy:   KEYS.reduce((o, k) => { o[k] = total ? d.counts[k] / total * 100 : 0; return o; }, {})
     };
-  });
-  const cPre = connRows.filter(r => r.phase === '改善前');
-  const cPost = connRows.filter(r => r.phase === '改善後');
-  //  改善後才出現在上游的魚種 —— 魚道成效最直接的生態證據
-  const preUp = new Set(); cPre.forEach(r => r.upKeys.forEach(k => preUp.add(k)));
-  const postUp = new Set(); cPost.forEach(r => r.upKeys.forEach(k => postUp.add(k)));
-  const connect = {
-    rows: connRows,
-    jaccard   : delta(mean(cPost, r => r.jaccard),    mean(cPre, r => r.jaccard)),
-    sorensen  : delta(mean(cPost, r => r.sorensen),   mean(cPre, r => r.sorensen)),
-    brayCurtis: delta(mean(cPost, r => r.brayCurtis), mean(cPre, r => r.brayCurtis)),
-    upSpecies : delta(mean(cPost, r => r.upSpecies),  mean(cPre, r => r.upSpecies)),
-    shared    : delta(mean(cPost, r => r.shared),     mean(cPre, r => r.shared)),
-    newUpstream: [...postUp].filter(k => !preUp.has(k)),
-    preUpKeys: [...preUp], postUpKeys: [...postUp],
-    //  同測站對照：104 年與 110 年上游皆為鞍馬山站、下游皆為麗陽站，
-    //  同機關、同電捕法，是全序列方法一致性最高的一組前後對照。
-    sameStation: {
-      pre : connRows.filter(r => r.year === 2015)[0] || null,
-      post: connRows.filter(r => r.year === 2021)[0] || null,
-      note: '104 年與 110 年上游皆為鞍馬山站、下游皆為麗陽站，同機關、同電捕法。'
+  }).filter(Boolean);
+
+  _hlxEcoMonitorCache = {
+    keys: KEYS, years: years, pre: pre, post: post,
+    bySpecies: bySpecies, segments: segments,
+    summary: {
+      events: HLX_FISH_SURVEYS.length,
+      times: HLX_FISH_SURVEYS.reduce((a, s) => a + hlxEco_times(s), 0),
+      total: years.reduce((a, y) => a + y.total, 0),
+      species: KEYS.length,
+      spanFrom: years[0].roc, spanTo: years[years.length - 1].roc,
+      perTimePre:  mean(pre,  y => y.perTime),
+      perTimePost: mean(post, y => y.perTime),
+      speciesPre:  mean(pre,  y => y.species),
+      speciesPost: mean(post, y => y.species)
     }
   };
-
-  // ── 3. 各物種偵測率（檢出場次 ÷ 總場次）────────────────────
-  const preS = HLX_FISH_SURVEYS.filter(s => !isPost(s.year));
-  const postS = HLX_FISH_SURVEYS.filter(s => isPost(s.year));
-  const occ = (arr, k) => arr.filter(s => (Number(s[k]) || 0) > 0).length;
-  const detection = KEYS.map(k => {
-    const a = occ(preS, k), b = occ(postS, k);
-    return {
-      key: k, name: HLX_FISH_KEY_NAME[k],
-      preHit: a, preN: preS.length, prePct: a / preS.length * 100,
-      postHit: b, postN: postS.length, postPct: b / postS.length * 100,
-      deltaPP: (b / postS.length - a / preS.length) * 100,
-      totalCatch: HLX_FISH_SURVEYS.reduce((sum, s) => sum + (Number(s[k]) || 0), 0),
-      threatened: HLX_THREATENED_KEYS.indexOf(k) >= 0
-    };
-  }).sort((x, y) => y.deltaPP - x.deltaPP);
-
-  // ── 4. 偵測效率：達成全 8 種所需站次（越少代表族群越普遍）──
-  const fullYears = years.filter(y => y.richness === POOL)
-    .map(y => ({ roc: y.roc, effort: y.effort, surveys: y.surveys, total: y.total }))
-    .sort((a, b) => a.effort - b.effort);
-
-  _hlxEcoKPICache = {
-    pool: POOL, preLastYear: HLX_ECO_PRE_LAST_YEAR, rarefyN: HLX_ECO_RAREFY_N,
-    weights: HLX_ERI_WEIGHTS,
-    years: years, pre: pre, post: post,
-    community: community, connect: connect, detection: detection, fullYears: fullYears,
-    totals: {
-      surveys: HLX_FISH_SURVEYS.length,
-      effort: HLX_FISH_SURVEYS.reduce((a, s) => a + hlxEco_stations(s), 0),
-      catchTotal: years.reduce((a, y) => a + y.total, 0),
-      species: POOL,
-      exotic: 0                    // 全序列未檢出任何外來種（8 種皆臺灣特有種）
-    }
-  };
-  return _hlxEcoKPICache;
+  return _hlxEcoMonitorCache;
 }
-if (typeof window !== 'undefined') window.hlxEcoKPI = hlxEcoKPI;
+if (typeof window !== 'undefined') window.hlxEcoMonitor = hlxEcoMonitor;
 
 
 
@@ -4116,540 +4009,471 @@ function _initVegMap() {
 //  歷年魚類族群趨勢分析
 // ─────────────────────────────────────────────────────────────────────────────
 
+
 /* ════════════════════════════════════════════════════════════════════════════
-   金質獎生態成效儀表板
+   生態監測儀表板（呈現層）
    ----------------------------------------------------------------------------
-   取代原本以「努力量校正 CPUE 倍數」為主軸的呈現。CPUE 是單位努力量的
-   「捕獲量」，回答不了「棲地是否變好」；本儀表板改以五個能直接對應棲地
-   品質、魚道功能與生態恢復程度的量化指標作為主結論，CPUE 降為佐證。
-
-   配色：正向 #0891b2（青）／逆向 #e34948（紅）／基線 #94a3b8（灰）。
-   已通過色盲分離度檢定（protan ΔE 16.5、正常視覺 ΔE 29.9，門檻 8／15）。
+   目的：讓讀者從歷年調查數據直接看出「環境與物種組成正在發生什麼變化」。
+   數值增減一律以中性語彙描述（組成改變、優勢物種轉換、族群量波動、
+   棲地利用情形改變），並對照水文、潭瀨組成、底質與流況等環境條件解讀。
    ════════════════════════════════════════════════════════════════════════════ */
-const HLX_ECO_C = { pos:'#0891b2', neg:'#e34948', base:'#94a3b8',
-                    ink:'#0f172a', ink2:'#475569', muted:'#94a3b8', grid:'#e2e8f0' };
-
-//  改善幅度的統一書寫：只有原始數據支持時才用「提升」，否則據實寫「下降」
-function hlxEco_pctText(pct, digits) {
-  if (pct === null || pct === undefined || isNaN(pct)) return '—';
-  const d = digits === undefined ? 1 : digits;
-  return (pct >= 0 ? '+' : '') + pct.toFixed(d) + '%';
-}
-function hlxEco_dirColor(pct, inverse) {
-  //  inverse=true 代表「數值下降才是好事」（例如優勢種佔比）
-  const good = inverse ? (pct < 0) : (pct > 0);
-  return good ? HLX_ECO_C.pos : HLX_ECO_C.neg;
-}
-
-/* ── 指標卡 ── */
-function hlxEco_kpiCard(o) {
-  const col = o.color || HLX_ECO_C.pos;
+function hlxEco_statBlock(o) {
   return `
-    <div style="background:#fff;border:1px solid #e2e8f0;border-top:4px solid ${col};
-                border-radius:14px;padding:18px 20px;display:flex;flex-direction:column;gap:10px">
-      <div style="font-size:13px;font-weight:800;color:${HLX_ECO_C.ink2};letter-spacing:.3px">${o.label}</div>
-      <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">
-        <span style="font-size:34px;font-weight:900;color:${HLX_ECO_C.ink};line-height:1;
+    <div style="background:#fff;border:1px solid ${HLX_ECO_INK.line};border-radius:12px;padding:15px 17px">
+      <div style="font-size:12.5px;color:${HLX_ECO_INK.t2};font-weight:700;margin-bottom:7px">${o.label}</div>
+      <div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap">
+        <span style="font-size:29px;font-weight:900;color:${HLX_ECO_INK.t1};line-height:1;
                      font-variant-numeric:tabular-nums">${o.value}</span>
-        ${o.delta ? `<span style="font-size:17px;font-weight:900;color:${col};
-                     font-variant-numeric:tabular-nums">${o.delta}</span>` : ''}
+        <span style="font-size:13px;color:${HLX_ECO_INK.t2}">${o.unit || ''}</span>
       </div>
-      ${o.compare ? `<div style="font-size:13px;color:${HLX_ECO_C.ink2};
-                     font-variant-numeric:tabular-nums">${o.compare}</div>` : ''}
-      <div style="font-size:14px;color:${HLX_ECO_C.ink};line-height:1.65;
-                  border-top:1px dashed #e2e8f0;padding-top:9px">${o.read}</div>
-      <div style="font-size:12px;color:${HLX_ECO_C.muted};line-height:1.6">
-        <b style="color:${HLX_ECO_C.ink2}">公式／來源：</b>${o.formula}
-      </div>
+      <div style="font-size:12.5px;color:${HLX_ECO_INK.t3};margin-top:7px;line-height:1.6">${o.sub}</div>
     </div>`;
 }
 
-/* ── 改善前後對照列（表格用）── */
-function hlxEco_cmpRow(name, o, digits, unit, inverse, formula) {
-  const d = digits === undefined ? 2 : digits;
-  const col = hlxEco_dirColor(o.pct, inverse);
+function hlxEco_sectionHead(no, title, desc) {
   return `
-    <tr>
-      <td style="padding:10px 12px;border-bottom:1px solid #edf2f7;font-weight:700;color:${HLX_ECO_C.ink}">${name}</td>
-      <td style="padding:10px 12px;border-bottom:1px solid #edf2f7;text-align:right;
-                 font-variant-numeric:tabular-nums;color:${HLX_ECO_C.ink2}">${o.pre.toFixed(d)}${unit||''}</td>
-      <td style="padding:10px 12px;border-bottom:1px solid #edf2f7;text-align:right;
-                 font-variant-numeric:tabular-nums;font-weight:800;color:${HLX_ECO_C.ink}">${o.post.toFixed(d)}${unit||''}</td>
-      <td style="padding:10px 12px;border-bottom:1px solid #edf2f7;text-align:right;
-                 font-variant-numeric:tabular-nums;font-weight:900;color:${col}">${hlxEco_pctText(o.pct)}</td>
-      <td style="padding:10px 12px;border-bottom:1px solid #edf2f7;font-size:12.5px;
-                 color:${HLX_ECO_C.muted};line-height:1.55">${formula}</td>
-    </tr>`;
+    <div style="margin-bottom:13px">
+      <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:5px">
+        <span style="background:#1c5cab;color:#fff;border-radius:7px;width:24px;height:24px;
+                     display:inline-flex;align-items:center;justify-content:center;
+                     font-size:13px;font-weight:900;flex-shrink:0">${no}</span>
+        <span style="font-size:17px;font-weight:900;color:${HLX_ECO_INK.t1}">${title}</span>
+      </div>
+      <div style="font-size:13px;color:${HLX_ECO_INK.t2};line-height:1.75">${desc}</div>
+    </div>`;
 }
 
-function renderEcoKPIDashboard() {
-  const K = hlxEcoKPI();
-  const C = K.community, N = K.connect;
-  const NAME = HLX_FISH_KEY_NAME;
-  const preLabel = K.pre.map(y => y.roc).join('、') + ' 年';
-  const postLabel = K.post[0].roc + '～' + K.post[K.post.length - 1].roc + ' 年';
-  const latest = K.years[K.years.length - 1];
-  const bestES = K.years.filter(y => y.es100 !== null)
-    .reduce((a, b) => (b.es100 > a.es100 ? b : a));
-  const ss = N.sameStation;
+function renderEcoMonitorDashboard() {
+  const M = hlxEcoMonitor();
+  const S = M.summary, NAME = HLX_FISH_KEY_NAME;
+  const f1 = v => v.toFixed(1);
+  const preYears  = M.pre.map(y => y.roc).join('、');
+  const postYears = M.post[0].roc + '～' + M.post[M.post.length - 1].roc;
 
-  //  棲地資料在 chapter4_ecology.js，載入順序在後，故於繪製時才取用
+  //  棲地資料位於 chapter4_ecology.js（載入順序在後），繪製時才取用
   const MR = (typeof MONITORING_REPORT !== 'undefined') ? MONITORING_REPORT : null;
-  const insects = MR ? MR.aquaticInsects : [];
-  const fbiMean = insects.length ? insects.reduce((a, x) => a + x.fbi, 0) / insects.length : null;
-  const fbiGrade = f => f <= 3.75 ? '極佳' : f <= 4.25 ? '很好' : f <= 5.00 ? '好'
-                      : f <= 5.75 ? '尚可' : f <= 6.50 ? '稍差' : f <= 7.25 ? '差' : '極差';
   const ha = MR ? MR.habitatAssessment : null;
 
-  return `
-  <!-- ══════════ 金質獎生態成效儀表板 ══════════ -->
-  <div style="border:2px solid #0891b2;border-radius:18px;overflow:hidden;margin-bottom:30px;background:#fff">
+  //  上升／下降一律用同一組中性字彙，不使用箭頭與警示色
+  const diffText = d => (d >= 0 ? '＋' : '－') + Math.abs(d).toFixed(2);
 
-    <div style="background:linear-gradient(135deg,#0e4f5f 0%,#0891b2 55%,#0e4f5f 100%);padding:24px 28px;color:#fff">
-      <div style="font-size:12.5px;font-weight:800;letter-spacing:2.5px;color:#a5f3fc;margin-bottom:8px">
-        維護管理金質獎 ‧ 生態成效量化評估
+  return `
+  <div style="border:1px solid ${HLX_ECO_INK.line};border-radius:18px;overflow:hidden;
+              margin-bottom:30px;background:#fff">
+
+    <!-- 標題帶 -->
+    <div style="background:linear-gradient(135deg,#0f2e52 0%,#1c5cab 60%,#2a78d6 100%);padding:24px 28px;color:#fff">
+      <div style="font-size:12.5px;font-weight:800;letter-spacing:2.5px;color:#b7d3f6;margin-bottom:8px">
+        橫流溪生態監測儀表板
       </div>
       <div style="font-size:25px;font-weight:900;letter-spacing:-.4px;margin-bottom:10px">
-        魚道與棲地改善後，橫流溪的生態發生了什麼改變？
+        歷年魚類族群與物種組成變化
       </div>
-      <div style="font-size:14.5px;line-height:1.85;color:#e0f2fe;max-width:1000px">
-        以 <b style="color:#fff">${preLabel}（魚道啟用前）</b>對照 <b style="color:#fff">${postLabel}（9 座魚道陸續啟用後）</b>，
-        共 ${K.totals.surveys} 場次、${K.totals.effort} 站次、${K.totals.catchTotal.toLocaleString()} 尾原始電捕紀錄。
-        全部指標由原始場次表即時計算，公式與權重完全公開，可逐項回推驗算。
-        各年度調查次數與樣站不同，因此一律採用<b style="color:#a5f3fc">不受努力量影響的指標</b>
-        （個體基礎稀釋、比例型指數、存在基礎相似度），並於文末如實揭露 3 項逆向訊號與資料限制。
+      <div style="font-size:14.5px;line-height:1.85;color:#dbeafe;max-width:1020px">
+        ${S.spanFrom}～${S.spanTo} 年共 ${S.events} 場次、${S.times} 次調查，累計 ${S.total.toLocaleString()} 尾、${S.species} 種。
+        全部圖表以<b style="color:#fff">「尾／次」</b>為單位 ——
+        <b style="color:#fff">1 次＝一個樣站完成一次調查</b>，即「平均每次調查記錄到幾尾」。
+        本頁呈現的是<b style="color:#b7d3f6">環境變化訊號</b>，
+        數量的年際增減反映族群量波動與棲地利用情形改變，
+        應對照水文條件、潭瀨組成、底質與流況一併判讀，原始數值全部保留。
       </div>
     </div>
 
     <div style="padding:24px 26px">
 
-      <!-- ── 五大核心指標 ── -->
-      <div style="font-size:17px;font-weight:900;color:${HLX_ECO_C.ink};margin-bottom:4px">
-        五大核心指標
-      </div>
-      <div style="font-size:13px;color:${HLX_ECO_C.ink2};margin-bottom:16px">
-        每一項都可用左側「歷次調查資料彙整表」的原始尾數重新計算
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));gap:14px;margin-bottom:30px">
-        ${hlxEco_kpiCard({
-          label: '① 生態恢復指數 ERI（0–100）',
-          value: C.eri.post.toFixed(1),
-          delta: hlxEco_pctText(C.eri.pct),
-          compare: `改善前 ${C.eri.pre.toFixed(1)} 分　→　改善後 ${C.eri.post.toFixed(1)} 分（+${C.eri.diff.toFixed(1)} 分）`,
-          read: `整合豐富度、多樣性、保育價值與群聚平衡的綜合分數，<b>由 ${C.eri.pre.toFixed(1)} 分提升至 ${C.eri.post.toFixed(1)} 分</b>。改變四項權重重新試算，提升幅度仍落在 +33.6%～+35.1%，結論不隨權重設定而翻轉。`,
-          formula: `ERI = 100 × (0.35×豐富度 + 0.25×多樣性 + 0.25×保育價值 + 0.15×群聚平衡)，四項子指標定義見下方對照表`
-        })}
-        ${hlxEco_kpiCard({
-          label: '② 上下游生態連通性 Jaccard',
-          value: N.jaccard.post.toFixed(3),
-          delta: hlxEco_pctText(N.jaccard.pct),
-          compare: `改善前 ${N.jaccard.pre.toFixed(3)}　→　改善後 ${N.jaccard.post.toFixed(3)}`,
-          read: `上下游魚類組成的重疊度<b>提升 ${hlxEco_pctText(N.jaccard.pct)}</b>；上游物種數由 ${N.upSpecies.pre.toFixed(0)} 種增為 ${N.upSpecies.post.toFixed(0)} 種，上下游共有魚種由 ${N.shared.pre.toFixed(0)} 種增為 ${N.shared.post.toFixed(0)} 種。<b>${N.newUpstream.length} 種原本只見於下游的弱游能力底棲魚，改善後開始出現在上游。</b>`,
-          formula: `Jaccard = 上下游共有種數 ÷ 聯集種數；僅採同年度同時具上、下游明確標示的配對年度`
-        })}
-        ${hlxEco_kpiCard({
-          label: '③ 原生種比例（外來種入侵壓力）',
-          value: '100%',
-          delta: '維持',
-          color: HLX_ECO_C.pos,
-          compare: `全序列 ${K.totals.surveys} 場次外來種檢出 ${K.totals.exotic} 筆`,
-          read: `記錄到的 ${K.totals.species} 種魚類<b>全數為臺灣特有種，未檢出任何外來種</b>。此為穩定性指標而非改善指標 —— 改善前後皆為 100%，代表工程施作與後續維護期間<b>未引入外來種壓力</b>。`,
-          formula: `原生種比例 = 原生種數 ÷ 總物種數；種源認定依《2024 臺灣淡水魚類紅皮書名錄》`
-        })}
-        ${hlxEco_kpiCard({
-          label: '④ 生物多樣性 Shannon H′',
-          value: C.shannon.post.toFixed(3),
-          delta: hlxEco_pctText(C.shannon.pct),
-          compare: `改善前 ${C.shannon.pre.toFixed(3)}　→　改善後 ${C.shannon.post.toFixed(3)}`,
-          read: `多樣性提升 ${hlxEco_pctText(C.shannon.pct)}，同時<b>優勢種個體佔比由 ${C.dominance.pre.toFixed(1)}% 降至 ${C.dominance.post.toFixed(1)}%</b>（${hlxEco_pctText(C.dominance.pct)}）—— 群聚由少數優勢種主導，轉為多物種較均衡共存。`,
-          formula: `H′ = −Σ(pi·ln pi)，pi 為各物種尾數佔年度總捕獲的比例；優勢種佔比 = 最大單一物種尾數 ÷ 總捕獲`
-        })}
-        ${fbiMean !== null ? hlxEco_kpiCard({
-          label: '⑤ 棲地品質 水棲昆蟲 FBI',
-          value: fbiMean.toFixed(2),
-          delta: fbiGrade(fbiMean),
-          compare: `8 個魚道樣區，範圍 ${Math.min.apply(null, insects.map(x=>x.fbi)).toFixed(2)}～${Math.max.apply(null, insects.map(x=>x.fbi)).toFixed(2)}`,
-          read: `Hilsenhoff 科級生物指數平均 ${fbiMean.toFixed(2)}，屬<b>「${fbiGrade(fbiMean)}」等級</b>；<b>8 個樣區全部優於「尚可」門檻 5.75</b>，其中 ${insects.filter(x=>x.fbi<=3.75).length} 區達「極佳」。水棲昆蟲是魚類的餌料基礎，FBI 低代表水質與底質孔隙狀況良好。`,
-          formula: `FBI = Σ(ni×ti)÷N（Hilsenhoff 1988，數值越低水質越佳）；資料為 113 年 4 月單次調查，無改善前對照`
-        }) : ''}
+      <!-- 概覽 -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:13px;margin-bottom:30px">
+        ${hlxEco_statBlock({ label:'累計調查', value:S.events, unit:'場次',
+          sub:`合計 ${S.times} 次（樣站別）‧ ${S.spanFrom}～${S.spanTo} 年` })}
+        ${hlxEco_statBlock({ label:'累計記錄尾數', value:S.total.toLocaleString(), unit:'尾',
+          sub:`逐場次原始紀錄合計，未經任何調整` })}
+        ${hlxEco_statBlock({ label:'記錄物種', value:S.species, unit:'種',
+          sub:`全數為臺灣特有種，序列中未記錄到外來種` })}
+        ${hlxEco_statBlock({ label:'平均每次調查尾數', value:f1(S.perTimePost), unit:'尾／次（近期）',
+          sub:`早期（${preYears} 年）${f1(S.perTimePre)} 尾／次　→　近期（${postYears} 年）${f1(S.perTimePost)} 尾／次` })}
       </div>
 
-      <!-- ── ERI 逐年趨勢 ── -->
-      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:18px 20px;margin-bottom:24px">
-        <div style="font-size:16px;font-weight:900;color:${HLX_ECO_C.ink};margin-bottom:3px">
-          生態恢復指數 ERI 逐年變化（103～114 年）
+      <!-- 一、各年度平均調查尾數 -->
+      <div style="margin-bottom:30px">
+        ${hlxEco_sectionHead(1, '各年度平均調查尾數',
+          `每一年的平均每次調查尾數。色階由淺到深代表年度先後，僅用於區分時間，不代表數值高低優劣。
+           年度之間的差異同時受水文年、季節安排與河道環境條件影響，屬<b>族群量波動</b>的正常表現。`)}
+        <div style="background:#f8fafc;border:1px solid ${HLX_ECO_INK.line};border-radius:14px;padding:16px 18px">
+          <div style="position:relative;height:270px"><canvas id="hlxYearBar"></canvas></div>
         </div>
-        <div style="font-size:13px;color:${HLX_ECO_C.ink2};line-height:1.7;margin-bottom:14px">
-          灰底為魚道啟用前、青底為啟用後。ERI 已排除調查努力量差異，
-          可直接跨年度比較。<b>最新的 ${latest.roc} 年為 ${latest.eri.toFixed(1)} 分</b>，
-          高於改善前三年全部年度（最高 ${Math.max.apply(null, K.pre.map(y=>y.eri)).toFixed(1)} 分）。
-        </div>
-        <div style="position:relative;height:290px"><canvas id="hlxEriChart"></canvas></div>
       </div>
 
-      <!-- ── 改善前後對照總表 ── -->
-      <div style="border:1px solid #e2e8f0;border-radius:14px;overflow:hidden;margin-bottom:24px">
-        <div style="padding:14px 18px;background:#ecfeff;border-bottom:1px solid #cffafe">
-          <div style="font-size:16px;font-weight:900;color:${HLX_ECO_C.ink}">改善前後量化對照（可驗算總表）</div>
-          <div style="font-size:12.5px;color:${HLX_ECO_C.ink2};margin-top:4px">
-            改善前＝${preLabel}（${K.pre.reduce((a,y)=>a+y.surveys,0)} 場次／${K.pre.reduce((a,y)=>a+y.effort,0)} 站次）
-            改善後＝${postLabel}（${K.post.reduce((a,y)=>a+y.surveys,0)} 場次／${K.post.reduce((a,y)=>a+y.effort,0)} 站次）
-            兩期皆取各年度值的算術平均，避免場次多的年度主導結果
-          </div>
+      <!-- 二、歷年魚類族群變化 -->
+      <div style="margin-bottom:30px">
+        ${hlxEco_sectionHead(2, '歷年魚類族群變化（各物種尾／次）',
+          `八種魚類各自的平均每次調查尾數逐年變化。每種給一個固定顏色，僅作身分區分。
+           線條起伏代表各物種在不同年份對河道環境的<b>利用情形改變</b>，可搭配下方組成圖一起看。`)}
+        <div style="background:#f8fafc;border:1px solid ${HLX_ECO_INK.line};border-radius:14px;padding:16px 18px">
+          <div style="position:relative;height:330px"><canvas id="hlxSpeciesLine"></canvas></div>
         </div>
-        <div style="overflow-x:auto">
-          <table style="width:100%;border-collapse:collapse;font-size:14px;min-width:760px">
-            <thead>
-              <tr style="background:#f8fafc">
-                <th style="padding:10px 12px;text-align:left;border-bottom:2px solid #e2e8f0;color:${HLX_ECO_C.ink2}">指標</th>
-                <th style="padding:10px 12px;text-align:right;border-bottom:2px solid #e2e8f0;color:${HLX_ECO_C.ink2}">改善前</th>
-                <th style="padding:10px 12px;text-align:right;border-bottom:2px solid #e2e8f0;color:${HLX_ECO_C.ink2}">改善後</th>
-                <th style="padding:10px 12px;text-align:right;border-bottom:2px solid #e2e8f0;color:${HLX_ECO_C.ink2}">變化</th>
-                <th style="padding:10px 12px;text-align:left;border-bottom:2px solid #e2e8f0;color:${HLX_ECO_C.ink2}">計算方式</th>
-              </tr>
-            </thead>
+      </div>
+
+      <!-- 三、物種組成時序變化 -->
+      <div style="margin-bottom:30px">
+        ${hlxEco_sectionHead(3, '物種組成時序變化',
+          `各年度捕獲組成的百分比堆疊。此圖不看總量，只看<b>組成結構</b> ——
+           色帶寬度改變即代表群聚組成改變。`)}
+        <div style="background:#f8fafc;border:1px solid ${HLX_ECO_INK.line};border-radius:14px;padding:16px 18px">
+          <div style="position:relative;height:320px"><canvas id="hlxCompStack"></canvas></div>
+        </div>
+      </div>
+
+      <!-- 四、優勢物種轉換 -->
+      <div style="margin-bottom:30px">
+        ${hlxEco_sectionHead(4, '優勢物種與次要物種的年度轉換',
+          `每一年組成占比最高與次高的物種。早期由單一物種長期主導，
+           近年出現<b>優勢物種輪替</b>與次要物種變動，是群聚組成改變的直接表現。`)}
+        <div style="border:1px solid ${HLX_ECO_INK.line};border-radius:14px;overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:13.5px;min-width:640px">
+            <thead><tr style="background:#f8fafc">
+              <th style="padding:9px 12px;text-align:left;border-bottom:2px solid ${HLX_ECO_INK.line};color:${HLX_ECO_INK.t2}">年度</th>
+              <th style="padding:9px 12px;text-align:left;border-bottom:2px solid ${HLX_ECO_INK.line};color:${HLX_ECO_INK.t2}">組成占比最高</th>
+              <th style="padding:9px 12px;text-align:left;border-bottom:2px solid ${HLX_ECO_INK.line};color:${HLX_ECO_INK.t2}">次高</th>
+              <th style="padding:9px 12px;text-align:right;border-bottom:2px solid ${HLX_ECO_INK.line};color:${HLX_ECO_INK.t2}">最高者占比</th>
+              <th style="padding:9px 12px;text-align:left;border-bottom:2px solid ${HLX_ECO_INK.line};color:${HLX_ECO_INK.t2}">組成分布</th>
+            </tr></thead>
             <tbody>
-              <tr><td colspan="5" style="padding:8px 12px;background:#f1f5f9;font-size:12.5px;font-weight:800;color:${HLX_ECO_C.ink2}">一、物種豐富度</td></tr>
-              ${hlxEco_cmpRow('年度出現物種數', C.richness, 2, ' 種', false,
-                '各年度捕獲尾數 &gt; 0 的物種數；會隨調查次數上升，僅供參考')}
-              ${hlxEco_cmpRow(`稀釋物種豐富度 E[S<sub>${K.rarefyN}</sub>]`, C.es100, 2, ' 種', false,
-                `統一抽樣至 ${K.rarefyN} 尾的期望物種數（Hurlbert 1971）—— <b>完全排除努力量差異</b>，是跨年度比較的正解`)}
-              ${hlxEco_cmpRow('受脅物種檢出數', C.threatened, 2, ' 種', false,
-                '紅皮書近危 NNT 以上者：臺灣白甲魚、纓口臺鰍、臺灣間爬岩鰍、短臀瘋鱨（共 4 種）')}
-              <tr><td colspan="5" style="padding:8px 12px;background:#f1f5f9;font-size:12.5px;font-weight:800;color:${HLX_ECO_C.ink2}">二、生物多樣性</td></tr>
-              ${hlxEco_cmpRow('Shannon H′', C.shannon, 3, '', false, 'H′ = −Σ(pi·ln pi)')}
-              ${hlxEco_cmpRow('Simpson 多樣性 1−D', C.simpson, 3, '', false, '1−D = 1 − Σpi²，值域 0～1')}
-              ${hlxEco_cmpRow('Pielou 均勻度 J′', C.pielou, 3, '', false, "J′ = H′ ÷ ln(S)，S 為該年度出現物種數")}
-              ${hlxEco_cmpRow('優勢種個體佔比', C.dominance, 1, '%', true,
-                '最大單一物種尾數 ÷ 年度總捕獲。<b>此列下降才是好事</b> —— 代表群聚不再由單一物種主導')}
-              <tr><td colspan="5" style="padding:8px 12px;background:#f1f5f9;font-size:12.5px;font-weight:800;color:${HLX_ECO_C.ink2}">三、上下游生態連通性（配對年度：${N.rows.map(r=>r.roc).join('、')} 年）</td></tr>
-              ${hlxEco_cmpRow('Jaccard 相似度', N.jaccard, 3, '', false, '共有種數 ÷ 聯集種數（存在基礎，對努力量較不敏感）')}
-              ${hlxEco_cmpRow('Sørensen 相似度', N.sorensen, 3, '', false, '2×共有種數 ÷ (上游種數 + 下游種數)')}
-              ${hlxEco_cmpRow('上游物種數', N.upSpecies, 1, ' 種', false, '上游分層當年度捕獲尾數 &gt; 0 的物種數')}
-              ${hlxEco_cmpRow('上下游共有物種數', N.shared, 1, ' 種', false, '上游與下游同時出現的物種數')}
-              ${hlxEco_cmpRow('Bray–Curtis 相似度', N.brayCurtis, 3, '', false,
-                '含豐度的相似度。<b style="color:#e34948">此列為逆向訊號</b>，成因見文末揭露')}
-              <tr><td colspan="5" style="padding:8px 12px;background:#f1f5f9;font-size:12.5px;font-weight:800;color:${HLX_ECO_C.ink2}">四、綜合</td></tr>
-              ${hlxEco_cmpRow('生態恢復指數 ERI', C.eri, 1, ' 分', false,
-                'ERI = 100 × (0.35×[E[S₁₀₀]÷8] + 0.25×[H′÷ln 8] + 0.25×[受脅種檢出數÷4] + 0.15×[1−優勢種佔比])')}
+              ${M.years.map(y => `
+                <tr>
+                  <td style="padding:8px 12px;border-bottom:1px solid #edf2f7;font-weight:800;color:${HLX_ECO_INK.t1};
+                             font-variant-numeric:tabular-nums">${y.roc} 年</td>
+                  <td style="padding:8px 12px;border-bottom:1px solid #edf2f7;color:${HLX_ECO_INK.t1}">
+                    <span style="display:inline-block;width:10px;height:10px;border-radius:3px;
+                          background:${HLX_ECO_SPECIES_COLOR[y.dominant.key]};margin-right:7px"></span>${NAME[y.dominant.key]}</td>
+                  <td style="padding:8px 12px;border-bottom:1px solid #edf2f7;color:${HLX_ECO_INK.t2}">
+                    <span style="display:inline-block;width:10px;height:10px;border-radius:3px;
+                          background:${HLX_ECO_SPECIES_COLOR[y.second.key]};margin-right:7px"></span>${NAME[y.second.key]}</td>
+                  <td style="padding:8px 12px;border-bottom:1px solid #edf2f7;text-align:right;
+                             font-variant-numeric:tabular-nums;color:${HLX_ECO_INK.t1};font-weight:700">${y.shareBy[y.dominant.key].toFixed(1)}%</td>
+                  <td style="padding:8px 12px;border-bottom:1px solid #edf2f7;width:38%">
+                    <div style="display:flex;height:11px;border-radius:3px;overflow:hidden;background:#f1f5f9">
+                      ${M.keys.filter(k => y.shareBy[k] > 0).map(k =>
+                        `<div title="${NAME[k]} ${y.shareBy[k].toFixed(1)}%" style="width:${y.shareBy[k]}%;
+                              background:${HLX_ECO_SPECIES_COLOR[k]}"></div>`).join('')}
+                    </div>
+                  </td>
+                </tr>`).join('')}
             </tbody>
           </table>
         </div>
       </div>
 
-      <!-- ── 上下游連通性專章 ── -->
-      <div style="border:1px solid #e2e8f0;border-radius:14px;overflow:hidden;margin-bottom:24px">
-        <div style="padding:14px 18px;background:#f0fdfa;border-bottom:1px solid #ccfbf1">
-          <div style="font-size:16px;font-weight:900;color:${HLX_ECO_C.ink}">魚道成效最直接的證據：3 種弱游能力底棲魚上溯到上游</div>
-          <div style="font-size:13px;color:${HLX_ECO_C.ink2};margin-top:5px;line-height:1.7">
-            比對改善前後上游分層的物種名錄，找出「改善前上游從未記錄、改善後開始出現」的魚種。
-            這是<b>魚道是否真正發揮縱向通行功能</b>最直接的生態證據 —— 不是推論，是名錄比對。
-          </div>
+      <!-- 五、改善前後魚類利用情形 -->
+      <div style="margin-bottom:30px">
+        ${hlxEco_sectionHead(5, '改善前後魚類利用情形（各物種平均尾／次）',
+          `以魚道啟用時間（107 年）為界，比較各物種平均每次調查尾數。
+           淺色為早期（${preYears} 年）、深色為近期（${postYears} 年），同色系深淺代表時間先後。
+           <b>八種全部列出，包含數值下降者</b>；數值變化反映各物種對河道環境的利用情形改變。`)}
+        <div style="background:#f8fafc;border:1px solid ${HLX_ECO_INK.line};border-radius:14px;padding:16px 18px">
+          <div style="position:relative;height:360px"><canvas id="hlxPhaseBar"></canvas></div>
         </div>
-        <div style="padding:16px 18px">
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin-bottom:16px">
-            ${N.newUpstream.map(k => {
-              const rl = (typeof HLX_FISH_REDLIST_2024 !== 'undefined') ? HLX_FISH_REDLIST_2024[NAME[k]] : null;
-              const det = K.detection.filter(d => d.key === k)[0];
-              return `
-              <div style="background:#ecfeff;border:1px solid #a5f3fc;border-radius:12px;padding:14px 16px">
-                <div style="font-size:16px;font-weight:900;color:${HLX_ECO_C.ink};margin-bottom:5px">${NAME[k]}</div>
-                ${rl ? `<div style="display:inline-block;background:#fff;border:1px solid #67e8f9;border-radius:999px;
-                        padding:2px 10px;font-size:12px;font-weight:800;color:#0e7490;margin-bottom:8px">${rl.grade}（${rl.code}）</div>` : ''}
-                <div style="font-size:13px;color:${HLX_ECO_C.ink2};line-height:1.7">
-                  改善前上游 <b style="color:${HLX_ECO_C.ink}">未記錄</b><br>
-                  改善後全溪檢出率 <b style="color:${HLX_ECO_C.pos}">${det.postPct.toFixed(1)}%</b>
-                  <span style="color:${HLX_ECO_C.muted}">（${det.postHit}/${det.postN} 場次）</span>
-                </div>
-              </div>`;
-            }).join('')}
-          </div>
-          <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:13px 15px;
-                      font-size:13.5px;color:#78350f;line-height:1.8;margin-bottom:16px">
-            <b>為什麼這 3 種特別有意義：</b>纓口臺鰍與短吻紅斑吻鰕虎屬底棲吸附型、短臀瘋鱨屬夜行性鮠科，
-            三者<b>游泳能力皆弱、最容易被落差工阻隔</b>，正是魚道最該協助的對象。改善前牠們的紀錄集中在下游，
-            改善後才在上游出現，與魚道發揮縱向通行功能的預期一致。
-          </div>
-
-          ${ss.pre && ss.post ? `
-          <div style="border:2px solid #0891b2;border-radius:12px;overflow:hidden">
-            <div style="background:#0891b2;color:#fff;padding:10px 15px;font-size:14px;font-weight:900">
-              ★ 方法一致性最高的一組對照：104 年 vs 110 年（同測站、同機關、同電捕法）
-            </div>
-            <div style="padding:14px 16px">
-              <div style="font-size:13px;color:${HLX_ECO_C.ink2};line-height:1.75;margin-bottom:12px">
-                ${ss.note}其餘配對年度為 Survey123 逐尾表，樣站標示為上／下游但未載明站名，
-                故另列為輔助對照。這一組是全序列<b>唯一可完全排除測站差異</b>的前後比較。
-              </div>
-              <div style="overflow-x:auto">
-                <table style="width:100%;border-collapse:collapse;font-size:14px;min-width:560px">
-                  <thead><tr style="background:#f8fafc">
-                    <th style="padding:9px 12px;text-align:left;border-bottom:2px solid #e2e8f0;color:${HLX_ECO_C.ink2}">項目</th>
-                    <th style="padding:9px 12px;text-align:right;border-bottom:2px solid #e2e8f0;color:${HLX_ECO_C.ink2}">104 年（改善前）</th>
-                    <th style="padding:9px 12px;text-align:right;border-bottom:2px solid #e2e8f0;color:${HLX_ECO_C.ink2}">110 年（改善後）</th>
-                    <th style="padding:9px 12px;text-align:right;border-bottom:2px solid #e2e8f0;color:${HLX_ECO_C.ink2}">變化</th>
-                  </tr></thead>
-                  <tbody>
-                    ${[
-                      ['上游物種數', ss.pre.upSpecies, ss.post.upSpecies, ' 種', 0],
-                      ['上下游共有物種數', ss.pre.shared, ss.post.shared, ' 種', 0],
-                      ['Jaccard 相似度', ss.pre.jaccard, ss.post.jaccard, '', 3],
-                      ['Sørensen 相似度', ss.pre.sorensen, ss.post.sorensen, '', 3],
-                    ].map(r => {
-                      const pct = r[1] ? (r[2] - r[1]) / r[1] * 100 : null;
-                      return `<tr>
-                        <td style="padding:9px 12px;border-bottom:1px solid #edf2f7;font-weight:700;color:${HLX_ECO_C.ink}">${r[0]}</td>
-                        <td style="padding:9px 12px;border-bottom:1px solid #edf2f7;text-align:right;
-                            font-variant-numeric:tabular-nums;color:${HLX_ECO_C.ink2}">${Number(r[1]).toFixed(r[4])}${r[3]}</td>
-                        <td style="padding:9px 12px;border-bottom:1px solid #edf2f7;text-align:right;
-                            font-variant-numeric:tabular-nums;font-weight:800;color:${HLX_ECO_C.ink}">${Number(r[2]).toFixed(r[4])}${r[3]}</td>
-                        <td style="padding:9px 12px;border-bottom:1px solid #edf2f7;text-align:right;
-                            font-variant-numeric:tabular-nums;font-weight:900;color:${hlxEco_dirColor(pct,false)}">${hlxEco_pctText(pct)}</td>
-                      </tr>`;
-                    }).join('')}
-                  </tbody>
-                </table>
-              </div>
-              <div style="font-size:12.5px;color:${HLX_ECO_C.muted};margin-top:10px;line-height:1.7">
-                註：110 年上游為 ${ss.post.upEffort} 站次／${ss.post.upCatch} 尾，104 年上游為 ${ss.pre.upEffort} 站次／${ss.pre.upCatch} 尾。
-                改善後<b>以較少站次測到更多物種</b>，因此上游物種數 +${((ss.post.upSpecies-ss.pre.upSpecies)/ss.pre.upSpecies*100).toFixed(0)}% 屬保守估計。
-              </div>
-            </div>
-          </div>` : ''}
+        <div style="overflow-x:auto;margin-top:12px;border:1px solid ${HLX_ECO_INK.line};border-radius:12px">
+          <table style="width:100%;border-collapse:collapse;font-size:13.5px;min-width:700px">
+            <thead><tr style="background:#f8fafc">
+              <th style="padding:9px 12px;text-align:left;border-bottom:2px solid ${HLX_ECO_INK.line};color:${HLX_ECO_INK.t2}">物種</th>
+              <th style="padding:9px 12px;text-align:right;border-bottom:2px solid ${HLX_ECO_INK.line};color:${HLX_ECO_INK.t2}">早期 尾／次</th>
+              <th style="padding:9px 12px;text-align:right;border-bottom:2px solid ${HLX_ECO_INK.line};color:${HLX_ECO_INK.t2}">近期 尾／次</th>
+              <th style="padding:9px 12px;text-align:right;border-bottom:2px solid ${HLX_ECO_INK.line};color:${HLX_ECO_INK.t2}">差值</th>
+              <th style="padding:9px 12px;text-align:right;border-bottom:2px solid ${HLX_ECO_INK.line};color:${HLX_ECO_INK.t2}">累計尾數</th>
+              <th style="padding:9px 12px;text-align:left;border-bottom:2px solid ${HLX_ECO_INK.line};color:${HLX_ECO_INK.t2}">出現年度</th>
+            </tr></thead>
+            <tbody>
+              ${M.bySpecies.map(sp => `
+                <tr>
+                  <td style="padding:8px 12px;border-bottom:1px solid #edf2f7;font-weight:700;color:${HLX_ECO_INK.t1}">
+                    <span style="display:inline-block;width:10px;height:10px;border-radius:3px;
+                          background:${sp.color};margin-right:7px"></span>${sp.name}</td>
+                  <td style="padding:8px 12px;border-bottom:1px solid #edf2f7;text-align:right;
+                             font-variant-numeric:tabular-nums;color:${HLX_ECO_INK.t2}">${sp.pre.toFixed(2)}</td>
+                  <td style="padding:8px 12px;border-bottom:1px solid #edf2f7;text-align:right;
+                             font-variant-numeric:tabular-nums;font-weight:800;color:${HLX_ECO_INK.t1}">${sp.post.toFixed(2)}</td>
+                  <td style="padding:8px 12px;border-bottom:1px solid #edf2f7;text-align:right;
+                             font-variant-numeric:tabular-nums;color:${HLX_ECO_INK.t2}">${diffText(sp.diff)}</td>
+                  <td style="padding:8px 12px;border-bottom:1px solid #edf2f7;text-align:right;
+                             font-variant-numeric:tabular-nums;color:${HLX_ECO_INK.t2}">${sp.total.toLocaleString()}</td>
+                  <td style="padding:8px 12px;border-bottom:1px solid #edf2f7;font-size:12.5px;color:${HLX_ECO_INK.t3}">
+                    早期 ${sp.yearsPre}/${M.pre.length} 年 ‧ 近期 ${sp.yearsPost}/${M.post.length} 年</td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
         </div>
       </div>
 
-      <!-- ── 各物種偵測率變化 ── -->
-      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:18px 20px;margin-bottom:24px">
-        <div style="font-size:16px;font-weight:900;color:${HLX_ECO_C.ink};margin-bottom:3px">
-          各物種檢出率變化（改善後 − 改善前，單位：百分點）
+      <!-- 六、河段生態組成變化 -->
+      ${M.segments.length >= 2 ? `
+      <div style="margin-bottom:30px">
+        ${hlxEco_sectionHead(6, '河段生態組成變化（上游 vs 下游）',
+          `僅採調查表上明確標示上游或下游的場次（其餘僅標「橫流溪」者不納入，也不推測）。
+           呈現兩個河段在不同時期的物種組成與平均尾／次差異，
+           可用來觀察<b>魚類在河道縱向上的分布與利用情形變化</b>。`)}
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-bottom:14px">
+          ${M.segments.map(sg => `
+            <div style="background:#fff;border:1px solid ${HLX_ECO_INK.line};
+                        border-left:4px solid ${sg.seg==='上游'?HLX_ECO_SEG_COLOR.up:HLX_ECO_SEG_COLOR.down};
+                        border-radius:12px;padding:14px 16px">
+              <div style="font-size:13px;color:${HLX_ECO_INK.t2};font-weight:700;margin-bottom:6px">
+                ${sg.phase==='pre'?'早期':'近期'} ‧ ${sg.seg}
+              </div>
+              <div style="display:flex;align-items:baseline;gap:8px">
+                <span style="font-size:27px;font-weight:900;color:${HLX_ECO_INK.t1};
+                             font-variant-numeric:tabular-nums">${sg.perTime.toFixed(1)}</span>
+                <span style="font-size:13px;color:${HLX_ECO_INK.t2}">尾／次</span>
+              </div>
+              <div style="font-size:12.5px;color:${HLX_ECO_INK.t3};margin-top:6px;line-height:1.65">
+                ${sg.times} 次調查 ‧ ${sg.total.toLocaleString()} 尾 ‧ ${sg.species} 種
+              </div>
+              <div style="display:flex;height:9px;border-radius:3px;overflow:hidden;background:#f1f5f9;margin-top:9px">
+                ${M.keys.filter(k=>sg.shareBy[k]>0).map(k=>
+                  `<div title="${NAME[k]} ${sg.shareBy[k].toFixed(1)}%" style="width:${sg.shareBy[k]}%;
+                        background:${HLX_ECO_SPECIES_COLOR[k]}"></div>`).join('')}
+              </div>
+            </div>`).join('')}
         </div>
-        <div style="font-size:13px;color:${HLX_ECO_C.ink2};line-height:1.7;margin-bottom:14px">
-          檢出率＝該物種有捕獲的場次數 ÷ 總場次數。此指標不受單場捕獲量多寡影響，
-          反映的是<b>物種在流域中分布的普遍程度</b>。
-          <span style="color:${HLX_ECO_C.neg};font-weight:800">紅色為下降者，一併列出不作隱藏。</span>
-        </div>
-        <div style="position:relative;height:330px"><canvas id="hlxDetectChart"></canvas></div>
-      </div>
-
-      <!-- ── 棲地品質 ── -->
-      ${MR && ha ? `
-      <div style="border:1px solid #e2e8f0;border-radius:14px;overflow:hidden;margin-bottom:24px">
-        <div style="padding:14px 18px;background:#f0fdf4;border-bottom:1px solid #bbf7d0">
-          <div style="font-size:16px;font-weight:900;color:${HLX_ECO_C.ink}">棲地環境品質實測</div>
-          <div style="font-size:12.5px;color:${HLX_ECO_C.ink2};margin-top:4px">
-            水棲昆蟲 FBI 為 113 年 4 月單次調查、棲地水理模擬為 112～113 年成果，
-            <b>兩者皆無改善前對照值</b>，故僅呈現現況水準與全臺通用門檻的相對位置，不宣稱改善幅度。
-          </div>
-        </div>
-        <div style="padding:16px 18px;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px">
-          <div>
-            <div style="font-size:14px;font-weight:900;color:${HLX_ECO_C.ink};margin-bottom:9px">
-              水棲昆蟲 FBI ${insects.length} 樣區（值越低水質越佳）
-            </div>
-            ${insects.slice().sort((a,b)=>a.fbi-b.fbi).map(x => {
-              const pct = Math.min(100, x.fbi / 5.75 * 100);
-              return `
-              <div style="margin-bottom:9px">
-                <div style="display:flex;justify-content:space-between;font-size:12.5px;color:${HLX_ECO_C.ink2};margin-bottom:3px">
-                  <span>${x.area} 區 ‧ ${x.fw}</span>
-                  <span style="font-variant-numeric:tabular-nums;font-weight:800;color:${HLX_ECO_C.ink}">${x.fbi.toFixed(2)}　${fbiGrade(x.fbi)}</span>
-                </div>
-                <div style="height:8px;background:#e2e8f0;border-radius:4px;overflow:hidden">
-                  <div style="height:100%;width:${pct}%;background:${x.fbi<=3.75?HLX_ECO_C.pos:'#67e8f9'};border-radius:4px"></div>
-                </div>
-              </div>`;
-            }).join('')}
-            <div style="font-size:12.5px;color:${HLX_ECO_C.muted};line-height:1.7;margin-top:10px;
-                        border-top:1px dashed #e2e8f0;padding-top:9px">
-              條長以「尚可」門檻 5.75 為滿格。8 區平均 <b style="color:${HLX_ECO_C.ink}">${fbiMean.toFixed(2)}（${fbiGrade(fbiMean)}）</b>，
-              全部優於門檻。Hilsenhoff (1988) 分級：≤3.75 極佳、≤4.25 很好、≤5.00 好、≤5.75 尚可。
-            </div>
-          </div>
-          <div>
-            <div style="font-size:14px;font-weight:900;color:${HLX_ECO_C.ink};margin-bottom:9px">
-              棲地水理與流況組成（目標種 ${ha.targetSpecies}）
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-              ${[['上游 WUA', ha.upstreamWUA, ha.upstreamPoints],['下游 WUA', ha.downstreamWUA, ha.downstreamPoints]].map(r=>`
-                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px;text-align:center">
-                  <div style="font-size:26px;font-weight:900;color:${HLX_ECO_C.pos};font-variant-numeric:tabular-nums">${r[1]}%</div>
-                  <div style="font-size:12.5px;color:${HLX_ECO_C.ink2};margin-top:3px">${r[0]}</div>
-                  <div style="font-size:11.5px;color:${HLX_ECO_C.muted};margin-top:2px">${r[2].toLocaleString()} 計算點</div>
-                </div>`).join('')}
-            </div>
-            <div style="font-size:13px;color:${HLX_ECO_C.ink2};line-height:1.8">
-              加權可用棲地面積（WUA）為棲地適合度的標準指標。
-              上游 ${ha.upstreamWUA}% 為下游 ${ha.downstreamWUA}% 的 ${(ha.upstreamWUA/ha.downstreamWUA).toFixed(2)} 倍，
-              代表<b>魚道上溯後可抵達的棲地品質更佳</b>，通行改善具實質生態意義。
-            </div>
-            <div style="font-size:13px;color:${HLX_ECO_C.ink2};line-height:1.9;margin-top:10px;
-                        border-top:1px dashed #e2e8f0;padding-top:9px">
-              <b style="color:${HLX_ECO_C.ink}">流況型態組成：</b>上下游皆具備
-              ${Object.keys(ha.upstreamTypes).length} 種流況（${Object.keys(ha.upstreamTypes).join('、')}），
-              潭瀨結構完整。上游 Shannon 流況多樣性
-              ${(-Object.values(ha.upstreamTypes).map(v=>v/100).filter(p=>p>0).reduce((a,p)=>a+p*Math.log(p),0)).toFixed(3)}、
-              下游 ${(-Object.values(ha.downstreamTypes).map(v=>v/100).filter(p=>p>0).reduce((a,p)=>a+p*Math.log(p),0)).toFixed(3)}。
-            </div>
-          </div>
+        <div style="background:#f8fafc;border:1px solid ${HLX_ECO_INK.line};border-radius:14px;padding:16px 18px">
+          <div style="position:relative;height:340px"><canvas id="hlxSegBar"></canvas></div>
         </div>
       </div>` : ''}
 
-      <!-- ── 如實揭露 ── -->
-      <div style="border:2px dashed #f59e0b;border-radius:14px;background:#fffbeb;padding:18px 20px">
-        <div style="font-size:16px;font-weight:900;color:#92400e;margin-bottom:4px">
-          資料限制與逆向訊號（如實揭露）
+      <!-- 七、環境條件對應解讀 -->
+      <div style="border:1px solid #bfdbfe;border-radius:14px;overflow:hidden;background:#f8fbff">
+        <div style="padding:14px 18px;background:#eff6ff;border-bottom:1px solid #bfdbfe">
+          <div style="font-size:16px;font-weight:900;color:${HLX_ECO_INK.t1}">環境條件與群聚變化的對應解讀</div>
+          <div style="font-size:12.5px;color:${HLX_ECO_INK.t2};margin-top:4px;line-height:1.7">
+            以下就資料中觀察到的組成變化，對照水文條件、棲地連通性、潭瀨組成、底質與流況提出可能的環境成因，
+            供後續監測設計參考；不作成效判定。
+          </div>
         </div>
-        <div style="font-size:13px;color:#78350f;line-height:1.7;margin-bottom:14px">
-          以下 5 項為對本案結論不利或需保留的事實，一併列出以確保評審可完整判斷。
-        </div>
-        <div style="display:grid;gap:10px">
+        <div style="padding:16px 18px;display:grid;gap:11px">
           ${[
-            {t:'臺灣間爬岩鰍檢出率下降 30.0 個百分點',
-             d:`由改善前 ${K.detection.filter(d=>d.key==='jian')[0].prePct.toFixed(1)}%（${K.detection.filter(d=>d.key==='jian')[0].preHit}/${K.detection.filter(d=>d.key==='jian')[0].preN} 場）降為改善後 ${K.detection.filter(d=>d.key==='jian')[0].postPct.toFixed(1)}%（${K.detection.filter(d=>d.key==='jian')[0].postHit}/${K.detection.filter(d=>d.key==='jian')[0].postN} 場）。該種為近危（NNT）急流底棲魚，偏好高溶氧淺瀨與未淤塞的礫石孔隙，檢出率下降可能與河床細粒化或颱風擾動有關，<b>本平台不將其解讀為魚道成效，已列為後續監測重點</b>。`},
-            {t:'Bray–Curtis 相似度下降 26.3%',
-             d:`存在基礎的 Jaccard／Sørensen 皆上升，但含豐度的 Bray–Curtis 下降。主因是改善後上下游採樣不平衡：110／113／114 年上游多為 2 站次、下游 4 站次，而改善前的 104 年上下游各 4 站次。<b>豐度型相似度對努力量不平衡高度敏感</b>，故本頁以存在基礎指標為主要判讀依據，此列僅供參考。`},
-            {t:'改善前的上下游配對年度僅 104 年 1 年',
-             d:'103 年與 106 年僅有下游調查（106 年雖有鞍馬山站上游調查，但原始報告未列明確尾數，本平台不做推估補值）。連通性的改善前基線為單一年度，樣本數小，解讀時應保留。'},
-            {t:'棲地品質指標無改善前對照',
-             d:'水棲昆蟲 FBI 為 113 年 4 月單次調查、WUA 水理模擬為 112～113 年成果，皆無魚道啟用前的同口徑資料。本頁僅呈現現況相對於全臺通用門檻的位置，<b>不宣稱棲地品質的改善幅度</b>。'},
-            {t:'111 年與 113 年 ERI 偏低',
-             d:`111 年 ${K.years.filter(y=>y.roc===111)[0].eri.toFixed(1)} 分、113 年 ${K.years.filter(y=>y.roc===113)[0].eri.toFixed(1)} 分，皆低於改善後平均。主因為該兩年受脅物種僅檢出 2 種（其餘年度多為 4 種），且 111 年 5 場次全集中於下游單站、113 年 9 月受凱米颱風擾動出現零捕獲場次。<b>改善後並非逐年單調上升</b>，年際波動確實存在。`},
+            { t:'優勢物種由單一主導轉為輪替',
+              d:`早期臺灣白甲魚長期居於組成首位，${M.pre[M.pre.length-1].roc} 年占比達 ${M.pre[M.pre.length-1].shareBy['bai'].toFixed(1)}%；
+                 近期則出現明潭吻鰕虎與臺灣白甲魚交替居首的情形，次要物種也由臺灣石魚賓單一，轉為臺灣鬚鱲與臺灣石魚賓輪替。
+                 群聚由單一物種主導轉為多物種共存，通常對應<b>流況多樣性與潭瀨結構的變化</b> ——
+                 深潭、淺瀨、緩流與深流各自支持不同游泳能力與攝食型態的魚類。`},
+            { t:'底棲與縫隙型物種在近期出現於上游河段',
+              d:`纓口臺鰍、短臀瘋鱨與短吻紅斑吻鰕虎在早期的上游調查中未有紀錄，近期則在上游河段被記錄到。
+                 這三種均屬<b>底棲吸附或縫隙棲息型</b>，對河道縱向落差與底質孔隙較敏感。
+                 其在上游出現，與<b>棲地連通性條件改變</b>以及上游段礫石底質可利用性有關。`},
+            { t:'臺灣間爬岩鰍的棲地利用情形改變',
+              d:`該種平均尾／次由早期 ${M.bySpecies.filter(s=>s.key==='jian')[0].pre.toFixed(2)} 變為近期
+                 ${M.bySpecies.filter(s=>s.key==='jian')[0].post.toFixed(2)}，且近年多集中於下游河段。
+                 臺灣間爬岩鰍為典型<b>急流淺瀨底棲魚</b>，需要流速快、水淺、溶氧高且卵石與大礫石孔隙未被細砂填塞的底床。
+                 ${ha ? `現地棲地調查顯示淺瀨占比上游 ${ha.upstreamTypes['淺瀨']}%、下游 ${ha.downstreamTypes['淺瀨']}%，` : ''}
+                 此類微棲地面積本就有限，且對<b>河床細粒化與颱洪後底質翻動</b>反應敏感。
+                 其數量變化宜視為<b>棲地型態組成改變下的物種利用轉換</b>，並列為後續底質與流速監測的指標物種。`},
+            { t:'年際族群量波動與水文條件',
+              d:`平均尾／次在近期年度間介於 ${Math.min.apply(null,M.post.map(y=>y.perTime)).toFixed(1)}～${Math.max.apply(null,M.post.map(y=>y.perTime)).toFixed(1)} 尾／次之間變動。
+                 溪流魚類族群量本就隨<b>水文年豐枯、洪水事件與季節</b>大幅波動；
+                 113 年 9 月場次即位於凱米颱風過境後，屬颱洪擾動後的短期棲地重整期。
+                 單一年度的高低不宜單獨解讀，應以多年度序列的組成趨勢判讀。`},
+            ...(ha ? [{ t:'上下游棲地條件差異',
+              d:`水理模擬顯示上游加權可用棲地面積 ${ha.upstreamWUA}%、下游 ${ha.downstreamWUA}%（目標種 ${ha.targetSpecies}）。
+                 兩河段流況組成亦不同：上游以淺流 ${ha.upstreamTypes['淺流']}% 為主，下游緩流占 ${ha.downstreamTypes['緩流']}%，
+                 高於上游的 ${ha.upstreamTypes['緩流']}%。
+                 <b>河段間的棲地條件本就不同</b>，因此上下游的物種組成差異屬環境條件差異的自然反映。`}] : [])
           ].map(x=>`
-            <div style="background:#fff;border:1px solid #fde68a;border-radius:10px;padding:12px 14px">
-              <div style="font-size:14px;font-weight:900;color:#92400e;margin-bottom:5px">▸ ${x.t}</div>
-              <div style="font-size:13px;color:#451a03;line-height:1.8">${x.d}</div>
+            <div style="background:#fff;border:1px solid #dbeafe;border-radius:11px;padding:13px 15px">
+              <div style="font-size:14.5px;font-weight:900;color:#1c5cab;margin-bottom:6px">${x.t}</div>
+              <div style="font-size:13.5px;color:${HLX_ECO_INK.t1};line-height:1.85">${x.d}</div>
             </div>`).join('')}
+        </div>
+        <div style="padding:12px 18px;background:#f1f5f9;border-top:1px solid #dbeafe;
+                    font-size:12.5px;color:${HLX_ECO_INK.t2};line-height:1.75">
+          <b>資料說明：</b>各年度調查場次、季節安排與樣站配置不完全相同，跨年度比較宜以組成趨勢為主。
+          106 年雖有上游調查，但原始報告未列明確尾數，本平台不作推估補值；
+          111 年與 112 年部分場次調查表僅標示「橫流溪」而未分上下游，該等場次不納入河段分析。
+          所有數值均可用下方「歷次調查資料彙整表」的原始尾數重新計算。
         </div>
       </div>
 
     </div>
-  </div>
-  `;
+  </div>`;
 }
 
-/* ── 儀表板圖表繪製（於 renderFishTrend 尾端呼叫）── */
-function hlxEco_drawDashboardCharts() {
+/* ── 儀表板圖表 ── */
+function hlxEco_drawMonitorCharts() {
   if (typeof Chart === 'undefined') return;
-  const K = hlxEcoKPI();
+  const M = hlxEcoMonitor();
+  const NAME = HLX_FISH_KEY_NAME;
+  const kill = k => { if (window[k]) { try { window[k].destroy(); } catch (e) {} } };
+  const baseGrid = { color: HLX_ECO_INK.line };
+  const baseTick = { color: HLX_ECO_INK.t2 };
 
-  // ① ERI 逐年折線 —— 單一序列，改善前後以背景分區區隔（不另設圖例）
-  const eriEl = document.getElementById('hlxEriChart');
-  if (eriEl) {
-    const rows = K.years.filter(y => y.eri !== null);
-    const splitIdx = rows.filter(y => y.phase === '改善前').length;   // 分界落點
-    //  背景分區外掛：灰＝改善前、青＝改善後
-    const phasePlugin = {
-      id: 'hlxEriPhase',
-      beforeDatasetsDraw(chart) {
-        const { ctx, chartArea: a, scales: { x } } = chart;
-        if (!a) return;
-        const edge = x.getPixelForValue(splitIdx - 0.5);
-        ctx.save();
-        ctx.fillStyle = 'rgba(148,163,184,0.13)';
-        ctx.fillRect(a.left, a.top, edge - a.left, a.bottom - a.top);
-        ctx.fillStyle = 'rgba(8,145,178,0.08)';
-        ctx.fillRect(edge, a.top, a.right - edge, a.bottom - a.top);
-        ctx.strokeStyle = '#0891b2'; ctx.lineWidth = 2; ctx.setLineDash([5, 4]);
-        ctx.beginPath(); ctx.moveTo(edge, a.top); ctx.lineTo(edge, a.bottom); ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.font = '700 12px "Microsoft JhengHei",sans-serif'; ctx.textBaseline = 'top';
-        ctx.fillStyle = '#64748b'; ctx.textAlign = 'center';
-        ctx.fillText('魚道啟用前', (a.left + edge) / 2, a.top + 6);
-        ctx.fillStyle = '#0e7490';
-        ctx.fillText('9 座魚道陸續啟用後', (edge + a.right) / 2, a.top + 6);
-        ctx.restore();
-      }
-    };
-    if (window._hlxEriInst) window._hlxEriInst.destroy();
-    window._hlxEriInst = new Chart(eriEl, {
-      type: 'line',
+  // ① 各年度平均調查尾數（年度色階：淺→深＝早→晚）
+  const el1 = document.getElementById('hlxYearBar');
+  if (el1) {
+    kill('_hlxYearBarInst');
+    window._hlxYearBarInst = new Chart(el1, {
+      type: 'bar',
       data: {
-        labels: rows.map(y => y.roc + '年'),
+        labels: M.years.map(y => y.roc + '年'),
         datasets: [{
-          label: '生態恢復指數 ERI',
-          data: rows.map(y => +y.eri.toFixed(1)),
-          borderColor: '#0891b2', borderWidth: 2,
-          backgroundColor: 'rgba(8,145,178,0.10)', fill: true,
-          pointRadius: 5, pointHoverRadius: 8,
-          pointBackgroundColor: rows.map(y => y.phase === '改善前' ? '#94a3b8' : '#0891b2'),
-          pointBorderColor: '#fff', pointBorderWidth: 2, tension: 0.3
+          label: '平均每次調查尾數',
+          data: M.years.map(y => +y.perTime.toFixed(1)),
+          backgroundColor: M.years.map((y, i) => HLX_ECO_YEAR_RAMP[i % HLX_ECO_YEAR_RAMP.length]),
+          borderRadius: 4, borderSkipped: false, barPercentage: 0.78, categoryPercentage: 0.86
         }]
       },
       options: {
         responsive: true, maintainAspectRatio: false,
         plugins: {
-          legend: { display: false },                     // 單一序列，標題已說明
-          tooltip: {
-            callbacks: {
-              title: c => rows[c[0].dataIndex].roc + '年（' + rows[c[0].dataIndex].phase + '）',
-              label: c => 'ERI = ' + c.raw + ' 分',
-              afterBody: c => {
-                const y = rows[c[0].dataIndex];
-                return ['豐富度 E[S100]=' + y.es100.toFixed(2) + ' 種',
-                        "多樣性 H′=" + y.H.toFixed(3),
-                        '受脅種檢出 ' + y.threatened + '/4 種',
-                        '優勢種佔比 ' + (y.dominance * 100).toFixed(1) + '%',
-                        '（' + y.surveys + ' 場次／' + y.effort + ' 站次／' + y.total + ' 尾）'];
-              }
-            }
-          }
+          legend: { display: false },
+          tooltip: { callbacks: {
+            label: c => c.raw + ' 尾／次',
+            afterBody: c => { const y = M.years[c[0].dataIndex];
+              return [y.events + ' 場次 ‧ ' + y.times + ' 次調查', '合計 ' + y.total + ' 尾 ‧ ' + y.species + ' 種',
+                      '組成最高：' + NAME[y.dominant.key] + ' ' + y.shareBy[y.dominant.key].toFixed(1) + '%']; } } }
         },
         scales: {
-          y: { beginAtZero: false, suggestedMin: 35, suggestedMax: 95,
-               title: { display: true, text: '生態恢復指數（0–100）', color: '#475569' },
-               grid: { color: '#e2e8f0' }, ticks: { color: '#64748b' } },
-          x: { grid: { display: false }, ticks: { color: '#64748b' } }
+          y: { beginAtZero: true, title: { display: true, text: '尾／次', color: HLX_ECO_INK.t2 },
+               grid: baseGrid, ticks: baseTick },
+          x: { grid: { display: false }, ticks: baseTick }
         }
-      },
-      plugins: [phasePlugin]
+      }
     });
   }
 
-  // ② 偵測率變化 —— 發散型橫條，零線為中性灰，正負各一色
-  const detEl = document.getElementById('hlxDetectChart');
-  if (detEl) {
-    const d = K.detection.slice();
-    if (window._hlxDetectInst) window._hlxDetectInst.destroy();
-    window._hlxDetectInst = new Chart(detEl, {
+  // ② 歷年魚類族群變化（各物種尾／次；物種身分色 + 圖例）
+  const el2 = document.getElementById('hlxSpeciesLine');
+  if (el2) {
+    kill('_hlxSpeciesLineInst');
+    window._hlxSpeciesLineInst = new Chart(el2, {
+      type: 'line',
+      data: {
+        labels: M.years.map(y => y.roc + '年'),
+        datasets: M.keys.map(k => ({
+          label: NAME[k],
+          data: M.years.map(y => +y.perTimeBy[k].toFixed(2)),
+          borderColor: HLX_ECO_SPECIES_COLOR[k], backgroundColor: HLX_ECO_SPECIES_COLOR[k],
+          borderWidth: 2, pointRadius: 3.5, pointHoverRadius: 7, tension: 0.28, fill: false
+        }))
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'nearest', intersect: false },
+        plugins: {
+          legend: { position: 'bottom', labels: { color: HLX_ECO_INK.t1, boxWidth: 11, boxHeight: 11,
+                    usePointStyle: true, pointStyle: 'rectRounded', padding: 11, font: { size: 12 } } },
+          tooltip: { callbacks: { label: c => c.dataset.label + '：' + c.raw + ' 尾／次' } }
+        },
+        scales: {
+          y: { beginAtZero: true, title: { display: true, text: '尾／次', color: HLX_ECO_INK.t2 },
+               grid: baseGrid, ticks: baseTick },
+          x: { grid: { display: false }, ticks: baseTick }
+        }
+      }
+    });
+  }
+
+  // ③ 物種組成時序變化（百分比堆疊；段與段之間留 2px 底色縫隙）
+  const el3 = document.getElementById('hlxCompStack');
+  if (el3) {
+    kill('_hlxCompStackInst');
+    window._hlxCompStackInst = new Chart(el3, {
       type: 'bar',
       data: {
-        labels: d.map(x => x.name + (x.threatened ? '（受脅）' : '')),
-        datasets: [{
-          label: '檢出率變化（百分點）',
-          data: d.map(x => +x.deltaPP.toFixed(1)),
-          backgroundColor: d.map(x => x.deltaPP >= 0 ? '#0891b2' : '#e34948'),
-          borderRadius: 4, borderSkipped: false,
-          barPercentage: 0.72, categoryPercentage: 0.86
-        }]
+        labels: M.years.map(y => y.roc + '年'),
+        datasets: M.keys.map(k => ({
+          label: NAME[k],
+          data: M.years.map(y => +y.shareBy[k].toFixed(2)),
+          backgroundColor: HLX_ECO_SPECIES_COLOR[k],
+          borderColor: '#f8fafc', borderWidth: { top: 2, bottom: 0, left: 0, right: 0 }
+        }))
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { color: HLX_ECO_INK.t1, boxWidth: 11, boxHeight: 11,
+                    usePointStyle: true, pointStyle: 'rectRounded', padding: 11, font: { size: 12 } } },
+          tooltip: { callbacks: { label: c => c.dataset.label + '：' + c.raw + '%' } }
+        },
+        scales: {
+          x: { stacked: true, grid: { display: false }, ticks: baseTick },
+          y: { stacked: true, min: 0, max: 100,
+               title: { display: true, text: '組成占比（%）', color: HLX_ECO_INK.t2 },
+               grid: baseGrid, ticks: { color: HLX_ECO_INK.t2, callback: v => v + '%' } }
+        }
+      }
+    });
+  }
+
+  // ④ 改善前後各物種平均尾／次（同色系淺→深＝早期→近期）
+  const el4 = document.getElementById('hlxPhaseBar');
+  if (el4) {
+    kill('_hlxPhaseBarInst');
+    window._hlxPhaseBarInst = new Chart(el4, {
+      type: 'bar',
+      data: {
+        labels: M.bySpecies.map(s => s.name),
+        datasets: [
+          { label: '早期（103～106年）', data: M.bySpecies.map(s => +s.pre.toFixed(2)),
+            backgroundColor: HLX_ECO_PHASE_COLOR.pre, borderRadius: 4, borderSkipped: false },
+          { label: '近期（107～114年）', data: M.bySpecies.map(s => +s.post.toFixed(2)),
+            backgroundColor: HLX_ECO_PHASE_COLOR.post, borderRadius: 4, borderSkipped: false }
+        ]
       },
       options: {
         indexAxis: 'y', responsive: true, maintainAspectRatio: false,
         plugins: {
-          legend: { display: false },
-          tooltip: {
-            callbacks: {
-              label: c => (c.raw >= 0 ? '+' : '') + c.raw + ' 個百分點',
-              afterBody: c => {
-                const x = d[c[0].dataIndex];
-                return ['改善前 ' + x.prePct.toFixed(1) + '%（' + x.preHit + '/' + x.preN + ' 場）',
-                        '改善後 ' + x.postPct.toFixed(1) + '%（' + x.postHit + '/' + x.postN + ' 場）',
-                        '全序列累計 ' + x.totalCatch + ' 尾'];
-              }
-            }
-          }
+          legend: { position: 'bottom', labels: { color: HLX_ECO_INK.t1, boxWidth: 11, boxHeight: 11,
+                    usePointStyle: true, pointStyle: 'rectRounded', padding: 13, font: { size: 12 } } },
+          tooltip: { callbacks: {
+            label: c => c.dataset.label + '：' + c.raw + ' 尾／次',
+            afterBody: c => { const s = M.bySpecies[c[0].dataIndex];
+              return ['累計 ' + s.total.toLocaleString() + ' 尾',
+                      '出現年度：早期 ' + s.yearsPre + '/' + M.pre.length + ' 年、近期 ' + s.yearsPost + '/' + M.post.length + ' 年']; } } }
         },
         scales: {
-          x: { title: { display: true, text: '檢出率變化（百分點）', color: '#475569' },
-               grid: { color: c => c.tick.value === 0 ? '#94a3b8' : '#e2e8f0',
-                       lineWidth: c => c.tick.value === 0 ? 2 : 1 },
-               ticks: { color: '#64748b', callback: v => (v > 0 ? '+' : '') + v } },
-          y: { grid: { display: false }, ticks: { color: '#0f172a', font: { weight: '700' } } }
+          x: { beginAtZero: true, title: { display: true, text: '平均尾／次', color: HLX_ECO_INK.t2 },
+               grid: baseGrid, ticks: baseTick },
+          y: { grid: { display: false }, ticks: { color: HLX_ECO_INK.t1, font: { weight: '700', size: 12 } } }
+        }
+      }
+    });
+  }
+
+  // ⑤ 河段組成（上游／下游 × 早期／近期）
+  const el5 = document.getElementById('hlxSegBar');
+  if (el5 && M.segments.length >= 2) {
+    kill('_hlxSegBarInst');
+    window._hlxSegBarInst = new Chart(el5, {
+      type: 'bar',
+      data: {
+        labels: M.segments.map(s => (s.phase === 'pre' ? '早期' : '近期') + ' ' + s.seg),
+        datasets: M.keys.map(k => ({
+          label: NAME[k],
+          data: M.segments.map(s => +s.perTimeBy[k].toFixed(2)),
+          backgroundColor: HLX_ECO_SPECIES_COLOR[k],
+          borderColor: '#f8fafc', borderWidth: { top: 2, bottom: 0, left: 0, right: 0 }
+        }))
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { color: HLX_ECO_INK.t1, boxWidth: 11, boxHeight: 11,
+                    usePointStyle: true, pointStyle: 'rectRounded', padding: 11, font: { size: 12 } } },
+          tooltip: { callbacks: {
+            label: c => c.dataset.label + '：' + c.raw + ' 尾／次',
+            afterBody: c => { const s = M.segments[c[0].dataIndex];
+              return [s.times + ' 次調查 ‧ 合計 ' + s.total.toLocaleString() + ' 尾 ‧ ' + s.species + ' 種',
+                      '該河段平均 ' + s.perTime.toFixed(1) + ' 尾／次']; } } }
+        },
+        scales: {
+          x: { stacked: true, grid: { display: false }, ticks: { color: HLX_ECO_INK.t1, font: { weight: '700' } } },
+          y: { stacked: true, beginAtZero: true,
+               title: { display: true, text: '平均尾／次（堆疊）', color: HLX_ECO_INK.t2 },
+               grid: baseGrid, ticks: baseTick }
         }
       }
     });
   }
 }
+
 
 function renderFishTrend() {
   const el = document.getElementById('fishTabContent');
@@ -4778,7 +4602,7 @@ function renderFishTrend() {
     ? ((recentCpueAverage / earlyCpueAverage - 1) * 100)
     : 0;
   const cpueTrend = cpueSlope > 0.05
-    ? { label:'長期CPUE趨勢向上（仍有年際波動）', color:'#166534', bg:'#f0fdf4', border:'#86efac', icon:'fa-arrow-trend-up' }
+    ? { label:'平均尾／次長期變化（含年際波動）', color:'#166534', bg:'#f0fdf4', border:'#86efac', icon:'fa-arrow-trend-up' }
     : cpueSlope < -0.05
       ? { label:'長期CPUE趨勢向下，建議優先複核', color:'#b91c1c', bg:'#fef2f2', border:'#fca5a5', icon:'fa-arrow-trend-down' }
       : { label:'長期CPUE大致持平', color:'#854d0e', bg:'#fffbeb', border:'#fde68a', icon:'fa-minus' };
@@ -4987,17 +4811,15 @@ function renderFishTrend() {
       </div>
     </div>
 
-    <!-- ★ 金質獎生態成效儀表板（取代原以 CPUE 倍數為主軸的橫幅）
-         CPUE 是「單位努力量的捕獲量」，回答不了「棲地是否變好」；
-         主結論改用五大量化指標，CPUE 相關分析降為下方佐證。 -->
-    ${renderEcoKPIDashboard()}
+    <!-- ★ 生態監測儀表板：以「尾／次」呈現歷年族群與物種組成變化 -->
+    ${renderEcoMonitorDashboard()}
 
     <!-- 統計卡片 -->
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;margin-bottom:28px">
       ${[
         { icon:'fa-calendar-alt', color:'#0e7490', label:'調查跨度', val:'103～114年', sub:'(2014～2025)' },
         { icon:'fa-fish',         color:'#f97316', label:'趨勢整合物種', val:'8 種', sub:'11個量化年度已核對' },
-        { icon:'fa-clipboard-check', color:'#1d4ed8', label:'110年樣站電捕', val:`${(HLX_FISH_110_SUMMARY.annualTotal / HLX_FISH_110_SUMMARY.stationVisits).toFixed(1)} 尾／次`, sub:`累計${HLX_FISH_110_SUMMARY.annualTotal}尾・12站訪次` },
+        { icon:'fa-clipboard-check', color:'#1d4ed8', label:'110年樣站電捕', val:`${(HLX_FISH_110_SUMMARY.annualTotal / HLX_FISH_110_SUMMARY.stationVisits).toFixed(1)} 尾／次`, sub:`累計${HLX_FISH_110_SUMMARY.annualTotal}尾・12次調查` },
         { icon:'fa-water', color:'#0891b2', label:'110年水域生物', val:`${HLX_FISH_110_SUMMARY.aquaticTaxa} 種`, sub:`魚類${HLX_FISH_110_SUMMARY.fishSpecies}＋蝦蟹2` },
         { icon:'fa-list-check',   color:'#0284c7', label:'已核對調查場次', val:`${HLX_FISH_SURVEY_EVENTS}次`, sub:'103～114年逐次建檔' },
         { icon:'fa-chart-line',   color:'#22c55e', label:'最高單次捕獲', val:'146 尾', sub:'(114年12月冬季)' },
@@ -5073,10 +4895,10 @@ function renderFishTrend() {
       <div style="background:#f8fafc;border-radius:10px;padding:16px 20px;margin-top:16px;font-size:16px;color:#334155;line-height:1.8;border-left:4px solid #0e7490">
         <strong>📊 圖表解讀：</strong>
         103～104年（魚道建置前）以臺灣石魚賓為主要記錄物種；107～108年白甲魚在多站調查中成為優勢種，108年4月4站合計589尾。
-        109年第1次255尾、第2次262尾，全年517尾、12站訪次，CPUE為43.1尾／次；相較108年893尾、8站訪次、CPUE 111.6，下降主要出現在努力量校正後密度，而非「沒有魚」。109年仍記錄7種、H′ 1.63，最大優勢種占比約24%，群聚組成尚稱均衡。108年採4月與10月、109年改於7月與9月且樣站增為6站，季節、流況、魚群分散及電捕可捕獲率均可能共同造成差異；現有來源不足以把下降唯一歸因於施工、颱風或魚道失效。
+        109年第1次255尾、第2次262尾，全年517尾、12次調查，平均43.1尾／次；108年為893尾、8次調查、111.6尾／次。兩年的差異主要出現在平均尾／次，記錄到的物種仍有7種、H′ 1.63，最大優勢種占比約24%，群聚組成相當均衡。108年採4月與10月、109年改於7月與9月且樣站增為6站，季節、流況與魚群空間分散都可能造成年際差異，屬族群量波動的常見表現。
         110年第3次調查（4/28～5/5）回升至${HLX_FISH_110_SUMMARY.springTotal}尾，第4次（8/31～9/2）為${HLX_FISH_110_SUMMARY.autumnTotal}尾，
         兩次樣站電捕合計${HLX_FISH_110_SUMMARY.annualTotal}尾、魚類${HLX_FISH_110_SUMMARY.fishSpecies}種。
-        112～114年年度總捕獲依序為${annualMetricByYear[2023]?.catch ?? '-'}、${annualMetricByYear[2024]?.catch ?? '-'}、${annualMetricByYear[2025]?.catch ?? '-'}尾；同期CPUE為${annualMetricByYear[2023]?.cpue ?? '-'}、${annualMetricByYear[2024]?.cpue ?? '-'}、${annualMetricByYear[2025]?.cpue ?? '-'}尾／次，顯示原始總量與努力量校正值須分開判讀。
+        112～114年年度總捕獲依序為${annualMetricByYear[2023]?.catch ?? '-'}、${annualMetricByYear[2024]?.catch ?? '-'}、${annualMetricByYear[2025]?.catch ?? '-'}尾；平均尾／次依序為${annualMetricByYear[2023]?.cpue ?? '-'}、${annualMetricByYear[2024]?.cpue ?? '-'}、${annualMetricByYear[2025]?.cpue ?? '-'}尾／次。總量與平均尾／次分別反映調查規模與單次記錄密度，宜一併判讀。
       </div>
     </div>
 
@@ -5124,7 +4946,7 @@ function renderFishTrend() {
         <div style="background:#f8fafc;border-radius:8px;padding:12px 14px;margin-top:10px;font-size:13px;color:#475569;line-height:1.75">
           <strong style="color:#5b21b6">計算口徑：</strong>本圖的柱狀 H′ 為<b>平台重算值</b>，不是逐年直接抄錄報告的既列指數。計算時先將同年度、屬於橫流溪的各調查場次之物種別尾數加總為年度群聚，再代入 Shannon-Wiener 公式 H′＝−Σ(pi ln pi)；pi 為該物種尾數占年度總捕獲量的比例。右軸紫線為年度出現物種數，須與 H′ 一起判讀。<br>
           <strong style="color:#0f766e">資料可回查：</strong>107～108 年原始物種別尾數來自《107～108年度橫流溪整治規劃設計監造與監測調查委託技術服務案成果報告》表 4-16；109～110 年來自《110年東勢林區管理處國有林魚道及生態廊道成效追蹤》表 5-3；111 年後來自橫流溪 Survey123 逐尾調查紀錄。三個資料路徑中的107～108與110年核心PDF經雜湊比對均為相同檔案副本，統計時各只計一次。110 年報告另有<b>樣站平均 H′ 約 1.4</b>的報告結論，此值與本圖的年度合計 H′ 屬不同統計尺度，不應互相替代。<br>
-          <strong style="color:#7c2d12">專業判讀：</strong>103 年施工前的群聚由少數優勢種主導，H′ 較低；107～110 年多站追蹤中可見較多物種共同出現，支持棲地異質性與連通性改善的正向訊號。113 年共記錄 282 尾、6 種，平台重算 H′ 為 1.13；臺灣白甲魚 174 尾，占 61.7%。114 年共記錄 275 尾、8 種，H′ 回升至 1.25；臺灣白甲魚 170 尾，占 61.8%。因此兩年仍屬中等多樣性，主因不是魚少，而是優勢種比例偏高、均勻度受壓低；114 年物種數與 CPUE 均較 113 年提高，顯示群聚持續恢復，但尚未形成高度均勻的物種組成。惟 107～110 年為多站彙整、111 年後以單站例行紀錄為主，年度 H′ 仍須與 CPUE、固定樣站、上下游同步調查、魚道中捕捉與水中影像共同判讀。
+          <strong style="color:#7c2d12">專業判讀：</strong>103 年施工前的群聚由少數優勢種主導，H′ 較低；107～110 年多站追蹤中可見較多物種共同出現，反映棲地異質性與河道連通條件的變化。113 年共記錄 282 尾、6 種，平台重算 H′ 為 1.13；臺灣白甲魚 174 尾，占 61.7%。114 年共記錄 275 尾、8 種，H′ 回升至 1.25；臺灣白甲魚 170 尾，占 61.8%。因此兩年仍屬中等多樣性，主因不是魚少，而是優勢種比例偏高、均勻度受壓低；114 年記錄物種數與平均尾／次均較 113 年提高，群聚組成朝多物種共存方向變動，但優勢種占比仍偏高。107～110 年為多站彙整、111 年後以單站例行紀錄為主，年度 H′ 宜與平均尾／次、固定樣站、上下游同步調查、魚道中捕捉與水中影像一併判讀。
         </div>
       </div>
       <div style="background:#fff;border:2px solid #e2e8f0;border-radius:16px;padding:24px">
@@ -5162,103 +4984,14 @@ function renderFishTrend() {
       </div>
 
       <div style="background:#fffbeb;border-left:4px solid #d97706;border-radius:14px;padding:16px 20px;margin-bottom:20px;font-size:14px;color:#334155;line-height:1.9">
-        <strong style="color:#b45309"><i class="fas fa-triangle-exclamation" style="margin-right:6px"></i>判讀限制與努力量校正（務必先讀）：</strong>
-        本圖下方「總量比較」為各魚道型式關聯魚種的<b>原始年度捕獲尾數加總</b>，<u>受採樣努力量影響極大</u>。
-        歷年調查站數並不一致——107年為 3 站、108年 4 站、109～110年達 6 站，112年後縮回 <b>下游 1 站</b>；
-        因此108年4站調查的高值與後期單站調查不可直接比較，原始總量的「下降」至少部分反映調查規模差異，不宜直接判定為魚類資源衰退。
-        判讀魚道生態效益應以下方<b style="color:#0e7490">努力量校正後指標（CPUE 尾／次、物種數）</b>為準：
-        經校正後103年CPUE為${annualMetricByYear[2014]?.cpue ?? '-'}尾／次，114年為${annualMetricByYear[2025]?.cpue ?? '-'}尾／次；物種數由${annualMetricByYear[2014]?.richness ?? '-'}種增至${annualMetricByYear[2025]?.richness ?? '-'}種。
-        此序列支持持續追蹤魚道連通性與群聚變化，但仍需配合流量、水質及上下游對照資料驗證工程效益。
+        <strong style="color:#b45309"><i class="fas fa-circle-info" style="margin-right:6px"></i>本圖的閱讀方式：</strong>
+        下方「總量比較」為各魚道型式關聯魚種的<b>年度原始捕獲尾數加總</b>，是各年度實際記錄到的總量。
+        由於各年度的調查場次與樣站配置不完全相同，年度之間的總量高低不宜直接互比；
+        要看跨年度的變化趨勢，請以本頁最上方<b style="color:#0e7490">生態監測儀表板的「尾／次」序列</b>為準
+        （103 年 ${annualMetricByYear[2014]?.cpue ?? '-'} 尾／次、114 年 ${annualMetricByYear[2025]?.cpue ?? '-'} 尾／次；
+        記錄物種數 ${annualMetricByYear[2014]?.richness ?? '-'} 種 → ${annualMetricByYear[2025]?.richness ?? '-'} 種）。
+        本圖的價值在於呈現<b>各魚道型式關聯魚種的組成與相對消長</b>，可與流量、水質及上下游調查一併判讀。
       </div>
-
-      <!-- ★ 努力量校正後的正確趨勢（CPUE + 物種數）-->
-      <div style="background:linear-gradient(135deg,#ecfeff,#f0fdf4);border:2px solid #a5f3fc;border-radius:18px;padding:22px 24px;margin-bottom:24px">
-        <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:6px">
-          <span style="background:#64748b;color:#fff;border-radius:999px;padding:3px 11px;
-                       font-size:12px;font-weight:800;letter-spacing:.5px">佐證資料</span>
-          <span style="font-size:19px;font-weight:900;color:#0e7490">努力量校正後的捕獲量趨勢（CPUE）</span>
-        </div>
-        <div style="font-size:14px;color:#475569;line-height:1.75;margin-bottom:12px">
-          CPUE（單位努力捕獲量＝總捕獲 ÷ 站次）排除調查站數差異，是國際通用的河川魚類監測指標，
-          但它衡量的是<b>「單位努力量抓到幾尾」</b>，而<b>捕獲量多寡不等於棲地品質好壞</b> ——
-          單一物種大量出現也會把 CPUE 推高。因此本頁的主結論已改用上方
-          <b style="color:#0e7490">五大量化指標</b>（生態恢復指數、上下游連通性、原生種比例、
-          生物多樣性、棲地品質），CPUE 於此僅作為族群量體的佐證。
-          圖中保留年度實測波動，另以同色虛線疊加 3 點移動平均；不改寫任何原始捕獲數據。
-        </div>
-        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#fff;border:1px solid #86efac;border-radius:12px;padding:12px 16px;margin-bottom:18px;color:#166534">
-          <span style="font-size:16px;font-weight:900"><i class="fas fa-arrow-trend-up" style="margin-right:7px"></i>長期 CPUE 趨勢向上</span>
-          <span style="font-size:15px">早期3年平均 <b>${earlyCpueAverage.toFixed(1)}</b></span>
-          <i class="fas fa-arrow-right" aria-hidden="true"></i>
-          <span style="font-size:15px">近期3年平均 <b>${recentCpueAverage.toFixed(1)}</b></span>
-          <span style="font-size:15px;font-weight:900;background:#dcfce7;border-radius:999px;padding:4px 10px">${cpueAverageChange >= 0 ? '+' : ''}${cpueAverageChange.toFixed(0)}%</span>
-          <span style="font-size:14px;color:#475569">線性斜率 ${cpueSlope >= 0 ? '+' : ''}${cpueSlope.toFixed(1)} 尾／次／年</span>
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px">
-          <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px">
-            <div style="font-size:15px;font-weight:800;color:#0f172a;margin-bottom:10px">CPUE 實測值與長期趨勢（尾／次）</div>
-            <div style="position:relative;height:240px"><canvas id="fishCpueTrend"></canvas></div>
-          </div>
-          <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px">
-            <div style="font-size:15px;font-weight:800;color:#0f172a;margin-bottom:6px">物種數趨勢（年度出現種數）</div>
-            <div style="font-size:12px;color:#64748b;margin-bottom:8px;line-height:1.6">
-              ⚠ <strong style="color:#b45309">111年</strong>圖示4種（Survey123下游單站），但成果報告DOCX Table 7/9另確認上游鞍馬山站量化捕獲明潭、短臀、短吻等7種；下方CPUE同年達高峰係因下游單站捕獲密集（564尾÷5次≈113尾／次），兩者並不矛盾。
-            </div>
-            <div style="position:relative;height:240px"><canvas id="fishRichnessTrend"></canvas></div>
-          </div>
-        </div>
-        <div style="overflow-x:auto;margin-top:18px">
-          <table style="width:100%;border-collapse:collapse;font-size:13px;min-width:560px">
-            <thead>
-              <tr style="background:#cffafe;color:#155e75">
-                <th style="padding:8px 10px;text-align:left;border:1px solid #a5f3fc">年度</th>
-                <th style="padding:8px 10px;text-align:center;border:1px solid #a5f3fc">調查場次</th>
-                <th style="padding:8px 10px;text-align:center;border:1px solid #a5f3fc">站訪次<br><span style="font-weight:400;font-size:11px">(努力量)</span></th>
-                <th style="padding:8px 10px;text-align:center;border:1px solid #a5f3fc">原始總捕獲</th>
-                <th style="padding:8px 10px;text-align:center;border:1px solid #a5f3fc;background:#a7f3d0;color:#065f46">CPUE<br><span style="font-weight:400;font-size:11px">(尾／次)</span></th>
-                <th style="padding:8px 10px;text-align:center;border:1px solid #a5f3fc;background:#bfdbfe;color:#1e40af">物種數</th>
-                <th style="padding:8px 10px;text-align:left;border:1px solid #a5f3fc">附註</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${annualEffortMetrics.map(m => {
-                const yr = Number(m.year);
-                const note = yr <= 2016 ? '魚道建置前基準（下游1站）'
-                  : yr === 2018 ? '魚道建置期，3站'
-                  : yr === 2019 ? '建置完成，4站（捕獲高峰受站數推升）'
-                  : yr === 2020 ? '★施工擾動期，6站但族群偏低'
-                  : yr === 2021 ? `完工後回升，6站；4月${HLX_FISH_110_SUMMARY.springTotal}尾、9月${HLX_FISH_110_SUMMARY.autumnTotal}尾，全年${HLX_FISH_110_SUMMARY.annualTotal}尾`
-                  : '縮回下游1站，CPUE 仍維持高檔';
-                const hl = (yr >= 2023) ? 'background:#f0fdf4' : '';
-                return `<tr style="${hl}">
-                  <td style="padding:7px 10px;border:1px solid #e2e8f0;font-weight:700">${m.label}</td>
-                  <td style="padding:7px 10px;border:1px solid #e2e8f0;text-align:center">${m.surveys}</td>
-                  <td style="padding:7px 10px;border:1px solid #e2e8f0;text-align:center;font-weight:700;color:#b45309">${m.effort}</td>
-                  <td style="padding:7px 10px;border:1px solid #e2e8f0;text-align:center;color:#64748b">${m.catch}</td>
-                  <td style="padding:7px 10px;border:1px solid #e2e8f0;text-align:center;font-weight:900;color:#047857">${m.cpue}</td>
-                  <td style="padding:7px 10px;border:1px solid #e2e8f0;text-align:center;font-weight:900;color:#1d4ed8">${m.richness}</td>
-                  <td style="padding:7px 10px;border:1px solid #e2e8f0;font-size:12px;color:#475569">${note}</td>
-                </tr>`;
-              }).join('')}
-            </tbody>
-          </table>
-        </div>
-        <div style="margin-top:14px;font-size:13px;color:#475569;line-height:1.8;background:#fff;border-radius:10px;padding:12px 14px">
-          <b style="color:#0e7490">資料判讀要點：</b>
-          ①108年採4站、109～110年採6站，111年為5次單站為主的調查，112～114年亦以單站事件紀錄為主；原始捕獲量須先校正站訪次，不能直接判定增減。
-          ②111年年度CPUE為${annualMetricByYear[2022]?.cpue ?? '-'}尾／次，雖為本序列高點，主要反映下游高密度樣點、季節與採樣設計切換下的實測結果；不可單獨解讀為全溪族群於該年突然達峰。112～114年CPUE依序為${annualMetricByYear[2023]?.cpue ?? '-'}、${annualMetricByYear[2024]?.cpue ?? '-'}、${annualMetricByYear[2025]?.cpue ?? '-'}尾／次，114年為此三年可比較單站序列的最高值。
-          ③112～114年由47.0回升至68.8尾／次，配合上下游樣點皆持續記錄到指標魚種，可支持棲地改善後的復原趨勢；但112～113年的年際起伏仍應保留，不宜改寫為逐年單調上升。
-          ④臺灣間爬岩鰍於110年合計32尾（4月23尾、9月9尾），114年已核對調查合計13尾。109～110年成效追蹤已以樣站上下游對照、魚道中捕捉及水中攝影進行交叉驗證，8區9座魚道皆有魚類捕捉紀錄；此證據支持監測期間的縱向通行功能。後續仍應以相同流況與季節持續累積同步、影像及標放紀錄，維持逐座魚道的可追溯性。
-        </div>
-        <div style="margin-top:12px;background:linear-gradient(135deg,#f0fdf4,#ecfeff);border-left:4px solid #0e7490;border-radius:10px;padding:16px 18px;font-size:13.5px;color:#334155;line-height:1.85">
-          <div style="font-size:14px;font-weight:900;color:#0e7490;margin-bottom:10px"><i class="fas fa-magnifying-glass-chart" style="margin-right:7px"></i>生態詮釋框架</div>
-          <p style="margin:0 0 10px 0">橫流溪各河段的落差、流速與河床條件不同，魚道並非採用單一形式，而是運用粗石斜曲面、階段式、斜坡式、潛越式及降壩等設計，把過大的落差逐步拆小，並創造緩流、休息區與不同通行路徑，讓不同游泳能力的魚類都能找到適合的方式通過。</p>
-          <p style="margin:0 0 10px 0">從歷年 CPUE 來看，107～108 年確實明顯升高，代表當時在相同調查努力下捕獲的魚較多。然而這不一定表示整條溪流的魚類數量突然增加，也可能受到<b>豐枯水條件、繁殖季節、幼魚補充</b>，以及魚群集中在特定深潭或魚道入口等因素影響。</p>
-          <p style="margin:0 0 10px 0">108 年兩次調查共 8 站訪次，CPUE 為 111.6 尾／次；109 年兩次調查擴為 12 站訪次，時間改在 7 月與 9 月，CPUE 降為 43.1。109 年仍記錄 517 尾、7 種，H′ 為 1.63，最大優勢種占比僅約 24%，呈現「密度指標下降、群聚均勻度仍高」的組合。110 年 CPUE 回升至 60.1，故 109 年低點較合理的解釋是樣站與季節組合、水文及魚群空間分散共同影響捕獲率，不能直接判為魚道失效。報告未提供足以把單一豪雨或施工事件定為唯一原因的對照證據，相關因素僅列為待驗證假說。</p>
-          <p style="margin:0;color:#0f766e;font-weight:700">判斷工程改善成效，應以固定樣站、相同季節與相近流況的可比較序列，並綜合魚種組成、上下游同步調查、魚道中捕捉、影像監測、水質與流量判讀；本圖的 CPUE 是全溪關聯物種指標，不是單一魚道的直接過魚量。</p>
-        </div>
-      </div>
-
 
       <!-- ══ 魚道生態成效實證 ══════════════════════════════════════════ -->
       <div style="border:2px solid #0d6b5b;border-radius:18px;padding:22px 24px;margin-bottom:28px;background:linear-gradient(180deg,#f0f7f5,#ffffff)">
@@ -5269,7 +5002,7 @@ function renderFishTrend() {
         <div style="font-size:14px;color:#475569;line-height:1.75;margin-bottom:18px">
           以下四項指標<b>不受各年站次差異影響</b>，可直接跨年度與跨溪流比較。
           鄰溪對照與魚道內捕獲為《110年魚道及生態廊道成效追蹤》之報告實測值；
-          受脅魚種 CPUE 與稀釋物種數由本平台歷年序列即時計算。
+          受脅魚種平均尾／次與稀釋物種數由本平台歷年序列即時計算。
         </div>
 
         <!-- 生態品質評級 -->
@@ -5368,12 +5101,12 @@ function renderFishTrend() {
                 <b style="color:#1d4ed8">縱向連通證據</b><br><span style="font-size:12px;color:#475569;line-height:1.65">9座魚道四輪內部調查皆捕獲魚類，搭配上下游調查與影像資料交叉判讀。</span>
               </div>
             </div>
-            <div style="font-size:12px;color:#64748b;line-height:1.75;margin-top:10px">目前全臺公開資料的調查方法、季節、樣站範圍與努力量並不完全一致，因此不宣稱橫流溪位居全臺第幾名；平台改以全臺通用監測欄位與保育指標呈現其可驗證價值。</div>
+            <div style="font-size:12px;color:#64748b;line-height:1.75;margin-top:10px">目前全臺公開資料的調查方法、季節與樣站範圍並不完全一致，因此不宣稱橫流溪位居全臺第幾名；平台改以全臺通用監測欄位與保育指標呈現其可驗證價值。</div>
           </div>
 
           <div style="font-size:12px;color:#64748b;line-height:1.8;margin-top:13px;padding-top:11px;border-top:1px solid #f1f5f9">
             <b style="color:#0d6b5b">全臺定位方式：</b>行政院水利署河川魚類調查資料採河川、測站、日期、物種、方法與數量等欄位，並依季節辦理調查；
-            臺灣魚類 IBI 則須依本土魚相調整，不能把不同流域、不同努力量的單一數值直接排名。
+            臺灣魚類 IBI 則須依本土魚相調整，不能把不同流域、不同調查規模的單一數值直接排名。
             因此本平台以「同河段、同方法、尾／次」的長期變化，加上紅皮書保育等級及魚道內實測，呈現橫流溪在臺灣溪流保育中的價值。<br>
             本地資料：${HLX_ECO_BENCHMARK.source}；
             <a href="https://data.gov.tw/dataset/25799" target="_blank" rel="noopener" style="color:#0e7490">水利署河川魚類調查資料</a>・
@@ -5403,7 +5136,7 @@ function renderFishTrend() {
             <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px 14px">
               <div style="font-size:20px;font-weight:900;color:#166534">7 種</div>
               <div style="font-size:13px;font-weight:800;color:#14532d">9座魚道內部四輪實測</div>
-              <div style="font-size:12px;color:#475569;line-height:1.65;margin-top:4px">未在魚道內捕獲者為${HLX_IN_FISHWAY_CATCH.absentSpecies}；其偏好深潭岩縫且日間偵測率較低，全溪歷年調查仍有紀錄。</div>
+              <div style="font-size:12px;color:#475569;line-height:1.65;margin-top:4px">未在魚道內捕獲者為${HLX_IN_FISHWAY_CATCH.absentSpecies}；其偏好深潭岩縫、日間較不易記錄到，全溪歷年調查仍有紀錄。</div>
             </div>
           </div>
           <div style="position:relative;height:260px"><canvas id="fishInFishwayChart"></canvas></div>
@@ -5435,7 +5168,7 @@ function renderFishTrend() {
         <!-- 受脅魚種 CPUE + 稀釋物種數 -->
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px">
           <div style="border:1.5px solid #cbd5e1;border-radius:14px;padding:18px 20px;background:#fff">
-            <div style="font-size:16px;font-weight:900;color:#0f172a;margin-bottom:4px">三、受脅魚種 CPUE</div>
+            <div style="font-size:16px;font-weight:900;color:#0f172a;margin-bottom:4px">三、受脅魚種平均尾／次</div>
             <div style="font-size:13px;color:#64748b;line-height:1.7;margin-bottom:12px">
               近危以上 4 種：臺灣白甲魚、纓口臺鰍、臺灣間爬岩鰍（近危 NNT）與短臀瘋鱨（易危 NVU・第三級保育類）。
               柱下數字為當年檢出的受脅種數。
@@ -5453,7 +5186,7 @@ function renderFishTrend() {
             <div style="position:relative;height:250px"><canvas id="fishRarefiedChart"></canvas></div>
             ${bestRarefied ? `<div style="font-size:12.5px;color:#0d6b5b;font-weight:800;margin-top:10px">
               全期最高：${bestRarefied.label} E[S<sub>${RAREFY_N}</sub>] = ${bestRarefied.E}，
-              僅用 ${bestRarefied.effort} 站訪次達成。</div>` : ''}
+              僅用 ${bestRarefied.effort} 次調查達成。</div>` : ''}
           </div>
         </div>
 
@@ -5480,7 +5213,7 @@ function renderFishTrend() {
         <div style="border:2px solid #e2e8f0;border-radius:18px;padding:20px">
           <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:12px">
             <div>
-              <div style="font-size:18px;font-weight:900;color:#0f172a;margin-bottom:8px">各魚道型式關聯魚種：相對建置前基線的變化<span style="font-size:13px;font-weight:700;color:#0e7490">（建置前＝1.0 倍・努力量校正）</span></div>
+              <div style="font-size:18px;font-weight:900;color:#0f172a;margin-bottom:8px">各魚道型式關聯魚種：相對建置前基線的變化<span style="font-size:13px;font-weight:700;color:#0e7490">（建置前＝1.0 倍・以尾／次計算）</span></div>
               <div style="font-size:14px;color:#64748b;line-height:1.7">
                 以<b>魚道建置前（103・104・106 年）的平均值為基線 1.0</b>，呈現各型式關聯魚種在建置後的相對變化。
                 實線為年度實測、虛線為 3 點移動平均。滑過任一點可看該年的實測尾／次與原始捕獲數。
@@ -5507,7 +5240,7 @@ function renderFishTrend() {
               </div>
               <div style="margin-top:10px;border-left:3px solid #b45309;background:#fffbeb;border-radius:0 8px 8px 0;padding:10px 13px;font-size:12.5px;color:#78350f;line-height:1.7">
                 <b>判讀限制：</b>本圖以<b>全溪</b>關聯魚種捕獲量 ÷ 全年站次計算，<b>不是在該座魚道量測</b>，無法歸因到單一設施。
-                又因七種型式的關聯魚種<b>全部包含臺灣白甲魚</b>（佔全期捕獲約四成），各線與白甲魚單物種 CPUE 的相關係數達 0.70～0.90；
+                又因七種型式的關聯魚種<b>全部包含臺灣白甲魚</b>（佔全期捕獲約四成），各線與白甲魚單物種尾／次的相關係數達 0.70～0.90；
                 其中<b>之字形與斜坡式的關聯魚種設定完全相同</b>，兩線在數學上必然重疊。
                 若要呈現單一魚道的實際使用情形，請改用上方「魚道生態成效實證」的<b>九座魚道內部實測捕獲</b>。
               </div>
@@ -5540,7 +5273,7 @@ function renderFishTrend() {
                 <div style="font-size:18px;color:#334155;margin-top:8px;line-height:1.6">關聯物種：${fishwayTargetNames(fw)}</div>
                 <div style="display:flex;align-items:baseline;gap:10px;margin-top:12px;flex-wrap:wrap">
                   <span style="font-size:32px;font-weight:900;color:${fw.color};line-height:1">${latest}</span>
-                  <span style="font-size:17px;color:#64748b">114年 CPUE（尾／次）</span>
+                  <span style="font-size:17px;color:#64748b">114年 平均尾／次</span>
                   <span style="font-size:17px;color:${delta>=0?'#15803d':'#b91c1c'};font-weight:900">${delta>=0?'+':''}${delta} 較106年${mult&&delta>=0?`（×${mult}）`:''}</span>
                 </div>
                 <div style="font-size:15px;color:${trend.slope>=0?'#166534':'#b91c1c'};font-weight:800;margin-top:9px">長期趨勢斜率 ${trend.slope>=0?'+':''}${trend.slope.toFixed(1)} 尾／次／年</div>
@@ -5575,13 +5308,13 @@ function renderFishTrend() {
             <div style="display:flex;gap:10px;align-items:flex-start">
               <div style="width:13px;height:13px;border-radius:3px;background:#fbbf24;flex-shrink:0;margin-top:2px"></div>
               <div style="font-size:14px;color:#475569;line-height:1.7">
-                <b style="color:#0f172a">109 年短暫下探 ≠ 已證實的族群衰退</b><br>
-                109 年 CPUE 為 43.1 尾／次，但仍有 7 種、H′ 1.63，最大優勢種約占 24%；這是密度下降但組成均衡的實測結果。相較 108 年，調查站訪次由 8 增至 12，季節亦改為 7 月與 9 月，水文、魚群分散與樣站組合都可能改變捕獲率。現有資料不足以把下降唯一歸因於施工、豪雨或魚道功能，因此應列為多因子年際波動。
+                <b style="color:#0f172a">109 年的年際波動</b><br>
+                109 年平均 43.1 尾／次，記錄到 7 種、H′ 1.63，最大優勢種約占 24%；屬單次記錄密度較低但組成均衡的一年。相較 108 年，調查次數由 8 增至 12，季節亦改為 7 月與 9 月，水文條件、魚群空間分散與樣站組合都會影響單次記錄到的尾數，宜視為多因子共同作用下的年際波動。
               </div>
             </div>
           </div>
           <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:10px 14px;font-size:13px;color:#78350f;line-height:1.7">
-            ⚠ <b>本圖使用 CPUE（尾／次）而非原始捕獲量。</b>
+            <b>本圖使用平均尾／次而非原始捕獲總量。</b>
             橫流溪歷年調查站數不一（107年3站、108年4站、109～110年6站、111～114年各事件以單站記錄為主），原始總尾數不可直接跨年度比較。CPUE可降低站數差異，但仍需搭配季節、水文、方法與固定樣站資料，才能判讀長期變化及魚道成效。
           </div>
         </div>
@@ -5611,7 +5344,7 @@ function renderFishTrend() {
             </div>
             <div style="font-size:21px;color:#475569;line-height:1.9;margin-top:20px">${fw.note}</div>
             <div style="font-size:20px;color:#166534;line-height:1.9;margin-top:16px;background:#f0fdf4;border-radius:12px;padding:18px 20px">${fw.management}</div>
-            <div style="font-size:17px;color:#94a3b8;line-height:1.7;margin-top:14px;border-top:1px dashed #e2e8f0;padding-top:14px">※ CPUE 資料來源為橫流溪全溪電捕調查（非個別魚道實地監測），趨勢反映全溪族群動態，物種組合為該型式通行潛力指標，無法單獨歸因於特定魚道設施效益。</div>
+            <div style="font-size:17px;color:#94a3b8;line-height:1.7;margin-top:14px;border-top:1px dashed #e2e8f0;padding-top:14px">※ 尾／次資料來源為橫流溪全溪電捕調查（非個別魚道實地監測），趨勢反映全溪族群動態，物種組合為該型式通行潛力指標，無法單獨歸因於特定魚道設施效益。</div>
           </div>
         `).join('')}
       </div>
@@ -5626,14 +5359,14 @@ function renderFishTrend() {
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
         ${[
-          { icon:'fa-arrow-trend-up', title:'族群量與努力量校正結果', color:'#22c55e', bg:'#f0fdf4', bd:'#bbf7d0',
-            body:`106年（2017年）每次調查總捕獲23～31尾，平均28.8尾；113年年度總捕獲${annualMetricByYear[2024]?.catch ?? '-'}尾、CPUE ${annualMetricByYear[2024]?.cpue ?? '-'}，114年年度總捕獲${annualMetricByYear[2025]?.catch ?? '-'}尾、CPUE ${annualMetricByYear[2025]?.cpue ?? '-'}。臺灣白甲魚於114年12月單次達105尾。數據顯示相較早期基準有較高捕獲記錄，但跨年度結論仍須以固定樣站及相同季節複核。`,
-            badge:'原始量＋CPUE' },
+          { icon:'fa-arrow-trend-up', title:'族群量與平均尾／次變化', color:'#22c55e', bg:'#f0fdf4', bd:'#bbf7d0',
+            body:`106年（2017年）每次調查總捕獲23～31尾，平均28.8尾；113年年度總捕獲${annualMetricByYear[2024]?.catch ?? '-'}尾、平均 ${annualMetricByYear[2024]?.cpue ?? '-'} 尾／次，114年年度總捕獲${annualMetricByYear[2025]?.catch ?? '-'}尾、平均 ${annualMetricByYear[2025]?.cpue ?? '-'} 尾／次。臺灣白甲魚於114年12月單次達105尾。數據顯示相較早期基準有較高捕獲記錄，但跨年度結論仍須以固定樣站及相同季節複核。`,
+            badge:'原始量＋尾／次' },
           { icon:'fa-route', title:'魚道連通性觀察指標', color:'#f59e0b', bg:'#fffbeb', bd:'#fde68a',
             body:'魚道連通性追蹤指標顯示，臺灣間爬岩鰍於110年全年合計記錄32尾（其中4月23尾、9月9尾）；114年已核對調查資料合計13尾。本計畫已導入魚道上下游同步調查、標放試驗及自動化影像監測機制進行交叉驗證，歷年監測數據確實證實魚道具備良好之縱向連通功能，能有效供底棲性魚類（臺灣間爬岩鰍、明潭吻鰕虎等）進行上下游遷徙與棲地擴展。109～110年8區9座魚道均有魚類捕捉紀錄，為縱向通行功能提供具體實證。',
             badge:'上下游同步＋標放＋影像三驗' },
           { icon:'fa-layer-group', title:'物種組成與多樣性變化', color:'#3b82f6', bg:'#eff6ff', bd:'#bfdbfe',
-            body:`106年魚相由臺灣白甲魚高度主導；已核對序列的年度物種數最高為${Math.max(...annualEffortMetrics.map(metric => metric.richness))}種。113年為6種、H′ 1.13，臺灣白甲魚占61.7%；114年增為8種、H′ 1.25，臺灣白甲魚占61.8%。因此114年雖有更高物種豐富度與CPUE，多樣性仍屬中等，主要受優勢種比例偏高、均勻度不足影響；這與棲地改善及縱向連通性提升並不矛盾。`,
+            body:`106年魚相由臺灣白甲魚高度主導；已核對序列的年度物種數最高為${Math.max(...annualEffortMetrics.map(metric => metric.richness))}種。113年為6種、H′ 1.13，臺灣白甲魚占61.7%；114年增為8種、H′ 1.25，臺灣白甲魚占61.8%。114年記錄物種數與平均尾／次均較高，多樣性指數則仍屬中等，主要反映優勢種比例偏高、均勻度較低的組成結構。`,
             badge:'同口徑比較' },
           { icon:'fa-droplet', title:'✅ 水質長期優良，支撐保育類物種生存', color:'#7c3aed', bg:'#faf5ff', bd:'#ddd6fe',
             body:'歷次調查pH值維持在7.87～8.03之間（弱鹼性優良水質），水溫夏季22.5～24.9°C、冬季11～11.4°C，均處於臺灣原生魚類最適生存範圍。電導度265～363μS/m亦顯示無污染。穩定優良的水質條件，為3種保育類特有魚類長期定居與繁殖提供了堅實的環境基礎。',
@@ -5965,8 +5698,8 @@ function renderFishTrend() {
   const labels = SURVEYS.map(s => s.label.replace('\n',' '));
   const colors = { bai:'#0ea5e9', shi:'#f97316', xu:'#a855f7', ying:'#22c55e', jian:'#f43f5e', min:'#3b82f6', kou:'#f59e0b', feng:'#dc2626', hong:'#059669' };
 
-  // 0. 金質獎儀表板圖表（ERI 逐年、各物種檢出率變化）
-  setTimeout(hlxEco_drawDashboardCharts, 60);
+  // 0. 生態監測儀表板圖表
+  setTimeout(hlxEco_drawMonitorCharts, 60);
 
   // 1. 堆疊柱狀圖
   setTimeout(() => {
