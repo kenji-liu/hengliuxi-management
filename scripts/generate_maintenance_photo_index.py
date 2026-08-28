@@ -9,10 +9,28 @@ import os, json, re
 from datetime import datetime
 from pathlib import Path
 
-ROOT_DIR  = Path(__file__).parent.parent / "01_工程設施維護與資料" / "維管計畫" / "歷年維護資料"
-OUT_FILE  = Path(__file__).parent.parent / "webapp" / "data" / "maintenance_photo_index.json"
-MEDIA_BASE = "/media/01_工程設施維護與資料/維管計畫/歷年維護資料"
+BASE      = Path(__file__).parent.parent
+OUT_FILE  = BASE / "webapp" / "data" / "maintenance_photo_index.json"
 IMG_EXT   = {'.jpg', '.jpeg', '.png', '.JPG', '.JPEG', '.PNG'}
+#  影片一併納入索引（/media 路由本就允許 .mp4/.mov 等）
+VID_EXT   = {'.mp4', '.MP4', '.mov', '.MOV', '.avi', '.AVI', '.mkv', '.MKV'}
+MEDIA_EXT = IMG_EXT | VID_EXT
+
+#  多個資料根目錄：歷年維護資料為原始來源，115年設施維護為後續新增批次。
+#  每一項 = (根目錄, /media 前綴, 是否把根目錄本身視為單一期別)
+#  flatCase 不為 None 時，整個根目錄視為「一個期別」，其子目錄即為工作資料夾；
+#  用於 Google 雲端硬碟匯出的批次（外層資料夾名帶時間戳，不適合當期別名稱）。
+_Y115 = (BASE / "01_工程設施維護與資料" / "115年設施維護" /
+         "橫流溪工程-20260828T122219Z-1-001" / "橫流溪工程")
+ROOTS = [
+    {"dir": BASE / "01_工程設施維護與資料" / "維管計畫" / "歷年維護資料",
+     "media": "/media/01_工程設施維護與資料/維管計畫/歷年維護資料",
+     "flatCase": None},
+    {"dir": _Y115,
+     "media": ("/media/01_工程設施維護與資料/115年設施維護/"
+               "橫流溪工程-20260828T122219Z-1-001/橫流溪工程"),
+     "flatCase": "115年林業保育署臺中分署轄內搶修工程-橫流溪道路周邊環境整理工作(照片影片)"},
+]
 
 # ── 日期萃取（民國或西元）──
 def extract_sort_key(text):
@@ -40,16 +58,22 @@ def classify_stage(folder_name):
     if re.search(r'(?<![a-zA-Z\d])前(?![a-zA-Z\d])', n): return 'before'
     if re.search(r'(?<![a-zA-Z\d])中(?![a-zA-Z\d])', n): return 'during'
     if re.search(r'(?<![a-zA-Z\d])後(?![a-zA-Z\d])', n): return 'after'
+    #  工項名稱若描述「正在做的事」（施作、鋪設、載運、清運…），
+    #  即為施工中的紀錄。僅在上面沒有任何明確前/中/後標示時才套用，
+    #  純位置或器材名稱（如「未分類」「錄影」「牌面」）維持未分類，不強加階段。
+    if re.search(r'施作|鋪設|載運|搬運|清運|採取|砍草|開挖|吊掛|拆除|'
+                 r'刨木|回填|整理施作|工作$|作業', n):
+        return 'during'
     return 'unknown'
 
 # ── 建立相對 media URL ──
-def media_url(abs_path):
-    rel = abs_path.relative_to(ROOT_DIR)
+def media_url(abs_path, root_dir, media_base):
+    rel = abs_path.relative_to(root_dir)
     parts = [p for p in rel.parts]
     encoded = "/".join(p.replace(" ", "%20") for p in parts)
-    return f"{MEDIA_BASE}/{encoded}"
+    return f"{media_base}/{encoded}"
 
-def build_photo(img_path, stage, folder_label):
+def build_photo(img_path, stage, folder_label, root_dir, media_base):
     stat = img_path.stat()
     sort_key = extract_sort_key(img_path.parent.name) or extract_sort_key(img_path.name)
     m = re.search(r'\d{3,4}[.\-/年]\d{1,2}[.\-/月]\d{1,2}', img_path.parent.name)
@@ -57,7 +81,8 @@ def build_photo(img_path, stage, folder_label):
     return {
         "name":     img_path.name,
         "sort":     sort_key,
-        "src":      media_url(img_path),
+        "src":      media_url(img_path, root_dir, media_base),
+        "kind":     "video" if img_path.suffix in VID_EXT else "photo",
         "stage":    stage,
         "date":     date_str,
         "folder":   folder_label,
@@ -68,9 +93,14 @@ def build_photo(img_path, stage, folder_label):
 # ── 主掃描 ──
 cases = []
 
-for case_dir in sorted(ROOT_DIR.iterdir()):
+for _R in ROOTS:
+  ROOT_DIR, MEDIA_BASE, _flat = _R["dir"], _R["media"], _R["flatCase"]
+  if not ROOT_DIR.exists():
+    print('（略過不存在的根目錄）', ROOT_DIR); continue
+  _case_dirs = [ROOT_DIR] if _flat else [d for d in sorted(ROOT_DIR.iterdir()) if d.is_dir()]
+  for case_dir in _case_dirs:
     if not case_dir.is_dir(): continue
-    case_name  = case_dir.name
+    case_name  = _flat or case_dir.name
     case_sort  = extract_sort_key(case_name)
     folders    = []
 
@@ -82,7 +112,7 @@ for case_dir in sorted(ROOT_DIR.iterdir()):
     # 每個子目錄作為一個 folder 條目
     seen = set()
     for sub in all_dirs:
-        imgs = [f for f in sub.iterdir() if f.is_file() and f.suffix in IMG_EXT] if sub.is_dir() else []
+        imgs = [f for f in sub.iterdir() if f.is_file() and f.suffix in MEDIA_EXT] if sub.is_dir() else []
         if not imgs: continue
         # 避免重複
         key = str(sub)
@@ -109,7 +139,7 @@ for case_dir in sorted(ROOT_DIR.iterdir()):
         date_str = m.group(0) if m else ''
         folder_sort = extract_sort_key(sub.name)
 
-        photo_objs = [build_photo(img, stage, folder_label) for img in sorted(imgs)]
+        photo_objs = [build_photo(img, stage, folder_label, ROOT_DIR, MEDIA_BASE) for img in sorted(imgs)]
 
         bf = [p for p in photo_objs if p['stage'] == 'before']
         du = [p for p in photo_objs if p['stage'] == 'during']
@@ -149,6 +179,9 @@ result = {
     "generatedAt": datetime.now().isoformat(),
     "sortMode":    "time-ascending",
     "totalImages": sum(c['total'] for c in cases),
+    "totalVideos": sum(1 for c in cases for f in c['folders']
+                       for L in (f['before'],f['during'],f['after'],f['unknown'])
+                       for x in L if x.get('kind') == 'video'),
     "totalCases":  len(cases),
     "cases":       cases
 }

@@ -1,270 +1,1038 @@
 {
-  "generated": "2026-06-25",
-  "total_contract_amount": 3106097,
-  "total_projects": 8,
-  "total_reports": 208,
+  "generated": "2026-08-28",
+  "total_contract_amount": 18101531,
+  "total_projects": 9,
+  "total_reports": 260,
   "projects": [
     {
-      "year_roc": 110, "year_ad": 2021, "batch": 14,
+      "year_roc": 110,
+      "year_ad": 2021,
+      "batch": 14,
       "project_name": "東勢處轄內搶修工程(橫流溪周遭環境改善工程)",
       "contract_amount": 325541,
-      "date_start": "2021-10-12", "date_end": "2021-10-22", "total_reports": 11,
+      "date_start": "2021-10-12",
+      "date_end": "2021-10-22",
+      "total_reports": 11,
       "work_items": [
-        { "name": "魚道清淤整理", "unit": "式", "contract_qty": 45.0, "final_qty": 3.0, "completion_pct": 6.7 },
-        { "name": "溪床土石清運", "unit": "車", "contract_qty": 100.0, "final_qty": 12.0, "completion_pct": 12.0 },
-        { "name": "倒木植被清除", "unit": "式", "contract_qty": 10.0, "final_qty": 2.0, "completion_pct": 20.0 },
-        { "name": "林道路面維護", "unit": "m", "contract_qty": 500.0, "final_qty": 80.0, "completion_pct": 16.0 }
+        {
+          "name": "魚道清淤整理",
+          "unit": "式",
+          "contract_qty": 45.0,
+          "final_qty": 3.0,
+          "completion_pct": 6.7
+        },
+        {
+          "name": "溪床土石清運",
+          "unit": "車",
+          "contract_qty": 100.0,
+          "final_qty": 12.0,
+          "completion_pct": 12.0
+        },
+        {
+          "name": "倒木植被清除",
+          "unit": "式",
+          "contract_qty": 10.0,
+          "final_qty": 2.0,
+          "completion_pct": 20.0
+        },
+        {
+          "name": "林道路面維護",
+          "unit": "m",
+          "contract_qty": 500.0,
+          "final_qty": 80.0,
+          "completion_pct": 16.0
+        }
       ],
       "work_categories": [
-        { "name": "魚道清淤整理", "icon": "fa-fish", "color": "#0369a1", "detail": "魚道入口清除土砂淤積，維持通水斷面" },
-        { "name": "溪床土石清運", "icon": "fa-truck", "color": "#7c3aed", "detail": "搬運溪床崩積土石，疏通河道" },
-        { "name": "倒木植被清除", "icon": "fa-tree", "color": "#16a34a", "detail": "清除倒木及入侵植被" },
-        { "name": "林道路面維護", "icon": "fa-road", "color": "#9a3412", "detail": "修補林道坑洞及路面破損" }
+        {
+          "name": "魚道清淤整理",
+          "icon": "fa-fish",
+          "color": "#0369a1",
+          "detail": "魚道入口清除土砂淤積，維持通水斷面"
+        },
+        {
+          "name": "溪床土石清運",
+          "icon": "fa-truck",
+          "color": "#7c3aed",
+          "detail": "搬運溪床崩積土石，疏通河道"
+        },
+        {
+          "name": "倒木植被清除",
+          "icon": "fa-tree",
+          "color": "#16a34a",
+          "detail": "清除倒木及入侵植被"
+        },
+        {
+          "name": "林道路面維護",
+          "icon": "fa-road",
+          "color": "#9a3412",
+          "detail": "修補林道坑洞及路面破損"
+        }
       ],
       "notes_analysis": {
-        "work_days": 8, "stop_days": 3,
+        "work_days": 8,
+        "stop_days": 3,
         "work_themes": [
-          { "name": "魚道清淤整理", "icon": "fa-fish", "color": "#0369a1" },
-          { "name": "溪床土石清運", "icon": "fa-truck", "color": "#7c3aed" },
-          { "name": "倒木植被清除", "icon": "fa-tree", "color": "#16a34a" },
-          { "name": "林道路面維護", "icon": "fa-road", "color": "#9a3412" }
+          {
+            "name": "魚道清淤整理",
+            "icon": "fa-fish",
+            "color": "#0369a1"
+          },
+          {
+            "name": "溪床土石清運",
+            "icon": "fa-truck",
+            "color": "#7c3aed"
+          },
+          {
+            "name": "倒木植被清除",
+            "icon": "fa-tree",
+            "color": "#16a34a"
+          },
+          {
+            "name": "林道路面維護",
+            "icon": "fa-road",
+            "color": "#9a3412"
+          }
         ],
         "key_notes": [
-          { "date": "2021-10-12", "text": "進場開始清除魚道入口土砂堆積" },
-          { "date": "2021-10-15", "text": "溪床土石清運作業進行中" },
-          { "date": "2021-10-22", "text": "完成竣工驗收" }
+          {
+            "date": "2021-10-12",
+            "text": "進場開始清除魚道入口土砂堆積"
+          },
+          {
+            "date": "2021-10-15",
+            "text": "溪床土石清運作業進行中"
+          },
+          {
+            "date": "2021-10-22",
+            "text": "完成竣工驗收"
+          }
         ]
       }
     },
     {
-      "year_roc": 111, "year_ad": 2022, "batch": 1,
+      "year_roc": 111,
+      "year_ad": 2022,
+      "batch": 1,
       "project_name": "111年東勢處轄內搶修工程-橫流溪周遭環境改善工程",
       "contract_amount": 64507,
-      "date_start": "2022-06-01", "date_end": "2022-06-03", "total_reports": 3,
+      "date_start": "2022-06-01",
+      "date_end": "2022-06-03",
+      "total_reports": 3,
       "work_items": [
-        { "name": "倒木植被清除", "unit": "式", "contract_qty": 10.0, "final_qty": 2.0, "completion_pct": 20.0 },
-        { "name": "工區環境整理", "unit": "式", "contract_qty": 5.0, "final_qty": 1.0, "completion_pct": 20.0 },
-        { "name": "護岸構造物修復", "unit": "m²", "contract_qty": 50.0, "final_qty": 8.0, "completion_pct": 16.0 },
-        { "name": "林道路面維護", "unit": "m", "contract_qty": 200.0, "final_qty": 30.0, "completion_pct": 15.0 }
+        {
+          "name": "倒木植被清除",
+          "unit": "式",
+          "contract_qty": 10.0,
+          "final_qty": 2.0,
+          "completion_pct": 20.0
+        },
+        {
+          "name": "工區環境整理",
+          "unit": "式",
+          "contract_qty": 5.0,
+          "final_qty": 1.0,
+          "completion_pct": 20.0
+        },
+        {
+          "name": "護岸構造物修復",
+          "unit": "m²",
+          "contract_qty": 50.0,
+          "final_qty": 8.0,
+          "completion_pct": 16.0
+        },
+        {
+          "name": "林道路面維護",
+          "unit": "m",
+          "contract_qty": 200.0,
+          "final_qty": 30.0,
+          "completion_pct": 15.0
+        }
       ],
       "work_categories": [
-        { "name": "倒木植被清除", "icon": "fa-tree", "color": "#16a34a", "detail": "清除颱風後倒木及入侵植被" },
-        { "name": "工區環境整理", "icon": "fa-broom", "color": "#d97706", "detail": "清理工區周邊環境" },
-        { "name": "護岸構造物修復", "icon": "fa-hammer", "color": "#dc2626", "detail": "修復颱風損傷護岸構造物" },
-        { "name": "林道路面維護", "icon": "fa-road", "color": "#9a3412", "detail": "修補林道坑洞" }
+        {
+          "name": "倒木植被清除",
+          "icon": "fa-tree",
+          "color": "#16a34a",
+          "detail": "清除颱風後倒木及入侵植被"
+        },
+        {
+          "name": "工區環境整理",
+          "icon": "fa-broom",
+          "color": "#d97706",
+          "detail": "清理工區周邊環境"
+        },
+        {
+          "name": "護岸構造物修復",
+          "icon": "fa-hammer",
+          "color": "#dc2626",
+          "detail": "修復颱風損傷護岸構造物"
+        },
+        {
+          "name": "林道路面維護",
+          "icon": "fa-road",
+          "color": "#9a3412",
+          "detail": "修補林道坑洞"
+        }
       ],
       "notes_analysis": {
-        "work_days": 3, "stop_days": 0,
+        "work_days": 3,
+        "stop_days": 0,
         "work_themes": [
-          { "name": "倒木植被清除", "icon": "fa-tree", "color": "#16a34a" },
-          { "name": "工區環境整理", "icon": "fa-broom", "color": "#d97706" },
-          { "name": "護岸構造物修復", "icon": "fa-hammer", "color": "#dc2626" },
-          { "name": "林道路面維護", "icon": "fa-road", "color": "#9a3412" }
+          {
+            "name": "倒木植被清除",
+            "icon": "fa-tree",
+            "color": "#16a34a"
+          },
+          {
+            "name": "工區環境整理",
+            "icon": "fa-broom",
+            "color": "#d97706"
+          },
+          {
+            "name": "護岸構造物修復",
+            "icon": "fa-hammer",
+            "color": "#dc2626"
+          },
+          {
+            "name": "林道路面維護",
+            "icon": "fa-road",
+            "color": "#9a3412"
+          }
         ],
         "key_notes": [
-          { "date": "2022-06-01", "text": "進場清理颱風後現場" },
-          { "date": "2022-06-03", "text": "完成竣工驗收" }
+          {
+            "date": "2022-06-01",
+            "text": "進場清理颱風後現場"
+          },
+          {
+            "date": "2022-06-03",
+            "text": "完成竣工驗收"
+          }
         ]
       }
     },
     {
-      "year_roc": 111, "year_ad": 2022, "batch": 2,
+      "year_roc": 111,
+      "year_ad": 2022,
+      "batch": 2,
       "project_name": "111年東勢處轄內搶修工程-橫流溪溪流環境改善工程",
       "contract_amount": 170295,
-      "date_start": "2022-07-25", "date_end": "2022-08-11", "total_reports": 18,
+      "date_start": "2022-07-25",
+      "date_end": "2022-08-11",
+      "total_reports": 18,
       "work_items": [
-        { "name": "工區環境整理", "unit": "式", "contract_qty": 8.0, "final_qty": 3.0, "completion_pct": 37.5 },
-        { "name": "倒木植被清除", "unit": "式", "contract_qty": 10.0, "final_qty": 4.0, "completion_pct": 40.0 },
-        { "name": "魚道清淤整理", "unit": "式", "contract_qty": 20.0, "final_qty": 5.0, "completion_pct": 25.0 },
-        { "name": "溪床土石清運", "unit": "車", "contract_qty": 80.0, "final_qty": 20.0, "completion_pct": 25.0 }
+        {
+          "name": "工區環境整理",
+          "unit": "式",
+          "contract_qty": 8.0,
+          "final_qty": 3.0,
+          "completion_pct": 37.5
+        },
+        {
+          "name": "倒木植被清除",
+          "unit": "式",
+          "contract_qty": 10.0,
+          "final_qty": 4.0,
+          "completion_pct": 40.0
+        },
+        {
+          "name": "魚道清淤整理",
+          "unit": "式",
+          "contract_qty": 20.0,
+          "final_qty": 5.0,
+          "completion_pct": 25.0
+        },
+        {
+          "name": "溪床土石清運",
+          "unit": "車",
+          "contract_qty": 80.0,
+          "final_qty": 20.0,
+          "completion_pct": 25.0
+        }
       ],
       "work_categories": [
-        { "name": "工區環境整理", "icon": "fa-broom", "color": "#d97706", "detail": "整理溪流施工工區" },
-        { "name": "倒木植被清除", "icon": "fa-tree", "color": "#16a34a", "detail": "清除溪床倒木" },
-        { "name": "魚道清淤整理", "icon": "fa-fish", "color": "#0369a1", "detail": "疏通魚道土砂堆積" },
-        { "name": "溪床土石清運", "icon": "fa-truck", "color": "#7c3aed", "detail": "清運溪床崩積土石" }
+        {
+          "name": "工區環境整理",
+          "icon": "fa-broom",
+          "color": "#d97706",
+          "detail": "整理溪流施工工區"
+        },
+        {
+          "name": "倒木植被清除",
+          "icon": "fa-tree",
+          "color": "#16a34a",
+          "detail": "清除溪床倒木"
+        },
+        {
+          "name": "魚道清淤整理",
+          "icon": "fa-fish",
+          "color": "#0369a1",
+          "detail": "疏通魚道土砂堆積"
+        },
+        {
+          "name": "溪床土石清運",
+          "icon": "fa-truck",
+          "color": "#7c3aed",
+          "detail": "清運溪床崩積土石"
+        }
       ],
       "notes_analysis": {
-        "work_days": 14, "stop_days": 4,
+        "work_days": 14,
+        "stop_days": 4,
         "work_themes": [
-          { "name": "工區環境整理", "icon": "fa-broom", "color": "#d97706" },
-          { "name": "倒木植被清除", "icon": "fa-tree", "color": "#16a34a" },
-          { "name": "魚道清淤整理", "icon": "fa-fish", "color": "#0369a1" },
-          { "name": "溪床土石清運", "icon": "fa-truck", "color": "#7c3aed" }
+          {
+            "name": "工區環境整理",
+            "icon": "fa-broom",
+            "color": "#d97706"
+          },
+          {
+            "name": "倒木植被清除",
+            "icon": "fa-tree",
+            "color": "#16a34a"
+          },
+          {
+            "name": "魚道清淤整理",
+            "icon": "fa-fish",
+            "color": "#0369a1"
+          },
+          {
+            "name": "溪床土石清運",
+            "icon": "fa-truck",
+            "color": "#7c3aed"
+          }
         ],
         "key_notes": [
-          { "date": "2022-07-25", "text": "進場開始溪流環境改善作業" },
-          { "date": "2022-08-05", "text": "魚道清淤整理作業完成" },
-          { "date": "2022-08-11", "text": "完成竣工驗收" }
+          {
+            "date": "2022-07-25",
+            "text": "進場開始溪流環境改善作業"
+          },
+          {
+            "date": "2022-08-05",
+            "text": "魚道清淤整理作業完成"
+          },
+          {
+            "date": "2022-08-11",
+            "text": "完成竣工驗收"
+          }
         ]
       }
     },
     {
-      "year_roc": 112, "year_ad": 2023, "batch": 1,
+      "year_roc": 112,
+      "year_ad": 2023,
+      "batch": 1,
       "project_name": "112年東勢處轄內搶修工程-橫流溪溪床環境改善工程",
       "contract_amount": 498006,
-      "date_start": "2023-05-22", "date_end": "2023-06-28", "total_reports": 38,
+      "date_start": "2023-05-22",
+      "date_end": "2023-06-28",
+      "total_reports": 38,
       "work_items": [
-        { "name": "溪床土石清運", "unit": "車", "contract_qty": 200.0, "final_qty": 85.0, "completion_pct": 42.5 },
-        { "name": "工區環境整理", "unit": "式", "contract_qty": 15.0, "final_qty": 6.0, "completion_pct": 40.0 },
-        { "name": "魚道清淤整理", "unit": "式", "contract_qty": 25.0, "final_qty": 8.0, "completion_pct": 32.0 },
-        { "name": "倒木植被清除", "unit": "式", "contract_qty": 12.0, "final_qty": 4.0, "completion_pct": 33.3 }
+        {
+          "name": "溪床土石清運",
+          "unit": "車",
+          "contract_qty": 200.0,
+          "final_qty": 85.0,
+          "completion_pct": 42.5
+        },
+        {
+          "name": "工區環境整理",
+          "unit": "式",
+          "contract_qty": 15.0,
+          "final_qty": 6.0,
+          "completion_pct": 40.0
+        },
+        {
+          "name": "魚道清淤整理",
+          "unit": "式",
+          "contract_qty": 25.0,
+          "final_qty": 8.0,
+          "completion_pct": 32.0
+        },
+        {
+          "name": "倒木植被清除",
+          "unit": "式",
+          "contract_qty": 12.0,
+          "final_qty": 4.0,
+          "completion_pct": 33.3
+        }
       ],
       "work_categories": [
-        { "name": "溪床土石清運", "icon": "fa-truck", "color": "#7c3aed", "detail": "大量溪床崩積土石清運疏通" },
-        { "name": "工區環境整理", "icon": "fa-broom", "color": "#d97706", "detail": "整理施工工區環境" },
-        { "name": "魚道清淤整理", "icon": "fa-fish", "color": "#0369a1", "detail": "疏通各魚道入口土砂" },
-        { "name": "倒木植被清除", "icon": "fa-tree", "color": "#16a34a", "detail": "清除颱風後倒木" }
+        {
+          "name": "溪床土石清運",
+          "icon": "fa-truck",
+          "color": "#7c3aed",
+          "detail": "大量溪床崩積土石清運疏通"
+        },
+        {
+          "name": "工區環境整理",
+          "icon": "fa-broom",
+          "color": "#d97706",
+          "detail": "整理施工工區環境"
+        },
+        {
+          "name": "魚道清淤整理",
+          "icon": "fa-fish",
+          "color": "#0369a1",
+          "detail": "疏通各魚道入口土砂"
+        },
+        {
+          "name": "倒木植被清除",
+          "icon": "fa-tree",
+          "color": "#16a34a",
+          "detail": "清除颱風後倒木"
+        }
       ],
       "notes_analysis": {
-        "work_days": 30, "stop_days": 8,
+        "work_days": 30,
+        "stop_days": 8,
         "work_themes": [
-          { "name": "溪床土石清運", "icon": "fa-truck", "color": "#7c3aed" },
-          { "name": "工區環境整理", "icon": "fa-broom", "color": "#d97706" },
-          { "name": "魚道清淤整理", "icon": "fa-fish", "color": "#0369a1" },
-          { "name": "倒木植被清除", "icon": "fa-tree", "color": "#16a34a" }
+          {
+            "name": "溪床土石清運",
+            "icon": "fa-truck",
+            "color": "#7c3aed"
+          },
+          {
+            "name": "工區環境整理",
+            "icon": "fa-broom",
+            "color": "#d97706"
+          },
+          {
+            "name": "魚道清淤整理",
+            "icon": "fa-fish",
+            "color": "#0369a1"
+          },
+          {
+            "name": "倒木植被清除",
+            "icon": "fa-tree",
+            "color": "#16a34a"
+          }
         ],
         "key_notes": [
-          { "date": "2023-05-22", "text": "進場開始溪床清理作業" },
-          { "date": "2023-06-10", "text": "魚道清淤整理完成，溪床土石清運持續進行" },
-          { "date": "2023-06-28", "text": "完成竣工驗收" }
+          {
+            "date": "2023-05-22",
+            "text": "進場開始溪床清理作業"
+          },
+          {
+            "date": "2023-06-10",
+            "text": "魚道清淤整理完成，溪床土石清運持續進行"
+          },
+          {
+            "date": "2023-06-28",
+            "text": "完成竣工驗收"
+          }
         ]
       }
     },
     {
-      "year_roc": 113, "year_ad": 2024, "batch": 1,
+      "year_roc": 113,
+      "year_ad": 2024,
+      "batch": 1,
       "project_name": "113年林業保育署臺中分署轄內搶修工程-橫流溪崩塌土石清理工作",
       "contract_amount": 401452,
-      "date_start": "2024-07-30", "date_end": "2024-08-30", "total_reports": 32,
+      "date_start": "2024-07-30",
+      "date_end": "2024-08-30",
+      "total_reports": 32,
       "work_items": [
-        { "name": "溪床土石清運", "unit": "車", "contract_qty": 150.0, "final_qty": 60.0, "completion_pct": 40.0 },
-        { "name": "林道路面維護", "unit": "m", "contract_qty": 400.0, "final_qty": 120.0, "completion_pct": 30.0 },
-        { "name": "工區環境整理", "unit": "式", "contract_qty": 10.0, "final_qty": 3.0, "completion_pct": 30.0 },
-        { "name": "倒木植被清除", "unit": "式", "contract_qty": 8.0, "final_qty": 2.0, "completion_pct": 25.0 }
+        {
+          "name": "溪床土石清運",
+          "unit": "車",
+          "contract_qty": 150.0,
+          "final_qty": 60.0,
+          "completion_pct": 40.0
+        },
+        {
+          "name": "林道路面維護",
+          "unit": "m",
+          "contract_qty": 400.0,
+          "final_qty": 120.0,
+          "completion_pct": 30.0
+        },
+        {
+          "name": "工區環境整理",
+          "unit": "式",
+          "contract_qty": 10.0,
+          "final_qty": 3.0,
+          "completion_pct": 30.0
+        },
+        {
+          "name": "倒木植被清除",
+          "unit": "式",
+          "contract_qty": 8.0,
+          "final_qty": 2.0,
+          "completion_pct": 25.0
+        }
       ],
       "work_categories": [
-        { "name": "溪床土石清運", "icon": "fa-truck", "color": "#7c3aed", "detail": "崩塌地土石清理運棄" },
-        { "name": "林道路面維護", "icon": "fa-road", "color": "#9a3412", "detail": "修復颱風受損林道" },
-        { "name": "工區環境整理", "icon": "fa-broom", "color": "#d97706", "detail": "整理工區環境" },
-        { "name": "倒木植被清除", "icon": "fa-tree", "color": "#16a34a", "detail": "清除崩塌倒木" }
+        {
+          "name": "溪床土石清運",
+          "icon": "fa-truck",
+          "color": "#7c3aed",
+          "detail": "崩塌地土石清理運棄"
+        },
+        {
+          "name": "林道路面維護",
+          "icon": "fa-road",
+          "color": "#9a3412",
+          "detail": "修復颱風受損林道"
+        },
+        {
+          "name": "工區環境整理",
+          "icon": "fa-broom",
+          "color": "#d97706",
+          "detail": "整理工區環境"
+        },
+        {
+          "name": "倒木植被清除",
+          "icon": "fa-tree",
+          "color": "#16a34a",
+          "detail": "清除崩塌倒木"
+        }
       ],
       "notes_analysis": {
-        "work_days": 25, "stop_days": 7,
+        "work_days": 25,
+        "stop_days": 7,
         "work_themes": [
-          { "name": "溪床土石清運", "icon": "fa-truck", "color": "#7c3aed" },
-          { "name": "林道路面維護", "icon": "fa-road", "color": "#9a3412" },
-          { "name": "工區環境整理", "icon": "fa-broom", "color": "#d97706" },
-          { "name": "倒木植被清除", "icon": "fa-tree", "color": "#16a34a" }
+          {
+            "name": "溪床土石清運",
+            "icon": "fa-truck",
+            "color": "#7c3aed"
+          },
+          {
+            "name": "林道路面維護",
+            "icon": "fa-road",
+            "color": "#9a3412"
+          },
+          {
+            "name": "工區環境整理",
+            "icon": "fa-broom",
+            "color": "#d97706"
+          },
+          {
+            "name": "倒木植被清除",
+            "icon": "fa-tree",
+            "color": "#16a34a"
+          }
         ],
         "key_notes": [
-          { "date": "2024-07-30", "text": "進場清理崩塌地土石" },
-          { "date": "2024-08-15", "text": "林道路面修復作業完成" },
-          { "date": "2024-08-30", "text": "完成竣工驗收" }
+          {
+            "date": "2024-07-30",
+            "text": "進場清理崩塌地土石"
+          },
+          {
+            "date": "2024-08-15",
+            "text": "林道路面修復作業完成"
+          },
+          {
+            "date": "2024-08-30",
+            "text": "完成竣工驗收"
+          }
         ]
       }
     },
     {
-      "year_roc": 114, "year_ad": 2025, "batch": 1,
+      "year_roc": 114,
+      "year_ad": 2025,
+      "batch": 1,
       "project_name": "114年林業保育署臺中分署轄內搶修工程-橫流溪工寮四周環境整理工作",
       "contract_amount": 581105,
-      "date_start": "2025-08-04", "date_end": "2025-10-13", "total_reports": 70,
+      "date_start": "2025-08-04",
+      "date_end": "2025-10-13",
+      "total_reports": 70,
       "work_items": [
-        { "name": "工區環境整理", "unit": "式", "contract_qty": 20.0, "final_qty": 10.0, "completion_pct": 50.0 },
-        { "name": "護岸構造物修復", "unit": "m²", "contract_qty": 80.0, "final_qty": 30.0, "completion_pct": 37.5 },
-        { "name": "林道路面維護", "unit": "m", "contract_qty": 600.0, "final_qty": 200.0, "completion_pct": 33.3 },
-        { "name": "倒木植被清除", "unit": "式", "contract_qty": 15.0, "final_qty": 5.0, "completion_pct": 33.3 }
+        {
+          "name": "工區環境整理",
+          "unit": "式",
+          "contract_qty": 20.0,
+          "final_qty": 10.0,
+          "completion_pct": 50.0
+        },
+        {
+          "name": "護岸構造物修復",
+          "unit": "m²",
+          "contract_qty": 80.0,
+          "final_qty": 30.0,
+          "completion_pct": 37.5
+        },
+        {
+          "name": "林道路面維護",
+          "unit": "m",
+          "contract_qty": 600.0,
+          "final_qty": 200.0,
+          "completion_pct": 33.3
+        },
+        {
+          "name": "倒木植被清除",
+          "unit": "式",
+          "contract_qty": 15.0,
+          "final_qty": 5.0,
+          "completion_pct": 33.3
+        }
       ],
       "work_categories": [
-        { "name": "工區環境整理", "icon": "fa-broom", "color": "#d97706", "detail": "工寮四周環境全面整理" },
-        { "name": "護岸構造物修復", "icon": "fa-hammer", "color": "#dc2626", "detail": "修復護岸損毀構造物" },
-        { "name": "林道路面維護", "icon": "fa-road", "color": "#9a3412", "detail": "修補林道路面" },
-        { "name": "倒木植被清除", "icon": "fa-tree", "color": "#16a34a", "detail": "清除工區倒木植被" }
+        {
+          "name": "工區環境整理",
+          "icon": "fa-broom",
+          "color": "#d97706",
+          "detail": "工寮四周環境全面整理"
+        },
+        {
+          "name": "護岸構造物修復",
+          "icon": "fa-hammer",
+          "color": "#dc2626",
+          "detail": "修復護岸損毀構造物"
+        },
+        {
+          "name": "林道路面維護",
+          "icon": "fa-road",
+          "color": "#9a3412",
+          "detail": "修補林道路面"
+        },
+        {
+          "name": "倒木植被清除",
+          "icon": "fa-tree",
+          "color": "#16a34a",
+          "detail": "清除工區倒木植被"
+        }
       ],
       "notes_analysis": {
-        "work_days": 50, "stop_days": 20,
+        "work_days": 50,
+        "stop_days": 20,
         "work_themes": [
-          { "name": "工區環境整理", "icon": "fa-broom", "color": "#d97706" },
-          { "name": "護岸構造物修復", "icon": "fa-hammer", "color": "#dc2626" },
-          { "name": "林道路面維護", "icon": "fa-road", "color": "#9a3412" },
-          { "name": "倒木植被清除", "icon": "fa-tree", "color": "#16a34a" }
+          {
+            "name": "工區環境整理",
+            "icon": "fa-broom",
+            "color": "#d97706"
+          },
+          {
+            "name": "護岸構造物修復",
+            "icon": "fa-hammer",
+            "color": "#dc2626"
+          },
+          {
+            "name": "林道路面維護",
+            "icon": "fa-road",
+            "color": "#9a3412"
+          },
+          {
+            "name": "倒木植被清除",
+            "icon": "fa-tree",
+            "color": "#16a34a"
+          }
         ],
         "key_notes": [
-          { "date": "2025-08-04", "text": "進場開始工寮四周環境整理" },
-          { "date": "2025-09-10", "text": "護岸構造物修復作業完成" },
-          { "date": "2025-10-13", "text": "完成竣工驗收" }
+          {
+            "date": "2025-08-04",
+            "text": "進場開始工寮四周環境整理"
+          },
+          {
+            "date": "2025-09-10",
+            "text": "護岸構造物修復作業完成"
+          },
+          {
+            "date": "2025-10-13",
+            "text": "完成竣工驗收"
+          }
         ]
       }
     },
     {
-      "year_roc": 115, "year_ad": 2026, "batch": 1,
+      "year_roc": 115,
+      "year_ad": 2026,
+      "batch": 1,
       "project_name": "115年林業保育署臺中分署轄內搶修工程-橫流溪魚道及周邊環境整理工作",
       "contract_amount": 879040,
-      "date_start": "2026-01-19", "date_end": "2026-03-03", "total_reports": 20,
+      "date_start": "2026-01-19",
+      "date_end": "2026-03-03",
+      "total_reports": 20,
       "work_items": [
-        { "name": "魚道清淤整理", "unit": "式", "contract_qty": 30.0, "final_qty": 9.0, "completion_pct": 30.0 },
-        { "name": "工區環境整理", "unit": "式", "contract_qty": 12.0, "final_qty": 4.0, "completion_pct": 33.3 },
-        { "name": "倒木植被清除", "unit": "式", "contract_qty": 10.0, "final_qty": 3.0, "completion_pct": 30.0 },
-        { "name": "溪床土石清運", "unit": "車", "contract_qty": 120.0, "final_qty": 35.0, "completion_pct": 29.2 }
+        {
+          "name": "魚道清淤整理",
+          "unit": "式",
+          "contract_qty": 30.0,
+          "final_qty": 9.0,
+          "completion_pct": 30.0
+        },
+        {
+          "name": "工區環境整理",
+          "unit": "式",
+          "contract_qty": 12.0,
+          "final_qty": 4.0,
+          "completion_pct": 33.3
+        },
+        {
+          "name": "倒木植被清除",
+          "unit": "式",
+          "contract_qty": 10.0,
+          "final_qty": 3.0,
+          "completion_pct": 30.0
+        },
+        {
+          "name": "溪床土石清運",
+          "unit": "車",
+          "contract_qty": 120.0,
+          "final_qty": 35.0,
+          "completion_pct": 29.2
+        }
       ],
       "work_categories": [
-        { "name": "魚道清淤整理", "icon": "fa-fish", "color": "#0369a1", "detail": "橫流溪各魚道清淤及入口疏通" },
-        { "name": "工區環境整理", "icon": "fa-broom", "color": "#d97706", "detail": "魚道周邊環境整理" },
-        { "name": "倒木植被清除", "icon": "fa-tree", "color": "#16a34a", "detail": "清除影響魚道通行之倒木" },
-        { "name": "溪床土石清運", "icon": "fa-truck", "color": "#7c3aed", "detail": "清運阻塞魚道入口之土石" }
+        {
+          "name": "魚道清淤整理",
+          "icon": "fa-fish",
+          "color": "#0369a1",
+          "detail": "橫流溪各魚道清淤及入口疏通"
+        },
+        {
+          "name": "工區環境整理",
+          "icon": "fa-broom",
+          "color": "#d97706",
+          "detail": "魚道周邊環境整理"
+        },
+        {
+          "name": "倒木植被清除",
+          "icon": "fa-tree",
+          "color": "#16a34a",
+          "detail": "清除影響魚道通行之倒木"
+        },
+        {
+          "name": "溪床土石清運",
+          "icon": "fa-truck",
+          "color": "#7c3aed",
+          "detail": "清運阻塞魚道入口之土石"
+        }
       ],
       "notes_analysis": {
-        "work_days": 15, "stop_days": 5,
+        "work_days": 15,
+        "stop_days": 5,
         "work_themes": [
-          { "name": "魚道清淤整理", "icon": "fa-fish", "color": "#0369a1" },
-          { "name": "工區環境整理", "icon": "fa-broom", "color": "#d97706" },
-          { "name": "倒木植被清除", "icon": "fa-tree", "color": "#16a34a" },
-          { "name": "溪床土石清運", "icon": "fa-truck", "color": "#7c3aed" }
+          {
+            "name": "魚道清淤整理",
+            "icon": "fa-fish",
+            "color": "#0369a1"
+          },
+          {
+            "name": "工區環境整理",
+            "icon": "fa-broom",
+            "color": "#d97706"
+          },
+          {
+            "name": "倒木植被清除",
+            "icon": "fa-tree",
+            "color": "#16a34a"
+          },
+          {
+            "name": "溪床土石清運",
+            "icon": "fa-truck",
+            "color": "#7c3aed"
+          }
         ],
         "key_notes": [
-          { "date": "2026-01-19", "text": "進場開始魚道清淤整理作業" },
-          { "date": "2026-02-15", "text": "溪床土石清運持續進行" },
-          { "date": "2026-03-03", "text": "完成竣工驗收" }
+          {
+            "date": "2026-01-19",
+            "text": "進場開始魚道清淤整理作業"
+          },
+          {
+            "date": "2026-02-15",
+            "text": "溪床土石清運持續進行"
+          },
+          {
+            "date": "2026-03-03",
+            "text": "完成竣工驗收"
+          }
         ]
       }
     },
     {
-      "year_roc": 115, "year_ad": 2026, "batch": 2,
+      "year_roc": 115,
+      "year_ad": 2026,
+      "batch": 2,
       "project_name": "115年林業保育署臺中分署轄內搶修工程-橫流溪魚道及周邊環境整理工作",
       "contract_amount": 186151,
-      "date_start": "2026-03-01", "date_end": "2026-04-30", "total_reports": 16,
+      "date_start": "2026-03-01",
+      "date_end": "2026-04-30",
+      "total_reports": 16,
       "work_items": [
-        { "name": "魚道清淤整理", "unit": "式", "contract_qty": 15.0, "final_qty": 4.0, "completion_pct": 26.7 },
-        { "name": "工區環境整理", "unit": "式", "contract_qty": 8.0, "final_qty": 2.0, "completion_pct": 25.0 },
-        { "name": "倒木植被清除", "unit": "式", "contract_qty": 6.0, "final_qty": 2.0, "completion_pct": 33.3 },
-        { "name": "溪床土石清運", "unit": "車", "contract_qty": 60.0, "final_qty": 15.0, "completion_pct": 25.0 }
+        {
+          "name": "魚道清淤整理",
+          "unit": "式",
+          "contract_qty": 15.0,
+          "final_qty": 4.0,
+          "completion_pct": 26.7
+        },
+        {
+          "name": "工區環境整理",
+          "unit": "式",
+          "contract_qty": 8.0,
+          "final_qty": 2.0,
+          "completion_pct": 25.0
+        },
+        {
+          "name": "倒木植被清除",
+          "unit": "式",
+          "contract_qty": 6.0,
+          "final_qty": 2.0,
+          "completion_pct": 33.3
+        },
+        {
+          "name": "溪床土石清運",
+          "unit": "車",
+          "contract_qty": 60.0,
+          "final_qty": 15.0,
+          "completion_pct": 25.0
+        }
       ],
       "work_categories": [
-        { "name": "魚道清淤整理", "icon": "fa-fish", "color": "#0369a1", "detail": "持續進行魚道清淤維護" },
-        { "name": "工區環境整理", "icon": "fa-broom", "color": "#d97706", "detail": "魚道周邊後續環境整理" },
-        { "name": "倒木植被清除", "icon": "fa-tree", "color": "#16a34a", "detail": "清除殘餘倒木" },
-        { "name": "溪床土石清運", "icon": "fa-truck", "color": "#7c3aed", "detail": "後續土石清運作業" }
+        {
+          "name": "魚道清淤整理",
+          "icon": "fa-fish",
+          "color": "#0369a1",
+          "detail": "持續進行魚道清淤維護"
+        },
+        {
+          "name": "工區環境整理",
+          "icon": "fa-broom",
+          "color": "#d97706",
+          "detail": "魚道周邊後續環境整理"
+        },
+        {
+          "name": "倒木植被清除",
+          "icon": "fa-tree",
+          "color": "#16a34a",
+          "detail": "清除殘餘倒木"
+        },
+        {
+          "name": "溪床土石清運",
+          "icon": "fa-truck",
+          "color": "#7c3aed",
+          "detail": "後續土石清運作業"
+        }
       ],
       "notes_analysis": {
-        "work_days": 12, "stop_days": 4,
+        "work_days": 12,
+        "stop_days": 4,
         "work_themes": [
-          { "name": "魚道清淤整理", "icon": "fa-fish", "color": "#0369a1" },
-          { "name": "工區環境整理", "icon": "fa-broom", "color": "#d97706" },
-          { "name": "倒木植被清除", "icon": "fa-tree", "color": "#16a34a" },
-          { "name": "溪床土石清運", "icon": "fa-truck", "color": "#7c3aed" }
+          {
+            "name": "魚道清淤整理",
+            "icon": "fa-fish",
+            "color": "#0369a1"
+          },
+          {
+            "name": "工區環境整理",
+            "icon": "fa-broom",
+            "color": "#d97706"
+          },
+          {
+            "name": "倒木植被清除",
+            "icon": "fa-tree",
+            "color": "#16a34a"
+          },
+          {
+            "name": "溪床土石清運",
+            "icon": "fa-truck",
+            "color": "#7c3aed"
+          }
         ],
         "key_notes": [
-          { "date": "2026-03-01", "text": "第二批次進場持續魚道環境整理" },
-          { "date": "2026-04-30", "text": "完成竣工驗收" }
+          {
+            "date": "2026-03-01",
+            "text": "第二批次進場持續魚道環境整理"
+          },
+          {
+            "date": "2026-04-30",
+            "text": "完成竣工驗收"
+          }
         ]
       }
+    },
+    {
+      "year_roc": 115,
+      "year_ad": 2026,
+      "batch": 3,
+      "project_name": "115年林業保育署臺中分署轄內搶修工程-橫流溪道路周邊環境整理工作",
+      "contract_no": "11502SA003",
+      "contract_amount": 14995434,
+      "date_start": "2026-07-07",
+      "date_end": "2026-08-27",
+      "total_reports": 52,
+      "work_items": [
+        {
+          "name": "緊急處理費",
+          "unit": "次",
+          "contract_qty": 10.0,
+          "final_qty": 2.0,
+          "completion_pct": 20.0
+        },
+        {
+          "name": "結構用混凝土 210kgf/cm2",
+          "unit": "m3",
+          "contract_qty": 200.0,
+          "final_qty": 1.0,
+          "completion_pct": 0.5
+        },
+        {
+          "name": "標誌牌（鋁製，鑽石級反光紙）",
+          "unit": "個",
+          "contract_qty": 3.0,
+          "final_qty": 0.0,
+          "completion_pct": 0.0
+        },
+        {
+          "name": "鍍鋅鋼管 D76mm（含基礎）",
+          "unit": "支",
+          "contract_qty": 5.0,
+          "final_qty": 0.0,
+          "completion_pct": 0.0
+        },
+        {
+          "name": "45型履帶式挖土機",
+          "unit": "日",
+          "contract_qty": 105.0,
+          "final_qty": 21.0,
+          "completion_pct": 20.0
+        },
+        {
+          "name": "120型履帶式挖土機",
+          "unit": "日",
+          "contract_qty": 350.0,
+          "final_qty": 11.0,
+          "completion_pct": 3.1
+        },
+        {
+          "name": "3.5t卡車",
+          "unit": "日",
+          "contract_qty": 30.0,
+          "final_qty": 36.0,
+          "completion_pct": 120.0
+        },
+        {
+          "name": "10t傾卸貨車",
+          "unit": "日",
+          "contract_qty": 20.0,
+          "final_qty": 15.0,
+          "completion_pct": 75.0
+        },
+        {
+          "name": "21t傾卸貨車",
+          "unit": "日",
+          "contract_qty": 10.0,
+          "final_qty": 2.0,
+          "completion_pct": 20.0
+        },
+        {
+          "name": "21t拖板車",
+          "unit": "日",
+          "contract_qty": 50.0,
+          "final_qty": 1.0,
+          "completion_pct": 2.0
+        },
+        {
+          "name": "小型鏟土機",
+          "unit": "日",
+          "contract_qty": 10.0,
+          "final_qty": 2.0,
+          "completion_pct": 20.0
+        },
+        {
+          "name": "13~16T吊車",
+          "unit": "日",
+          "contract_qty": 40.0,
+          "final_qty": 1.0,
+          "completion_pct": 2.5
+        },
+        {
+          "name": "機具調度費",
+          "unit": "趟",
+          "contract_qty": 150.0,
+          "final_qty": 22.0,
+          "completion_pct": 14.7
+        },
+        {
+          "name": "刨木機（碎木15～30公分）",
+          "unit": "日",
+          "contract_qty": 5.0,
+          "final_qty": 3.0,
+          "completion_pct": 60.0
+        },
+        {
+          "name": "一般技工",
+          "unit": "工",
+          "contract_qty": 500.0,
+          "final_qty": 124.0,
+          "completion_pct": 24.8
+        }
+      ],
+      "work_categories": [
+        {
+          "name": "林道路面維護",
+          "icon": "fa-road",
+          "color": "#9a3412",
+          "detail": "道路周邊環境整理、木屑步道鋪設與路面維護"
+        },
+        {
+          "name": "工區環境整理",
+          "icon": "fa-broom",
+          "color": "#d97706",
+          "detail": "工寮、平台與工區周邊環境整理，含標示牌設置"
+        },
+        {
+          "name": "倒木植被清除",
+          "icon": "fa-tree",
+          "color": "#16a34a",
+          "detail": "枯木清除、砍草與植被整理，含刨木作業"
+        },
+        {
+          "name": "溪床土石清運",
+          "icon": "fa-truck",
+          "color": "#7c3aed",
+          "detail": "卵石採取、土石載運便道施作與機具調度"
+        }
+      ],
+      "source": "01_工程設施維護與資料/115年設施維護 監工日報表（第001～052份）",
+      "note": "契約金額為本搶修工程開口契約總額，非僅橫流溪單一工項；完成數量取自第052份日報之累計值，工程尚在執行中。3.5t卡車累計36日已超出契約30日（120%），係日報表原始記載，未做調整。"
     }
   ],
   "item_summary": [
-    { "name": "魚道清淤整理", "unit": "式", "projects": 4, "total_contract_qty": 90, "total_final_qty": 26 },
-    { "name": "溪床土石清運", "unit": "車", "projects": 6, "total_contract_qty": 710, "total_final_qty": 227 },
-    { "name": "倒木植被清除", "unit": "式", "projects": 7, "total_contract_qty": 71, "total_final_qty": 22 },
-    { "name": "工區環境整理", "unit": "式", "projects": 6, "total_contract_qty": 68, "total_final_qty": 24 },
-    { "name": "林道路面維護", "unit": "m", "projects": 4, "total_contract_qty": 1700, "total_final_qty": 430 },
-    { "name": "護岸構造物修復", "unit": "m²", "projects": 2, "total_contract_qty": 130, "total_final_qty": 38 }
+    {
+      "name": "魚道清淤整理",
+      "unit": "式",
+      "projects": 4,
+      "total_contract_qty": 90,
+      "total_final_qty": 26
+    },
+    {
+      "name": "溪床土石清運",
+      "unit": "車",
+      "projects": 6,
+      "total_contract_qty": 710,
+      "total_final_qty": 227
+    },
+    {
+      "name": "倒木植被清除",
+      "unit": "式",
+      "projects": 7,
+      "total_contract_qty": 71,
+      "total_final_qty": 22
+    },
+    {
+      "name": "工區環境整理",
+      "unit": "式",
+      "projects": 6,
+      "total_contract_qty": 68,
+      "total_final_qty": 24
+    },
+    {
+      "name": "林道路面維護",
+      "unit": "m",
+      "projects": 4,
+      "total_contract_qty": 1700,
+      "total_final_qty": 430
+    },
+    {
+      "name": "護岸構造物修復",
+      "unit": "m²",
+      "projects": 2,
+      "total_contract_qty": 130,
+      "total_final_qty": 38
+    }
   ]
 }
