@@ -87,15 +87,20 @@ const MONITORING_REPORT = {
   // ── 植物調查──
   plants: { families: 38, species: 91, naturalized: 30, native: 61, endemic: 4 },
   // ── 9種魚道設計（供魚道詳情表）──
+  //  里程更正（2026-08）：原 FW1～FW8 被指派為遞增里程，但實際設施編號
+  //  由下游往上游遞減，整串里程方向相反（例：FW7 降壩原標 1K+170，
+  //  實為 0K+560）。已依 db.js 與 fishwayAIDetection 更正，三者現已一致。
+  //  註：FW3 於本表名為「粗石斜曲面式魚道」，db.js 溪構3 則名為
+  //  「斜坡式魚道」，名稱差異尚待與原始報告核對。
   fishwayTypes: [
-    { id: 'FW1', name: '粗石斜曲面式魚道 (1-1)', km: '0K+460', type: '粗石斜曲面', aiMax: 22, electricCatch: 5,  mainSpecies: ['纓口臺鰍', '明潭吻鰕虎'] },
-    { id: 'FW2', name: '改良型舟通式魚道 (1-2)', km: '0K+480', type: '改良舟通式', aiMax: 16, electricCatch: 8,  mainSpecies: ['臺灣白甲魚', '纓口臺鰍'] },
-    { id: 'FW3', name: '粗石斜曲面式魚道',       km: '0K+560', type: '粗石斜曲面', aiMax: 66, electricCatch: 6,  mainSpecies: ['臺灣鬚鱲', '臺灣石魚賓'] },
-    { id: 'FW4', name: '階段式魚道',             km: '0K+740', type: '階段式',    aiMax: 68, electricCatch: 11, mainSpecies: ['纓口臺鰍', '明潭吻鰕虎'] },
-    { id: 'FW5', name: '潛越式魚道 (階段)',       km: '0K+900', type: '潛越式',    aiMax: 14, electricCatch: 17, mainSpecies: ['臺灣白甲魚', '臺灣石魚賓', '臺灣間爬岩鰍'] },
-    { id: 'FW6', name: '階段式魚道 (半斷面)',     km: '1K+000', type: '階段式',    aiMax: 31, electricCatch: 4,  mainSpecies: ['鰕虎科', '纓口臺鰍'] },
-    { id: 'FW7', name: '降壩 (上游階段) 魚道',   km: '1K+170', type: '降壩階段式', aiMax: 11, electricCatch: 7,  mainSpecies: ['臺灣間爬岩鰍', '臺灣白甲魚'] },
-    { id: 'FW8', name: '梯狀 (階段) 魚道',       km: '1K+315', type: '梯狀階段', aiMax: 19, electricCatch: 5,  mainSpecies: ['纓口臺鰍', '明潭吻鰕虎'] },
+    { id: 'FW1', name: '粗石斜曲面式魚道 (1-1)', km: '1K+400', type: '粗石斜曲面', aiMax: 22, electricCatch: 5,  mainSpecies: ['纓口臺鰍', '明潭吻鰕虎'] },
+    { id: 'FW2', name: '改良型舟通式魚道 (1-2)', km: '1K+400', type: '改良舟通式', aiMax: 16, electricCatch: 8,  mainSpecies: ['臺灣白甲魚', '纓口臺鰍'] },
+    { id: 'FW3', name: '粗石斜曲面式魚道',       km: '1K+225', type: '粗石斜曲面', aiMax: 66, electricCatch: 6,  mainSpecies: ['臺灣鬚鱲', '臺灣石魚賓'] },
+    { id: 'FW4', name: '階段式魚道',             km: '1K+170', type: '階段式',    aiMax: 68, electricCatch: 11, mainSpecies: ['纓口臺鰍', '明潭吻鰕虎'] },
+    { id: 'FW5', name: '潛越式魚道 (階段)',       km: '1K+000', type: '潛越式',    aiMax: 14, electricCatch: 17, mainSpecies: ['臺灣白甲魚', '臺灣石魚賓', '臺灣間爬岩鰍'] },
+    { id: 'FW6', name: '階段式魚道 (半斷面)',     km: '0K+740', type: '階段式',    aiMax: 31, electricCatch: 4,  mainSpecies: ['鰕虎科', '纓口臺鰍'] },
+    { id: 'FW7', name: '降壩 (上游階段) 魚道',   km: '0K+560', type: '降壩階段式', aiMax: 11, electricCatch: 7,  mainSpecies: ['臺灣間爬岩鰍', '臺灣白甲魚'] },
+    { id: 'FW8', name: '梯狀 (階段) 魚道',       km: '0K+460', type: '梯狀階段', aiMax: 19, electricCatch: 5,  mainSpecies: ['纓口臺鰍', '明潭吻鰕虎'] },
     { id: 'FW9', name: '改良型舟通式 (系統評估)', km: '#1壩',   type: '水理評估', aiMax: null, electricCatch: null, mainSpecies: ['全面水理模擬對象'] }
   ],
   // 季節監測統計（AI辨識，3次施測加總推估）

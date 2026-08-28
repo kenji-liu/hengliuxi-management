@@ -1353,9 +1353,9 @@ function renderFishSpecies() {
                   <div style="font-size:10.5px;color:#64748b;font-weight:700;margin-bottom:3px">
                     保育／受威脅狀態（全臺族群尺度）</div>
                   <div style="font-size:12.5px;color:#0f172a;font-weight:800">
-                    ${s.conservation}${s.redlistCode ? `（${s.redlistCode}）` : ''}
+                    ${s.redlistCode === 'NNT' ? '接近受脅' : s.conservation}${s.redlistCode ? `（${s.redlistCode}）` : ''}
                     <span style="font-size:10.5px;color:#64748b;font-weight:400">
-                      ‧ 依 2024 臺灣淡水魚類紅皮書名錄「國家類別」</span>
+                      ‧ 依 2024 臺灣淡水魚類紅皮書名錄「國家類別」${s.redlistCode === 'NNT' ? '；即 IUCN 中譯之「近危」' : ''}</span>
                   </div>
                 </div>
                 ${(() => { const pr = fish_hlxPresence(s.species); return pr ? `
@@ -5394,13 +5394,13 @@ function renderFishTrend() {
                   </tr>
                   <tr>
                     <td style="padding:10px 12px;border-bottom:1px solid #edf2f7;font-weight:800;color:#0f172a">
-                      魚道「通行」彙整<br><span style="font-weight:400;font-size:12.5px;color:#94a3b8">平台逐魚道統計</span></td>
+                      9 種魚道設計參數整理<br><span style="font-weight:400;font-size:12.5px;color:#94a3b8">逢甲大學營建及防災研究中心</span></td>
                     <td style="padding:10px 12px;border-bottom:1px solid #edf2f7;color:#475569;font-size:13.5px">
-                      同期通行觀察彙整<br>合計 74 尾、5 種</td>
+                      電捕法全面調查，合計 74 尾<br>源自橫流溪動物通道智慧評估完整成果報告</td>
                     <td style="padding:10px 12px;border-bottom:1px solid #edf2f7;text-align:right;
                         font-variant-numeric:tabular-nums;font-weight:900;font-size:17px;color:#0f172a">17 尾</td>
                     <td style="padding:10px 12px;border-bottom:1px solid #edf2f7;color:#475569;font-size:13.5px">
-                      9 座中最多（明潭吻鰕虎 13 尾為主）</td>
+                      9 座中最多（原始表標記 ⭐；明潭吻鰕虎 13 尾為主）</td>
                   </tr>
                   <tr>
                     <td style="padding:10px 12px;border-bottom:1px solid #edf2f7;font-weight:800;color:#0f172a">
