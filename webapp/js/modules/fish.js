@@ -5209,50 +5209,7 @@ function renderFishTrend() {
         </div>
       </div>
 
-      <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(420px,.85fr);gap:20px;margin-bottom:28px;align-items:start">
-        <div style="border:2px solid #e2e8f0;border-radius:18px;padding:20px">
-          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:12px">
-            <div>
-              <div style="font-size:18px;font-weight:900;color:#0f172a;margin-bottom:8px">各魚道型式關聯魚種：相對建置前基線的變化<span style="font-size:13px;font-weight:700;color:#0e7490">（建置前＝1.0 倍・以尾／次計算）</span></div>
-              <div style="font-size:14px;color:#64748b;line-height:1.7">
-                以<b>魚道建置前（103・104・106 年）的平均值為基線 1.0</b>，呈現各型式關聯魚種在建置後的相對變化。
-                實線為年度實測、虛線為 3 點移動平均。滑過任一點可看該年的實測尾／次與原始捕獲數。
-              </div>
-              <div style="margin-top:10px;border-left:3px solid #0d6b5b;background:#f0f7f5;border-radius:0 8px 8px 0;padding:11px 14px;font-size:13px;color:#0f172a;line-height:1.75">
-                <b>怎麼看這張圖：</b>橘色橫線是魚道建置前的水準（${_preLabel}）。
-                建置後共 ${baselineAudit.total} 個「型式 × 年度」組合，其中
-                <b style="color:#0d6b5b">${baselineAudit.above} 個高於基線</b>，中位數為基線的
-                <b style="color:#0d6b5b">${baselineAudit.medianMul.toFixed(1)} 倍</b>。
-                年際起伏來自豐枯水、季節、樣站配置與河道施工擾動，屬溪流生態的正常波動，
-                單一年度的高低不足以判定生態品質；請看虛線趨勢與是否長期跌破基線。
-                ${baselineAudit.below.length ? `
-                <div style="margin-top:8px;padding-top:8px;border-top:1px dashed #cfe3de">
-                  <b>如實揭露：</b>${baselineAudit.below.map(b => `${b.label}的${b.type}（${b.mul.toFixed(2)} 倍）`).join('、')}
-                  低於基線。${baselineAudit.below.every(b => b.hasJian) ? `
-                  這${baselineAudit.below.length === 1 ? '一' : baselineAudit.below.length === 2 ? '兩' : baselineAudit.below.length}種型式的關聯魚種都含<b>臺灣間爬岩鰍</b>，
-                  而該種在 109 年全年零檢出，致其關聯指標同步下探；
-                  <b style="color:#0d6b5b">110 年隨即回升至 32 尾</b>，之後 112 年 41 尾、114 年 13 尾持續有紀錄。
-                  不含間爬岩鰍的其餘 ${FISHWAY_TYPES.length - new Set(baselineAudit.below.map(b => b.type)).size} 種型式，
-                  建置後<b>每一年都在基線之上</b>。` : `
-                  低於基線的年度集中在 109 年，該年臺灣間爬岩鰍全年零檢出，
-                  <b style="color:#0d6b5b">110 年隨即回升至 32 尾</b>，之後 112 年 41 尾、114 年 13 尾持續有紀錄。`}
-                </div>` : ''}
-              </div>
-              <div style="margin-top:10px;border-left:3px solid #b45309;background:#fffbeb;border-radius:0 8px 8px 0;padding:10px 13px;font-size:12.5px;color:#78350f;line-height:1.7">
-                <b>判讀限制：</b>本圖以<b>全溪</b>關聯魚種捕獲量 ÷ 全年站次計算，<b>不是在該座魚道量測</b>，無法歸因到單一設施。
-                又因七種型式的關聯魚種<b>全部包含臺灣白甲魚</b>（佔全期捕獲約四成），各線與白甲魚單物種尾／次的相關係數達 0.70～0.90；
-                其中<b>之字形與斜坡式的關聯魚種設定完全相同</b>，兩線在數學上必然重疊。
-                若要呈現單一魚道的實際使用情形，請改用上方「魚道生態成效實證」的<b>九座魚道內部實測捕獲</b>。
-              </div>
-            </div>
-            <button type="button" onclick="openFishwayTrendModal('all')" style="border:1.5px solid #93c5fd;background:#eff6ff;color:#1d4ed8;border-radius:10px;padding:9px 14px;font-size:14px;font-weight:900;cursor:pointer">
-              <i class="fas fa-up-right-and-down-left-from-center"></i> 放大圖表
-            </button>
-          </div>
-          <div onclick="openFishwayTrendModal('all')" title="點選放大圖表" style="position:relative;height:400px;cursor:zoom-in">
-            <canvas id="fishwayTypeTrend"></canvas>
-          </div>
-        </div>
+      <div style="display:grid;grid-template-columns:minmax(0,1fr);gap:20px;margin-bottom:28px;align-items:start">
         <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-content:start">
           ${FISHWAY_TYPES.map(fw => {
             const cpue = fishwayTargetCPUE(fw);
