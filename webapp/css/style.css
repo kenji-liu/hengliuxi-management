@@ -6,11 +6,13 @@ html { font-size: 145%; }
    本表全部以 px 設定字級（無 rem），改 html 的 font-size 只會影響未指定
    字級的文字，反而讓左側導覽跟著跑、右側資料表卻不動。因此改用縮放係數，
    只作用在右側內容區與詳情視窗；左側導覽固定不受影響。 */
-:root { --content-scale: 1; }
-html[data-font='xs'] { --content-scale: 0.80; }
-html[data-font='sm'] { --content-scale: 0.90; }
-html[data-font='md'] { --content-scale: 1.00; }
-html[data-font='lg'] { --content-scale: 1.15; }
+:root { --content-scale: 1.1; }
+/* 區間整體上移放大：原 0.80／0.90／1.00／1.15 對桌機偏小，
+   使用者需自行放大瀏覽器才看得清楚，故四級一併往上調。 */
+html[data-font='xs'] { --content-scale: 1.00; }
+html[data-font='sm'] { --content-scale: 1.15; }
+html[data-font='md'] { --content-scale: 1.30; }
+html[data-font='lg'] { --content-scale: 1.50; }
 
 /* zoom 會連同內距與圖表一起等比放大，閱讀時整體版面比例才不會走樣 */
 .content-area,
@@ -103,19 +105,20 @@ input, select, textarea, button { font-family: inherit; }
 .nav-item--story:hover a, .nav-item--story.active a { background: rgba(74,222,128,0.18); color: #fff; border-left: 3px solid #4ade80; }
 /* ── 側邊欄字體大小控制 ── */
 .sidebar-font-ctrl {
-  padding: 10px 16px 14px;
+  padding: 14px 16px 18px;
   border-top: 1px solid rgba(255,255,255,0.08);
 }
 .sidebar-font-ctrl-label {
-  font-size: 11px; color: rgba(255,255,255,0.38);
-  letter-spacing: 0.6px; text-transform: uppercase; margin-bottom: 8px;
+  font-size: 13px; color: rgba(255,255,255,0.55);
+  letter-spacing: 0.6px; text-transform: uppercase; margin-bottom: 10px;
 }
-.sidebar-font-btns { display: flex; gap: 5px; }
+.sidebar-font-btns { display: flex; gap: 7px; }
 .sidebar-font-btns button {
   flex: 1; background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.1); border-radius: 7px;
-  color: rgba(255,255,255,0.5); cursor: pointer; font-weight: 800;
-  padding: 7px 2px; transition: background 0.15s, color 0.15s, border-color 0.15s;
+  border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;
+  color: rgba(255,255,255,0.62); cursor: pointer; font-weight: 800;
+  padding: 12px 2px; min-height: 42px;   /* 點擊區加大 */
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
   line-height: 1;
 }
 .sidebar-font-btns button:hover {
@@ -361,10 +364,10 @@ textarea { resize: vertical; min-height: 80px; }
 @media (min-width: 769px) and (max-width: 1194px) {
   html { font-size: 112%; }
   /* 平板可視區較窄，級距收斂一點，避免 lg 撐破表格 */
-  html[data-font='xs'] { --content-scale: 0.85; }
-  html[data-font='sm'] { --content-scale: 0.93; }
-  html[data-font='md'] { --content-scale: 1.00; }
-  html[data-font='lg'] { --content-scale: 1.10; }
+  html[data-font='xs'] { --content-scale: 0.95; }
+  html[data-font='sm'] { --content-scale: 1.05; }
+  html[data-font='md'] { --content-scale: 1.18; }
+  html[data-font='lg'] { --content-scale: 1.32; }
 
   :root {
     --sidebar-width: 200px;

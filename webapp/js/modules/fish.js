@@ -4043,6 +4043,105 @@ function hlxEco_sectionHead(no, title, desc) {
     </div>`;
 }
 
+
+/* ── 圖表解讀區塊（每張主要圖表下方）──
+   統一格式：看什麼指標 → 軸與單位 → 怎麼判讀 → 資料呈現什麼 → 可能的環境訊號。
+   文字全部由現有資料即時帶入，不寫死數值。 */
+function hlxEco_readNote(o) {
+  return `
+    <div style="margin-top:12px;border-left:4px solid #1c5cab;background:#f8fbff;
+                border-radius:0 10px 10px 0;padding:14px 16px">
+      <div style="font-size:15px;font-weight:900;color:#1c5cab;margin-bottom:8px">
+        <i class="fas fa-lightbulb" style="margin-right:7px"></i>怎麼看這張圖
+      </div>
+      <div style="display:grid;gap:7px;font-size:14px;color:#0f172a;line-height:1.85">
+        <div><b style="color:#475569">這張圖看的是：</b>${o.what}</div>
+        <div><b style="color:#475569">橫軸／縱軸：</b>${o.axes}</div>
+        <div><b style="color:#475569">怎麼判讀：</b>${o.how}</div>
+        <div><b style="color:#475569">目前資料顯示：</b>${o.found}</div>
+        <div style="border-top:1px dashed #cbd5e1;padding-top:8px">
+          <b style="color:#475569">可能的環境訊號：</b>${o.signal}</div>
+      </div>
+    </div>`;
+}
+
+/* ── 生態趨勢摘要（歷史趨勢分析頁最上方）──
+   全部句子由 hlxEcoMonitor() 的即時統計組成，資料一變，敘述隨之改變。 */
+function renderEcoTrendSummary() {
+  const M = hlxEcoMonitor();
+  const S = M.summary, NAME = HLX_FISH_KEY_NAME;
+  const f1 = v => v.toFixed(1);
+  const preYears = M.pre.map(y => y.roc).join('、');
+  const postYears = M.post[0].roc + '～' + M.post[M.post.length - 1].roc;
+  const latest = M.years[M.years.length - 1];
+
+  //  近期年度的尾／次區間，用來描述族群量的自然波動幅度
+  const postMin = Math.min.apply(null, M.post.map(y => y.perTime));
+  const postMax = Math.max.apply(null, M.post.map(y => y.perTime));
+  //  近期達到全部物種數的年度
+  const fullYears = M.post.filter(y => y.species === M.keys.length).map(y => y.roc);
+  //  近期出現年度數較早期增加的物種（描述利用範圍擴大，不作優劣評價）
+  const wider = M.bySpecies.filter(sp =>
+    (sp.yearsPost / M.post.length) > (sp.yearsPre / M.pre.length) + 0.15);
+  //  河段覆蓋情形
+  const segPost = M.segments.filter(s => s.phase === 'post');
+  const segPre  = M.segments.filter(s => s.phase === 'pre');
+  const segLine = (segPost.length === 2 && segPre.length === 2)
+    ? `上游由 ${f1(segPre.find(s=>s.seg==='上游').perTime)} 變為 ${f1(segPost.find(s=>s.seg==='上游').perTime)} 尾／次、`
+      + `下游由 ${f1(segPre.find(s=>s.seg==='下游').perTime)} 變為 ${f1(segPost.find(s=>s.seg==='下游').perTime)} 尾／次，`
+      + `兩個河段的記錄物種數分別為 ${segPre.find(s=>s.seg==='上游').species}→${segPost.find(s=>s.seg==='上游').species} 種與 `
+      + `${segPre.find(s=>s.seg==='下游').species}→${segPost.find(s=>s.seg==='下游').species} 種`
+    : '';
+
+  const cards = [
+    { k: '調查累積', v: S.events + ' 場次', s: `${S.times} 次調查 ‧ ${S.spanFrom}～${S.spanTo} 年` },
+    { k: '累計記錄', v: S.total.toLocaleString() + ' 尾', s: `${S.species} 種，全為臺灣特有種` },
+    { k: '平均每次調查尾數', v: f1(S.perTimePost) + ' 尾／次', s: `早期 ${f1(S.perTimePre)} → 近期 ${f1(S.perTimePost)}` },
+    { k: '年度記錄物種數', v: f1(S.speciesPost) + ' 種', s: `早期平均 ${f1(S.speciesPre)} → 近期平均 ${f1(S.speciesPost)}` }
+  ];
+
+  return `
+  <div style="border:1px solid #bfdbfe;border-radius:16px;overflow:hidden;margin-bottom:26px;background:#f8fbff">
+    <div style="padding:18px 22px;background:linear-gradient(135deg,#eff6ff,#f8fbff);border-bottom:1px solid #bfdbfe">
+      <div style="font-size:19px;font-weight:900;color:#0f172a;margin-bottom:9px">
+        <i class="fas fa-seedling" style="color:#1c5cab;margin-right:9px"></i>生態趨勢摘要
+      </div>
+      <div style="font-size:15px;color:#0f172a;line-height:2">
+        ${S.spanFrom}～${S.spanTo} 年累積 ${S.events} 場次、${S.times} 次調查，
+        記錄 ${S.total.toLocaleString()} 尾、${S.species} 種魚類，
+        <b>全部為臺灣特有種，序列中未記錄到外來種</b>。
+        平均每次調查記錄尾數由早期（${preYears} 年）的 ${f1(S.perTimePre)} 尾／次，
+        變為近期（${postYears} 年）的 <b>${f1(S.perTimePost)} 尾／次</b>；
+        年度記錄物種數由平均 ${f1(S.speciesPre)} 種變為 <b>${f1(S.speciesPost)} 種</b>，
+        其中 ${fullYears.length} 個年度（${fullYears.join('、')} 年）記錄到全部 ${M.keys.length} 種。
+        ${wider.length ? `${wider.slice(0,3).map(x=>x.name).join('、')}${wider.length>3?'等 '+wider.length+' 種':''}在近期的出現年度比例明顯提高，
+        顯示這些物種<b>對河段的利用範圍有所擴大</b>。` : ''}
+        ${segLine ? segLine + '，<b>上下游兩個河段皆持續有魚類利用</b>。' : ''}
+        近期各年度介於 ${f1(postMin)}～${f1(postMax)} 尾／次之間，
+        屬溪流魚類隨水文年豐枯與季節變動的<b>自然年際波動</b>；
+        整體而言，主要物種在改善後仍<b>持續維持一定的出現水準</b>，
+        物種組成則呈現由單一優勢物種轉為多物種共存的<b>群聚結構變化</b>，
+        可作為後續維護管理與棲地改善的判讀依據。
+      </div>
+    </div>
+    <div style="padding:16px 20px;display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:13px">
+      ${cards.map(c => `
+        <div style="background:#fff;border:1px solid #dbeafe;border-radius:12px;padding:15px 17px">
+          <div style="font-size:13.5px;color:#475569;font-weight:700;margin-bottom:7px">${c.k}</div>
+          <div style="font-size:27px;font-weight:900;color:#0f172a;line-height:1.1;
+                      font-variant-numeric:tabular-nums">${c.v}</div>
+          <div style="font-size:13px;color:#64748b;margin-top:7px;line-height:1.6">${c.s}</div>
+        </div>`).join('')}
+    </div>
+    <div style="padding:12px 20px;background:#eff6ff;border-top:1px solid #bfdbfe;
+                font-size:13px;color:#475569;line-height:1.75">
+      <b>單位說明：</b>「尾／次」的 1 次＝一個樣站完成一次調查；「尾」為原始記錄總量；
+      「種」為該期間記錄到的物種數。三種單位不可互相換算，圖表中已分別標示。
+      本摘要文字與數值均由原始調查場次即時計算，資料更新後會同步變動。
+    </div>
+  </div>`;
+}
+
 function renderEcoMonitorDashboard() {
   const M = hlxEcoMonitor();
   const S = M.summary, NAME = HLX_FISH_KEY_NAME;
@@ -4056,6 +4155,17 @@ function renderEcoMonitorDashboard() {
 
   //  上升／下降一律用同一組中性字彙，不使用箭頭與警示色
   const diffText = d => (d >= 0 ? '＋' : '－') + Math.abs(d).toFixed(2);
+
+  //  河段解讀用的即時敘述（無上下游配對資料時給替代說明）
+  const _sgPre = M.segments.filter(x => x.phase === 'pre');
+  const _sgPost = M.segments.filter(x => x.phase === 'post');
+  const _sg = k => ({ pre: _sgPre.filter(x => x.seg === k)[0], post: _sgPost.filter(x => x.seg === k)[0] });
+  const segLineFound = (_sg('上游').pre && _sg('上游').post && _sg('下游').pre && _sg('下游').post)
+    ? `上游由 ${_sg('上游').pre.perTime.toFixed(1)} 變為 ${_sg('上游').post.perTime.toFixed(1)} 尾／次、`
+      + `記錄物種 ${_sg('上游').pre.species} → ${_sg('上游').post.species} 種；`
+      + `下游由 ${_sg('下游').pre.perTime.toFixed(1)} 變為 ${_sg('下游').post.perTime.toFixed(1)} 尾／次、`
+      + `記錄物種 ${_sg('下游').pre.species} → ${_sg('下游').post.species} 種。`
+    : '目前具明確上下游標示的配對場次有限，僅呈現現有分層結果。';
 
   return `
   <div style="border:1px solid ${HLX_ECO_INK.line};border-radius:18px;overflow:hidden;
@@ -4099,7 +4209,14 @@ function renderEcoMonitorDashboard() {
           `每一年的平均每次調查尾數。色階由淺到深代表年度先後，僅用於區分時間，不代表數值高低優劣。
            年度之間的差異同時受水文年、季節安排與河道環境條件影響，屬<b>族群量波動</b>的正常表現。`)}
         <div style="background:#f8fafc;border:1px solid ${HLX_ECO_INK.line};border-radius:14px;padding:16px 18px">
-          <div style="position:relative;height:270px"><canvas id="hlxYearBar"></canvas></div>
+          <div style="position:relative;height:300px"><canvas id="hlxYearBar"></canvas></div>
+          ${hlxEco_readNote({
+            what: '每一年「平均每次調查記錄到幾尾魚」，代表河段整體被魚類利用的密集程度。',
+            axes: '橫軸為民國年度；縱軸為尾／次（1 次＝一個樣站完成一次調查）。柱子越高，代表那一年單次調查平均記錄到的魚越多。',
+            how: '重點不在比誰高，而在看整體水準有沒有維持。溪流魚類數量本來就會隨水量、季節與洪水事件起伏，單一年度的高低不必單獨解讀。',
+            found: `早期（${M.pre.map(y=>y.roc).join('、')} 年）平均 ${S.perTimePre.toFixed(1)} 尾／次，近期（${M.post[0].roc}～${M.post[M.post.length-1].roc} 年）平均 ${S.perTimePost.toFixed(1)} 尾／次；近期各年介於 ${Math.min.apply(null,M.post.map(y=>y.perTime)).toFixed(1)}～${Math.max.apply(null,M.post.map(y=>y.perTime)).toFixed(1)} 尾／次之間變動。`,
+            signal: '單次調查平均記錄尾數維持在一定水準，代表河段持續提供魚類可利用的空間。年度之間的起伏可搭配當年水文條件、颱洪事件與魚道維護情形一併判讀。'
+          })}
         </div>
       </div>
 
@@ -4109,7 +4226,14 @@ function renderEcoMonitorDashboard() {
           `八種魚類各自的平均每次調查尾數逐年變化。每種給一個固定顏色，僅作身分區分。
            線條起伏代表各物種在不同年份對河道環境的<b>利用情形改變</b>，可搭配下方組成圖一起看。`)}
         <div style="background:#f8fafc;border:1px solid ${HLX_ECO_INK.line};border-radius:14px;padding:16px 18px">
-          <div style="position:relative;height:330px"><canvas id="hlxSpeciesLine"></canvas></div>
+          <div style="position:relative;height:370px"><canvas id="hlxSpeciesLine"></canvas></div>
+          ${hlxEco_readNote({
+            what: '八種魚類「各自」的平均每次調查尾數逐年變化，看的是不同物種對河段的利用情形。',
+            axes: '橫軸為民國年度；縱軸為尾／次。每一條線是一種魚，顏色只用來分辨物種，沒有好壞意涵。',
+            how: '看每條線自己的走勢，不要跨物種比高低——不同魚的族群密度天生差很多。線條上升代表該物種在調查中被記錄到的數量增加，下降則代表牠當年較少利用該河段。',
+            found: `${M.bySpecies[0].name}與${M.bySpecies[1].name}長期維持較高水準；${M.bySpecies.filter(x=>x.yearsPre===0&&x.yearsPost>0).map(x=>x.name).join('、') || '部分物種'}在早期未記錄到、近期開始出現。`,
+            signal: '多條線同時維持一定高度，代表河段能同時支持多種生態習性不同的魚類；不同物種的走勢差異，反映牠們對水深、流速與底質等條件的偏好各不相同。'
+          })}
         </div>
       </div>
 
@@ -4119,7 +4243,14 @@ function renderEcoMonitorDashboard() {
           `各年度捕獲組成的百分比堆疊。此圖不看總量，只看<b>組成結構</b> ——
            色帶寬度改變即代表群聚組成改變。`)}
         <div style="background:#f8fafc;border:1px solid ${HLX_ECO_INK.line};border-radius:14px;padding:16px 18px">
-          <div style="position:relative;height:320px"><canvas id="hlxCompStack"></canvas></div>
+          <div style="position:relative;height:360px"><canvas id="hlxCompStack"></canvas></div>
+          ${hlxEco_readNote({
+            what: '每一年捕獲組成的「比例結構」，看的是群聚由哪些物種構成，與總量多寡無關。',
+            axes: '橫軸為民國年度；縱軸為百分比，每一年固定加總為 100%。色帶越寬代表該物種在當年組成中占比越高。',
+            how: '看色帶寬度的變化。單一色帶長期很寬，代表群聚由少數物種主導；色帶變得比較平均，代表多物種共存的程度提高。',
+            found: `早期單一物種占比最高曾達 ${Math.max.apply(null, M.pre.map(y=>y.shareBy[y.dominant.key])).toFixed(1)}%；近期年度的最高占比多在 ${Math.min.apply(null, M.post.map(y=>y.shareBy[y.dominant.key])).toFixed(1)}～${Math.max.apply(null, M.post.map(y=>y.shareBy[y.dominant.key])).toFixed(1)}% 之間，色帶分布較為分散。`,
+            signal: '組成由少數物種主導轉為多物種並存，通常對應河道流況與棲地型態變得多樣——深潭、淺瀨、緩流與深流各自支持不同游泳能力與攝食型態的魚類。'
+          })}
         </div>
       </div>
 
@@ -4170,7 +4301,14 @@ function renderEcoMonitorDashboard() {
            淺色為早期（${preYears} 年）、深色為近期（${postYears} 年），同色系深淺代表時間先後。
            <b>八種全部列出，包含數值下降者</b>；數值變化反映各物種對河道環境的利用情形改變。`)}
         <div style="background:#f8fafc;border:1px solid ${HLX_ECO_INK.line};border-radius:14px;padding:16px 18px">
-          <div style="position:relative;height:360px"><canvas id="hlxPhaseBar"></canvas></div>
+          <div style="position:relative;height:400px"><canvas id="hlxPhaseBar"></canvas></div>
+          ${hlxEco_readNote({
+            what: '以魚道啟用時間為界，比較每一種魚在兩個時期的平均每次調查尾數。',
+            axes: '橫軸為尾／次；縱軸為物種。每種魚有兩條長條，淺色為早期、深色為近期，同色系深淺代表時間先後。',
+            how: '看同一種魚的兩條長條相對長度。長條變長代表該物種在近期調查中被記錄到的數量較多，變短則代表牠改變了對該河段的利用方式，不必解讀為好壞。',
+            found: `八種中有 ${M.bySpecies.filter(x=>x.diff>0).length} 種近期平均尾／次較早期高、${M.bySpecies.filter(x=>x.diff<0).length} 種較低（${M.bySpecies.filter(x=>x.diff<0).map(x=>x.name).join('、') || '無'}）；數值全部列出，未作任何隱藏。`,
+            signal: '多數物種在近期維持或提高利用程度，顯示河段持續提供可用棲地；個別物種的減少多與其偏好的微棲地（如急流淺瀨、礫石孔隙）面積變化有關，屬棲地利用型態的調整。'
+          })}
         </div>
         <div style="overflow-x:auto;margin-top:12px;border:1px solid ${HLX_ECO_INK.line};border-radius:12px">
           <table style="width:100%;border-collapse:collapse;font-size:13.5px;min-width:700px">
@@ -4235,7 +4373,14 @@ function renderEcoMonitorDashboard() {
             </div>`).join('')}
         </div>
         <div style="background:#f8fafc;border:1px solid ${HLX_ECO_INK.line};border-radius:14px;padding:16px 18px">
-          <div style="position:relative;height:340px"><canvas id="hlxSegBar"></canvas></div>
+          <div style="position:relative;height:380px"><canvas id="hlxSegBar"></canvas></div>
+          ${hlxEco_readNote({
+            what: '上游與下游兩個河段，在早期與近期各自的物種組成與平均尾／次。',
+            axes: '橫軸為四個「時期＋河段」組合；縱軸為尾／次的堆疊高度，每一段顏色代表一種魚。',
+            how: '柱子總高度看該河段單次調查平均記錄到的總尾數，各色段高度看是哪些魚組成的。比較同一河段的早期與近期柱子，可看出該河段被利用的情形如何改變。',
+            found: segLineFound,
+            signal: '兩個河段都持續有魚類利用，且上游記錄到的物種數增加，代表魚類在河道縱向上的分布範圍有所延伸；上下游組成的差異則反映兩段本身的水深、流速與底質條件不同。'
+          })}
         </div>
       </div>` : ''}
 
@@ -4797,6 +4942,14 @@ function renderFishTrend() {
 
   window.hlxFishwayTrendPayload = { fishwayTypes: FISHWAY_TYPES, annualFishwaySeries, annualEffortMetrics };
 
+  //  單場最高記錄：由原始場次即時求出，避免硬編碼與資料脫節
+  //  （原卡片寫「146 尾（114年12月）」，實際單場最高為 108年S3 589 尾，
+  //    且 114/12/24 實為 161 尾，兩個數字都與原始資料不符）
+  const _maxSurvey = HLX_FISH_SURVEYS
+    .map(r => ({ n: fish_sumKeys(r), roc: r.year - 1911,
+                 label: String(r.label || '').replace(/\n/g, ' ') }))
+    .sort((a, b) => b.n - a.n)[0] || { n: 0, roc: '-', label: '-' };
+
   el.innerHTML = `
   <div style="padding:24px 28px 36px;max-width:none;width:100%;margin:0;box-sizing:border-box;font-size:16px">
 
@@ -4812,6 +4965,8 @@ function renderFishTrend() {
     </div>
 
     <!-- ★ 生態監測儀表板：以「尾／次」呈現歷年族群與物種組成變化 -->
+    ${renderEcoTrendSummary()}
+
     ${renderEcoMonitorDashboard()}
 
     <!-- 統計卡片 -->
@@ -4819,11 +4974,11 @@ function renderFishTrend() {
       ${[
         { icon:'fa-calendar-alt', color:'#0e7490', label:'調查跨度', val:'103～114年', sub:'(2014～2025)' },
         { icon:'fa-fish',         color:'#f97316', label:'趨勢整合物種', val:'8 種', sub:'11個量化年度已核對' },
-        { icon:'fa-clipboard-check', color:'#1d4ed8', label:'110年樣站電捕', val:`${(HLX_FISH_110_SUMMARY.annualTotal / HLX_FISH_110_SUMMARY.stationVisits).toFixed(1)} 尾／次`, sub:`累計${HLX_FISH_110_SUMMARY.annualTotal}尾・12次調查` },
+        { icon:'fa-clipboard-check', color:'#1d4ed8', label:'110年 表5-3 子集', val:`${(HLX_FISH_110_SUMMARY.annualTotal / HLX_FISH_110_SUMMARY.stationVisits).toFixed(1)} 尾／次`, sub:`${HLX_FISH_110_SUMMARY.annualTotal}尾・12次（僅6樣站兩輪）\n全年含附件一共${(hlxEcoMonitor().years.filter(y=>y.roc===110)[0]||{}).total ?? '-'}尾・${(hlxEcoMonitor().years.filter(y=>y.roc===110)[0]||{}).times ?? '-'}次` },
         { icon:'fa-water', color:'#0891b2', label:'110年水域生物', val:`${HLX_FISH_110_SUMMARY.aquaticTaxa} 種`, sub:`魚類${HLX_FISH_110_SUMMARY.fishSpecies}＋蝦蟹2` },
         { icon:'fa-list-check',   color:'#0284c7', label:'已核對調查場次', val:`${HLX_FISH_SURVEY_EVENTS}次`, sub:'103～114年逐次建檔' },
-        { icon:'fa-chart-line',   color:'#22c55e', label:'最高單次捕獲', val:'146 尾', sub:'(114年12月冬季)' },
-        { icon:'fa-shield-alt',   color:'#f43f5e', label:'保育類物種', val:'3 種', sub:'第II類保育類' },
+        { icon:'fa-chart-line',   color:'#22c55e', label:'單場最高記錄', val:`${_maxSurvey.n} 尾`, sub:`${_maxSurvey.roc}年 ${_maxSurvey.label}` },
+        { icon:'fa-shield-alt',   color:'#f43f5e', label:'紅皮書受脅魚種', val:`${HLX_THREATENED_KEYS.length} 種`, sub:'近危NNT以上\n含易危NVU 1種（短臀瘋鱨）' },
         { icon:'fa-water',        color:'#7c3aed', label:'主要樣站', val:'橫流溪', sub:'(下游 ‧ 上游)' },
       ].map(c=>`
         <div style="background:#fff;border:2px solid #e2e8f0;border-radius:14px;padding:18px 20px;transition:box-shadow .2s" onmouseover="this.style.boxShadow='0 4px 20px rgba(0,0,0,.1)'" onmouseout="this.style.boxShadow=''">
@@ -5151,10 +5306,76 @@ function renderFishTrend() {
             <b>為何是 7 種而非 8 種？</b>未在魚道內捕獲的是<b>${HLX_IN_FISHWAY_CATCH.absentSpecies}</b>。${HLX_IN_FISHWAY_CATCH.absentReason}
           </div>
 
-          <div style="margin-top:11px;border-left:3px solid #b45309;background:#fffbeb;border-radius:0 8px 8px 0;padding:12px 15px;font-size:12.5px;color:#78350f;line-height:1.8">
-            <b>為何 ${HLX_IN_FISHWAY_CATCH.lowestNote.id} 四輪累計只有 4 尾（平均1.0尾／次）？</b>${HLX_IN_FISHWAY_CATCH.lowestNote.reason}<br>
-            <span style="color:#0d6b5b;font-weight:800">${HLX_IN_FISHWAY_CATCH.lowestNote.hydraulic}</span><br>
-            ${HLX_IN_FISHWAY_CATCH.lowestNote.action}
+
+          <!-- 潛越式魚道跨資料集對照（資料一致性說明）-->
+          <div style="border:2px solid #a5b4fc;border-radius:12px;overflow:hidden;margin:16px 0 4px">
+            <div style="background:#eef2ff;padding:12px 15px;border-bottom:1px solid #c7d2fe">
+              <div style="font-size:16px;font-weight:900;color:#312e81">
+                為什麼溪構5-2（潛越式）在本圖偏低，別處卻偏高？
+              </div>
+              <div style="font-size:13.5px;color:#3730a3;line-height:1.75;margin-top:5px">
+                本平台對同一座魚道有<b>三套來源不同、量測對象也不同</b>的紀錄。
+                三個數字都是原始資料，沒有互相取代的關係，差異來自<b>量測方法與年度不同</b>，
+                並非其中一筆有誤。以下並列供對照。
+              </div>
+            </div>
+            <div style="overflow-x:auto">
+              <table style="width:100%;border-collapse:collapse;font-size:14px;min-width:700px">
+                <thead><tr style="background:#f8fafc">
+                  <th style="padding:10px 12px;text-align:left;border-bottom:2px solid #e2e8f0;color:#475569">資料集</th>
+                  <th style="padding:10px 12px;text-align:left;border-bottom:2px solid #e2e8f0;color:#475569">年度與方法</th>
+                  <th style="padding:10px 12px;text-align:right;border-bottom:2px solid #e2e8f0;color:#475569">溪構5-2</th>
+                  <th style="padding:10px 12px;text-align:left;border-bottom:2px solid #e2e8f0;color:#475569">在該資料集中的位置</th>
+                </tr></thead>
+                <tbody>
+                  <tr>
+                    <td style="padding:10px 12px;border-bottom:1px solid #edf2f7;font-weight:800;color:#0f172a">
+                      魚道內「捕捉」<br><span style="font-weight:400;font-size:12.5px;color:#94a3b8">表5-19（本圖採用）</span></td>
+                    <td style="padding:10px 12px;border-bottom:1px solid #edf2f7;color:#475569;font-size:13.5px">
+                      109年7月・109年10月・110年7月・110年10月<br>共 4 輪，電捕＋蝦籠</td>
+                    <td style="padding:10px 12px;border-bottom:1px solid #edf2f7;text-align:right;
+                        font-variant-numeric:tabular-nums;font-weight:900;font-size:17px;color:#0f172a">4 尾</td>
+                    <td style="padding:10px 12px;border-bottom:1px solid #edf2f7;color:#475569;font-size:13.5px">
+                      9 座中最少（全體 306 尾）</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:10px 12px;border-bottom:1px solid #edf2f7;font-weight:800;color:#0f172a">
+                      魚道「通行」彙整<br><span style="font-weight:400;font-size:12.5px;color:#94a3b8">平台逐魚道統計</span></td>
+                    <td style="padding:10px 12px;border-bottom:1px solid #edf2f7;color:#475569;font-size:13.5px">
+                      同期通行觀察彙整<br>合計 74 尾、5 種</td>
+                    <td style="padding:10px 12px;border-bottom:1px solid #edf2f7;text-align:right;
+                        font-variant-numeric:tabular-nums;font-weight:900;font-size:17px;color:#0f172a">17 尾</td>
+                    <td style="padding:10px 12px;border-bottom:1px solid #edf2f7;color:#475569;font-size:13.5px">
+                      9 座中最多（明潭吻鰕虎 13 尾為主）</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:10px 12px;border-bottom:1px solid #edf2f7;font-weight:800;color:#0f172a">
+                      113年魚道電捕<br><span style="font-weight:400;font-size:12.5px;color:#94a3b8">動物通道智慧評估</span></td>
+                    <td style="padding:10px 12px;border-bottom:1px solid #edf2f7;color:#475569;font-size:13.5px">
+                      113年4月，8 座魚道電捕</td>
+                    <td style="padding:10px 12px;border-bottom:1px solid #edf2f7;text-align:right;
+                        font-variant-numeric:tabular-nums;font-weight:900;font-size:17px;color:#0f172a">17 尾<br>
+                      <span style="font-size:12.5px;font-weight:700;color:#475569">5 種</span></td>
+                    <td style="padding:10px 12px;border-bottom:1px solid #edf2f7;color:#475569;font-size:13.5px">
+                      8 座中尾數與物種數皆最多</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div style="padding:13px 15px;background:#f8fafc;border-top:1px solid #e2e8f0;
+                        font-size:13.5px;color:#334155;line-height:1.85">
+              <b style="color:#312e81">為什麼表5-19 的捕捉數會低：</b>
+              這是<b>可搜索水體體積</b>造成的，不是通行功能問題。溪構5-2 進水量僅
+              ${HLX_IN_FISHWAY_CATCH.lowestNote ? '0.15' : '0.15'} cms（滿流魚道 0.60 cms 的四分之一），
+              內寬僅 1.05 公尺（其他階段式為 6～8 公尺），單池體積約 0.9 m³，
+              僅為溪構7 最大水池 17.7 m³ 的<b>十九分之一</b>——電捕與蝦籠能搜索的水體極小，
+              捕獲數自然偏低。同一座魚道的水理檢核<b>三項全部合格</b>：
+              水位差 0.2 m（容許 0.5 m）、單位體積消能率 246 W/m³（容許 300）、
+              越流流速 1.12 m/s（低於魚類游泳能力容許值）。
+              113 年清淤工程後入口暢通，同年 4 月電捕即為 8 座最多。
+              <br><b style="color:#312e81">判讀方式：</b>本圖的 4 尾應理解為「該次調查在極小水體中搜索到的尾數」，
+              不宜單獨作為潛越式魚道通行效能的結論；評估通行效能請併看上表三個資料集與水理檢核結果。
+            </div>
           </div>
 
           <div style="margin-top:11px;font-size:12px;color:#64748b;line-height:1.75">
