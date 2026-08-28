@@ -1,10 +1,10 @@
 {
- "generatedAt": "2026-08-28T03:27:23.400Z",
+ "generatedAt": "2026-08-28T08:02:42.593Z",
  "generator": "scripts/export_agent_baseline.js",
  "note": "後端 Agent 的預設資料。前端有送 client_snapshot 時以前端為準，此檔僅補齊缺漏的鍵，確保無瀏覽器時仍能取得權威數值。",
  "sourceHashes": {
-  "webapp/js/db.js": "7a1ef729bb350525",
-  "webapp/js/modules/fish.js": "299cf181ad7093e5"
+  "webapp/js/db.js": "5fe8c18b0d2dc241",
+  "webapp/js/modules/fish.js": "b8deb07aeba0cf4c"
  },
  "facilities": [
   {
@@ -4072,7 +4072,15 @@
    "action": "繼續定期巡查",
    "status": "完成",
    "priority": "低",
-   "photos": [],
+   "photos": [
+    "/webapp/assets/inspection-photos/general/2025-11-26/01.jpeg",
+    "/webapp/assets/inspection-photos/general/2025-11-26/02.jpeg",
+    "/webapp/assets/inspection-photos/general/2025-11-26/03.jpeg",
+    "/webapp/assets/inspection-photos/general/2025-11-26/04.jpeg",
+    "/webapp/assets/inspection-photos/general/2025-11-26/05.jpeg",
+    "/webapp/assets/inspection-photos/general/2025-11-26/06.jpeg",
+    "/webapp/assets/inspection-photos/general/2025-11-26/07.jpeg"
+   ],
    "maintenanceStart": "2025-11-26",
    "recordDateLabel": "114年11月26日",
    "photoDate": "2025-11-26",
@@ -4083,7 +4091,7 @@
    "inspectionItem": "一般巡查紀錄",
    "inspectionSubcategory": "一般巡查紀錄",
    "sourceType": "一般巡查表單",
-   "photoCount": 0
+   "photoCount": 7
   },
   {
    "id": 9002,
@@ -4098,7 +4106,15 @@
    "action": "繼續定期巡查",
    "status": "完成",
    "priority": "低",
-   "photos": [],
+   "photos": [
+    "/webapp/assets/inspection-photos/general/2025-12-30/01.jpeg",
+    "/webapp/assets/inspection-photos/general/2025-12-30/02.jpeg",
+    "/webapp/assets/inspection-photos/general/2025-12-30/03.jpeg",
+    "/webapp/assets/inspection-photos/general/2025-12-30/04.jpeg",
+    "/webapp/assets/inspection-photos/general/2025-12-30/05.jpeg",
+    "/webapp/assets/inspection-photos/general/2025-12-30/06.jpeg",
+    "/webapp/assets/inspection-photos/general/2025-12-30/07.jpeg"
+   ],
    "maintenanceStart": "2025-12-30",
    "recordDateLabel": "114年12月30日",
    "photoDate": "2025-12-30",
@@ -4109,7 +4125,7 @@
    "inspectionItem": "一般巡查紀錄",
    "inspectionSubcategory": "一般巡查紀錄",
    "sourceType": "一般巡查表單",
-   "photoCount": 0
+   "photoCount": 7
   },
   {
    "id": 9009,
@@ -4156,7 +4172,15 @@
    "action": "異常通報：魚道/防砂設施結構外觀破損，通知分署安排專業評估",
    "status": "待處理",
    "priority": "中",
-   "photos": [],
+   "photos": [
+    "/webapp/assets/inspection-photos/general/2026-01-29/01.jpeg",
+    "/webapp/assets/inspection-photos/general/2026-01-29/02.jpeg",
+    "/webapp/assets/inspection-photos/general/2026-01-29/03.jpeg",
+    "/webapp/assets/inspection-photos/general/2026-01-29/04.jpeg",
+    "/webapp/assets/inspection-photos/general/2026-01-29/05.jpeg",
+    "/webapp/assets/inspection-photos/general/2026-01-29/06.jpeg",
+    "/webapp/assets/inspection-photos/general/2026-01-29/07.jpeg"
+   ],
    "maintenanceStart": "2026-01-29",
    "recordDateLabel": "115年1月29日",
    "photoDate": "2026-01-29",
@@ -4167,7 +4191,7 @@
    "inspectionItem": "一般巡查紀錄",
    "inspectionSubcategory": "一般巡查紀錄",
    "sourceType": "一般巡查表單",
-   "photoCount": 0
+   "photoCount": 7
   },
   {
    "id": 9004,
@@ -4182,7 +4206,15 @@
    "action": "繼續定期巡查",
    "status": "完成",
    "priority": "低",
-   "photos": [],
+   "photos": [
+    "/webapp/assets/inspection-photos/general/2026-02-24/01.jpeg",
+    "/webapp/assets/inspection-photos/general/2026-02-24/02.jpeg",
+    "/webapp/assets/inspection-photos/general/2026-02-24/03.jpeg",
+    "/webapp/assets/inspection-photos/general/2026-02-24/04.jpeg",
+    "/webapp/assets/inspection-photos/general/2026-02-24/05.jpeg",
+    "/webapp/assets/inspection-photos/general/2026-02-24/06.jpeg",
+    "/webapp/assets/inspection-photos/general/2026-02-24/07.jpeg"
+   ],
    "maintenanceStart": "2026-02-24",
    "recordDateLabel": "115年2月24日",
    "photoDate": "2026-02-24",
@@ -4193,7 +4225,7 @@
    "inspectionItem": "一般巡查紀錄",
    "inspectionSubcategory": "一般巡查紀錄",
    "sourceType": "一般巡查表單",
-   "photoCount": 0
+   "photoCount": 7
   },
   {
    "id": 9005,
@@ -4208,7 +4240,15 @@
    "action": "繼續定期巡查",
    "status": "完成",
    "priority": "低",
-   "photos": [],
+   "photos": [
+    "/webapp/assets/inspection-photos/general/2026-03-31/01.jpeg",
+    "/webapp/assets/inspection-photos/general/2026-03-31/02.jpeg",
+    "/webapp/assets/inspection-photos/general/2026-03-31/03.jpeg",
+    "/webapp/assets/inspection-photos/general/2026-03-31/04.jpeg",
+    "/webapp/assets/inspection-photos/general/2026-03-31/05.jpeg",
+    "/webapp/assets/inspection-photos/general/2026-03-31/06.jpeg",
+    "/webapp/assets/inspection-photos/general/2026-03-31/07.jpeg"
+   ],
    "maintenanceStart": "2026-03-31",
    "recordDateLabel": "115年3月31日",
    "photoDate": "2026-03-31",
@@ -4219,7 +4259,7 @@
    "inspectionItem": "一般巡查紀錄",
    "inspectionSubcategory": "一般巡查紀錄",
    "sourceType": "一般巡查表單",
-   "photoCount": 0
+   "photoCount": 7
   },
   {
    "id": 9006,
@@ -4234,7 +4274,15 @@
    "action": "繼續定期巡查",
    "status": "完成",
    "priority": "低",
-   "photos": [],
+   "photos": [
+    "/webapp/assets/inspection-photos/general/2026-04-29/01.jpeg",
+    "/webapp/assets/inspection-photos/general/2026-04-29/02.jpeg",
+    "/webapp/assets/inspection-photos/general/2026-04-29/03.jpeg",
+    "/webapp/assets/inspection-photos/general/2026-04-29/04.jpeg",
+    "/webapp/assets/inspection-photos/general/2026-04-29/05.jpeg",
+    "/webapp/assets/inspection-photos/general/2026-04-29/06.jpeg",
+    "/webapp/assets/inspection-photos/general/2026-04-29/07.jpeg"
+   ],
    "maintenanceStart": "2026-04-29",
    "recordDateLabel": "115年4月29日",
    "photoDate": "2026-04-29",
@@ -4245,7 +4293,7 @@
    "inspectionItem": "一般巡查紀錄",
    "inspectionSubcategory": "一般巡查紀錄",
    "sourceType": "一般巡查表單",
-   "photoCount": 0
+   "photoCount": 7
   },
   {
    "id": 9008,

@@ -32,7 +32,7 @@ const FISH_PHOTO_LIBRARY = {
   '纓口臺鰍': {
     image: '/webapp/assets/fish-photos/formosania-lacustre-field.png',
     source: '使用者提供之田野辨識照片',
-    caption: '纓口臺鰍（Formosania lacustre）田野實拍；已修正原先誤用明潭吻鰕虎照片的問題，體表深淺交錯虎斑紋為辨識特徵，底棲吸附型，偏好礫石急流',
+    caption: '纓口臺鰍（Formosania lacustre）田野實拍；體表深淺交錯虎斑紋為辨識特徵，底棲吸附型，偏好礫石急流',
     position: 'center center'
   },
   '明潭吻鰕虎': {
@@ -56,7 +56,7 @@ const FISH_PHOTO_LIBRARY = {
   '短吻紅斑吻鰕虎': {
     image: '/webapp/assets/fish-photos/rhinogobius-rubromaculatus-field.jpg',
     source: '使用者提供之108.4.17田野辨識照片',
-    caption: '短吻紅斑吻鰕虎（Rhinogobius rubromaculatus）田野辨識照片；已修正原先誤用其他鰕虎照片的問題',
+    caption: '短吻紅斑吻鰕虎（Rhinogobius rubromaculatus）田野辨識照片；體側散布紅褐色斑點、吻部短鈍為辨識特徵，底棲小型鰕虎',
     position: 'center center'
   }
 };
@@ -1341,11 +1341,32 @@ function renderFishSpecies() {
                   <div style="font-style:italic;color:var(--text-light);font-size:12px">${s.scientificName || ''}</div>
                 </div>
               </div>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px;margin-bottom:10px">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px;margin-bottom:8px">
                 <div><span class="text-muted">科別：</span>${s.family || '-'}</div>
-                <div><span class="text-muted">保育：</span><span class="badge badge-${s.conservation==='瀕危'?'danger':s.conservation==='易危'?'warning':s.conservation==='近危'?'info':'default'}" style="padding:1px 6px">${s.conservation}</span></div>
-                <div><span class="text-muted">總尾數：</span><strong>${s.totalCount}</strong></div>
-                <div><span class="text-muted">調查次：</span>${s.surveys}</div>
+                <div><span class="text-muted">特有性：</span>${s.endemic ? '臺灣特有種' : '原生種'}</div>
+                <div><span class="text-muted">累計尾數：</span><strong>${s.totalCount}</strong></div>
+                <div><span class="text-muted">調查次數：</span>${s.surveys}</div>
+              </div>
+              <!-- 保育狀態與本河段現況分列：兩者尺度不同，不可互相推論 -->
+              <div style="display:grid;gap:6px;margin-bottom:10px">
+                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:7px 9px">
+                  <div style="font-size:10.5px;color:#64748b;font-weight:700;margin-bottom:3px">
+                    保育／受威脅狀態（全臺族群尺度）</div>
+                  <div style="font-size:12.5px;color:#0f172a;font-weight:800">
+                    ${s.conservation}${s.redlistCode ? `（${s.redlistCode}）` : ''}
+                    <span style="font-size:10.5px;color:#64748b;font-weight:400">
+                      ‧ 依 2024 臺灣淡水魚類紅皮書名錄「國家類別」</span>
+                  </div>
+                </div>
+                ${(() => { const pr = fish_hlxPresence(s.species); return pr ? `
+                <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:7px 9px">
+                  <div style="font-size:10.5px;color:#0369a1;font-weight:700;margin-bottom:3px">
+                    橫流溪調查現況（本河段尺度）</div>
+                  <div style="font-size:12.5px;color:${pr.tone};font-weight:800">${pr.label}
+                    <span style="font-size:10.5px;color:#475569;font-weight:400">
+                      ‧ ${pr.years} 個建檔年度中有 ${pr.hitYears} 年記錄到，占歷年捕獲 ${pr.share.toFixed(1)}%</span>
+                  </div>
+                </div>` : ''; })()}
               </div>
 
               <!-- 位置描述區塊 -->
@@ -2177,6 +2198,39 @@ const HLX_FISH_REDLIST_2024 = {
   '短臀瘋鱨':     { grade:'易危', code:'NVU', endemic:true },
   '短吻紅斑吻鰕虎':{ grade:'一般', code:'NLC', endemic:true, note:'IUCN全球評估近危(NT)；2024臺灣國家紅皮書為國家無危(NLC)' },
 };
+
+/* ════════════════════════════════════════════════════════════════════════
+   橫流溪調查現況（與保育等級分開陳述）
+   ------------------------------------------------------------------------
+   保育等級是「全臺族群尺度」的評估，依整體族群趨勢、分布範圍、棲地面積與
+   破碎化程度等綜合判定；本河段調查數量多寡不能用來推翻或修改保育等級。
+   兩者尺度不同，因此分成兩個欄位，避免讀者產生
+   「既然是近危，為什麼這裡抓到很多？」的疑問。
+
+   本函式僅描述該物種在橫流溪歷年調查中的出現情形，全部由原始序列推得：
+     出現年度比例 ＝ 有捕獲紀錄的年度數 ÷ 已建檔年度數
+     組成占比     ＝ 該物種累計尾數 ÷ 全部物種累計尾數
+   ════════════════════════════════════════════════════════════════════════ */
+function fish_hlxPresence(speciesName) {
+  const key = Object.keys(HLX_FISH_KEY_NAME).find(k => HLX_FISH_KEY_NAME[k] === speciesName);
+  if (!key) return null;
+  const years = [...new Set(HLX_FISH_SURVEYS.map(r => r.year))].sort();
+  const hitYears = years.filter(y =>
+    HLX_FISH_SURVEYS.some(r => r.year === y && (Number(r[key]) || 0) > 0));
+  const total = HLX_FISH_SURVEYS.reduce((a, r) => a + (Number(r[key]) || 0), 0);
+  const grand = HLX_FISH_SURVEYS.reduce((a, r) => a + fish_sumKeys(r), 0);
+  const share = grand ? total / grand * 100 : 0;
+  const cover = years.length ? hitYears.length / years.length : 0;
+  //  用語一律中性，描述「出現情形」而非優劣
+  let label, tone;
+  if (share >= 15 && cover >= 0.8)      { label = '主要優勢物種'; tone = '#1c5cab'; }
+  else if (cover >= 0.8)                { label = '穩定出現';     tone = '#0891b2'; }
+  else if (cover >= 0.5)                { label = '常見物種';     tone = '#0d9488'; }
+  else if (cover > 0)                   { label = '偶見物種';     tone = '#7c3aed'; }
+  else                                  { label = '本序列未記錄'; tone = '#94a3b8'; }
+  return { label, tone, total, share, hitYears: hitYears.length, years: years.length,
+           lastYear: hitYears.length ? hitYears[hitYears.length - 1] - 1911 : null };
+}
 
 function fish_redlist2024(speciesName) {
   return HLX_FISH_REDLIST_2024[speciesName] || { grade: '一般', code: 'NLC' };

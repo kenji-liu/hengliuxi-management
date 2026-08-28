@@ -879,6 +879,351 @@ function fac_initHistoryChart(facilityId) {
    分級門檻：風險分 ≥75 或 U4 → 高風險；≥50 或 U3 → 中風險；其餘低風險。
    A1（D0/E1/R1・U1）健康 90、風險 10，必然落在低風險。
    ════════════════════════════════════════════════════════════════════════ */
+
+/* ════════════════════════════════════════════════════════════════════════════
+   歷年工程改善與維護歷程分析（維護生命週期）
+   ----------------------------------------------------------------------------
+   目的：不只逐筆列出巡查紀錄，而是以「原始問題 → 維護處置 → 改善結果 →
+   後續狀態」的維護管理觀點，重建每座設施自建置至今的歷程。
+
+   全部由既有資料即時推導，不新增任何人為判斷值：
+     ・設施基本資料、興建年份 ← DB facilities
+     ・歷年巡查、DER&U 評分   ← DB inspections（經 db.js 正規化）
+     ・異常型態               ← 由 findings/action 文字比對關鍵詞歸類
+     ・改善完成               ← fac_isRestoredInspection() 既有判定
+     ・現況                   ← fac_latestProfessionalAssessment() 既有判定
+   ════════════════════════════════════════════════════════════════════════════ */
+
+//  異常型態分類（依巡查文字歸類，供統計分布與重複性判讀）
+const FAC_ISSUE_TYPES = [
+  { key:'淤積',   label:'土砂淤積',       re:/淤積|淤塞|堆積|土石堆|阻塞|堵塞/ },
+  { key:'淘刷',   label:'淘刷／基礎裸露', re:/淘空|淘刷|沖刷|下刷|基礎裸露|基礎受.*侵蝕|侵蝕/ },
+  { key:'裂縫',   label:'裂縫／結構破損', re:/裂縫|龜裂|破損|斷裂|剝落|損壞/ },
+  { key:'鏽蝕',   label:'鏽蝕／材料劣化', re:/鏽蝕|銹蝕|腐朽|耗損|磨耗|老化|護木漆/ },
+  { key:'位移',   label:'構件位移',       re:/位移|偏移|滑動|傾斜|移位/ },
+  { key:'植生',   label:'植生／雜草',     re:/雜草|植生|草生|樹木|漂流木/ },
+  { key:'崩塌',   label:'崩塌／落石',     re:/崩塌|落石|坍方|滑落/ },
+];
+
+function fac_issueTypesOf(item) {
+  const text = (typeof fac_inspectionText === 'function') ? fac_inspectionText(item)
+    : [item.findings, item.action, item.appearanceOther, item.notes].filter(Boolean).join(' ');
+  return FAC_ISSUE_TYPES.filter(t => t.re.test(text)).map(t => t.key);
+}
+
+/*  單座設施的維護生命週期。回傳時間軸與分析結論。 */
+function fac_lifecycle(f) {
+  const all = (typeof fac_linkedInspections === 'function' ? fac_linkedInspections(f) : [])
+    .slice().sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
+  const events = all.map(item => {
+    const deru = (typeof fac_inferDeruFromInspection === 'function')
+      ? fac_inferDeruFromInspection(item) : null;
+    const restored = (typeof fac_isRestoredInspection === 'function')
+      ? fac_isRestoredInspection(item) : false;
+    const issues = fac_issueTypesOf(item);
+    const open = item.status === '待處理' || item.status === '處理中';
+    return {
+      date: item.date || '-', roc: item.date ? Number(String(item.date).slice(0, 4)) - 1911 : null,
+      formType: item.formType || '',
+      typeLabel: (typeof fac_inspectionTypeLabel === 'function' && typeof fac_inspectionType === 'function')
+        ? fac_inspectionTypeLabel(fac_inspectionType(item)) : '巡查',
+      inspector: item.inspector || item.executor || '',
+      unit: item.inspectUnit || '',
+      findings: String(item.findings || item.notes || '').trim(),
+      action: String(item.action || item.recommendation || '').trim(),
+      status: item.status || '完成',
+      open, restored, issues,
+      health: deru ? deru.health : null,
+      derLevel: deru ? deru.derLevel : '',
+      u: deru ? deru.u : null,
+      //  階段判定：發現問題／維護改善／完成閉合／例行追蹤
+      phase: restored ? 'restored'
+           : (issues.length && open) ? 'issue'
+           : issues.length ? 'handled'
+           : 'routine'
+    };
+  });
+
+  const withIssue = events.filter(e => e.issues.length);
+  const issueCount = {};
+  withIssue.forEach(e => e.issues.forEach(k => { issueCount[k] = (issueCount[k] || 0) + 1; }));
+  //  重複發生：同一異常型態在兩個以上不同年度出現
+  const repeated = Object.keys(issueCount).filter(k => {
+    const yrs = new Set(withIssue.filter(e => e.issues.indexOf(k) >= 0).map(e => e.roc));
+    return yrs.size >= 2;
+  });
+  const assess = (typeof fac_latestProfessionalAssessment === 'function')
+    ? fac_latestProfessionalAssessment(f) : null;
+  const openNow = events.filter(e => e.open).length;
+  const healths = events.filter(e => e.health != null).map(e => e.health);
+
+  //  維護型態分類（供整體統計）
+  let pattern, patternNote;
+  if (!withIssue.length) {
+    pattern = '長期穩定型';
+    patternNote = '歷年巡查均未記錄結構性異常，維持例行巡查即可。';
+  } else if (repeated.length) {
+    pattern = '重點追蹤型';
+    patternNote = '同一類型異常在不同年度重複出現，建議列為後續維護重點並縮短巡查週期。';
+  } else if (openNow === 0) {
+    pattern = '曾異常已穩定型';
+    patternNote = '曾記錄異常並完成處置，目前無未結案項目。';
+  } else {
+    pattern = '定期維護型';
+    patternNote = '目前仍有未結案項目，依既定維護策略持續辦理。';
+  }
+
+  return {
+    facility: f, events, withIssue, issueCount, repeated, pattern, patternNote,
+    openNow, assess,
+    firstDate: events.length ? events[0].date : null,
+    lastDate: events.length ? events[events.length - 1].date : null,
+    healthFirst: healths.length ? healths[0] : null,
+    healthLast: healths.length ? healths[healths.length - 1] : null,
+    restoredCount: events.filter(e => e.restored).length,
+    years: [...new Set(events.map(e => e.roc).filter(Boolean))].sort((a, b) => a - b)
+  };
+}
+
+/*  20 座整體維護成果統計 */
+function fac_lifecycleOverview() {
+  const facs = (typeof DB !== 'undefined' ? DB.getAll('facilities') : []) || [];
+  const cycles = facs.map(fac_lifecycle);
+  const issueTotal = {};
+  cycles.forEach(c => Object.keys(c.issueCount).forEach(k => {
+    issueTotal[k] = (issueTotal[k] || 0) + c.issueCount[k];
+  }));
+  const byYear = {};
+  cycles.forEach(c => c.events.forEach(e => {
+    if (!e.roc) return;
+    if (!byYear[e.roc]) byYear[e.roc] = { roc: e.roc, total: 0, issue: 0 };
+    byYear[e.roc].total++;
+    if (e.issues.length) byYear[e.roc].issue++;
+  }));
+  const patternCount = {};
+  cycles.forEach(c => { patternCount[c.pattern] = (patternCount[c.pattern] || 0) + 1; });
+  return {
+    cycles,
+    facilities: facs.length,
+    inspections: cycles.reduce((a, c) => a + c.events.length, 0),
+    withIssueFacilities: cycles.filter(c => c.withIssue.length).length,
+    repeatedFacilities: cycles.filter(c => c.repeated.length).length,
+    normalNow: cycles.filter(c => (c.assess && c.assess.status === '正常')).length,
+    openNow: cycles.reduce((a, c) => a + c.openNow, 0),
+    issueTotal, patternCount,
+    byYear: Object.values(byYear).sort((a, b) => a.roc - b.roc),
+    //  可完整重建歷程者：至少 2 個年度有紀錄
+    fullHistory: cycles.filter(c => c.years.length >= 2).length,
+    thinHistory: cycles.filter(c => c.years.length < 2).map(c => c.facility.name)
+  };
+}
+if (typeof window !== 'undefined') {
+  window.fac_lifecycle = fac_lifecycle;
+  window.fac_lifecycleOverview = fac_lifecycleOverview;
+}
+
+
+/* ── 單座設施：歷年改善與維護歷程（時間軸）── */
+function renderFacilityLifecycle(f) {
+  const L = fac_lifecycle(f);
+  if (!L.events.length) return '';
+  const PH = {
+    issue:    { c:'#b45309', bg:'#fffbeb', bd:'#fde68a', t:'發現問題' },
+    handled:  { c:'#1d4ed8', bg:'#eff6ff', bd:'#bfdbfe', t:'維護處置' },
+    restored: { c:'#15803d', bg:'#f0fdf4', bd:'#bbf7d0', t:'改善完成' },
+    routine:  { c:'#475569', bg:'#f8fafc', bd:'#e2e8f0', t:'例行巡查' },
+  };
+  const typeLabel = k => (FAC_ISSUE_TYPES.filter(x => x.key === k)[0] || {}).label || k;
+  const a = L.assess;
+
+  return `
+  <div style="margin-top:16px;border:1px solid #e2e8f0;border-radius:14px;overflow:hidden;background:#fff">
+    <div style="padding:14px 18px;background:#f8fafc;border-bottom:1px solid #e2e8f0">
+      <div style="font-size:16px;font-weight:900;color:#0f172a">
+        <i class="fas fa-timeline" style="color:#1d4ed8;margin-right:8px"></i>歷年改善與維護歷程
+      </div>
+      <div style="font-size:13px;color:#475569;margin-top:5px;line-height:1.7">
+        ${f.year ? `${f.year} 年興建 ‧ ` : ''}${f.type}${f.subType ? '／' + f.subType : ''} ‧ ${f.stationKm || '-'}
+        ｜紀錄期間 ${L.firstDate} ～ ${L.lastDate}，共 ${L.events.length} 筆、涵蓋
+        ${L.years.map(y => y + '年').join('、')}
+      </div>
+    </div>
+
+    <!-- 歷程結論 -->
+    <div style="padding:14px 18px;display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:11px;
+                border-bottom:1px solid #e2e8f0">
+      ${[
+        { k:'維護型態', v:L.pattern, s:L.patternNote },
+        { k:'曾記錄異常', v:L.withIssue.length + ' 筆',
+          s: Object.keys(L.issueCount).length
+             ? Object.keys(L.issueCount).map(k => typeLabel(k) + '×' + L.issueCount[k]).join('、')
+             : '歷年未記錄結構性異常' },
+        { k:'重複發生項目', v:(L.repeated.length || '無'),
+          s: L.repeated.length ? L.repeated.map(typeLabel).join('、') + '（跨年度再現）' : '無同類型異常跨年度再現' },
+        { k:'目前狀態', v:(a ? a.status : f.status || '-'),
+          s:(a ? `${a.derLevel}｜健康 ${a.health} 分｜未結案 ${L.openNow} 件` : '') },
+      ].map(x => `
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:11px 13px">
+          <div style="font-size:12px;color:#64748b;font-weight:700;margin-bottom:5px">${x.k}</div>
+          <div style="font-size:17px;font-weight:900;color:#0f172a;line-height:1.2">${x.v}</div>
+          <div style="font-size:12px;color:#64748b;margin-top:5px;line-height:1.6">${x.s}</div>
+        </div>`).join('')}
+    </div>
+
+    <!-- 時間軸：興建 → 巡查發現問題 → 維護改善 → 現況 -->
+    <div style="padding:16px 18px">
+      <div style="position:relative;padding-left:26px">
+        <div style="position:absolute;left:8px;top:6px;bottom:6px;width:2px;background:#e2e8f0"></div>
+        ${f.year ? `
+        <div style="position:relative;margin-bottom:14px">
+          <div style="position:absolute;left:-24px;top:3px;width:14px;height:14px;border-radius:50%;
+                      background:#0f172a;border:3px solid #fff;box-shadow:0 0 0 2px #0f172a"></div>
+          <div style="font-size:13.5px;font-weight:900;color:#0f172a">民國 ${f.year} 年 ‧ 設施興建</div>
+          <div style="font-size:13px;color:#475569;line-height:1.7;margin-top:3px">
+            ${f.note ? String(f.note).slice(0, 110) : (f.type + '，位於 ' + (f.stationKm || '-'))}
+          </div>
+        </div>` : ''}
+        ${L.events.map(e => {
+          const p = PH[e.phase];
+          return `
+          <div style="position:relative;margin-bottom:14px">
+            <div style="position:absolute;left:-24px;top:3px;width:14px;height:14px;border-radius:50%;
+                        background:${p.c};border:3px solid #fff;box-shadow:0 0 0 2px ${p.c}"></div>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:3px">
+              <span style="font-size:13.5px;font-weight:900;color:#0f172a">${e.roc} 年 ${String(e.date).slice(5)}</span>
+              <span style="font-size:11.5px;font-weight:800;background:${p.bg};color:${p.c};
+                           border:1px solid ${p.bd};border-radius:999px;padding:2px 9px">${p.t}</span>
+              <span style="font-size:11.5px;color:#64748b">${e.typeLabel}</span>
+              ${e.derLevel ? `<span style="font-size:11.5px;color:#475569;font-variant-numeric:tabular-nums">${e.derLevel}${e.health!=null?'｜健康 '+e.health:''}</span>` : ''}
+              ${e.open ? `<span style="font-size:11.5px;font-weight:800;color:#b45309">未結案</span>` : ''}
+            </div>
+            ${e.issues.length ? `<div style="font-size:12px;color:#b45309;font-weight:700;margin-bottom:3px">
+              異常型態：${e.issues.map(typeLabel).join('、')}</div>` : ''}
+            ${e.findings ? `<div style="font-size:13px;color:#334155;line-height:1.75">
+              <b style="color:#64748b">現況：</b>${e.findings.slice(0, 150)}</div>` : ''}
+            ${e.action ? `<div style="font-size:13px;color:#334155;line-height:1.75">
+              <b style="color:#64748b">處置：</b>${e.action.slice(0, 120)}</div>` : ''}
+            ${e.unit ? `<div style="font-size:11.5px;color:#94a3b8;margin-top:2px">${e.unit}${e.inspector ? '｜' + e.inspector : ''}</div>` : ''}
+          </div>`;
+        }).join('')}
+        <div style="position:relative">
+          <div style="position:absolute;left:-24px;top:3px;width:14px;height:14px;border-radius:50%;
+                      background:#1d4ed8;border:3px solid #fff;box-shadow:0 0 0 2px #1d4ed8"></div>
+          <div style="font-size:13.5px;font-weight:900;color:#1d4ed8">現況與後續建議</div>
+          <div style="font-size:13px;color:#334155;line-height:1.8;margin-top:3px">
+            ${a ? `目前判定 <b>${a.derLevel}</b>、健康 <b>${a.health}</b> 分、狀態 <b>${a.status}</b>，維護策略為「${a.strategy || '-'}」。` : ''}
+            ${L.repeated.length
+              ? `<b style="color:#b45309">${L.repeated.map(typeLabel).join('、')}</b> 曾跨年度重複出現，建議列為後續巡查重點並記錄變化趨勢。`
+              : L.withIssue.length
+                ? '曾記錄之異常均已納入處置流程，建議持續追蹤同一部位是否再現。'
+                : '歷年未記錄結構性異常，維持既定巡查頻率即可。'}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ── 20 座整體維護成果分析 ── */
+function renderMaintenanceOverview() {
+  const O = fac_lifecycleOverview();
+  const typeLabel = k => (FAC_ISSUE_TYPES.filter(x => x.key === k)[0] || {}).label || k;
+  const issues = Object.keys(O.issueTotal).sort((a, b) => O.issueTotal[b] - O.issueTotal[a]);
+  const maxIssue = issues.length ? O.issueTotal[issues[0]] : 1;
+  const maxYear = Math.max.apply(null, O.byYear.map(y => y.total).concat([1]));
+  const PC = { '長期穩定型':'#15803d', '曾異常已穩定型':'#0891b2', '定期維護型':'#1d4ed8', '重點追蹤型':'#b45309' };
+
+  return `
+  <div style="border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;background:#fff;margin-bottom:24px">
+    <div style="padding:18px 22px;background:linear-gradient(135deg,#0f2e52,#1c5cab);color:#fff">
+      <div style="font-size:20px;font-weight:900;margin-bottom:6px">
+        <i class="fas fa-screwdriver-wrench" style="margin-right:9px"></i>20 座工程整體維護成果分析
+      </div>
+      <div style="font-size:14px;color:#dbeafe;line-height:1.8">
+        彙整 ${O.facilities} 座設施自建置至今的 ${O.inspections} 筆巡查與維護紀錄，
+        以「原始問題 → 維護處置 → 改善結果 → 後續狀態」的觀點呈現各設施的維護生命週期。
+        全部由巡查紀錄即時推導，未新增人為判斷值。
+      </div>
+    </div>
+
+    <div style="padding:18px 22px;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px">
+      ${[
+        { k:'納管設施', v:O.facilities + ' 座', s:`可重建完整歷程 ${O.fullHistory} 座` },
+        { k:'歷年維護紀錄', v:O.inspections + ' 筆', s:`跨 ${O.byYear.length} 個年度` },
+        { k:'目前狀態正常', v:O.normalNow + ' 座', s:`占 ${(O.normalNow / O.facilities * 100).toFixed(0)}%` },
+        { k:'曾記錄異常', v:O.withIssueFacilities + ' 座', s:`其中 ${O.repeatedFacilities} 座有重複型態` },
+        { k:'未結案項目', v:O.openNow + ' 件', s:'依維護策略辦理中' },
+      ].map(x => `
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px">
+          <div style="font-size:12.5px;color:#64748b;font-weight:700;margin-bottom:6px">${x.k}</div>
+          <div style="font-size:26px;font-weight:900;color:#0f172a;line-height:1;
+                      font-variant-numeric:tabular-nums">${x.v}</div>
+          <div style="font-size:12.5px;color:#64748b;margin-top:6px">${x.s}</div>
+        </div>`).join('')}
+    </div>
+
+    <div style="padding:0 22px 18px;display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px">
+      <div>
+        <div style="font-size:15px;font-weight:900;color:#0f172a;margin-bottom:10px">維護型態分布</div>
+        ${Object.keys(O.patternCount).map(k => `
+          <div style="margin-bottom:9px">
+            <div style="display:flex;justify-content:space-between;font-size:13px;color:#334155;margin-bottom:3px">
+              <span style="font-weight:700">${k}</span>
+              <span style="font-variant-numeric:tabular-nums;font-weight:800">${O.patternCount[k]} 座</span>
+            </div>
+            <div style="height:9px;background:#e2e8f0;border-radius:5px;overflow:hidden">
+              <div style="height:100%;width:${O.patternCount[k] / O.facilities * 100}%;
+                          background:${PC[k] || '#64748b'};border-radius:5px"></div>
+            </div>
+          </div>`).join('')}
+        <div style="font-size:12.5px;color:#64748b;line-height:1.75;margin-top:10px;
+                    border-top:1px dashed #e2e8f0;padding-top:9px">
+          <b>長期穩定型</b>：歷年無結構性異常紀錄。
+          <b>曾異常已穩定型</b>：曾記錄異常並完成處置、目前無未結案。
+          <b>定期維護型</b>：仍有未結案項目，依策略辦理中。
+          <b>重點追蹤型</b>：同型態異常跨年度再現，建議縮短巡查週期。
+        </div>
+      </div>
+      <div>
+        <div style="font-size:15px;font-weight:900;color:#0f172a;margin-bottom:10px">主要異常型態分布</div>
+        ${issues.map(k => `
+          <div style="margin-bottom:9px">
+            <div style="display:flex;justify-content:space-between;font-size:13px;color:#334155;margin-bottom:3px">
+              <span style="font-weight:700">${typeLabel(k)}</span>
+              <span style="font-variant-numeric:tabular-nums;font-weight:800">${O.issueTotal[k]} 筆</span>
+            </div>
+            <div style="height:9px;background:#e2e8f0;border-radius:5px;overflow:hidden">
+              <div style="height:100%;width:${O.issueTotal[k] / maxIssue * 100}%;
+                          background:#1c5cab;border-radius:5px"></div>
+            </div>
+          </div>`).join('') || '<div style="font-size:13px;color:#64748b">歷年未記錄結構性異常</div>'}
+      </div>
+    </div>
+
+    <div style="padding:0 22px 20px">
+      <div style="font-size:15px;font-weight:900;color:#0f172a;margin-bottom:10px">各年度維護工作量</div>
+      <div style="display:flex;align-items:flex-end;gap:14px;height:130px;padding:0 4px">
+        ${O.byYear.map(y => `
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:5px">
+            <div style="font-size:12.5px;font-weight:800;color:#0f172a;font-variant-numeric:tabular-nums">${y.total}</div>
+            <div style="width:100%;max-width:64px;height:${Math.max(6, y.total / maxYear * 88)}px;
+                        background:#1c5cab;border-radius:4px 4px 0 0;position:relative"
+                 title="${y.roc}年 共 ${y.total} 筆，其中 ${y.issue} 筆記錄異常">
+              ${y.issue ? `<div style="position:absolute;bottom:0;left:0;right:0;
+                   height:${y.issue / y.total * 100}%;background:#b45309;border-radius:0 0 4px 4px"></div>` : ''}
+            </div>
+            <div style="font-size:12.5px;color:#475569;font-weight:700">${y.roc}年</div>
+          </div>`).join('')}
+      </div>
+      <div style="font-size:12.5px;color:#64748b;margin-top:9px;line-height:1.7">
+        深藍為當年度全部巡查與維護筆數，底部橘色為其中記錄到異常的筆數。
+        114 年因辦理全設施專業巡查（20 座全覆蓋），紀錄筆數明顯高於其他年度。
+        ${O.thinHistory.length ? `<br><b>歷程資料較少者（僅單一年度紀錄）：</b>${O.thinHistory.join('、')} —— 建議後續補充歷年巡查以完整重建維護歷程。` : ''}
+      </div>
+    </div>
+  </div>`;
+}
+
 function fac_riskBand(riskScore, maxU = 1) {
   const risk = Number(riskScore) || 0;
   const u = Number(maxU) || 0;
@@ -1853,6 +2198,7 @@ function renderFacilities() {
       </div>
     </div>
 
+    ${renderMaintenanceOverview()}
     ${renderFacilityPrimaryCategories()}
 
     <!-- 篩選列 -->
@@ -2816,6 +3162,7 @@ function viewFacility(id) {
 
       <!-- ④ 巡查資料與維護管理資料 -->
       ${renderFacilityInspectionDataSection(f)}
+      ${renderFacilityLifecycle(f)}
       ${renderFacilityMaintenanceDataSection(f)}
       ${fac_renderInspectionLinkageDetail(f)}
 
