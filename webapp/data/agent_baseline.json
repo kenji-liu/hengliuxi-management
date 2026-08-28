@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-08-28T12:44:22.330Z",
+ "generatedAt": "2026-08-28T12:50:50.722Z",
  "generator": "scripts/export_agent_baseline.js",
  "note": "後端 Agent 的預設資料。前端有送 client_snapshot 時以前端為準，此檔僅補齊缺漏的鍵，確保無瀏覽器時仍能取得權威數值。",
  "sourceHashes": {

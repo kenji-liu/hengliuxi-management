@@ -484,7 +484,17 @@ function fac_inferDeruFromInspection(item = {}) {
   let r = Number.isFinite(Number(item.deru_r)) ? Number(item.deru_r) : 1;
   let source = item.deru_d !== undefined ? 'DER&U表單值' : '專業巡查文字判讀';
   // 三維皆由表單明確填寫：文字判讀僅保留緊急覆寫，不推高表單已評定的 e/r 值
-  const hasAllExplicitDER = Number.isFinite(Number(item.deru_d)) &&
+  //  D=0/E=1/R=1 是資料庫早期的預設佔位值，並非真正的評定結果。
+  //  若同一筆的文字明確描述損壞（且非否定語句），這組 0/1/1 就與紀錄本身矛盾，
+  //  不可視為「已完整填寫」而封鎖文字判讀 —— 否則像
+  //  「入口遭颱風帶入土石完全堵塞、魚類無法通行」這種紀錄會被判成 A1／健康90。
+  const _cleanText = (typeof fac_stripNegated === 'function')
+    ? fac_stripNegated(text) : text;
+  const _placeholderDer = Number(item.deru_d) === 0 && Number(item.deru_e) <= 1 &&
+                          Number(item.deru_r) <= 1 &&
+    /裂縫|龜裂|淘空|淘刷|沖蝕|侵蝕|裸露|破損|損壞|剝落|斷裂|鏽蝕|腐朽|位移|偏移|傾斜|沉陷|堵塞|阻塞|崩塌|倒塌|損耗/.test(_cleanText);
+  const hasAllExplicitDER = !_placeholderDer &&
+                             Number.isFinite(Number(item.deru_d)) &&
                              Number.isFinite(Number(item.deru_e)) &&
                              Number.isFinite(Number(item.deru_r));
   const labeledHealthyGrade = /^(?:A1?|A級)/i.test(String(item.derLevel || item.level || item.deru_label || ''));
@@ -905,9 +915,35 @@ const FAC_ISSUE_TYPES = [
   { key:'崩塌',   label:'崩塌／落石',     re:/崩塌|落石|坍方|滑落/ },
 ];
 
+/*  否定語句移除
+    ------------------------------------------------------------------
+    巡查文字常以否定方式描述「沒有問題」，例如
+      「外觀狀況良好，功能健全，無裂縫或淘空情形」
+      「木材無明顯腐朽，鋼構無鏽蝕」
+      「魚道各階落差正常、無明顯淤積、無斷流」
+    若直接對全文做關鍵詞比對，這些句子會被判成「有裂縫、有淘空、有淤積」。
+    先把否定片語連同其後的病徵詞一併移除，再做比對。 */
+//  病徵詞集合（否定清單與正向比對共用）
+const FAC_SYMPTOM = '(?:裂縫|龜裂|淘空|淘刷|沖刷|下刷|侵蝕|沖蝕|裸露|破損|損壞|剝落|斷裂|鏽蝕|銹蝕|腐朽|磨蝕|磨耗|劣化|耗損|位移|偏移|傾斜|傾倒|沉陷|淤積|淤塞|堆積|阻塞|堵塞|斷流|崩塌|落石|倒塌|異常|問題)';
+//  否定片語：否定詞 →（可含修飾語）→ 一個或多個以頓號／或／及相接的病徵詞
+//  → 可選的收尾詞（情形、現象、等劣化情形、之虞）
+//  例：「無裂縫、磨蝕、淘空或傾倒等劣化情形」「木材無明顯腐朽，鋼構無鏽蝕」
+const FAC_NEGATION_RE = new RegExp(
+  '(?:無|未見|未有|沒有|不見|未發現|未檢出|未出現|並無|尚無)' +
+  '(?:明顯|顯著|重大|任何)?' +
+  '[^，。；、\n]{0,6}?' +
+  FAC_SYMPTOM +
+  '(?:(?:、|或|及|與|和)' + FAC_SYMPTOM + ')*' +
+  '(?:等)?(?:[^，。；、\n]{0,6}?(?:情形|現象|之虞))?', 'g');
+
+function fac_stripNegated(text) {
+  return String(text || '').replace(FAC_NEGATION_RE, ' ');
+}
+
 function fac_issueTypesOf(item) {
-  const text = (typeof fac_inspectionText === 'function') ? fac_inspectionText(item)
+  const raw = (typeof fac_inspectionText === 'function') ? fac_inspectionText(item)
     : [item.findings, item.action, item.appearanceOther, item.notes].filter(Boolean).join(' ');
+  const text = fac_stripNegated(raw);
   return FAC_ISSUE_TYPES.filter(t => t.re.test(text)).map(t => t.key);
 }
 
@@ -932,7 +968,11 @@ function fac_lifecycle(f) {
       findings: String(item.findings || item.notes || '').trim(),
       action: String(item.action || item.recommendation || '').trim(),
       status: item.status || '完成',
-      open, restored, issues,
+      open, restored,
+      //  改善完成紀錄的病徵詞描述的是「已處理掉的問題」，不是現存異常，
+      //  故不列入 issues（避免被算成重複發生），另存 fixedIssues 供呈現。
+      issues: restored ? [] : issues,
+      fixedIssues: restored ? issues : [],
       health: deru ? deru.health : null,
       derLevel: deru ? deru.derLevel : '',
       u: deru ? deru.u : null,
