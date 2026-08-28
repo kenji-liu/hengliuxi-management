@@ -39,15 +39,25 @@ const MONITORING_REPORT = {
     { id: 'FD8', name: '梯狀(階段)魚道',  structure: '溪構8-2 之字形魚道',       km: '0K+460', max112Oct: 14, max113Apr: 19, max113Sep: 16, note: '' }
   ],
   // ── 電捕法調查（8座魚道，113年4月）──
+  //  魚道電捕調查（合計 74 尾）
+  //  ------------------------------------------------------------------
+  //  來源：05_重新組織的工程維護資料/9種魚道設計參數整理報告.md
+  //        逢甲大學營建及防災研究中心（2026-06-04）彙整自
+  //        橫流溪動物通道智慧評估完整成果報告。
+  //  原本平台另存一組合計 63 尾的數列，逐座數值與上述已查證來源不符，
+  //  且以 FW1~FW8 編號易與實際溪構錯配（該列表略過溪構2）。
+  //  依「以最多尾數為主」原則統一改採 74 尾這一組，並直接標註溪構代號。
+  electricFishing113Total: 74,
   electricFishing113: [
-    { fw: 1, species: 2, count: 5,  highlight: '明潭吻鰕虎、纓口臺鰍' },
-    { fw: 2, species: 3, count: 8,  highlight: '臺灣白甲魚(12)、明潭吻鰕虎、纓口臺鰍' },
-    { fw: 3, species: 2, count: 6,  highlight: '臺灣白甲魚、臺灣石魚賓' },
-    { fw: 4, species: 3, count: 11, highlight: '多種魚類混棲' },
-    { fw: 5, species: 5, count: 17, highlight: '★最多，5種17尾' },
-    { fw: 6, species: 2, count: 4,  highlight: '臺灣石魚賓、鰕虎' },
-    { fw: 7, species: 3, count: 7,  highlight: '臺灣間爬岩鰍有紀錄' },
-    { fw: 8, species: 2, count: 5,  highlight: '梯狀魚道周邊' }
+    { code: '溪構1-1', fw: 1, species: 2, count: 4,  highlight: '明潭吻鰕虎、臺灣石魚賓' },
+    { code: '溪構1-2', fw: 2, species: 0, count: 0,  highlight: '陷阱法另有紀錄（與1-1合計統計）' },
+    { code: '溪構2',   fw: null, species: 2, count: 5,  highlight: '臺灣白甲魚、臺灣石魚賓' },
+    { code: '溪構3',   fw: 3, species: 3, count: 14, highlight: '明潭吻鰕虎(12)、臺灣白甲魚(1)、纓口臺鰍(1)' },
+    { code: '溪構4',   fw: 4, species: 4, count: 11, highlight: '臺灣石魚賓(6)、臺灣白甲魚(2)、臺灣間爬岩鰍(2)、明潭吻鰕虎(1)' },
+    { code: '溪構5-2', fw: 5, species: 4, count: 17, highlight: '★最多；明潭吻鰕虎(13)、臺灣白甲魚(1)、臺灣石魚賓(1)、纓口臺鰍(1)' },
+    { code: '溪構6',   fw: 6, species: 1, count: 4,  highlight: '臺灣石魚賓' },
+    { code: '溪構7',   fw: 7, species: 1, count: 8,  highlight: '臺灣白甲魚等' },
+    { code: '溪構8-2', fw: 8, species: 1, count: 11, highlight: '臺灣白甲魚等' }
   ],
   // ── 棲地評估（臺灣間爬岩鰍，流量1.0 cms）──
   habitatAssessment: {
