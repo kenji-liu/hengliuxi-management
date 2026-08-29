@@ -268,13 +268,23 @@ function fac_deleteMaintenanceCase(inspectionId, facilityId) {
   const item = DB.getById('inspections', inspectionId);
   if (!item) { showToast('找不到對應記錄', 'error'); return; }
   const label = item.facilityName || item.inspectNo || `ID ${inspectionId}`;
-  if (!confirm(`確定要刪除「${label}」的這筆維護案件？此操作無法復原。`)) return;
+  //  一般／專業／魚道巡查表單一律不可從這裡刪除：這是原始巡查紀錄，不是
+  //  維護管理案件。過去這個按鈕不分來源一律 DB.delete('inspections', …)，
+  //  導致巡查表單被整筆永久刪除 —— 直接違反「保留專業巡查原始紀錄，不得
+  //  將原始專業巡查資料整筆刪除」的原則。真正的維護完工回報
+  //  （formType === 'maintenance_completion'）才允許在此刪除。
+  const isInspectionForm = item.formType && item.formType !== 'maintenance_completion';
+  if (isInspectionForm) {
+    showToast('此為原始巡查紀錄，不可從維護管理刪除；請至「巡查資料管理」編輯或刪除。', 'error');
+    return;
+  }
+  if (!confirm(`確定要刪除「${label}」的這筆維護完工回報？此操作無法復原。`)) return;
   DB.delete('inspections', inspectionId);
   const fac = DB.getById('facilities', Number(facilityId));
   if (fac && typeof fac_syncLatestProfessionalAssessment === 'function') {
     fac_syncLatestProfessionalAssessment(fac);
   }
-  showToast('維護案件已刪除', 'info');
+  showToast('維護完工回報已刪除', 'info');
   viewFacility(facilityId);
 }
 
@@ -2055,9 +2065,10 @@ function fac_renderMaintenanceCaseCard(item, f) {
           <button onclick="openInspectionReclassificationForm(${item.itemId},${f.id})" style="font-size:11px;color:#7c3aed;background:#faf5ff;border:1px solid #ddd6fe;border-radius:5px;padding:2px 7px;cursor:pointer;font-weight:700">
             <i class="fas fa-random"></i> 重新歸類
           </button>
+          ${derived ? '' : `
           <button onclick="fac_deleteMaintenanceCase(${item.itemId},${f.id})" style="font-size:11px;color:#b91c1c;background:#fff1f2;border:1px solid #fecaca;border-radius:5px;padding:2px 7px;cursor:pointer;font-weight:700">
             <i class="fas fa-trash-alt"></i> 刪除
-          </button>
+          </button>`}
         </div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:6px;color:#475569">
