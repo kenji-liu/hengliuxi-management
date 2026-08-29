@@ -5,7 +5,10 @@ services:
     region: singapore
     plan: free
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn web_api:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120 --log-level info
+    #  --threads：AI 問答的 SSE 串流會把連線開著 6～33 秒，單執行緒的 sync
+    #  worker 在這段期間會讓整站（含靜態檔）排隊，且連線異常時會卡到逾時。
+    #  免費方案記憶體吃緊，執行緒共用同一份記憶體，比增加 worker 省得多。
+    startCommand: gunicorn web_api:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120 --log-level info
     healthCheckPath: /api/v1/health
     envVars:
       - key: PYTHON_VERSION
