@@ -2505,13 +2505,23 @@ function buildStructuredSnapshot(query = '') {
       };
     });
 
-    // 巡查紀錄體積較大，只送必要欄位並略過照片
+    // 巡查紀錄體積較大，只送必要欄位並略過照片。
+    // inspectNo／level／completedAt 是後端重建「最新有效現況」的必要欄位：
+    //   inspectNo  → 判斷這筆講的是哪個樁號（護岸、步道各有多處）
+    //   level      → 區分「B/C 級待辦缺失」與「A 級現況描述」
+    //   completedAt→ 該筆異常的完工事證
+    // 少了它們，後端只能靠文字猜，舊異常就會被誤當成目前問題。
     const inspections = (fishDataOnly ? [] : allInspections).map(r => ({
       id: r.id, facilityId: r.facilityId, facilityName: r.facilityName,
       formType: r.formType, date: r.date, inspector: r.inspector,
       status: r.status, priority: r.priority,
+      inspectNo: r.inspectNo || '', level: r.level || '',
+      completedAt: r.completedAt || '', position: r.position || '',
+      defectType: r.defectType || '',
       deru_d: r.deru_d, deru_e: r.deru_e, deru_r: r.deru_r, deru_u: r.deru_u,
       findings: String(r.findings || '').slice(0, 300),
+      appearanceOther: String(r.appearanceOther || '').slice(0, 160),
+      notes: String(r.notes || '').slice(0, 200),
       action: String(r.action || '').slice(0, 200)
     }));
 

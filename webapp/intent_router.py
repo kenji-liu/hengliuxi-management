@@ -135,6 +135,17 @@ INTENT_RULES: List[Dict[str, Any]] = [
     },
 ]
 
+#  現況型問題：問的是「到今天為止的最新有效狀態」，不是歷史紀錄。
+#  這種題目最容易出錯 —— 舊年度成果報告文字完整、相似度高，會蓋過一行
+#  簡短的最新巡查，於是早已改善的異常被當成目前問題答出去。
+#  命中時 prefer_latest=True，Agent 必須先呼叫 query_current_status，
+#  歷年報告只能作為原因與歷程的補充。
+_CURRENT_RE = re.compile(
+    r"目前|現在|現況|最新|最近|如今|當前|"
+    r"是否仍|還有沒有|有沒有問題|有什麼異常|哪些異常|哪座需要|哪些需要|"
+    r"需要維護|待處理|尚未處理|是否已|有無改善|完成維護了嗎|處理好了嗎")
+
+
 #  具名實體（設施編號、樁號、物種名）比泛用動詞更能決定意圖，因此加權較高。
 _NAMED_ENTITY_RE = re.compile(
     r"溪[構溝]\s*\d+(?:-\d+)?|\d+K\+\d+|DER\s*&?\s*U|FW\s*\d|"
@@ -184,6 +195,10 @@ def route(query: str) -> Dict[str, Any]:
                         "handbook": False, "web": False},
             "tools": [],
             "fast_path": False,
+            "current_status": False,
+            "prefer_latest": False,
+            "include_maintenance_after_inspection": False,
+            "historical_data": "normal",
             "reason": "未命中任何意圖關鍵字，改採綜合查詢",
         }
 
@@ -213,6 +228,12 @@ def route(query: str) -> Dict[str, Any]:
             if tool not in tools:
                 tools.append(tool)
 
+    #  現況型判斷獨立於意圖分類：它決定「用哪個時間點的資料」，
+    #  而不是「查哪一類資料」。工程類問題才適用（生態調查沒有現況／歷史之分）。
+    current_status = bool(_CURRENT_RE.search(text)) and any(
+        name in ("facility", "inspection", "deru", "maintenance", "fishpass")
+        for name in intents)
+
     #  快速通道條件（三者皆須成立）：
     #    1. 問題不長 —— 長問句通常含多個子題
     #    2. 沒有深度推理訊號
@@ -223,6 +244,14 @@ def route(query: str) -> Dict[str, Any]:
                  and all(name in _FAST_INTENTS for name in intents)
                  and bool(tools))
 
+    if current_status:
+        #  現況題一律先查最新有效現況；歷年報告降為次要，不得當成現況答案
+        tools = ["query_current_status"] + [t for t in tools
+                                            if t != "query_current_status"]
+        labels = ["目前現況"] + labels
+        sources["local"] = sources.get("local", False) and not fast_path
+        sources["ocr"] = False
+
     return {
         "intents": intents,
         "primary": best,
@@ -232,9 +261,15 @@ def route(query: str) -> Dict[str, Any]:
         "sources": sources,
         "tools": tools,
         "fast_path": fast_path,
-        "reason": ("符合快速通道：查詢對象明確且不需跨年度推理"
-                   if fast_path else
-                   "需要完整檢索與推理"),
+        #  現況型問題的三個旗標，供後端決定資料優先權與 RAG 時間加權
+        "current_status": current_status,
+        "prefer_latest": current_status,
+        "include_maintenance_after_inspection": current_status,
+        "historical_data": "secondary" if current_status else "normal",
+        "reason": ("現況型問題：以最新有效現況為主，歷年資料僅作補充"
+                   if current_status else
+                   ("符合快速通道：查詢對象明確且不需跨年度推理"
+                    if fast_path else "需要完整檢索與推理")),
     }
 
 

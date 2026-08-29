@@ -123,6 +123,29 @@ TOOL_SCHEMAS: List[Dict[str, Any]] = [
     {
         "type": "function",
         "function": {
+            "name": "query_current_status",
+            "description":
+                "【現況型問題請優先使用本工具】回傳工程設施的『最新有效現況』："
+                "依時間順序整合最新巡查、後續維護、後續複查後，逐項判定每個異常"
+                "目前是否仍然成立（OPEN 目前異常／RECURRED 再度發生／"
+                "MAINTAINED 已維護待複查／RESOLVED 已改善不列為現況）。"
+                "問到『目前、現在、現況、最新、最近、是否仍、有沒有問題、"
+                "哪座需要維護、哪些異常、目前風險』時必須用它，不可改用巡查紀錄"
+                "或歷年報告自行推論 —— 舊巡查寫的裂縫、淘空、阻塞可能早已完成改善。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string",
+                             "description": "設施名稱或編號，如「溪構11」「護岸」；留空查全部"},
+                    "only_active": {"type": "boolean",
+                                    "description": "只回傳仍有目前異常的設施，預設 false"},
+                },
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "query_facilities",
             "description": (
                 "查詢橫流溪工程設施的現況、DER&U 評等、健康分數與維護策略。"
@@ -304,8 +327,24 @@ def query_terms(query: str) -> List[str]:
     return answer_engine.query_terms(query)
 
 
+#  同一座設施的常見異寫。使用者慣寫「溪溝11」，資料庫寫「溪構11」；
+#  工具做精確字串比對時會查無，模型只能誠實回「查無此設施」—— 對使用者
+#  來說等於平台壞掉。臺／台、鰕／蝦同樣是本專案既有的異體字問題。
+_TERM_ALIASES = (("溪溝", "溪構"), ("台", "臺"), ("蝦虎", "鰕虎"))
+
+
+def _normalize_term(value: Any) -> str:
+    text = str(value or "")
+    for wrong, right in _TERM_ALIASES:
+        text = text.replace(wrong, right)
+    #  樁號寫法統一：「0K + 510」「0k+510」→「0K+510」
+    return re.sub(r"(\d+)\s*[Kk]\s*\+\s*(\d+)", r"K+", text)
+
+
 def _match(text: Any, keyword: str) -> bool:
-    return bool(keyword) and keyword.strip() in str(text or "")
+    if not keyword:
+        return False
+    return _normalize_term(keyword).strip() in _normalize_term(text)
 
 
 def _urgency(item: Dict[str, Any]) -> int:
@@ -376,6 +415,86 @@ def _risk_band(risk_score: Any, urgency: int = 1) -> str:
     if risk >= 50 or u >= 3:
         return "中風險"
     return "低風險"
+
+
+def query_current_status(snapshot: Dict[str, Any], name: str = "",
+                         only_active: bool = False) -> Dict[str, Any]:
+    """最新有效現況：由事件時間軸重建，而非取最相似或最後一筆文字。"""
+    try:
+        from webapp import current_status as cs
+    except Exception:                             # pragma: no cover
+        import current_status as cs               # type: ignore
+
+    rows = cs.build_current_status(snapshot, _normalize_term(name))
+    if not rows:
+        return {"error": f"查無設施「{name}」的現況資料。" if name
+                         else "本次請求未帶入設施資料快照。"}
+
+    #  單座查詢才給完整時間軸與歷史。列全平台時若每座都帶時間軸，
+    #  結果會超過 MAX_TOOL_RESULT_CHARS 被切成不完整的 JSON —— 實測
+    #  20 座設施的輸出在 4000 字處斷掉，模型拿到半截資料就答不出來。
+    detailed = bool(name)
+
+    def _slim(item: Dict[str, Any]) -> Dict[str, Any]:
+        out: Dict[str, Any] = {
+            "設施": item["facility_name"],
+            "目前狀態": item["current_status"],
+            "最新專業巡查": item["latest_professional_date"],
+            "最新DER&U": item["latest_deru"],
+            "目前異常": [{
+                "位置": x["location"], "型態": x["issueLabel"], "狀態": x["status"],
+                "最後記錄": x["lastSeen"],
+                "內容": x["lastSeenFindings"][:90],
+                **({"備註": x["nearbyNote"]} if x["nearbyNote"] else {}),
+            } for x in item["current_issues"]],
+        }
+        if item["pending_confirmation"]:
+            out["已維護待複查"] = [{
+                "位置": x["location"], "型態": x["issueLabel"],
+                "最後記錄": x["lastSeen"], "維護": x["maintenanceNote"][:60],
+            } for x in item["pending_confirmation"]]
+        if detailed:
+            out["類別"] = item["facility_type"]
+            out["現況依據"] = item["current_status_source"]
+            out["最新巡查"] = (f'{item["latest_inspection_date"]}'
+                              f'（{item["latest_inspection_form"]}，'
+                              f'{item["latest_inspection_status"]}）')
+            out["歷史已改善"] = [{
+                "位置": x["location"], "型態": x["issueLabel"],
+                "發現": x["lastSeen"], "複查確認": x["followupDate"],
+            } for x in item["resolved_history"]]
+            if item["creek_wide_reports"]:
+                out["全流域巡查通報"] = item["creek_wide_reports"][:3]
+            out["近期時間軸"] = item["timeline"]
+        elif item["resolved_history"]:
+            out["歷史已改善項數"] = len(item["resolved_history"])
+        return out
+
+    active_rows = [r for r in rows if r["current_issues"] or r["pending_confirmation"]]
+    if only_active:
+        rows = [r for r in rows if r["current_issues"]]
+    elif not detailed:
+        #  列全平台時只展開有狀況的設施，其餘用一行帶過，
+        #  既省 context 也讓模型不會漏掉「其他都正常」這件事
+        clean = [r["facility_name"] for r in rows
+                 if not r["current_issues"] and not r["pending_confirmation"]]
+        rows = active_rows
+
+    result: Dict[str, Any] = {
+        "設施數": len(rows),
+        "目前異常項數": sum(len(r["current_issues"]) for r in rows),
+        "待複查項數": sum(len(r["pending_confirmation"]) for r in rows),
+        "狀態代碼": "OPEN＝目前異常；RECURRED＝曾改善又再出現，亦屬目前異常；"
+                    "MAINTAINED＝已維護待複查；RESOLVED＝已改善，屬歷史不列為現況",
+        "判定規則": "異常是否仍成立，依同一位置後續的專業巡查與登載完工事證判定；"
+                    "全流域維護合約未標到單一設施，不據以宣稱已改善；"
+                    "一般性定期巡查涵蓋全流域七項設施，不足以作為單座設施的複查證據。",
+        "設施現況": [_slim(r) for r in rows[:12]],
+        "已截斷": len(rows) > 12,
+    }
+    if not detailed and not only_active:
+        result["其餘無待處理異常之設施"] = clean
+    return result
 
 
 def query_facilities(snapshot: Dict[str, Any], name: str = "", facility_type: str = "",
@@ -727,7 +846,11 @@ def execute_tool(name: str, arguments: Dict[str, Any], snapshot: Dict[str, Any],
     # 前端沒送到的鍵在此以伺服器端基準值補齊，工具因此不再依賴瀏覽器。
     snapshot = merge_snapshot(snapshot)
     try:
-        if name == "query_facilities":
+        if name == "query_current_status":
+            result = query_current_status(
+                snapshot, str(args.get("name") or ""),
+                bool(args.get("only_active")))
+        elif name == "query_facilities":
             result = query_facilities(
                 snapshot, str(args.get("name") or ""),
                 str(args.get("facility_type") or ""), str(args.get("status") or ""),

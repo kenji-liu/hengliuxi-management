@@ -1085,6 +1085,7 @@ _AGENT_SYSTEM_PROMPT = """你是「橫流溪工程設施維護與生態資料管
 就直接貼出與問題無關的統計。若第一次查詢沒有直接命中，先用 search_documents
 以問題的工程／生態／環境詞彙再查一次；仍不足時，才用 web_search，且搜尋字串必須
 包含「橫流溪」及必要的「臺中市和平區／大甲溪」場域限制。
+・目前現況、目前異常、是否仍有問題、哪座需要維護 → query_current_status
 ・設施現況、DER&U 評等、健康分數 → query_facilities
 ・巡查紀錄、發現的問題、處理狀態 → query_inspections
 ・魚類歷年調查與物種尾數 → query_fish_surveys
@@ -1103,6 +1104,30 @@ _AGENT_SYSTEM_PROMPT = """你是「橫流溪工程設施維護與生態資料管
 ・問到本案以外的比較對象、近期政策、獎項評審重點或外部事件。
 查回來的內容必須標明是外部資料（如「依水土保持技術規範」「依文獻」），
 不可與平台實測值混為一談；若與平台資料衝突，以平台實測為準並指出差異。
+
+【現況與歷史必須分清楚】
+工程管理的實際流程是：巡查發現異常 → DER&U 評估 → 維護派工 → 維護完成
+→ 後續複查 → 最新現況。因此「舊巡查寫了裂縫」不等於「現在還有裂縫」。
+
+・凡問到目前／現在／現況／最新／最近／是否仍／有沒有問題／哪座需要維護，
+  一律先呼叫 query_current_status，不可自己拿巡查紀錄或歷年報告推論。
+・該工具已把每個異常判定為四種狀態，直接採用，不要自行改判：
+    OPEN       目前異常（發現後無任何改善證據）
+    RECURRED   目前異常（曾改善但又再出現）
+    MAINTAINED 已完成維護，尚待後續巡查確認
+    RESOLVED   已改善，屬歷史說明，不得寫成目前問題
+・回答「目前有哪些問題」時只列 OPEN 與 RECURRED。
+・工具回傳的「同期相關工程」是全流域合約，沒有標到單一設施，
+  只能寫成「該期間另有○○工程」，不得寫成「該異常已完成修復」。
+
+【現況型問題的回答結構】
+依序寫三段，不要只丟一句結論：
+  目前狀態：「依 115/07/18 最新專業巡查，溪構○○目前……」（一定要寫日期）
+  近期處理：「114/04/18 曾發現……，並於 ○○/○○ 完成……」（沒有就說沒有）
+  目前判斷：「因此該異常目前判定為仍待處理／已維護待複查／已改善」
+最新資料與歷史資料衝突時，以最新有效資料為主要答案，並補一句
+「歷史資料曾記錄○○異常，但後續已有更新資料，因此不再視為目前現況」。
+引用任何一筆紀錄都必須寫出日期，不可只說「巡查發現」。
 
 【最重要：數字一律來自工具】
 所有數量、日期、座標、評等、金額都必須引用工具回傳的值，
@@ -2177,8 +2202,16 @@ def _fast_tool_arguments(name: str, query: str) -> Dict[str, Any]:
     """依問題內容推出快速通道要帶的工具參數（純字串比對，不猜測數值）。"""
     facility = (_FAST_FACILITY_RE.search(query) or [None])
     facility_name = facility.group(0).replace(" ", "") if hasattr(facility, "group") else ""
-    if name == "query_facilities":
+    if name == "query_current_status":
         args: Dict[str, Any] = {}
+        if facility_name:
+            args["name"] = facility_name
+        elif re.search(r"哪些|哪座|哪幾|全部|所有|清單", query):
+            #  問「哪些設施目前有異常」時只回仍成立的項目，其餘設施不必展開
+            args["only_active"] = True
+        return args
+    if name == "query_facilities":
+        args = {}
         if facility_name:
             args["name"] = facility_name
         else:
@@ -2204,6 +2237,95 @@ def _fast_tool_arguments(name: str, query: str) -> Dict[str, Any]:
     if name == "search_documents":
         return {"query": query[:80], "top_k": 6}
     return {}
+
+
+#  ── 現況型問題的檢索重排 ────────────────────────────────────────────
+#  純語意相似度會讓舊成果報告贏過最新巡查：報告寫得完整、用詞豐富，
+#  而最新巡查往往只有一行字。問「目前狀況」卻拿到 107 年報告的描述，
+#  就是這樣來的。
+#
+#      FinalScore = 語意相似度 + 時間新近 + 來源優先權 + 設施精準命中
+#
+#  但「比較新」本身不是採用的理由。時間加權只加在「已經與問題相關」的
+#  文件上 —— 必須同時滿足工程一致與問題類型一致，否則一份新的無關文件
+#  會被推到最前面。
+_YEAR_RE = re.compile(r"(1[0-2]\d)\s*年|((?:19|20)\d{2})")
+#  來源優先權：越接近「現況」的資料型態給越高的權重
+_SOURCE_PRIORITY = [
+    (re.compile(r"現況|調查表|檢測表|巡查|巡檢|檢核表"), 3.0),
+    (re.compile(r"維護|搶修|監工|日報|施工|合約"), 2.0),
+    (re.compile(r"手冊|規範|準則"), 1.0),
+    (re.compile(r"成果報告|報告書|規劃|設計|監測調查"), 0.0),
+]
+
+
+def _doc_roc_year(doc: Dict[str, Any]) -> Optional[int]:
+    """從檔名／路徑推出文件年度（民國年）。取不到就回 None，不臆測。"""
+    text = f"{_as_text(doc.get('source_file'))} {_as_text(doc.get('source_path'))}"
+    best: Optional[int] = None
+    for roc, ad in _YEAR_RE.findall(text):
+        year = int(roc) if roc else int(ad) - 1911
+        if 90 <= year <= 130 and (best is None or year > best):
+            best = year
+    return best
+
+
+def _rerank_for_currency(query: str, docs: "List[Dict[str, Any]]",
+                         routed: Dict[str, Any]) -> "List[Dict[str, Any]]":
+    """現況型問題：把最新、最貼近現況型態、且確實談到該設施的文件往前排。"""
+    if not docs or not routed.get("prefer_latest"):
+        return docs
+
+    #  問題裡指名的設施編號／樁號；有指名時才做「工程一致」的加分
+    targets = set(re.findall(r"溪[構溝]\s*\d+(?:-\d+)?|\d+K\+\d+", query))
+    targets = {t.replace(" ", "").replace("溪溝", "溪構") for t in targets}
+    years = [y for y in (_doc_roc_year(d) for d in docs) if y]
+    newest = max(years) if years else None
+    scores = [float(d.get("score") or 0) for d in docs]
+    span = (max(scores) - min(scores)) or 1.0
+
+    ranked = []
+    for doc in docs:
+        text = (_as_text(doc.get("full_text") or doc.get("preview") or doc.get("text"))
+                + " " + _as_text(doc.get("source_file")))
+        semantic = (float(doc.get("score") or 0) - min(scores)) / span
+
+        source_bonus = 0.0
+        for pattern, weight in _SOURCE_PRIORITY:
+            if pattern.search(_as_text(doc.get("source_file"))):
+                source_bonus = weight
+                break
+
+        #  工程一致：問題指名了設施，這份文件也確實提到它
+        facility_hit = bool(targets) and any(t in text.replace(" ", "") for t in targets)
+        #  問題類型一致：問題的關鍵詞至少有一個出現在文件裡
+        terms = [t for t in (answer_engine.query_terms(query)
+                             if answer_engine is not None else []) if len(t) >= 2]
+        topic_hit = (not terms) or any(t in text for t in terms)
+
+        #  時間加權的門檻：不相關的新文件不得因為新就上位
+        relevant = topic_hit and (facility_hit or not targets)
+        year = _doc_roc_year(doc)
+        recency = 0.0
+        if relevant and year and newest:
+            #  與最新年度相差 0 年給滿分，每差一年遞減，超過 5 年不再加分
+            recency = max(0.0, 1.0 - abs(newest - year) / 5.0) * 2.0
+
+        final = semantic * 3.0 + recency + source_bonus + (2.0 if facility_hit else 0.0)
+        item = dict(doc)
+        item["_rank_detail"] = {
+            "semantic": round(semantic, 3), "recency": round(recency, 2),
+            "source": source_bonus, "facility": bool(facility_hit),
+            "year": year, "final": round(final, 3),
+        }
+        ranked.append((final, item))
+
+    ranked.sort(key=lambda pair: -pair[0])
+    logging.getLogger(__name__).info(
+        "[RERANK] 現況型重排 %d 筆：%s", len(ranked),
+        [(str(d.get("source_file"))[:26], d["_rank_detail"]["final"])
+         for _, d in ranked[:3]])
+    return [item for _, item in ranked]
 
 
 def _run_agent_events(query: str, snapshot: Dict[str, Any], grounding: str,
@@ -2789,6 +2911,75 @@ def _management_fallback_answer(
     return "\n".join(lines)
 
 
+def _current_status_fallback_answer(query: str, snapshot: Dict[str, Any]) -> str:
+    """模型失效時的現況保底：直接把工具算好的最新有效現況列出來。
+
+    這不是繞過模型的樣板 —— 它只在 Agent 完全沒產出答案時才會用到。
+    現況型問題把用不到的前置檢索都略過了，若沒有這一層，模型一失手就會
+    落到不相關的 RAG 片段（實測回過一份 AIoT 快速開始指南），或直接
+    「資料不足」，但工具其實查得到答案。
+
+    這裡只呈現事實，不做研判，並註明未經 AI 整理。
+    """
+    if agent_tools is None:
+        return ""
+    name = ""
+    match = re.search(r"溪[構溝]\s*\d+(?:-\d+)?|\d+K\+\d+", query)
+    if match:
+        name = match.group(0).replace(" ", "")
+    try:
+        #  未指名設施時只取仍有異常者：query_current_status 會把設施現況
+        #  截到 12 筆，20 座全帶會把排在後面的護岸、步道切掉，
+        #  「共 8 項」卻只列得出 2 項。
+        data = agent_tools.query_current_status(snapshot, name,
+                                                only_active=not name)
+    except Exception as exc:                      # noqa: BLE001
+        logging.getLogger(__name__).warning("[FALLBACK] 現況彙整失敗：%s", exc)
+        return ""
+    rows = data.get("設施現況") or []
+    if not rows:
+        return ""
+
+    lines = ["（AI 推論服務暫時無法使用，以下為平台重建的最新有效現況，"
+             "未經 AI 整理，請對照原始巡查紀錄確認。）", ""]
+    active_rows = [r for r in rows if r.get("目前異常")]
+    lines.append("【目前異常】共 %d 項（僅列 OPEN 與 RECURRED）"
+                 % data.get("目前異常項數", 0))
+    if active_rows:
+        for row in active_rows:
+            for issue in row["目前異常"]:
+                lines.append("・%s｜%s｜%s｜%s｜最後記錄 %s"
+                             % (row["設施"], issue["位置"], issue["型態"],
+                                issue["狀態"], issue["最後記錄"]))
+                if issue.get("內容"):
+                    lines.append("　　%s" % issue["內容"][:110])
+                if issue.get("備註"):
+                    lines.append("　　備註：%s" % issue["備註"])
+    else:
+        lines.append("・無。依最新專業巡查未發現仍成立的異常。")
+
+    pending = [(r["設施"], x) for r in rows for x in (r.get("已維護待複查") or [])]
+    if pending:
+        lines += ["", "【已完成維護、尚待後續巡查確認】"]
+        lines += ["・%s｜%s｜%s（最後記錄 %s）"
+                  % (n, x["位置"], x["型態"], x["最後記錄"]) for n, x in pending[:6]]
+
+    if len(rows) == 1:
+        row = rows[0]
+        lines += ["", "【%s 現況摘要】" % row["設施"],
+                  "・最新巡查：%s" % row["最新巡查"],
+                  "・最新專業巡查：%s" % (row["最新專業巡查"] or "無"),
+                  "・最新 DER&U：%s" % (row["最新DER&U"] or "未評")]
+        resolved = row.get("歷史已改善") or []
+        if resolved:
+            lines.append("・歷史已改善（不列為目前問題）：" + "、".join(
+                "%s %s 於 %s 複查確認" % (x["位置"], x["型態"], x["複查確認"] or "—")
+                for x in resolved[:4]))
+
+    lines += ["", "判定方式：" + str(data.get("判定規則") or "")]
+    return "\n".join(lines)
+
+
 def _retrieval_method_fallback_answer(query: str, docs: List[Dict[str, Any]]) -> str:
     """Turn a relevant fish-movement retrieval hit into a direct answer."""
     if not docs or not re.search(r"往上游|往下游|上溯|溯游|怎麼知道.*魚|如何確認.*魚", query):
@@ -3076,6 +3267,13 @@ def _ask_events(data: Dict[str, Any], stream: bool = False):
 
     # 2. 本機 RAG 補充
     local_candidates: List[Dict[str, Any]] = results.get("local") or []
+    #  現況型問題先做時間／來源／設施重排，再交給既有的相關性篩選。
+    #  順序不能顛倒：先被相關性砍到 Top-K 後才重排，最新那份可能早就被
+    #  舊報告擠掉了。
+    if local_candidates and routed.get("prefer_latest"):
+        _t = time.perf_counter()
+        local_candidates = _rerank_for_currency(query, local_candidates, routed)
+        timings["rerank_ms"] = round((time.perf_counter() - _t) * 1000)
     #  Rerank 只在候選確實比要用的多時才做；候選本來就少於 Top-K 時
     #  重排一次不會改變結果，卻要多花一次相關性計算。
     if answer_engine is not None and len(local_candidates) > max(top_k, 1):
@@ -3240,6 +3438,8 @@ def _ask_events(data: Dict[str, Any], stream: bool = False):
     # 判斷「資料不足」——那個判斷屬於舊的「先檢索再作答」流程。
     ai_result: Dict[str, Any] = {}
     agent_records: Dict[str, Any] = {}
+    #  保底區也要用到，先給預設值避免 Agent 未執行時 NameError
+    effective_snapshot: Dict[str, Any] = {}
     # 不再要求前端必須送 client_snapshot。工具層會以 webapp/data/agent_baseline.json
     # 補齊缺漏的鍵，因此直接呼叫 API 或前端 DB 尚未初始化時，Agent 仍取得到
     # 權威數值；沒有這道保障時，模型會改去文件裡找數字而答錯。
@@ -3264,6 +3464,17 @@ def _ask_events(data: Dict[str, Any], stream: bool = False):
                 "\n系統已判定本題缺少本案直接環境／進場資料；以下脈絡只屬一般通則，"
                 "不得當成本案核定工法：\n" + environment_ctx[:1800]
             )
+        if routed.get("current_status"):
+            #  現況題最容易出錯的地方：拿舊巡查或舊報告當成目前狀態。
+            #  在此明確要求先取最新有效現況，並說明歷史資料的角色。
+            grounding += (
+                "\n本題是「目前現況」型問題。必須先呼叫 query_current_status 取得"
+                "最新有效現況（該工具已把最新巡查、後續維護、後續複查依時間整合，"
+                "並判定每個異常是 OPEN／RECURRED／MAINTAINED／RESOLVED）。"
+                "\n・目前異常只能列 OPEN 與 RECURRED；RESOLVED 屬歷史說明，"
+                "不得寫成目前問題。MAINTAINED 要註明『已完成維護，尚待後續巡查確認』。"
+                "\n・歷年報告與舊巡查只能用來說明原因與歷程，不得當成現況答案。"
+                "\n・引用任何紀錄都要寫出日期。")
         if intent.get("intent") == "report":
             # 指定報告題不能只靠 Agent 自行猜工具；先把本輪已篩選的
             # 報告段落摘要放入定位資訊，並要求 search_documents 以該報告核對。
@@ -3293,7 +3504,15 @@ def _ask_events(data: Dict[str, Any], stream: bool = False):
 
     if not _as_text(ai_result.get("answer")):
         # Agent 不可用或未能作答時，退回既有的單次推論流程
-        if not combined_ctx.strip() and evidence_count == 0:
+        if routed.get("current_status"):
+            #  現況題的答案在 query_current_status 的回傳裡，不在 RAG。
+            #  意圖路由已把用不到的前置檢索略過，combined_ctx 與 evidence_count
+            #  自然是空的，若照舊判斷會被「資料不足」擋掉 —— 實測問
+            #  「哪些設施目前DER&U風險最高」就回了「資料庫中沒有足夠資料」，
+            #  但工具其實查得到 8 項待處理異常。
+            #  這裡讓 answer 保持空字串，交給 7a 的現況保底輸出事實。
+            ai_result.setdefault("provider", "current_status")
+        elif not combined_ctx.strip() and evidence_count == 0:
             ai_result = {
                 "answer": ("這一題我需要更明確的對象才能查。請直接指出設施名稱或編號"
                            "（如「溪構5-2」）、年度（如「114年」）或物種名稱後再問一次。"
@@ -3351,6 +3570,14 @@ def _ask_events(data: Dict[str, Any], stream: bool = False):
         # 保底來源依本題的意圖權重排序，確保委員題先用手冊、生態題先用文件，
         # 而不是一律拿巡查統計充數。
         candidates = []
+        #  現況題的保底一律先用工具算好的最新有效現況；那才是這題的答案，
+        #  RAG 片段與環境通則都不是。
+        if routed.get("current_status") and agent_tools is not None:
+            _cs_text = _current_status_fallback_answer(query, effective_snapshot)
+            if _cs_text:
+                candidates.append(("current_status", _cs_text,
+                                   "平台最新有效現況（未經 AI 整理）",
+                                   lambda text: text))
         #  工具確實查到了本案資料時，不可用「周邊環境通則」當保底答案。
         #  意圖路由會略過不需要的前置檢索，環境脈絡的觸發條件（沒有其他證據）
         #  因此更容易成立；若不擋，問「哪些魚道需要緊急處理」會得到一段
@@ -3372,16 +3599,22 @@ def _ask_events(data: Dict[str, Any], stream: bool = False):
              lambda text: prefix + text),
             ("local_kb", local_ctx, "本機知識庫（未經 AI 整理）",
              lambda text: prefix + text),
-            ("web", web_ctx, "外部網路補充資料",
-             lambda text: "（外部資料補充，非橫流溪實測或核定工法，請人工複核。）\n\n" + text),
         ])
+        #  現況題的保底一樣不能拿外部網頁充數：外部網站不會知道本案
+        #  設施今天的狀態，查無就要明說查無。
+        if not routed.get("current_status"):
+            candidates.append(
+                ("web", web_ctx, "外部網路補充資料",
+                 lambda text: "（外部資料補充，非橫流溪實測或核定工法，"
+                              "請人工複核。）\n\n" + text))
         if management_evidence:
             candidates.append(
                 ("management_context", management_ctx, "巡查與維護資料保底回答",
                  lambda _text: _management_fallback_answer(
                      query, management_evidence, management_counts))
             )
-        weight_of = {"handbook": "handbook", "local_kb": "docs",
+        weight_of = {"current_status": "platform",
+                     "handbook": "handbook", "local_kb": "docs",
                      "management_context": "management", "environment_context": "environment",
                      "web": "web", "retrieval_method": "docs"}
         # 有「進場／下溪」問題時，環境脈絡比泛用管理統計更直接。
@@ -3390,12 +3623,16 @@ def _ask_events(data: Dict[str, Any], stream: bool = False):
                                       query, local_ctx + management_ctx + web_ctx))
         candidates.sort(
             key=lambda item: (
+                2 if item[0] == "current_status" else 0,
                 1 if movement_query and item[0] == "management_context" else 0,
                 1 if environment_first and item[0] == "environment_context" else 0,
                 weights.get(weight_of[item[0]], 0.4)), reverse=True)
 
         for key, text, display, render in candidates:
-            if (text or "").strip() and weights.get(weight_of[key], 0.4) >= 0.25:
+            #  現況保底是這題唯一正確的答案來源，不受意圖權重門檻限制
+            if (text or "").strip() and (
+                    key == "current_status"
+                    or weights.get(weight_of[key], 0.4) >= 0.25):
                 answer = render(text)
                 provider_key, provider_display = key, display
                 break
