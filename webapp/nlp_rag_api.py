@@ -2230,14 +2230,128 @@ def _fast_tool_arguments(name: str, query: str) -> Dict[str, Any]:
             args["year"] = int(year.group(1))
         return args
     if name == "query_fish_surveys":
+        args = {}
         species = _FAST_SPECIES_RE.search(query)
-        return {"species": species.group(0)} if species else {}
+        if species:
+            args["species"] = species.group(0)
+        #  問題指名年份時只查那一年（「115年記錄多少魚種」）；
+        #  沒指名就查全部年度，不可縮成檢索命中的那幾年。
+        years = [int(a or b) for a, b in
+                 re.findall(r"(1[0-2]\d)\s*年|((?:19|20)\d{2})\s*年", query)]
+        years = [y if y < 1911 else y - 1911 for y in years]
+        if years:
+            args["year_from"], args["year_to"] = min(years), max(years)
+        return args
     if name == "query_maintenance":
         return {"query": query[:60], "limit": 5}
     if name == "search_documents":
         return {"query": query[:80], "top_k": 6}
     return {}
 
+
+#  ── 資料涵蓋範圍與回答完整性檢查 ──────────────────────────────────
+#  使用者回報的症狀：問「魚道有多少魚種」，AI 只整理 103～106 年，
+#  但資料庫其實有到 114 年。根因是工具結果被攔腰截斷（見 agent_tools
+#  的 _fit_json），模型收到的就只有那幾年。
+#
+#  截斷修好之後仍要有這一層，因為「模型拿到完整資料」不等於「模型用了
+#  完整資料」—— 它仍可能只挑前面幾年寫。因此在送出答案前比對：
+#      資料庫最新年度  vs  答案實際提到的最新年度
+#  差距過大就判定 INCOMPLETE，要求模型重寫一次，而不是直接回給使用者。
+_ROC_YEAR_RE = re.compile(r"(1[0-2]\d)\s*年")
+
+
+def _data_coverage(snapshot: Dict[str, Any]) -> Dict[str, Any]:
+    """從快照算出各資料域的涵蓋範圍（民國年）。純計算，不呼叫模型。"""
+    out: Dict[str, Any] = {}
+
+    surveys = snapshot.get("fishSurveys") or []
+    fish_years = sorted({int(r["year"]) - 1911 for r in surveys
+                         if isinstance(r, dict) and r.get("year")})
+    if fish_years:
+        out["魚類調查"] = {
+            "最早": fish_years[0], "最新": fish_years[-1],
+            "涵蓋年度": fish_years,
+            "缺漏年度": [y for y in range(fish_years[0], fish_years[-1] + 1)
+                         if y not in fish_years],
+            "場次": len(surveys),
+        }
+
+    inspections = snapshot.get("inspections") or []
+    dates = sorted(str(r.get("date") or "")[:10] for r in inspections
+                   if isinstance(r, dict) and r.get("date"))
+    if dates:
+        years = sorted({int(d[:4]) - 1911 for d in dates if len(d) >= 4})
+        out["巡查紀錄"] = {
+            "最早": years[0], "最新": years[-1],
+            "最新日期": dates[-1], "筆數": len(inspections),
+        }
+
+    facilities = snapshot.get("facilities") or []
+    if facilities:
+        assess = sorted(str(f.get("assessmentDate") or f.get("lastInspect") or "")[:10]
+                        for f in facilities if isinstance(f, dict))
+        assess = [d for d in assess if d]
+        out["工程設施"] = {"座數": len(facilities),
+                           "最新評估日期": assess[-1] if assess else None}
+    return out
+
+
+def _coverage_grounding(coverage: Dict[str, Any]) -> str:
+    """把涵蓋範圍寫成給模型看的定位資訊。"""
+    if not coverage:
+        return ""
+    parts = ["\n【資料庫實際涵蓋範圍（回答統計或歷年問題前必須對齊這個範圍）】"]
+    fish = coverage.get("魚類調查")
+    if fish:
+        line = (f"・魚類調查：{fish['最早']}～{fish['最新']}年，"
+                f"共 {fish['場次']} 場次")
+        if fish["缺漏年度"]:
+            line += "；其中 " + "、".join(f"{y}年" for y in fish["缺漏年度"]) + " 無調查紀錄"
+        parts.append(line)
+    insp = coverage.get("巡查紀錄")
+    if insp:
+        parts.append(f"・巡查紀錄：{insp['最早']}～{insp['最新']}年，"
+                     f"共 {insp['筆數']} 筆，最新一筆 {insp['最新日期']}")
+    fac = coverage.get("工程設施")
+    if fac:
+        parts.append(f"・工程設施：{fac['座數']} 座，最新評估 {fac['最新評估日期']}")
+    parts.append("回答時若只涵蓋其中一部分年度，等同答錯。檢索結果不等於資料庫全部內容。")
+    return "\n".join(parts)
+
+
+def _completeness_check(answer: str, routed: Dict[str, Any],
+                       coverage: Dict[str, Any]) -> str:
+    """檢查答案是否涵蓋到資料庫的最新年度。回傳空字串代表通過。
+
+    只在「需要完整年度範圍」的問題上檢查（歷年、總計、未指定年份的統計）。
+    現況題與指定年份的問題本來就只講一個時間點，不適用。
+    """
+    if not routed.get("needs_full_range") or not answer:
+        return ""
+
+    mentioned = [int(y) for y in _ROC_YEAR_RE.findall(answer)]
+    if not mentioned:
+        return ""                      # 答案沒提年份，無從比對，不強加要求
+
+    #  依問題領域挑對應的資料域；同時涉及多域時取最嚴格的那個
+    domains = []
+    if routed.get("species_summary") or "ecology" in (routed.get("intents") or []):
+        domains.append(("魚類調查", coverage.get("魚類調查")))
+    if any(k in (routed.get("intents") or [])
+           for k in ("inspection", "maintenance", "facility", "deru")):
+        domains.append(("巡查紀錄", coverage.get("巡查紀錄")))
+
+    newest_said = max(mentioned)
+    for label, info in domains:
+        if not info:
+            continue
+        latest = int(info["最新"])
+        #  容許 1 年落差（例如最新年度僅有零星紀錄而答案以前一年作結）
+        if newest_said < latest - 1:
+            return (f"{label}資料庫最新到 {latest} 年，但答案只寫到 {newest_said} 年，"
+                    f"漏掉 {newest_said + 1}～{latest} 年")
+    return ""
 
 #  ── 現況型問題的檢索重排 ────────────────────────────────────────────
 #  純語意相似度會讓舊成果報告贏過最新巡查：報告寫得完整、用詞豐富，
@@ -2333,7 +2447,9 @@ def _run_agent_events(query: str, snapshot: Dict[str, Any], grounding: str,
                       history: Optional[List[Dict[str, str]]] = None,
                       fast_tools: Optional[List[str]] = None,
                       stream: bool = False,
-                      records_seed: Optional[Dict[str, int]] = None):
+                      records_seed: Optional[Dict[str, int]] = None,
+                      routed: Optional[Dict[str, Any]] = None,
+                      coverage: Optional[Dict[str, Any]] = None):
     """工具呼叫式 Agent（產生器版）：一邊執行一邊回報真實進度。
 
     產出格式：
@@ -2378,6 +2494,8 @@ def _run_agent_events(query: str, snapshot: Dict[str, Any], grounding: str,
     totals = {"input_tokens": 0, "output_tokens": 0, "estimated_cost": 0.0}
     actual_model = ""
     tools_used: List[str] = []
+    #  完整性重寫只做一次，避免模型反覆寫不出來時無限迴圈
+    retried_completeness = False
     #  真實筆數，供前端顯示「搜尋 X 筆｜採用 Y 筆」。
     #  以前置檢索已找到的筆數起算，讓 retrieval_done 與 done 兩處數字一致。
     counters = {"found": int((records_seed or {}).get("found") or 0),
@@ -2487,9 +2605,10 @@ def _run_agent_events(query: str, snapshot: Dict[str, Any], grounding: str,
                           "found": counters["found"], "used": counters["used"]})
         rounds_left = 1                 # 只剩統整輪
 
-    for round_index in range(rounds_left):
+    #  +1 是留給完整性重寫的那一輪；沒觸發時不會用到
+    for round_index in range(rounds_left + 1):
         # 最後一輪不再提供工具，強制模型產出答案
-        is_last = round_index == rounds_left - 1
+        is_last = round_index >= rounds_left - 1
         if is_last:
             # 最後一輪不帶工具定義，並明確要求直接作答。
             # 若只是拿掉 tools 而沒有這句指示，模型會在文字中吐出偽造的
@@ -2575,6 +2694,24 @@ def _run_agent_events(query: str, snapshot: Dict[str, Any], grounding: str,
         if not tool_calls:
             # 清掉洩漏的英文推理與偽造的工具呼叫標記，只留真正的中文答案
             text = _strip_reasoning_preamble(message.get("content"))
+
+            #  統計、現況、歷年這類題目的數字一定要來自工具。路由用的快速
+            #  模型有時會跳過工具直接寫一段話，內容看起來像答案卻沒有依據
+            #  —— 實測問「歷年哪些魚類持續出現」時，模型自己回「未取得工具
+            #  回傳資料，無法列出」，等於白跑一輪。這裡強制它先查。
+            needs_tool = bool(routed and (routed.get("statistics")
+                                          or routed.get("species_summary")
+                                          or routed.get("needs_full_range")
+                                          or routed.get("current_status")))
+            if needs_tool and not tools_used and not is_last:
+                messages.append({
+                    "role": "user",
+                    "content": ("這一題的數量、年度與現況必須以平台資料為準，"
+                                "請先呼叫對應工具取得資料後再作答，不要憑既有"
+                                "印象回覆，也不要說自己沒有資料。"),
+                })
+                continue
+
             if not _is_acceptable_zh_answer(text):
                 # 非最後一輪就放棄會讓整個 Agent 失效：路由用的快速模型有時會
                 # 略過工具直接作答，且品質不符。此時應交給最後一輪的高品質模型
@@ -2593,6 +2730,22 @@ def _run_agent_events(query: str, snapshot: Dict[str, Any], grounding: str,
                                   "response_time": round(time.perf_counter() - started, 3),
                                   **totals})
                 return
+            #  完整性檢查：統計／歷年題若沒寫到資料庫最新年度，退回重寫。
+            #  這是程式層的把關，不是靠提示詞自律 —— 使用者回報的
+            #  「只答 103～106 年」就是模型自認為已經答完的情況。
+            gap = _completeness_check(text, routed or {}, coverage or {})
+            if gap and not retried_completeness:
+                retried_completeness = True
+                _log.info("[COMPLETENESS] 回答不完整，要求重寫：%s", gap)
+                messages.append({
+                    "role": "user",
+                    "content": (f"你的回答不完整：{gap}。\n"
+                                "請重新作答，涵蓋資料庫全部年度；統計數字直接引用"
+                                "工具回傳的『資料涵蓋』與各年度統計，不要自己推估。"
+                                "若中間有年度無調查紀錄，要明講是哪幾年無紀錄。"),
+                })
+                continue
+
             _OR_LAST_GOOD["model"] = actual_model
             yield ("result", {
                 "answer": text,
@@ -2963,6 +3116,28 @@ def _current_status_fallback_answer(query: str, snapshot: Dict[str, Any]) -> str
         lines += ["", "【已完成維護、尚待後續巡查確認】"]
         lines += ["・%s｜%s｜%s（最後記錄 %s）"
                   % (n, x["位置"], x["型態"], x["最後記錄"]) for n, x in pending[:6]]
+
+    #  「巡查發現問題後哪些已經完成維護」問的就是這一段，
+    #  只列目前異常等於沒回答到問題。
+    #  直接用 current_status 模組，不走工具的精簡版 —— 工具在列表模式下
+    #  只回傳「歷史已改善項數」而非明細（那是為了控制送進模型的 context），
+    #  但這裡是要直接呈現給使用者的文字，需要的是明細。
+    try:
+        try:
+            from webapp import current_status as _cs
+        except Exception:                         # pragma: no cover
+            import current_status as _cs          # type: ignore
+        resolved = [(r["facility_name"], x)
+                    for r in _cs.build_current_status(snapshot, name)
+                    for x in (r.get("resolved_history") or [])]
+    except Exception:                             # noqa: BLE001
+        resolved = []
+    if resolved:
+        lines += ["", "【已完成維護並經後續巡查確認改善】共 %d 項" % len(resolved)]
+        lines += ["・%s｜%s｜%s（%s 發現，%s 複查確認）"
+                  % (n, x["location"], x["issueLabel"], x["lastSeen"],
+                     x["followupDate"] or "—")
+                  for n, x in resolved[:10]]
 
     if len(rows) == 1:
         row = rows[0]
@@ -3440,6 +3615,7 @@ def _ask_events(data: Dict[str, Any], stream: bool = False):
     agent_records: Dict[str, Any] = {}
     #  保底區也要用到，先給預設值避免 Agent 未執行時 NameError
     effective_snapshot: Dict[str, Any] = {}
+    data_coverage: Dict[str, Any] = {}
     # 不再要求前端必須送 client_snapshot。工具層會以 webapp/data/agent_baseline.json
     # 補齊缺漏的鍵，因此直接呼叫 API 或前端 DB 尚未初始化時，Agent 仍取得到
     # 權威數值；沒有這道保障時，模型會改去文件裡找數字而答錯。
@@ -3457,6 +3633,17 @@ def _ask_events(data: Dict[str, Any], stream: bool = False):
                      f"平台現有設施 {counts.get('facilities', '?')} 座、"
                      f"巡查紀錄 {counts.get('inspections', '?')} 筆、"
                      f"魚類調查 {counts.get('fishSurveys', '?')} 場次。")
+        #  資料涵蓋範圍一律附上：模型只要看到「資料庫到 114 年」，就不會
+        #  把檢索到的那幾年當成全部。統計與歷年題更是必要。
+        data_coverage = _data_coverage(effective_snapshot)
+        if routed.get("needs_full_range") or routed.get("statistics"):
+            grounding += _coverage_grounding(data_coverage)
+            grounding += (
+                "\n本題是統計／歷年型問題：數量、年度、物種數必須直接引用工具"
+                "回傳的統計欄位（資料涵蓋、各年度魚種數、年度彙整），"
+                "不得由檢索到的片段自行推估，也不得只講檢索命中的那幾年。"
+                "\n「魚種數」為去重後的物種數，各年度物種數不可相加；"
+                "「尾數」是個體數，兩者不得混用。")
         if "baseline" in snapshot_origin.values():
             grounding += "（部分資料取自伺服器端基準檔，與平台前端同源。）"
         if environment_ctx:
@@ -3487,10 +3674,20 @@ def _ask_events(data: Dict[str, Any], stream: bool = False):
                 grounding += "\n本輪檢索到的指定報告候選段落（僅供定位，仍須以工具核對）：\n" + report_evidence
         #  快速通道：意圖已經確定要查什麼，就不必再花一輪 LLM 讓模型想。
         #  數字仍由工具回傳、答案仍由模型撰寫，只是省掉一次往返。
-        fast_tools = list(routed.get("tools") or []) if routed.get("fast_path") else []
+        #
+        #  統計、物種彙整、歷年與現況題也一併預先執行 —— 這些題目的數字
+        #  必須來自工具，但實測模型不一定會主動呼叫：問「歷年哪些魚類持續
+        #  出現」時它直接回「未取得工具回傳資料，無法列出」，接著整輪作廢。
+        #  路由既然已經知道該查哪張表，就由程式直接查，不要賭模型會不會查。
+        _preexec = (routed.get("fast_path") or routed.get("statistics")
+                    or routed.get("species_summary")
+                    or routed.get("needs_full_range")
+                    or routed.get("current_status"))
+        fast_tools = list(routed.get("tools") or []) if _preexec else []
         for _kind, _payload in _run_agent_events(
                 query, effective_snapshot, grounding, mode_config,
                 history=chat_history, fast_tools=fast_tools, stream=stream,
+                routed=routed, coverage=data_coverage,
                 records_seed={"found": evidence_count,
                               "used": len(local_evidence) + len(management_evidence)}):
             if _kind == "result":

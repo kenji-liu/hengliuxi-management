@@ -115,7 +115,9 @@ def merge_snapshot(snapshot: Optional[Dict[str, Any]]) -> Dict[str, Any]:
 
 
 # 單一工具回傳的 JSON 上限，避免把 context 撐爆
-MAX_TOOL_RESULT_CHARS = 4000
+#  單一工具結果的字數上限。放寬到 7000：4000 對 51 場次的魚類調查太緊，
+#  但真正的問題不是上限太低，而是超過時的處理方式（見 _fit_json）。
+MAX_TOOL_RESULT_CHARS = 7000
 
 
 # ── 工具定義（OpenAI / OpenRouter function calling 格式）────────────────
@@ -318,6 +320,34 @@ TOOL_SCHEMAS: List[Dict[str, Any]] = [
 
 
 # ── 工具實作 ──────────────────────────────────────────────────────────
+def _coverage(years: List[int], record_count: int = 0,
+              species_count: int = 0) -> Dict[str, Any]:
+    """資料涵蓋範圍。回答統計題之前一定要先講清楚「資料到哪一年」。
+
+    沒有這段，模型只能從它拿到的明細推測範圍；明細一被裁掉，它就會把
+    「我看到的年度」當成「資料庫有的年度」—— 這是兩件不同的事。
+    缺漏年度也要明說，不能默默略過。
+    """
+    years = sorted({int(y) for y in years if y})
+    if not years:
+        return {"最早年度": None, "最新年度": None, "涵蓋年度": [],
+                "缺漏年度": [], "紀錄筆數": record_count}
+    missing = [y for y in range(years[0], years[-1] + 1) if y not in years]
+    out: Dict[str, Any] = {
+        "最早年度": f"{years[0]}年",
+        "最新年度": f"{years[-1]}年",
+        "涵蓋年度": [f"{y}年" for y in years],
+        "缺漏年度": [f"{y}年" for y in missing],
+        "紀錄筆數": record_count,
+    }
+    if species_count:
+        out["去重後物種數"] = species_count
+    if missing:
+        out["缺漏說明"] = ("上列年度資料庫無調查紀錄，回答時要明講「其中○○年"
+                           "無調查紀錄」，不可默默略過。")
+    return out
+
+
 def query_terms(query: str) -> List[str]:
     """沿用 answer_engine 的斷詞（具名實體優先），避免魚種名被切成碎片。"""
     try:
@@ -470,6 +500,7 @@ def query_current_status(snapshot: Dict[str, Any], name: str = "",
             out["歷史已改善項數"] = len(item["resolved_history"])
         return out
 
+    all_rows = list(rows)          # 全平台原始清單，供總數統計
     active_rows = [r for r in rows if r["current_issues"] or r["pending_confirmation"]]
     if only_active:
         rows = [r for r in rows if r["current_issues"]]
@@ -480,10 +511,15 @@ def query_current_status(snapshot: Dict[str, Any], name: str = "",
                  if not r["current_issues"] and not r["pending_confirmation"]]
         rows = active_rows
 
+    #  已改善項數必須以「全平台」計算。列表模式只展開仍有異常的設施，
+    #  若只加總這幾座，問「哪些已完成維護」會少報 —— 實測平台總共 21 項
+    #  已改善，但只算有異常那幾座會變成 5 項。
+    resolved_total = sum(len(r["resolved_history"]) for r in all_rows)
     result: Dict[str, Any] = {
         "設施數": len(rows),
         "目前異常項數": sum(len(r["current_issues"]) for r in rows),
         "待複查項數": sum(len(r["pending_confirmation"]) for r in rows),
+        "歷史已改善總項數": resolved_total,
         "狀態代碼": "OPEN＝目前異常；RECURRED＝曾改善又再出現，亦屬目前異常；"
                     "MAINTAINED＝已維護待複查；RESOLVED＝已改善，屬歷史不列為現況",
         "判定規則": "異常是否仍成立，依同一位置後續的專業巡查與登載完工事證判定；"
@@ -582,10 +618,17 @@ def query_inspections(snapshot: Dict[str, Any], facility: str = "", form_type: s
         key = str(item.get("formType") or "未分類")
         by_type[key] = by_type.get(key, 0) + 1
 
+    #  巡查同樣要先講清楚「資料到哪一天」。沒有這段，模型只能從它拿到的
+    #  前幾筆推測範圍，於是把「我看到的最舊那筆」當成資料庫的起點。
+    dates = sorted(str(r.get("date") or "")[:10] for r in picked if r.get("date"))
+    roc_years = sorted({int(d[:4]) - 1911 for d in dates if len(d) >= 4})
     return {
+        "資料涵蓋": {**_coverage(roc_years, len(picked)),
+                     "最早日期": dates[0] if dates else None,
+                     "最新日期": dates[-1] if dates else None},
         "符合筆數": len(picked),
         "表單類型統計": by_type,
-        "紀錄": [{
+        "紀錄_由新到舊": [{
             "日期": r.get("date"),
             "設施": r.get("facilityName"),
             "表單": r.get("formType"),
@@ -655,19 +698,41 @@ def query_fish_surveys(snapshot: Dict[str, Any], species: str = "",
                                     for k in key_names if item.get(k)}
         rows.append(record)
 
+    #  ── 統計先於明細 ────────────────────────────────────────────────
+    #  順序在這裡是正確性問題，不是排版問題：工具結果超過長度上限時會從
+    #  明細清單尾端移除，若「年度彙整」排在明細之後就會被整段砍掉，模型
+    #  拿到的只剩最前面幾年的逐場次資料 —— 這正是「問魚種數只答 103～106 年」
+    #  的成因。統計與涵蓋範圍放最前面，明細放最後且由新到舊排序。
+    all_years = sorted({r["民國年"] for r in rows if r.get("民國年")})
+    species_seen = set()
+    per_year_species: Dict[int, set] = {}
+    for item in surveys:
+        year = item.get("year")
+        roc = (int(year) - 1911) if year else None
+        if roc is None or roc not in all_years:
+            continue
+        for key in key_names:
+            if item.get(key):
+                species_seen.add(key_names[key])
+                per_year_species.setdefault(roc, set()).add(key_names[key])
+
     result: Dict[str, Any] = {
+        "資料涵蓋": _coverage(all_years, len(rows), len(species_seen)),
+        "統計口徑說明": (
+            "「魚種數」為去重後的 unique species count，不可把各年度物種數相加；"
+            "「尾數」為個體數，兩者不同概念，不得混用。"),
         "符合場次": len(rows),
-        "調查場次": rows[:24],
-        "資料口徑": (
-            "不同調查計畫的採樣範圍與努力量不同，不得直接加總比較；"
-            "空白或 0 代表該場次未捕獲，不等同於該物種不存在；"
-            "跨年度比較須說明樣點、季節與調查方法是否一致。"
-        ),
     }
     if target_key:
         result["物種"] = key_names.get(target_key, species)
         result["該物種合計尾數"] = sum(int(r.get("尾數") or 0) for r in rows)
         result["捕獲場次數"] = sum(1 for r in rows if int(r.get("尾數") or 0) > 0)
+    else:
+        result["全期間魚種數"] = len(species_seen)
+        result["全期間魚種清單"] = sorted(species_seen)
+        result["各年度魚種數"] = {
+            f"{roc}年": {"魚種數": len(names), "魚種": sorted(names)}
+            for roc, names in sorted(per_year_species.items())}
 
     # 年度彙整與圖表使用同一快照，避免模型從逐筆資料自行誤加不同資料層。
     annual_rows = list(snapshot.get("fishAnnualData") or [])
@@ -680,16 +745,17 @@ def query_fish_surveys(snapshot: Dict[str, Any], species: str = "",
             "民國年": (int(row.get("year")) - 1911) if row.get("year") else None,
             "物種": key_names.get(target_key, target_key),
             "尾數": row.get(target_key, 0),
-            "站訪次": row.get("effort", 0),
+            "調查次數": row.get("effort", 0),
             "物種數": row.get("richness", 0),
             "資料層": row.get("sources", []),
         } for row in annual_rows]
     elif annual_rows:
+        #  不輸出 CPUE：平台的生態呈現口徑一律用「尾／次」，
+        #  這裡若給了 CPUE，模型會照抄進答案，與生態資料庫的圖表不一致。
         result["年度彙整"] = [{
             "民國年": (int(row.get("year")) - 1911) if row.get("year") else None,
             "標準物種總尾數": row.get("catch", 0),
-            "站訪次": row.get("effort", 0),
-            "CPUE": row.get("cpue", 0),
+            "調查次數": row.get("effort", 0),
             "物種數": row.get("richness", 0),
             "資料層": row.get("sources", []),
         } for row in annual_rows]
@@ -701,6 +767,15 @@ def query_fish_surveys(snapshot: Dict[str, Any], species: str = "",
             target_name = key_names.get(target_key, species)
             result["該物種非尾數證據"] = [item for item in (audit.get("presenceOnly") or [])
                                      if item.get("species") == target_name]
+
+    result["資料口徑"] = (
+        "不同調查計畫的採樣範圍與調查次數不同，不得直接加總比較；"
+        "空白或 0 代表該場次未捕獲，不等同於該物種不存在；"
+        "跨年度比較須說明樣點、季節與調查方法是否一致。")
+    #  明細放最後、由新到舊：長度不夠時被省略的是最舊的場次，
+    #  最新年度一定看得到。
+    result["調查場次_由新到舊"] = sorted(
+        rows, key=lambda r: (r.get("西元年") or 0, r.get("月份") or 0), reverse=True)
     return result
 
 
@@ -835,6 +910,55 @@ def web_search(searcher: Callable[[str, int], List[Dict[str, Any]]],
 
 
 # ── 派發 ──────────────────────────────────────────────────────────────
+def _fit_json(result: Dict[str, Any],
+              limit: int = MAX_TOOL_RESULT_CHARS) -> str:
+    """序列化工具結果，超過上限時「整筆移除明細」而不是攔腰切斷字串。
+
+    這裡修的是一個會直接造成錯誤答案的缺陷：舊版做法是
+        text[:4000] + "…（結果過長已截斷）"
+    魚類調查有 51 場次、序列化約 15,000 字，於是模型永遠只收得到前 4000 字
+    ——剛好切在 107 年中間。使用者問「魚道有多少魚種」，模型如實根據它拿到的
+    資料回答「103～106 年」，而 108～115 年的紀錄它從來沒看過。
+    切出來的還是不合法的 JSON，模型連解析都有困難。
+
+    新做法：
+      1. 統計與彙整欄位（dict／數字／字串）永遠保留 —— 那才是答案本身
+      2. 只從明細清單的尾端整筆移除，JSON 始終合法
+      3. 明確記錄省略了幾筆，讓模型知道「明細不全，但統計是完整的」
+    """
+    def dump(payload: Dict[str, Any]) -> str:
+        return json.dumps(payload, ensure_ascii=False)
+
+    text = dump(result)
+    if len(text) <= limit:
+        return text
+
+    payload = json.loads(text)          # 深複製，不動呼叫端的物件
+    omitted: Dict[str, int] = {}
+    for _ in range(2000):               # 上限保險，避免資料異常時空轉
+        if len(text) <= limit:
+            break
+        target, longest = None, 0
+        for key, value in payload.items():
+            if isinstance(value, list) and len(value) > 1:
+                size = len(dump({key: value}))
+                if size > longest:
+                    target, longest = key, size
+        if target is None:
+            break
+        payload[target].pop()
+        omitted[target] = omitted.get(target, 0) + 1
+        text = dump(payload)
+
+    if omitted:
+        payload["_明細已省略"] = {k: f"{v} 筆" for k, v in omitted.items()}
+        payload["_省略說明"] = ("僅明細清單因長度限制省略，統計數字、年度涵蓋範圍"
+                                "與彙整結果均為完整資料計算，可直接引用。"
+                                "若需要被省略的明細，請縮小查詢範圍再查一次。")
+        text = dump(payload)
+    return text[:limit + 400]           # 極端情況的最後保險
+
+
 def execute_tool(name: str, arguments: Dict[str, Any], snapshot: Dict[str, Any],
                  retriever: Callable, searcher: Callable) -> str:
     """執行單一工具並回傳 JSON 字串。
@@ -882,7 +1006,4 @@ def execute_tool(name: str, arguments: Dict[str, Any], snapshot: Dict[str, Any],
         logger.warning("[AGENT_TOOL] %s 執行失敗：%s", name, exc)
         result = {"error": f"{type(exc).__name__}: {exc}"}
 
-    text = json.dumps(result, ensure_ascii=False)
-    if len(text) > MAX_TOOL_RESULT_CHARS:
-        text = text[:MAX_TOOL_RESULT_CHARS] + "…（結果過長已截斷）"
-    return text
+    return _fit_json(result)

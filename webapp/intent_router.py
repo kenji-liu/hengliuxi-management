@@ -39,7 +39,7 @@ INTENT_RULES: List[Dict[str, Any]] = [
         "label": "工程設施",
         "patterns": [
             r"溪[構溝]\s*\d+(?:-\d+)?", r"防砂壩", r"固床工", r"護岸", r"平[臺台]\s*\d?",
-            r"步道", r"構造物", r"設施", r"工程物", r"擋土", r"消能",
+            r"步道", r"構造物", r"設施", r"工程物?", r"擋土", r"消能",
             r"\d+K\+\d+", r"樁號", r"里程",
             r"幾座", r"幾處", r"多少座", r"哪些設施", r"清單", r"一覽",
         ],
@@ -65,6 +65,7 @@ INTENT_RULES: List[Dict[str, Any]] = [
             r"DER\s*&?\s*U", r"DER", r"劣化", r"風險", r"健康度", r"健康分",
             r"評分", r"分數", r"等級", r"[ABC][12]?級", r"\bA1\b", r"\bB1\b", r"\bU[1-4]\b",
             r"緊急", r"優先處理", r"待處理", r"急迫", r"高風險", r"低風險",
+            r"異常", r"缺失", r"損壞", r"問題",
         ],
         "sources": [],
         "tools": ["query_facilities"],
@@ -143,7 +144,27 @@ INTENT_RULES: List[Dict[str, Any]] = [
 _CURRENT_RE = re.compile(
     r"目前|現在|現況|最新|最近|如今|當前|"
     r"是否仍|還有沒有|有沒有問題|有什麼異常|哪些異常|哪座需要|哪些需要|"
-    r"需要維護|待處理|尚未處理|是否已|有無改善|完成維護了嗎|處理好了嗎")
+    r"需要維護|待處理|尚未處理|是否已|有無改善|處理好了嗎|"
+    r"完成維護|完成改善|已改善|已處理|已修復|是否完成")
+
+
+#  統計型問題：答案是一個由資料庫算出來的數字，不是文件裡的一段敘述。
+#  這類問題絕不能只靠 RAG —— 檢索只會撈到幾段提到數字的文字，模型再從
+#  那幾段自行推估總數，結果就是「搜尋到多少就回答多少」。
+_STATISTICS_RE = re.compile(
+    r"多少|幾種|幾座|幾處|幾筆|幾次|幾支|幾項|幾張|總數|總共|共有|合計|"
+    r"統計|數量|佔比|比例|哪一年最|最多|最少|排名")
+
+#  物種彙整：要區分「魚種數（去重）」與「尾數（個體數）」兩個不同概念
+_SPECIES_RE = re.compile(r"(?:魚種|物種|種類|魚類).{0,6}(?:多少|幾|清單|有哪些|統計)"
+                         r"|(?:多少|幾|哪些).{0,6}(?:魚種|物種|種類|魚類)")
+
+#  歷年型：必須查完整年度範圍，不可只取檢索命中的那幾年
+_HISTORICAL_RE = re.compile(
+    r"歷年|各年度|逐年|每年|歷史|以來|至今|所有年度|全部年度|歷次|各年|年度變化")
+
+#  問題裡明確指定了年份（「115年有多少魚種」）→ 只查那一年
+_EXPLICIT_YEAR_RE = re.compile(r"(1[0-2]\d)\s*年|((?:19|20)\d{2})\s*年")
 
 
 #  具名實體（設施編號、樁號、物種名）比泛用動詞更能決定意圖，因此加權較高。
@@ -199,6 +220,12 @@ def route(query: str) -> Dict[str, Any]:
             "prefer_latest": False,
             "include_maintenance_after_inspection": False,
             "historical_data": "normal",
+            "statistics": False,
+            "species_summary": False,
+            "historical_trend": False,
+            "needs_full_range": False,
+            "explicit_years": [],
+            "question_types": ["comprehensive"],
             "reason": "未命中任何意圖關鍵字，改採綜合查詢",
         }
 
@@ -234,6 +261,22 @@ def route(query: str) -> Dict[str, Any]:
         name in ("facility", "inspection", "deru", "maintenance", "fishpass")
         for name in intents)
 
+    #  以下三個同樣與意圖正交，決定「查多大的時間範圍、答案怎麼算出來」
+    statistics = bool(_STATISTICS_RE.search(text))
+    species_summary = bool(_SPECIES_RE.search(text))
+    historical_trend = bool(_HISTORICAL_RE.search(text))
+    explicit_years = [int(a or b) for a, b in _EXPLICIT_YEAR_RE.findall(text)]
+    explicit_years = [y if y < 1911 else y - 1911 for y in explicit_years]
+
+    #  要不要查完整年度範圍：
+    #  ・「歷年魚種有多少」→ 要（明講歷年）
+    #  ・「魚道有多少魚種」→ 要（沒指定年份的統計題，預設是全期間統計）
+    #  ・「115年有多少魚種」→ 不要（已指定年份）
+    #  ・「目前魚類狀況如何」→ 不要（現況題，最新年度優先）
+    needs_full_range = ((historical_trend or species_summary or statistics)
+                        and not explicit_years
+                        and not current_status)
+
     #  快速通道條件（三者皆須成立）：
     #    1. 問題不長 —— 長問句通常含多個子題
     #    2. 沒有深度推理訊號
@@ -243,6 +286,15 @@ def route(query: str) -> Dict[str, Any]:
                  and bool(intents)
                  and all(name in _FAST_INTENTS for name in intents)
                  and bool(tools))
+
+    #  統計題的答案要由資料庫算，RAG 只能補充說明原因與歷程。
+    #  不關掉檢索會發生一件事：模型看到幾段寫著數字的報告文字，
+    #  就直接照抄那些數字，而不去用工具算 —— 那正是舊答案只講
+    #  103～106 年的來源。指定報告題例外，那本來就是要查文件內容。
+    if (statistics or species_summary) and "report" not in intents:
+        sources["ocr"] = False
+        if not historical_trend:
+            sources["local"] = False
 
     if current_status:
         #  現況題一律先查最新有效現況；歷年報告降為次要，不得當成現況答案
@@ -266,6 +318,18 @@ def route(query: str) -> Dict[str, Any]:
         "prefer_latest": current_status,
         "include_maintenance_after_inspection": current_status,
         "historical_data": "secondary" if current_status else "normal",
+        #  統計與時間範圍：決定完整性檢查要用什麼標準
+        "statistics": statistics,
+        "species_summary": species_summary,
+        "historical_trend": historical_trend,
+        "needs_full_range": needs_full_range,
+        "explicit_years": explicit_years,
+        "question_types": (
+            (["current_status"] if current_status else [])
+            + (["statistics"] if statistics else [])
+            + (["species_summary"] if species_summary else [])
+            + (["historical_trend"] if historical_trend else [])
+            + intents),
         "reason": ("現況型問題：以最新有效現況為主，歷年資料僅作補充"
                    if current_status else
                    ("符合快速通道：查詢對象明確且不需跨年度推理"
