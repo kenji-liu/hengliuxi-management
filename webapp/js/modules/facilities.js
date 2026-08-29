@@ -1792,13 +1792,25 @@ function fac_inspectionTypeLabel(type) {
   }[type] || '一般巡查紀錄';
 }
 
+/*  維護管理案件清單
+    ------------------------------------------------------------------
+    巡查是「發現問題」，維護管理是「實際處理問題」，兩者要關聯但不可互相
+    冒充。原本這裡把所有未結案的巡查表單一併當成「維護案件」列出，於是
+    同一份專業巡查同時出現在「巡查資料」與「維護管理」兩區 —— 稽核結果
+    為 12 座設施、23 筆重複（原始資料本身並無重複，是這裡的分類問題）。
+
+    現在改為標記 kind，由呈現層分開顯示：
+      maintenance        實際維護紀錄（維護完工回報，具完工日期／工法／填表人員）
+      inspection_derived 巡查發現的待辦需求，尚未建立維護紀錄
+    巡查衍生項目保留 relatedInspectionId 與 inspectNo，維持
+    inspection → maintenance 的追溯關聯。                                */
 function fac_facilityLinkedMaintenanceCases(f) {
   const inspections = fac_linkedInspections(f);
-  // 維護完工回報單獨顯示
+  // 維護完工回報：真正具備執行事證的維護紀錄
   const completionRecs = inspections.filter(i =>
     i.formType === 'maintenance_completion' || fac_recordDataClass(i) === 'maintenance'
   );
-  // 待處理/高優先異常巡查
+  // 巡查發現的待辦：仍是巡查資料，只是尚未有對應的維護紀錄
   const anomalyRecs = inspections.filter(item =>
     item.formType !== 'maintenance_completion' &&
     fac_recordDataClass(item) !== 'maintenance' &&
@@ -1806,6 +1818,11 @@ function fac_facilityLinkedMaintenanceCases(f) {
   );
   const all = [...anomalyRecs, ...completionRecs];
   return all.map((item, index) => ({
+    kind: (item.formType === 'maintenance_completion' || fac_recordDataClass(item) === 'maintenance')
+      ? 'maintenance' : 'inspection_derived',
+    relatedInspectionId: item.id,
+    inspectNo: item.inspectNo || '',
+    formTypeLabel: fac_inspectionTypeLabel(fac_inspectionType(item)),
     id: item.formType === 'maintenance_completion'
       ? `MC-${String(f.id).padStart(2,'0')}-${String(index+1).padStart(2,'0')}`
       : `M-${String(f.id).padStart(2,'0')}-${String(index+1).padStart(2,'0')}`,
@@ -2013,69 +2030,104 @@ function renderFacilityInspectionDataSection(f) {
   `;
 }
 
+/*  維護管理區塊：實際維護紀錄與巡查待辦分開呈現
+    ------------------------------------------------------------------
+    兩者性質不同，混在一起會讓同一份專業巡查看起來像做過兩件事：一次是
+    「巡查發現」，一次是「維護案件」。稽核結果為 12 座設施、23 筆這樣的
+    重複顯示（原始資料本身沒有重複，是分類問題）。
+    上半部只放具備執行事證的維護紀錄；下半部明確標示為巡查待辦，並附上
+    原始巡查編號，維持 inspection → maintenance 的追溯關聯。          */
+function fac_renderMaintenanceCaseCard(item, f) {
+  const derived = item.kind === 'inspection_derived';
+  const accent = derived ? '#0369a1' : (item.isCompletion ? '#7c3aed' : '#ea580c');
+  const border = derived ? '#bae6fd' : (item.isCompletion ? '#ddd6fe' : '#fed7aa');
+  const photoLabel = (pi) => derived ? '巡查照片'
+    : (['維護前', '施工中', '完工1', '完工2'][pi] || '照片');
+  return `
+    <div style="background:#fff;border:1px solid ${border};border-left:4px solid ${accent};border-radius:8px;padding:10px;font-size:12px">
+      <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:5px">
+        <b style="color:${accent}">${item.id}｜${item.type}</b>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="background:${item.status === '完成' ? '#dcfce7' : item.status === '處理中' ? '#fef9c3' : '#fee2e2'};color:${item.status === '完成' ? '#166534' : item.status === '處理中' ? '#92400e' : '#b91c1c'};border-radius:999px;padding:2px 8px;font-weight:800">${item.status}</span>
+          <button onclick="fac_editMaintenanceCase(${item.itemId},${f.id})" style="font-size:11px;color:${item.isCompletion ? '#7c3aed' : '#1565c0'};background:${item.isCompletion ? '#faf5ff' : '#eff6ff'};border:1px solid ${item.isCompletion ? '#ddd6fe' : '#bfdbfe'};border-radius:5px;padding:2px 7px;cursor:pointer;font-weight:700">
+            <i class="fas fa-edit"></i> 編輯
+          </button>
+          <button onclick="openInspectionReclassificationForm(${item.itemId},${f.id})" style="font-size:11px;color:#7c3aed;background:#faf5ff;border:1px solid #ddd6fe;border-radius:5px;padding:2px 7px;cursor:pointer;font-weight:700">
+            <i class="fas fa-random"></i> 重新歸類
+          </button>
+          <button onclick="fac_deleteMaintenanceCase(${item.itemId},${f.id})" style="font-size:11px;color:#b91c1c;background:#fff1f2;border:1px solid #fecaca;border-radius:5px;padding:2px 7px;cursor:pointer;font-weight:700">
+            <i class="fas fa-trash-alt"></i> 刪除
+          </button>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:6px;color:#475569">
+        <div><b>${item.isCompletion ? '完工日期' : '巡查日期'}：</b>${item.reportDate}</div>
+        <div><b>來源：</b>${item.source}</div>
+        <div><b>完成時間：</b>${item.completedAt || (item.isCompletion ? item.reportDate : '尚未完成')}</div>
+        ${item.isCompletion && item.reporter ? `<div><b>填表人員：</b>${(item.reporter || '').replace(/</g, '&lt;')}</div>` : ''}
+        ${item.isCompletion && item.reportUnit ? `<div><b>填表單位：</b>${(item.reportUnit || '').replace(/</g, '&lt;')}</div>` : ''}
+        ${item.isCompletion && item.reportTime ? `<div><b>填表時間：</b>${(item.reportTime || '').replace(/</g, '&lt;')}</div>` : ''}
+      </div>
+      ${derived ? `
+        <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:6px;padding:6px 8px;margin-bottom:6px;color:#0c4a6e;line-height:1.5">
+          <i class="fas fa-link"></i> 本項為<b>巡查發現的待辦需求</b>，尚未建立維護紀錄；原始表單：<b>${item.formTypeLabel}</b>${item.inspectNo ? `（${item.inspectNo}）` : ''}。
+          巡查表中的處理建議屬於「建議」，不等於已執行的維護。
+        </div>` : ''}
+      <div style="color:#334155;line-height:1.55"><b>${item.isCompletion ? '維護工法與完工情形' : (derived ? '巡查建議處理方式' : '維護內容')}：</b>${item.action}</div>
+      <div style="color:#475569;line-height:1.55;margin-top:3px"><b>後續追蹤：</b>${item.followUp || '建議於下次巡查確認處理成效。'}</div>
+      ${item.photos.length ? `
+      <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+        ${item.photos.slice(0, 4).map((src, pi) => `
+          <div style="position:relative;width:70px;height:52px;border-radius:5px;overflow:hidden;border:1px solid #e2e8f0;cursor:zoom-in" onclick="window.open('${src}','_blank')">
+            <img src="${src}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.style.display='none'">
+            <span style="position:absolute;bottom:1px;left:0;right:0;text-align:center;font-size:9px;color:#fff;background:rgba(0,0,0,.5)">${photoLabel(pi)}</span>
+          </div>`).join('')}
+      </div>` : `<div style="font-size:11px;color:#94a3b8;margin-top:6px"><i class="fas fa-camera"></i> ${item.isCompletion ? '尚未上傳前後照片' : '待補充現場照片'}</div>`}
+    </div>`;
+}
+
 function renderFacilityMaintenanceDataSection(f) {
   const cases = fac_facilityLinkedMaintenanceCases(f);
+  const maintenance = cases.filter(c => c.kind === 'maintenance');
+  const derived = cases.filter(c => c.kind === 'inspection_derived');
   return `
     <div style="background:#fff7ed;border:1px solid #fed7aa;border-left:4px solid #ea580c;border-radius:10px;padding:12px">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:10px">
         <div>
           <div style="font-size:15px;font-weight:900;color:#9a3412"><i class="fas fa-screwdriver-wrench"></i> 維護管理資料</div>
-          <div style="font-size:12px;color:#475569;margin-top:3px">重點為追蹤問題處理、改善成果、維修前後照片與後續管理狀態。</div>
+          <div style="font-size:12px;color:#475569;margin-top:3px">巡查是「發現問題」，維護管理是「實際處理問題」；兩者關聯呈現，但分開計數。</div>
         </div>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <span style="font-size:12px;color:#ea580c;background:#fff;border:1px solid #fed7aa;border-radius:999px;padding:5px 9px;font-weight:800">${cases.length} 件維護案件</span>
+          <span style="font-size:12px;color:#6d28d9;background:#fff;border:1px solid #ddd6fe;border-radius:999px;padding:5px 9px;font-weight:800">維護紀錄 ${maintenance.length} 件</span>
+          <span style="font-size:12px;color:#0369a1;background:#fff;border:1px solid #bae6fd;border-radius:999px;padding:5px 9px;font-weight:800">巡查待辦 ${derived.length} 件</span>
           <button onclick="openMaintenanceCompletionForm(${f.id})" style="font-size:12px;font-weight:700;color:#7c3aed;background:#faf5ff;border:1px solid #ddd6fe;border-radius:999px;padding:5px 12px;cursor:pointer;display:flex;align-items:center;gap:5px">
             <i class="fas fa-plus"></i> 新增維護完工回報
           </button>
         </div>
       </div>
-      ${cases.length ? `
-        <div style="display:grid;gap:8px">
-          ${cases.map(item => `
-            <div style="background:#fff;border:1px solid ${item.isCompletion?'#ddd6fe':'#fed7aa'};border-left:4px solid ${item.isCompletion?'#7c3aed':'#ea580c'};border-radius:8px;padding:10px;font-size:12px">
-              <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:5px">
-                <b style="color:${item.isCompletion?'#6d28d9':'#9a3412'}">${item.id}｜${item.type}</b>
-                <div style="display:flex;align-items:center;gap:6px">
-                  <span style="background:${item.status==='完成'?'#dcfce7':item.status==='處理中'?'#fef9c3':'#fee2e2'};color:${item.status==='完成'?'#166534':item.status==='處理中'?'#92400e':'#b91c1c'};border-radius:999px;padding:2px 8px;font-weight:800">${item.status}</span>
-                  <button onclick="fac_editMaintenanceCase(${item.itemId},${f.id})" style="font-size:11px;color:${item.isCompletion?'#7c3aed':'#1565c0'};background:${item.isCompletion?'#faf5ff':'#eff6ff'};border:1px solid ${item.isCompletion?'#ddd6fe':'#bfdbfe'};border-radius:5px;padding:2px 7px;cursor:pointer;font-weight:700">
-                    <i class="fas fa-edit"></i> 編輯工程
-                  </button>
-                  <button onclick="openInspectionReclassificationForm(${item.itemId},${f.id})" style="font-size:11px;color:#7c3aed;background:#faf5ff;border:1px solid #ddd6fe;border-radius:5px;padding:2px 7px;cursor:pointer;font-weight:700">
-                    <i class="fas fa-random"></i> 重新歸類
-                  </button>
-                  <button onclick="fac_deleteMaintenanceCase(${item.itemId},${f.id})" style="font-size:11px;color:#b91c1c;background:#fff1f2;border:1px solid #fecaca;border-radius:5px;padding:2px 7px;cursor:pointer;font-weight:700">
-                    <i class="fas fa-trash-alt"></i> 刪除
-                  </button>
-                </div>
-              </div>
-              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:6px;color:#475569">
-                <div><b>${item.isCompletion?'完工日期':'通報日期'}：</b>${item.reportDate}</div>
-                <div><b>來源：</b>${item.source}</div>
-                <div><b>完成時間：</b>${item.completedAt || (item.isCompletion ? item.reportDate : '尚未完成')}</div>
-                ${item.isCompletion && item.reporter ? `<div><b>填表人員：</b>${(item.reporter||'').replace(/</g,'&lt;')}</div>` : ''}
-                ${item.isCompletion && item.reportUnit ? `<div><b>填表單位：</b>${(item.reportUnit||'').replace(/</g,'&lt;')}</div>` : ''}
-                ${item.isCompletion && item.reportTime ? `<div><b>填表時間：</b>${(item.reportTime||'').replace(/</g,'&lt;')}</div>` : ''}
-              </div>
-              <div style="color:#334155;line-height:1.55"><b>${item.isCompletion?'維護工法與完工情形':'維護內容'}：</b>${item.action}</div>
-              <div style="color:#475569;line-height:1.55;margin-top:3px"><b>後續追蹤：</b>${item.followUp || '建議於下次巡查確認處理成效。'}</div>
-              ${item.photos.length ? `
-              <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
-                ${item.photos.slice(0,4).map((src,pi) => `
-                  <div style="position:relative;width:70px;height:52px;border-radius:5px;overflow:hidden;border:1px solid #e2e8f0;cursor:zoom-in" onclick="window.open('${src}','_blank')">
-                    <img src="${src}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.style.display='none'">
-                    <span style="position:absolute;bottom:1px;left:0;right:0;text-align:center;font-size:9px;color:#fff;background:rgba(0,0,0,.5)">${['維護前','施工中','完工1','完工2'][pi]||'照片'}</span>
-                  </div>`).join('')}
-              </div>` : `<div style="font-size:11px;color:#94a3b8;margin-top:6px"><i class="fas fa-camera"></i> ${item.isCompletion?'尚未上傳前後照片':'待補充現場照片'}</div>`}
-            </div>
-          `).join('')}
+
+      <div style="font-size:12px;font-weight:900;color:#6d28d9;margin:2px 0 6px">
+        <i class="fas fa-clipboard-check"></i> 維護紀錄（實際執行，具完工事證）
+      </div>
+      ${maintenance.length
+        ? `<div style="display:grid;gap:8px">${maintenance.map(item => fac_renderMaintenanceCaseCard(item, f)).join('')}</div>`
+        : `<div style="background:#fff;border:1px dashed #ddd6fe;border-radius:8px;padding:10px;font-size:12px;color:#64748b">
+             尚無維護完工回報。若已完成處理，請填寫「新增維護完工回報」並附維護前中後照片。
+           </div>`}
+
+      ${derived.length ? `
+        <div style="font-size:12px;font-weight:900;color:#0369a1;margin:12px 0 6px">
+          <i class="fas fa-triangle-exclamation"></i> 巡查待辦需求（來自巡查，尚未建立維護紀錄）
         </div>
-      ` : `
+        <div style="display:grid;gap:8px">${derived.map(item => fac_renderMaintenanceCaseCard(item, f)).join('')}</div>
+      ` : ''}
+      ${!cases.length ? `
         <div style="background:#fff;border:1px dashed #fed7aa;border-radius:8px;padding:12px;font-size:12px;color:#64748b">
           尚無維護案件或完工回報；若巡查有異常（裂縫、淘空、淤積），可填寫維護完工回報記錄處理成果、前後照片及更新後 DER&U。
         </div>
-      `}
+      ` : ''}
       <div style="margin-top:10px;background:#fff;border:1px solid #fed7aa;border-radius:8px;padding:10px;font-size:12px;color:#334155;line-height:1.6">
-        <i class="fas fa-link" style="color:#ea580c;margin-right:5px"></i><b>資料連動：</b>此處新增的巡查紀錄同步顯示於「維護管理資料 ＞ 巡查資料管理」，在該頁面建立的紀錄也會反映至此。DER&U 評等 U2 以上的巡查紀錄自動列為維護案件。<br>
+        <i class="fas fa-link" style="color:#ea580c;margin-right:5px"></i><b>資料連動：</b>此處新增的巡查紀錄同步顯示於「維護管理資料 ＞ 巡查資料管理」，在該頁面建立的紀錄也會反映至此。DER&U 評等 U2 以上或仍待處理的巡查紀錄，會列在下方「巡查待辦需求」，那仍屬巡查資料；要成為維護紀錄必須另行填寫維護完工回報。<br>
         流程：巡查資料建立 → 異常判斷 → 建立維護管理案件 → 維護處理紀錄 → 維護後照片上傳 → 後續追蹤巡查 → 結案或持續列管。
       </div>
     </div>
