@@ -569,15 +569,20 @@ def query_facilities(snapshot: Dict[str, Any], name: str = "", facility_type: st
 
     summary: Dict[str, int] = {}
     risk_summary: Dict[str, int] = {}
+    type_summary: Dict[str, int] = {}
     for row in out:
         summary[row["狀態"]] = summary.get(row["狀態"], 0) + 1
         band = row.get("風險等級")
         if band:
             risk_summary[band] = risk_summary.get(band, 0) + 1
+        kind = row.get("類別") or "未分類"
+        type_summary[kind] = type_summary.get(kind, 0) + 1
     # 風險座數先算好交給模型。實測讓模型自己數會少算未被追問到的類別
     # （只報魚道的高風險，漏掉步道、護岸、平臺）。
     return {
         "總數": len(out),
+        #  類別座數先算好：實測模型自己數會數錯（寫「魚道 7 座」卻列出 9 個名稱）
+        "類別統計": type_summary,
         "狀態統計": summary,
         "風險統計": risk_summary,
         "分級門檻": "基礎健康分數＝100−(D×0.45+E×0.2+R×0.35)×21，限[15,95]；A1依平台規則校正為健康90分；風險分＝100−健康分數；"

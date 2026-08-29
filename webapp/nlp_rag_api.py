@@ -3064,6 +3064,53 @@ def _management_fallback_answer(
     return "\n".join(lines)
 
 
+def _statistics_fallback_answer(query: str, snapshot: Dict[str, Any],
+                                routed: Dict[str, Any]) -> str:
+    """統計題的保底：直接把工具算好的數字列出來。
+
+    統計題的答案是資料庫算出來的數字，不是報告裡的一段敘述。模型失手時
+    若退回一般的 RAG 合成，會拿檢索到的報告文字作答 —— 實測問「魚道共有
+    多少魚種」得到「參考資料未記載魚種數量，建議調閱調查報告」，但平台
+    明明算得出來。這裡只呈現事實，不做研判。
+    """
+    if agent_tools is None or not (routed.get("species_summary")
+                                   or routed.get("statistics")):
+        return ""
+    try:
+        data = agent_tools.query_fish_surveys(
+            snapshot, "", *( (routed.get("explicit_years") or [None])[:1] * 2
+                             if routed.get("explicit_years") else (None, None)))
+    except Exception as exc:                      # noqa: BLE001
+        logging.getLogger(__name__).warning("[FALLBACK] 統計彙整失敗：%s", exc)
+        return ""
+    cover = data.get("資料涵蓋") or {}
+    if not cover.get("最新年度"):
+        return ""
+
+    lines = ["（AI 推論服務暫時無法使用，以下為平台資料庫直接統計的結果，"
+             "未經 AI 整理。）", ""]
+    lines.append("【直接答案】")
+    if data.get("全期間魚種數") is not None:
+        lines.append("資料期間去除重複物種後，共記錄 %d 種魚類："
+                     % data["全期間魚種數"])
+        lines.append("　" + "、".join(data.get("全期間魚種清單") or []))
+    lines += ["", "【資料涵蓋】",
+              "・期間：%s～%s，共 %s 筆調查紀錄"
+              % (cover.get("最早年度"), cover.get("最新年度"),
+                 cover.get("紀錄筆數"))]
+    if cover.get("缺漏年度"):
+        lines.append("・其中 %s 無調查紀錄" % "、".join(cover["缺漏年度"]))
+
+    per_year = data.get("各年度魚種數") or {}
+    if per_year:
+        lines += ["", "【各年度魚種數】（去重後，不可相加）"]
+        lines += ["・%s：%d 種" % (k, v["魚種數"]) for k, v in per_year.items()]
+
+    lines += ["", "【口徑說明】" + str(data.get("統計口徑說明") or ""),
+              str(data.get("資料口徑") or "")]
+    return "\n".join(lines)
+
+
 def _current_status_fallback_answer(query: str, snapshot: Dict[str, Any]) -> str:
     """模型失效時的現況保底：直接把工具算好的最新有效現況列出來。
 
@@ -3616,6 +3663,7 @@ def _ask_events(data: Dict[str, Any], stream: bool = False):
     #  保底區也要用到，先給預設值避免 Agent 未執行時 NameError
     effective_snapshot: Dict[str, Any] = {}
     data_coverage: Dict[str, Any] = {}
+    agent_tools_used: List[str] = []
     # 不再要求前端必須送 client_snapshot。工具層會以 webapp/data/agent_baseline.json
     # 補齊缺漏的鍵，因此直接呼叫 API 或前端 DB 尚未初始化時，Agent 仍取得到
     # 權威數值；沒有這道保障時，模型會改去文件裡找數字而答錯。
@@ -3698,6 +3746,7 @@ def _ask_events(data: Dict[str, Any], stream: bool = False):
             if _value:
                 timings[_key] = _value
         agent_records = dict(ai_result.get("records") or {})
+        agent_tools_used = list(ai_result.get("tools_used") or [])
 
     if not _as_text(ai_result.get("answer")):
         # Agent 不可用或未能作答時，退回既有的單次推論流程
@@ -3709,6 +3758,10 @@ def _ask_events(data: Dict[str, Any], stream: bool = False):
             #  但工具其實查得到 8 項待處理異常。
             #  這裡讓 answer 保持空字串，交給 7a 的現況保底輸出事實。
             ai_result.setdefault("provider", "current_status")
+        elif routed.get("species_summary") or routed.get("statistics"):
+            #  統計題的答案要由資料庫算。退回 RAG 合成會拿報告文字充數
+            #  ——實測「魚道共有多少魚種」因此得到「參考資料未記載」。
+            ai_result.setdefault("provider", "statistics")
         elif not combined_ctx.strip() and evidence_count == 0:
             ai_result = {
                 "answer": ("這一題我需要更明確的對象才能查。請直接指出設施名稱或編號"
@@ -3767,6 +3820,12 @@ def _ask_events(data: Dict[str, Any], stream: bool = False):
         # 保底來源依本題的意圖權重排序，確保委員題先用手冊、生態題先用文件，
         # 而不是一律拿巡查統計充數。
         candidates = []
+        if agent_tools is not None:
+            _stat_text = _statistics_fallback_answer(query, effective_snapshot, routed)
+            if _stat_text:
+                candidates.append(("statistics", _stat_text,
+                                   "平台資料庫統計（未經 AI 整理）",
+                                   lambda text: text))
         #  現況題的保底一律先用工具算好的最新有效現況；那才是這題的答案，
         #  RAG 片段與環境通則都不是。
         if routed.get("current_status") and agent_tools is not None:
@@ -3810,7 +3869,7 @@ def _ask_events(data: Dict[str, Any], stream: bool = False):
                  lambda _text: _management_fallback_answer(
                      query, management_evidence, management_counts))
             )
-        weight_of = {"current_status": "platform",
+        weight_of = {"statistics": "platform", "current_status": "platform",
                      "handbook": "handbook", "local_kb": "docs",
                      "management_context": "management", "environment_context": "environment",
                      "web": "web", "retrieval_method": "docs"}
@@ -3820,6 +3879,7 @@ def _ask_events(data: Dict[str, Any], stream: bool = False):
                                       query, local_ctx + management_ctx + web_ctx))
         candidates.sort(
             key=lambda item: (
+                3 if item[0] == "statistics" else 0,
                 2 if item[0] == "current_status" else 0,
                 1 if movement_query and item[0] == "management_context" else 0,
                 1 if environment_first and item[0] == "environment_context" else 0,
@@ -3828,7 +3888,7 @@ def _ask_events(data: Dict[str, Any], stream: bool = False):
         for key, text, display, render in candidates:
             #  現況保底是這題唯一正確的答案來源，不受意圖權重門檻限制
             if (text or "").strip() and (
-                    key == "current_status"
+                    key in ("current_status", "statistics")
                     or weights.get(weight_of[key], 0.4) >= 0.25):
                 answer = render(text)
                 provider_key, provider_display = key, display
@@ -3993,7 +4053,9 @@ def _ask_events(data: Dict[str, Any], stream: bool = False):
         "intents":          routed.get("intents") or [],
         "intent_labels":    routed.get("labels") or [],
         "fast_path":        bool(routed.get("fast_path")),
-        "tools_used":       ai_result.get("tools_used") or [],
+        #  退回合成時 ai_result 會被換掉，工具紀錄要另外保留，
+        #  否則診斷上會看成「完全沒查工具」
+        "tools_used":       ai_result.get("tools_used") or agent_tools_used,
         "timings":          dict(timings),
         #  真實筆數：工具與檢索實際回傳幾筆、實際帶進模型幾筆
         #  agent_records 已把前置檢索的筆數當作起始值，不可再加一次
