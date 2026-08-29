@@ -1096,6 +1096,20 @@ function initAIChat() {
     .ai-photo-preview-wrap img{height:40px;border-radius:4px;cursor:pointer}
     .ai-photo-cancel{cursor:pointer;font-size:12px;color:#666;margin-left:4px}
     .ai-typing{display:flex;gap:4px;padding:8px 12px;background:#fff;border:1px solid #e2e8f0;border-radius:0 10px 10px 10px;align-self:flex-start}
+    /* AI 即時處理狀態：每一行都由後端 SSE 真實觸發，非計時器動畫 */
+    .ai-status-panel{background:#f8fafc;border:1px solid #e2e8f0;border-left:3px solid #1a6b3c;border-radius:0 10px 10px 10px;padding:7px 10px;align-self:flex-start;max-width:92%}
+    .ai-status-list{display:flex;flex-direction:column;gap:3px}
+    .ai-status-row{display:flex;align-items:flex-start;gap:6px;font-size:12.5px;color:#1f2937;line-height:1.45}
+    .ai-status-row.done{color:#8a94a6}
+    .ai-status-row:last-child .ai-status-text{font-weight:600}
+    .ai-status-row:last-child .ai-status-icon{animation:aiStatusPulse 1.1s ease-in-out infinite}
+    .ai-status-icon{flex-shrink:0}
+    @keyframes aiStatusPulse{0%,100%{opacity:1}50%{opacity:.35}}
+    /* 串流中的回答：先用純文字即時呈現，完成後再換成完整排版 */
+    .ai-stream-text{white-space:pre-wrap;word-break:break-word;line-height:1.6;font-size:12.5px;color:#243447}
+    .ai-stream-text::after{content:"▌";color:#1a6b3c;animation:aiStatusPulse .9s ease-in-out infinite}
+    .ai-stream-text.finished::after{content:""}
+    .ai-run-summary{margin-top:6px;font-size:11.5px;color:#4b5563;background:#eef6f0;border-radius:6px;padding:3px 7px;display:inline-block}
     .ai-typing span{width:8px;height:8px;border-radius:50%;background:#1a6b3c;animation:bounce .9s infinite}
     .ai-typing span:nth-child(2){animation-delay:.15s}
     .ai-typing span:nth-child(3){animation-delay:.3s}
@@ -2175,6 +2189,174 @@ function renderFollowUps(container, items) {
   container.appendChild(wrap);
 }
 
+/* ──────────────────────────────────────────────────────────────────────
+ * AI 即時處理狀態與串流回答
+ * ────────────────────────────────────────────────────────────────────── */
+
+/** 後端 stage → 前端圖示。訊息文字一律用後端送來的，不在前端另編。 */
+const AI_STAGE_ICON = {
+  received:       "📩",
+  intent:         "🔎",
+  database:       "📚",
+  rag:            "📚",
+  rerank:         "🔗",
+  retrieval_done: "🔗",
+  reasoning:      "🧠",
+  generation:     "✍️",
+  completed:      "✅",
+};
+
+/**
+ * 建立即時狀態面板，取代原本的三點 loading 動畫。
+ *
+ * 這裡刻意不做假進度條也不用計時器：每一行都是後端 SSE 真的送來
+ * 某個階段才會出現。後端沒跑到的階段就不會顯示（例如快速通道沒有
+ * RAG 檢索），這是刻意的 —— 狀態要反映系統真正做了什麼。
+ */
+function appendAIStatusPanel() {
+  const div = document.createElement("div");
+  div.className = "ai-status-panel";
+  div.innerHTML = '<div class="ai-status-list"></div>';
+  const msgs = document.getElementById("aiMessages");
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+
+  const list = div.querySelector(".ai-status-list");
+  const seen = new Map();
+  return {
+    el: div,
+    /** 收到一筆真實狀態事件 */
+    push(stage, message) {
+      // 同一階段重複出現時就地更新（例如 database 會先後報「搜尋」與「查詢」）
+      let row = seen.get(stage);
+      if (!row) {
+        row = document.createElement("div");
+        row.className = "ai-status-row";
+        list.appendChild(row);
+        seen.set(stage, row);
+        // 前一行改成已完成的樣式
+        Array.from(list.children).forEach(node => {
+          if (node !== row) node.classList.add("done");
+        });
+      }
+      row.innerHTML =
+        `<span class="ai-status-icon">${AI_STAGE_ICON[stage] || "•"}</span>` +
+        `<span class="ai-status-text">${escapeHtml(message || stage)}</span>`;
+      const msgs = document.getElementById("aiMessages");
+      msgs.scrollTop = msgs.scrollHeight;
+    },
+    remove() { div.remove(); },
+  };
+}
+
+/**
+ * 以 SSE 串流方式提問。
+ *
+ * 與 queryRAG() 的差別只在傳輸方式：送出的欄位、後端流程、資料來源完全相同，
+ * 因此答案內容一致，差別是「邊產生邊顯示」而不是等整段生成完畢。
+ * 串流不可用（舊瀏覽器、代理緩衝、端點未部署）時回傳 null，由呼叫端退回
+ * 原本的 queryRAG()。
+ *
+ * @param {string}   query
+ * @param {object}   handlers  { onStatus(stage,message,data), onToken(text,reset) }
+ * @returns {Promise<object|null>}  後端完整回應；串流不可用時為 null
+ */
+async function queryRAGStream(query, handlers = {}) {
+  if (typeof ReadableStream === "undefined" || !window.fetch) return null;
+
+  const selectedMode = document.getElementById('aiModelMode')?.value || 'pro';
+  const latestManagement = await aiFetchLatestManagementContext(query);
+  const structuredSnapshot = buildStructuredSnapshot(query);
+  const livePlatformContext = [
+    buildDynamicContext(query),
+    buildCurrentPlatformPageContext(query),
+    latestManagement?.context ? `【伺服器最新巡查與維護資料】\n${latestManagement.context}` : "",
+    buildAllSectionsContext(query)
+  ].filter(Boolean).join("\n\n").slice(0, 24000);
+
+  const pageOrigin = (window.location.protocol.startsWith("http"))
+    ? window.location.origin : "";
+  const bases = window.HLX_API_BASE
+    ? [window.HLX_API_BASE]
+    : [
+        pageOrigin,
+        "https://hengliuxi-management.onrender.com",
+        "http://127.0.0.1:5000",
+        "http://localhost:5000"
+      ].filter((base, index, list) => base && list.indexOf(base) === index);
+
+  const needsCloudDocuments = /(?:OCR|雲端|Drive|文件|報告|原文|頁碼|出處|來源)/i.test(query);
+  const payload = {
+    query,
+    ai_mode: selectedMode,
+    use_web: "auto",
+    include_platform_url: false,
+    include_cloud_ocr: needsCloudDocuments,
+    platform_url: "https://hengliuxi-management.onrender.com/webapp/",
+    client_platform_context: livePlatformContext,
+    client_snapshot: structuredSnapshot,
+    history: window.aiChatHistory || []
+  };
+
+  for (const base of bases) {
+    let res;
+    try {
+      const ctrl = new AbortController();
+      // 串流會持續有事件進來，逾時只用來擋「完全沒有回應」的情況
+      const timeoutMs = selectedMode === 'deep' ? 180000 : 120000;
+      const tid = setTimeout(() => ctrl.abort(), timeoutMs);
+      res = await fetch(`${base}/api/smart-ask/stream`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Accept": "text/event-stream" },
+        body: JSON.stringify(payload),
+        signal: ctrl.signal
+      });
+      if (!res.ok || !res.body) { clearTimeout(tid); continue; }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+      let buffer = "";
+      let result = null;
+      let sawEvent = false;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        // SSE 以空行分隔事件；最後一段可能不完整，留在 buffer 等下一批
+        const frames = buffer.split("\n\n");
+        buffer = frames.pop() || "";
+        for (const frame of frames) {
+          const evLine = frame.split("\n").find(l => l.startsWith("event:"));
+          const dataLine = frame.split("\n").find(l => l.startsWith("data:"));
+          if (!evLine || !dataLine) continue;
+          const event = evLine.slice(6).trim();
+          let data;
+          try { data = JSON.parse(dataLine.slice(5).trim()); } catch { continue; }
+          sawEvent = true;
+          if (event === "status") {
+            handlers.onStatus?.(data.stage, data.message, data);
+          } else if (event === "token") {
+            handlers.onToken?.(data.text || "", !!data.reset);
+          } else if (event === "done") {
+            result = data.result || {};
+            result._stream = { found: data.found, used: data.used,
+                               elapsed: data.elapsed, cached: !!data.cached };
+          } else if (event === "error") {
+            console.warn("[queryRAGStream] 後端錯誤：", data.message);
+          }
+        }
+      }
+      clearTimeout(tid);
+      if (result && result.answer) return result;
+      if (sawEvent) return null;   // 有連上但沒拿到答案 → 交給非串流重試
+    } catch (err) {
+      console.warn(`[queryRAGStream] ${base} 串流失敗：`, err.message || err);
+    }
+  }
+  return null;
+}
+
 async function queryRAG(query) {
   const selectedMode = document.getElementById('aiModelMode')?.value || 'pro';
   // 註：此處原本會先呼叫 _buildLiveStatusAnswer()，只要問題同時含「設施/魚道」
@@ -2483,17 +2665,64 @@ async function aiSend() {
     return;
   }
 
-  // ── 純文字 → 原有 RAG 流程 ───────────────────────────────────
+  // ── 純文字 → RAG／Agent 流程（優先走 SSE 串流）─────────────────
   if (!q) return;
   input.value = "";
   appendAIMsg(q, "user");
-  const typing = appendTyping();
   window.lastQuery = q;
 
+  // 即時狀態面板取代三點動畫：每一行都是後端真的執行到那個階段才出現
+  const status = appendAIStatusPanel();
+  let streamDiv = null;      // 串流文字的暫時容器
+  let streamText = "";
+  const startedAt = performance.now();
+
+  const onToken = (text, reset) => {
+    if (!streamDiv) {
+      // 第一個字一到就先把答案區開出來，不等整段生成完畢
+      streamDiv = appendAIMsg("", "bot", true);
+      streamDiv.innerHTML = '<div class="ai-stream-text"></div>';
+    }
+    if (reset) streamText = text; else streamText += text;
+    streamDiv.querySelector(".ai-stream-text").textContent = streamText;
+    const msgs = document.getElementById("aiMessages");
+    msgs.scrollTop = msgs.scrollHeight;
+  };
+
   try {
-    const data = await queryRAG(q);
-    typing.remove();
-    const responseDiv = appendAIMsg(composeAnswer(q, data), "bot", true);
+    let data = await queryRAGStream(q, {
+      onStatus: (stage, message) => status.push(stage, message),
+      onToken,
+    });
+    if (!data) {
+      // 串流不可用（舊瀏覽器、代理緩衝、端點未部署）→ 退回原本的一次性請求。
+      // 資料來源與後端流程完全相同，只是沒有逐字顯示。
+      status.push("generation", "正在整理回答");
+      data = await queryRAG(q);
+      if (streamDiv) { streamDiv.remove(); streamDiv = null; }
+    }
+    status.remove();
+
+    // 串流完成後把純文字換成完整排版（信心度、引用來源、回饋區塊）
+    const html = composeAnswer(q, data);
+    const responseDiv = streamDiv || appendAIMsg("", "bot", true);
+    responseDiv.innerHTML = html;
+
+    // ✅ 分析完成｜搜尋 XX 筆｜採用 XX 筆｜耗時 X.X 秒
+    const records = data?.records || {};
+    const found = data?._stream?.found ?? records.found ?? 0;
+    const used = data?._stream?.used ?? records.used ?? 0;
+    const elapsed = data?._stream?.elapsed
+      ?? Number(((performance.now() - startedAt) / 1000).toFixed(1));
+    const summary = document.createElement("div");
+    summary.className = "ai-run-summary";
+    summary.textContent = `✅ 分析完成｜搜尋 ${found} 筆｜採用 ${used} 筆｜耗時 ${Number(elapsed).toFixed(1)} 秒`
+      + (data?._stream?.cached ? "（快取）" : "");
+    responseDiv.appendChild(summary);
+    // 各階段耗時只寫進 console，供開發時檢視，不干擾使用者畫面
+    if (data?.timings) console.info("[AI latency]", data.timings, "｜意圖", data.intents,
+                                    "｜工具", data.tools_used);
+
     responseDiv.dataset.confidenceLevel = data?.confidence_level || "unknown";
     responseDiv.dataset.confidenceScore = data?.confidence_score || 0;
     // 先記問題再記答案，順序即為模型看到的對話順序
@@ -2502,7 +2731,9 @@ async function aiSend() {
     renderFollowUps(responseDiv, data?.follow_ups);
     setTimeout(() => attachFeedbackListeners(responseDiv, data), 100);
   } catch (error) {
-    typing.remove();
+    status.remove();
+    if (streamDiv) streamDiv.remove();
+    console.warn("[aiSend]", error);
     appendAIMsg("AI 服務目前暫時無法回應，請稍後再試。本機知識庫與平台資料仍保留。", "bot");
   }
 }

@@ -21,7 +21,7 @@ import urllib.parse
 import urllib.request
 from typing import Any, Dict, List, Optional
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, Response, jsonify, request, stream_with_context
 
 try:
     from webapp import rag_backend
@@ -48,6 +48,14 @@ except Exception:  # pragma: no cover - optional runtime context
         import agent_tools  # type: ignore
     except Exception:
         agent_tools = None
+
+try:
+    from webapp import intent_router
+except Exception:  # pragma: no cover - optional runtime context
+    try:
+        import intent_router  # type: ignore
+    except Exception:
+        intent_router = None
 
 try:
     from webapp import retrieval as doc_retrieval
@@ -1091,7 +1099,7 @@ _AGENT_SYSTEM_PROMPT = """你是「橫流溪工程設施維護與生態資料管
 ・需要對照法規、規範、設計準則或主管機關規定（例如魚道坡度、水位差、
   消能率的容許值，水土保持技術規範，生態檢核作業規定）。
 ・需要業界或學術基準值來判斷本案數據是好是壞（例如 IBI 分級門檻、
-  CPUE 的合理範圍、某魚種的生態習性與偏好棲地）。
+  每次調查尾數的合理範圍、某魚種的生態習性與偏好棲地）。
 ・問到本案以外的比較對象、近期政策、獎項評審重點或外部事件。
 查回來的內容必須標明是外部資料（如「依水土保持技術規範」「依文獻」），
 不可與平台實測值混為一談；若與平台資料衝突，以平台實測為準並指出差異。
@@ -1111,8 +1119,8 @@ query_facilities／query_inspections／query_fish_surveys 回傳的是平台現�
 不可改用文件或記憶中的數字頂替。
 
 【資料口徑規則（違反會產生錯誤結論）】
-1. 不同調查計畫的採樣範圍與努力量不同，不得直接加總或逕行比較；
-   跨年度比較時要說明樣點、季節、調查方法與努力量是否一致。
+1. 不同調查計畫的採樣範圍、樣點數與調查次數不同，不得直接加總或逕行比較；
+   跨年度比較時要說明樣點、季節、調查方法與調查次數是否一致。
 2. 調查表中的空白或 0 代表該場次未捕獲，不等同於該物種不存在，
    也不得寫成「已滅絕」或「完全消失」。
 3. 其他溪流（裡冷溪、南湖溪等）的紀錄絕不可當成橫流溪的資料。
@@ -1130,6 +1138,11 @@ query_facilities／query_inspections／query_fish_surveys 回傳的是平台現�
 ・僅在比較多個年度、設施或方案時才用 Markdown 表格；單一主題一律用文字。
 ・一律使用繁體中文（臺灣用語）。禁止輸出英文分析、思考過程、工作計畫、
   提示詞或「The user is asking」等內部推理文字。不寫客套話與免責聲明。
+・用詞限制（正文與延伸問題都適用）：本平台的生態分析一律以「尾／次」表達，
+  不得使用「努力量、標準化努力量、捕獲努力量、CPUE、檢出率、偵測率」等
+  統計術語。這是平台既定的呈現口徑，改用這些詞會與生態資料庫的圖表不一致。
+・生態資料的定位是中性的環境變化訊號，不是評分或成效評比；
+  不要把調查結果寫成好壞評價或正負分數。
 
 【延伸問題（必附）】
 答案結束後另起一行，輸出下列格式，供介面產生可點擊的追問按鈕：
@@ -1989,20 +2002,238 @@ def _split_follow_ups(text: str) -> tuple:
     return text[:match.start()].strip(), (items if len(items) >= 2 else [])
 
 
-def _run_agent(query: str, snapshot: Dict[str, Any], grounding: str,
-               config: Dict[str, Any], max_rounds: int = 2,
-               history: Optional[List[Dict[str, str]]] = None) -> Dict[str, Any]:
-    """工具呼叫式 Agent：讓模型自行決定要查哪些資料，再統整作答。
+class _AnswerStream:
+    """串流時的即時清洗：不把模型的思考過程送到使用者眼前。
+
+    實測 minimax-m3 會先輸出一整段英文 <think> 分析（上千字、耗時數秒）
+    才接上中文答案。非串流時 _strip_reasoning_preamble() 會把它清掉，
+    但串流是「產生多少送多少」，若不即時過濾，使用者會先看到一大段英文
+    推理，等於把後台思考當成回答顯示。
+
+    規則：
+      1. 思考／工具標記尚未閉合時，一個字都不送（等它結束）
+      2. 其餘部分套用與非串流相同的 _strip_reasoning_preamble()
+      3. 「⟦延伸⟧…」是給前端另外呈現的延伸問題，不進正文
+      4. 只送出「比上次多出來的部分」；若清洗結果變短就先不送，
+         最終答案會在 done 事件由完整版覆蓋，不會留下殘句
+    """
+
+    _OPEN_RE = re.compile(r"(?is)<(?:think(?:ing)?|tool_call)[\s>]")
+    _CLOSE_RE = re.compile(r"(?is)</(?:think(?:ing)?|tool_call)\s*>")
+    _FOLLOW_RE = re.compile(r"[⟦\[【]\s*延伸")
+
+    def __init__(self) -> None:
+        self.raw = ""
+        self.sent = 0
+
+    def feed(self, piece: str) -> "tuple":
+        """吃進一段新文字，回傳 (要顯示的增量, 是否需要整段重畫)。
+
+        清洗結果變短時代表先前送出的內容已被判定為思考過程（例如模型
+        補上了結束標記），此時回傳 reset=True 讓前端清掉重畫，而不是把
+        錯的內容留在畫面上等最後才修正。
+        """
+        self.raw += piece
+        visible = self._visible()
+        if len(visible) < self.sent:
+            self.sent = len(visible)
+            return (visible, True)
+        if len(visible) == self.sent:
+            return ("", False)
+        delta = visible[self.sent:]
+        self.sent = len(visible)
+        return (delta, False)
+
+    def _visible(self) -> str:
+        text = self.raw
+        #  掃過所有已閉合的思考區塊；遇到尚未閉合的就在那裡截斷
+        pos = 0
+        while True:
+            opened = self._OPEN_RE.search(text, pos)
+            if not opened:
+                break
+            closed = self._CLOSE_RE.search(text, opened.end())
+            if not closed:
+                text = text[:opened.start()]
+                break
+            pos = closed.end()
+        cleaned = _strip_reasoning_preamble(text)
+        marker = self._FOLLOW_RE.search(cleaned)
+        if marker:
+            cleaned = cleaned[:marker.start()]
+        return cleaned.rstrip()
+
+
+def _zen_chat_stream(messages: "List[Dict[str, Any]]", config: Dict[str, Any],
+                     endpoint: str = "", model: str = "",
+                     provider_name: str = "opencode_go"):
+    """OpenAI 相容端點的 SSE 串流版；逐段產出文字，讓前端第一個字就能顯示。
+
+    產出格式：
+        ("delta", "文字片段")   —— 每收到一段就丟出去
+        ("final", {...})        —— 收完後的完整結果（含 usage 與 first_token_ms）
+
+    只用於「統整作答」那一輪。工具選擇輪沒有文字可串流，仍走非串流的
+    _zen_chat；那一輪的回傳是 tool_calls 結構，逐段拼裝反而容易解析失敗。
+    """
+    import urllib.request, urllib.error, json as _json
+    _log = logging.getLogger(__name__)
+    key = _opencode_go_key()
+    if not key:
+        yield ("final", {"error_type": "zen_key_not_set"})
+        return
+
+    endpoint = endpoint or GO_ENDPOINT
+    model = (model
+             or os.environ.get("ZEN_MODEL", "").strip()
+             or _as_text(config.get("zen_model"))
+             or ZEN_FREE_MODELS[0])
+    payload: Dict[str, Any] = {
+        "model": model,
+        "messages": messages,
+        "temperature": float(config.get("temperature") or 0.2),
+        "max_tokens": int(config.get("max_tokens") or 800),
+        "stream": True,
+        "stream_options": {"include_usage": True},
+    }
+
+    started = time.perf_counter()
+    req = urllib.request.Request(
+        endpoint, data=_json.dumps(payload).encode("utf-8"),
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {key}",
+            "Accept": "text/event-stream",
+            "User-Agent": _BROWSER_UA,
+        },
+        method="POST")
+
+    parts: List[str] = []
+    usage: Dict[str, Any] = {}
+    actual_model = model
+    first_token_at: Optional[float] = None
+    try:
+        with urllib.request.urlopen(req, timeout=float(config.get("timeout") or 60)) as response:
+            for raw_line in response:
+                line = raw_line.decode("utf-8", "replace").strip()
+                if not line or not line.startswith("data:"):
+                    continue
+                body = line[5:].strip()
+                if body == "[DONE]":
+                    break
+                try:
+                    chunk = _json.loads(body)
+                except Exception:              # noqa: BLE001  心跳或註解行
+                    continue
+                if chunk.get("model"):
+                    actual_model = _as_text(chunk.get("model")) or actual_model
+                if chunk.get("usage"):
+                    usage = dict(chunk["usage"])
+                delta = ((chunk.get("choices") or [{}])[0].get("delta") or {})
+                piece = _as_text(delta.get("content"))
+                if piece:
+                    if first_token_at is None:
+                        first_token_at = time.perf_counter()
+                    parts.append(piece)
+                    yield ("delta", piece)
+    except urllib.error.HTTPError as exc:
+        detail = exc.read()[:200].decode("utf-8", "replace")
+        _log.warning("[%s-STREAM] HTTP %s: %s", provider_name.upper(), exc.code, detail)
+        yield ("final", {"error_type": f"zen_http_{exc.code}", "detail": detail})
+        return
+    except Exception as exc:                   # noqa: BLE001
+        _log.warning("[%s-STREAM] %s: %s", provider_name.upper(), type(exc).__name__, exc)
+        yield ("final", {"error_type": f"zen_{type(exc).__name__}",
+                         "partial": "".join(parts)})
+        return
+
+    text = "".join(parts)
+    yield ("final", {
+        "message": {"role": "assistant", "content": text},
+        "actual_model": actual_model,
+        "provider": provider_name,
+        "input_tokens": int(usage.get("prompt_tokens") or 0),
+        "output_tokens": int(usage.get("completion_tokens") or 0),
+        "estimated_cost": 0.0,
+        "response_time": round(time.perf_counter() - started, 3),
+        "first_token_ms": (round((first_token_at - started) * 1000)
+                           if first_token_at else None),
+        "models": [model],
+        "error_type": "" if text.strip() else "empty_stream",
+    })
+
+
+#  快速通道的工具參數萃取：問題裡明確寫出的對象直接帶進工具，
+#  不需要再花一輪 LLM 讓模型「想」要查什麼。
+_FAST_FACILITY_RE = re.compile(
+    r"溪[構溝]\s*\d+(?:\s*-\s*\d+)?|\d+K\+\d+\s*(?:護岸|步道)?|平[臺台]\s*\d")
+_FAST_SPECIES_RE = re.compile(
+    r"[臺台]灣白甲魚|白甲魚|明潭吻[鰕蝦]虎|粗首馬口[鱲鱲]|[鏟臺台]頜魚|"
+    r"石[賓濱]|[鯝鮈]魚|[鰍鰻][^，。？\s]{0,3}")
+_FAST_TYPE_RE = re.compile(r"魚道|防砂壩|固床工|護岸|步道|平[臺台]")
+
+
+def _fast_tool_arguments(name: str, query: str) -> Dict[str, Any]:
+    """依問題內容推出快速通道要帶的工具參數（純字串比對，不猜測數值）。"""
+    facility = (_FAST_FACILITY_RE.search(query) or [None])
+    facility_name = facility.group(0).replace(" ", "") if hasattr(facility, "group") else ""
+    if name == "query_facilities":
+        args: Dict[str, Any] = {}
+        if facility_name:
+            args["name"] = facility_name
+        else:
+            type_hit = _FAST_TYPE_RE.search(query)
+            if type_hit:
+                args["facility_type"] = type_hit.group(0)
+            if re.search(r"緊急|優先處理|急迫|高風險|待處理|需要處理", query):
+                args["status"] = "需維護"
+        return args
+    if name == "query_inspections":
+        args = {"limit": 8}
+        if facility_name:
+            args["facility"] = facility_name
+        year = re.search(r"(1\d{2})\s*年", query)
+        if year:
+            args["year"] = int(year.group(1))
+        return args
+    if name == "query_fish_surveys":
+        species = _FAST_SPECIES_RE.search(query)
+        return {"species": species.group(0)} if species else {}
+    if name == "query_maintenance":
+        return {"query": query[:60], "limit": 5}
+    if name == "search_documents":
+        return {"query": query[:80], "top_k": 6}
+    return {}
+
+
+def _run_agent_events(query: str, snapshot: Dict[str, Any], grounding: str,
+                      config: Dict[str, Any], max_rounds: int = 2,
+                      history: Optional[List[Dict[str, str]]] = None,
+                      fast_tools: Optional[List[str]] = None,
+                      stream: bool = False,
+                      records_seed: Optional[Dict[str, int]] = None):
+    """工具呼叫式 Agent（產生器版）：一邊執行一邊回報真實進度。
+
+    產出格式：
+        ("status", {"stage": ..., "message": ...})
+        ("token",  {"text": ...})            —— 僅 stream=True 時
+        ("result", {...})                    —— 最後一定會有一筆
 
     相較於「先檢索一堆文字塞進提示詞」的舊做法，這裡模型拿到的數字都來自
     工具回傳的權威 JSON，因此不需要再用關鍵字閘門覆寫答案。
+
+    fast_tools 非空時走快速通道：跳過「讓模型決定要查什麼」那一輪，
+    直接執行意圖路由指定的工具，再進統整輪。省下一次完整 LLM 往返。
     """
     import json as _json
     _log = logging.getLogger(__name__)
     started = time.perf_counter()
+    timings: Dict[str, Any] = {"intent_ms": 0, "tool_ms": 0,
+                               "first_token_ms": None, "llm_total_ms": 0}
 
     if agent_tools is None:
-        return {"answer": "", "error_type": "agent_tools_unavailable"}
+        yield ("result", {"answer": "", "error_type": "agent_tools_unavailable"})
+        return
 
     # 只給簡短定位資訊，不預先塞入大量檢索文字。
     # 實測若把舊流程的 6000 字 context 一起送上，模型會直接從那段文字作答而不呼叫工具，
@@ -2025,6 +2256,10 @@ def _run_agent(query: str, snapshot: Dict[str, Any], grounding: str,
     totals = {"input_tokens": 0, "output_tokens": 0, "estimated_cost": 0.0}
     actual_model = ""
     tools_used: List[str] = []
+    #  真實筆數，供前端顯示「搜尋 X 筆｜採用 Y 筆」。
+    #  以前置檢索已找到的筆數起算，讓 retrieval_done 與 done 兩處數字一致。
+    counters = {"found": int((records_seed or {}).get("found") or 0),
+                "used": int((records_seed or {}).get("used") or 0)}
 
     # 第 1 輪只是「決定要查哪些資料」，屬於路由決策，不需要動用最貴最慢的模型；
     # 實測快速模型 1.8 秒即可正確選出工具與參數，而高階模型要十餘秒。
@@ -2046,34 +2281,167 @@ def _run_agent(query: str, snapshot: Dict[str, Any], grounding: str,
     # 否則會出現句子講到一半被截斷的情形。
     # 統整輸入較大（含工具結果），逾時需比路由輪寬鬆，否則慢速模型會讀取逾時。
     answer_config = dict(config)
-    answer_config["max_tokens"] = max(int(config.get("max_tokens") or 800), 1200)
+    #  留出餘裕：模型即使被要求直接作答，仍可能先寫一小段思考，
+    #  額度太緊會在思考結束前就被截斷，整輪答案作廢。
+    answer_config["max_tokens"] = max(int(config.get("max_tokens") or 800), 1600)
     answer_config["timeout"] = max(float(config.get("timeout") or 28), 60.0)
     answer_config["go_model"] = (os.environ.get("OPENCODE_GO_MODEL", "").strip()
                                  or "minimax-m3")
 
-    for round_index in range(max_rounds):
+    def _count_records(text: str) -> "tuple":
+        """從工具回傳的 JSON 算出「查到幾筆」與「實際帶進模型幾筆」。
+
+        工具為了控制 context 大小會截斷清單（例如設施只帶前 20 筆），
+        因此這兩個數字不一定相同 —— 前端顯示的「搜尋 X 筆｜採用 Y 筆」
+        就是這兩個值，不是估計值。
+        """
+        try:
+            payload = _json.loads(text)
+        except Exception:                        # noqa: BLE001
+            #  結果超過 MAX_TOOL_RESULT_CHARS 會被截斷成不完整的 JSON。
+            #  這種情況下仍要能報出正確筆數，否則前端會顯示「搜尋 0 筆」，
+            #  但模型明明是根據那批資料作答的。
+            total = re.search(r'"總數"\s*:\s*(\d+)', text)
+            found = int(total.group(1)) if total else 0
+            #  被截斷時實際帶進模型的筆數以完整物件數估算（最後一筆多半殘缺）
+            embedded = max(text.count('},{'), text.count('}, {'))
+            return (max(found, embedded), embedded)
+        if not isinstance(payload, dict):
+            return (0, 0)
+        embedded = sum(len(v) for v in payload.values() if isinstance(v, list))
+        total = payload.get("總數")
+        found = int(total) if isinstance(total, int) else embedded
+        return (max(found, embedded), embedded)
+
+    def _execute(calls: "List[tuple]") -> None:
+        """並行執行工具並把結果接回 messages。calls 為 (call_id, name, args)。"""
+        tool_started = time.perf_counter()
+        tasks = {}
+        for index, (call_id, name, args) in enumerate(calls):
+            tools_used.append(name)
+            tasks[f"{index}:{call_id}:{name}"] = (
+                lambda n=name, a=args: agent_tools.execute_tool(
+                    n, a, snapshot, _local_keyword_retrieve, _web_search_ddg))
+        outputs = _run_parallel(tasks, timeout=25.0)
+        for task_key, output in outputs.items():
+            _, call_id, name = task_key.split(":", 2)
+            content = _as_text(output) or _json.dumps(
+                {"error": f"{name} 未回傳結果"}, ensure_ascii=False)
+            found, used = _count_records(content)
+            counters["found"] += found
+            counters["used"] += used
+            messages.append({
+                "role": "tool",
+                "tool_call_id": call_id,
+                "content": content,
+            })
+        timings["tool_ms"] += round((time.perf_counter() - tool_started) * 1000)
+
+    # ── 快速通道：略過工具選擇輪，直接執行意圖路由指定的工具 ──────────
+    # 這不是樣板回答：數字仍由工具回傳、答案仍由模型撰寫，只是省掉
+    # 「讓模型想一輪要查什麼」的往返 —— 這類問題要查什麼本來就是確定的。
+    rounds_left = max_rounds
+    if fast_tools:
+        planned = []
+        for index, name in enumerate(fast_tools[:3]):
+            planned.append((f"fast_{index}", name, _fast_tool_arguments(name, query)))
+        yield ("status", {"stage": "database",
+                          "message": "正在查詢 " + "、".join(
+                              _TOOL_LABELS.get(n, n) for _, n, _ in planned)})
+        # 模型必須看到自己「呼叫過」這些工具，tool 訊息才有對應的 tool_call_id
+        messages.append({
+            "role": "assistant",
+            "content": "",
+            "tool_calls": [
+                {"id": call_id, "type": "function",
+                 "function": {"name": name,
+                              "arguments": _json.dumps(args, ensure_ascii=False)}}
+                for call_id, name, args in planned],
+        })
+        _execute(planned)
+        _log.info("[AGENT] 快速通道直接執行工具：%s", [n for _, n, _ in planned])
+        yield ("status", {"stage": "retrieval_done",
+                          "message": f"已找到 {counters['found']} 筆紀錄",
+                          "found": counters["found"], "used": counters["used"]})
+        rounds_left = 1                 # 只剩統整輪
+
+    for round_index in range(rounds_left):
         # 最後一輪不再提供工具，強制模型產出答案
-        is_last = round_index == max_rounds - 1
+        is_last = round_index == rounds_left - 1
         if is_last:
             # 最後一輪不帶工具定義，並明確要求直接作答。
             # 若只是拿掉 tools 而沒有這句指示，模型會在文字中吐出偽造的
             # <tool_call> 標記而非答案。
+            #  請模型省略分析過程直接作答。實測 minimax-m3 預設會先寫一段長思考，
+            #  那段不會顯示給使用者（見 _AnswerStream），卻會吃掉 max_tokens：
+            #  綜合分析題曾整整 1200 個 token 都用在思考上，結束標記還沒出現就被
+            #  截斷，導致整輪答案作廢、白等九秒。
+            direct_hint = ("請直接寫出答案，不要先輸出分析過程或思考步驟。\n"
+                           + ("本題所需資料已由工具一次取齊。\n" if fast_tools else ""))
             messages.append({
                 "role": "user",
-                "content": ("請根據以上工具回傳的資料，用繁體中文直接作答，不要再呼叫工具。\n"
+                "content": (direct_hint
+                            + "請根據以上工具回傳的資料直接作答，不要再呼叫工具。\n"
+                            "全文一律使用繁體中文，包含小標與連接語；"
+                            "不得夾雜英文句子或英文標題。\n"
                             "作答完畢後務必另起一行輸出延伸問題，格式固定為：\n"
                             "⟦延伸⟧第一個問題｜第二個問題｜第三個問題"),
             })
-        result = _agent_chat(
-            messages,
-            answer_config if is_last else router_config,
-            tools=None if is_last else agent_tools.TOOL_SCHEMAS)
+            yield ("status", {"stage": "generation", "message": "正在整理回答"})
+        else:
+            yield ("status", {"stage": "reasoning", "message": "正在判斷需要查哪些資料"})
+
+        llm_started = time.perf_counter()
+        result: Dict[str, Any] = {}
+
+        if is_last and stream:
+            # 統整輪走串流：第一個 token 出來就往前端送，不必等整段生成完畢
+            streamed = False
+            thinking_reported = False
+            cleaner = _AnswerStream()
+            for kind, payload in _zen_chat_stream(
+                    messages, answer_config, endpoint=GO_ENDPOINT,
+                    model=answer_config["go_model"], provider_name="opencode_go"):
+                if kind == "delta":
+                    streamed = True
+                    visible, reset = cleaner.feed(payload)
+                    if not visible and not reset:
+                        #  仍在思考區塊內：模型確實在輸出，只是還沒到答案。
+                        #  據實回報這件事，而不是讓畫面停在「正在整理回答」。
+                        if not thinking_reported:
+                            thinking_reported = True
+                            yield ("status", {"stage": "reasoning",
+                                              "message": "正在進行專業判讀"})
+                        continue
+                    if timings["first_token_ms"] is None:
+                        timings["first_token_ms"] = round(
+                            (time.perf_counter() - started) * 1000)
+                    yield ("token", {"text": visible, "reset": reset})
+                else:
+                    result = payload
+            if result.get("error_type") and not streamed:
+                # 端點不支援串流或中途失敗時退回非串流呼叫，答案品質不變
+                _log.info("[AGENT] 串流失敗（%s），改用非串流重試",
+                          result.get("error_type"))
+                result = _agent_chat(messages, answer_config, tools=None)
+            elif result.get("first_token_ms") is not None:
+                timings["first_token_ms"] = result["first_token_ms"]
+        else:
+            result = _agent_chat(
+                messages,
+                answer_config if is_last else router_config,
+                tools=None if is_last else agent_tools.TOOL_SCHEMAS)
+
+        timings["llm_total_ms"] += round((time.perf_counter() - llm_started) * 1000)
 
         if result.get("error_type"):
-            return {"answer": "", "provider": "opencode_go",
-                    "error_type": result["error_type"],
-                    "response_time": round(time.perf_counter() - started, 3),
-                    **totals}
+            yield ("result", {"answer": "", "provider": "opencode_go",
+                              "error_type": result["error_type"],
+                              "timings": timings, "tools_used": tools_used,
+                              "records": dict(counters),
+                              "response_time": round(time.perf_counter() - started, 3),
+                              **totals})
+            return
 
         actual_model = result.get("actual_model") or actual_model
         for key in totals:
@@ -2096,51 +2464,81 @@ def _run_agent(query: str, snapshot: Dict[str, Any], grounding: str,
                                    "請先呼叫對應工具取得後再回答。",
                     })
                     continue
-                return {"answer": "", "provider": "opencode_go",
-                        "actual_model": actual_model, "error_type": "invalid_answer",
-                        "response_time": round(time.perf_counter() - started, 3), **totals}
+                yield ("result", {"answer": "", "provider": "opencode_go",
+                                  "actual_model": actual_model,
+                                  "error_type": "invalid_answer", "timings": timings,
+                                  "tools_used": tools_used,
+                                  "response_time": round(time.perf_counter() - started, 3),
+                                  **totals})
+                return
             _OR_LAST_GOOD["model"] = actual_model
-            return {
+            yield ("result", {
                 "answer": text,
                 "provider": "opencode_go",
                 "actual_model": actual_model,
                 "display_name": f"{actual_model} (Agent)",
                 "tools_used": tools_used,
+                "timings": timings,
+                "records": dict(counters),
+                "streamed": bool(is_last and stream and timings["first_token_ms"]),
                 "response_time": round(time.perf_counter() - started, 3),
                 "fallback_used": actual_model != (result.get("models") or [""])[0],
                 "error_type": "",
                 **totals,
-            }
+            })
+            return
 
         # 並行執行本輪所有工具呼叫
         messages.append(message)
-        tasks = {}
-        for index, call in enumerate(tool_calls[:5]):
+        planned = []
+        for call in tool_calls[:5]:
             fn = call.get("function") or {}
             name = _as_text(fn.get("name"))
             try:
                 args = _json.loads(fn.get("arguments") or "{}")
-            except Exception:
+            except Exception:                    # noqa: BLE001
                 args = {}
-            tools_used.append(name)
-            tasks[f"{index}:{call.get('id')}:{name}"] = (
-                lambda n=name, a=args: agent_tools.execute_tool(
-                    n, a, snapshot, _local_keyword_retrieve, _web_search_ddg))
+            planned.append((call.get("id"), name, args))
 
-        _log.info("[AGENT] 第 %d 輪呼叫工具：%s", round_index + 1, tools_used)
-        outputs = _run_parallel(tasks, timeout=25.0)
-        for task_key, output in outputs.items():
-            _, call_id, name = task_key.split(":", 2)
-            messages.append({
-                "role": "tool",
-                "tool_call_id": call_id,
-                "content": _as_text(output) or _json.dumps(
-                    {"error": f"{name} 未回傳結果"}, ensure_ascii=False),
-            })
+        yield ("status", {"stage": "database",
+                          "message": "正在查詢 " + "、".join(
+                              _TOOL_LABELS.get(n, n) for _, n, _ in planned)})
+        _log.info("[AGENT] 第 %d 輪呼叫工具：%s", round_index + 1,
+                  [n for _, n, _ in planned])
+        _execute(planned)
+        yield ("status", {"stage": "retrieval_done",
+                          "message": f"已找到 {counters['found']} 筆紀錄",
+                          "found": counters["found"], "used": counters["used"]})
 
-    return {"answer": "", "provider": "opencode_go", "actual_model": actual_model,
-            "error_type": "no_answer_after_tools", "tools_used": tools_used,
-            "response_time": round(time.perf_counter() - started, 3), **totals}
+    yield ("result", {"answer": "", "provider": "opencode_go", "actual_model": actual_model,
+                      "error_type": "no_answer_after_tools", "tools_used": tools_used,
+                      "timings": timings, "records": dict(counters),
+                      "response_time": round(time.perf_counter() - started, 3), **totals})
+
+
+#  工具的中文顯示名稱，用於前端狀態列（「正在查詢巡查與DER&U資料」）
+_TOOL_LABELS = {
+    "query_facilities":   "工程設施與DER&U",
+    "query_inspections":  "巡查紀錄",
+    "query_fish_surveys": "魚類調查",
+    "query_maintenance":  "維護管理",
+    "search_documents":   "歷年報告全文",
+    "search_handbook":    "評審問答手冊",
+    "search_briefing":    "簡報內容",
+    "web_search":         "外部網路",
+}
+
+
+def _run_agent(query: str, snapshot: Dict[str, Any], grounding: str,
+               config: Dict[str, Any], max_rounds: int = 2,
+               history: Optional[List[Dict[str, str]]] = None) -> Dict[str, Any]:
+    """非串流呼叫端的相容包裝：把產生器跑完，只取最後的結果。"""
+    result: Dict[str, Any] = {}
+    for kind, payload in _run_agent_events(query, snapshot, grounding, config,
+                                           max_rounds=max_rounds, history=history):
+        if kind == "result":
+            result = payload
+    return result
 
 
 def _ai_synthesis_mode(query: str, combined_ctx: str, config: Dict[str, Any]) -> Dict[str, Any]:
@@ -2427,16 +2825,31 @@ def _smalltalk_answer(query: str) -> str:
     return ""
 
 
-@nlp_rag.route("/smart-ask", methods=["POST"])
-def smart_ask() -> Any:
-    """
-    智慧問答端點：
-      1. 本機 RAG、平台、巡查維護與 Drive OCR 先行
-      2. 本案資料不足時才以 DuckDuckGo 限定範圍補充
-      3. AI 綜合推論；模型失敗時只回傳相關證據或環境通則
+def _ask_events(data: Dict[str, Any], stream: bool = False):
+    """智慧問答的單一實作，以產生器形式一邊執行一邊回報真實進度。
+
+    非串流的 /smart-ask 與串流的 /smart-ask/stream 共用這一份流程，
+    差別只在前者把事件跑完只取最後結果、後者逐筆轉成 SSE 送出。
+
+    產出格式：
+        ("status", {"stage": ..., "message": ...})  真實執行階段
+        ("token",  {"text": ...})                   模型輸出的文字片段
+        ("result", {...})                           最終完整回應
+        ("error",  {...})                           參數錯誤
+
+    流程：
+      0. 意圖路由 —— 決定要查哪些來源，不再每題都掃全部資料庫與 RAG
+      1. 前置檢索 —— 只跑意圖需要的那幾路，彼此並行
+      2. Agent 工具呼叫 —— 數字一律來自工具回傳的權威 JSON
+      3. 統整作答 —— 串流模式下第一個 token 就送到前端
     """
     request_started = time.perf_counter()
-    data    = request.get_json() or {}
+    #  各階段耗時（毫秒），最後併入 ai_usage 供開發者在 console/log 檢視
+    timings: Dict[str, Any] = {
+        "intent_ms": 0, "database_ms": 0, "rag_ms": 0, "rerank_ms": 0,
+        "tool_ms": 0, "first_token_ms": None, "llm_total_ms": 0, "total_ms": 0,
+    }
+    yield ("status", {"stage": "received", "message": "已收到問題"})
     query   = _as_text(data.get("query") or data.get("question"))
     # 對話記憶：前端會附上最近幾輪問答，供 Agent 解析代名詞與追問脈絡
     chat_history = _sanitize_history(data.get("history"))
@@ -2475,7 +2888,8 @@ def smart_ask() -> Any:
         client_snapshot = {}
 
     if not query:
-        return jsonify({"status": "error", "message": "缺少 query"}), 400
+        yield ("error", {"status": "error", "message": "缺少 query"})
+        return
 
     # 純閒聊不應強制套用橫流溪文件。這條快速通道不檢索、不呼叫模型，
     # 因此不會產生 OpenRouter 費用，也避免低相關片段造成答非所問。
@@ -2503,7 +2917,7 @@ def smart_ask() -> Any:
             "answer_success": True,
             "error_type": "",
         })
-        return jsonify({
+        yield ("result", {
             "status": "success",
             "answer": smalltalk_answer,
             "llm_provider": "conversation_guard",
@@ -2526,6 +2940,7 @@ def smart_ask() -> Any:
             "message": "純閒聊快速回覆（未呼叫模型與 RAG）",
             "timestamp": _now(),
         })
+        return
 
     # ── 0. 意圖判斷：決定要取哪些來源、是否需要網路檢索 ────────
     intent: Dict[str, Any] = {"intent": "general", "label": "一般查詢", "weights": {}}
@@ -2534,6 +2949,33 @@ def smart_ask() -> Any:
             intent = answer_engine.route_intent(query)
         except Exception as exc:
             logging.getLogger(__name__).warning("[ANSWER] 意圖判斷失敗：%s", exc)
+
+    #  多重意圖路由：決定哪幾路前置檢索要跑、Agent 優先呼叫哪些工具。
+    #  舊流程不論問什麼都並行執行四路檢索（含 410 MB 向量庫與外網 OCR），
+    #  問「溪構11 現在 DER&U 多少」根本用不到，卻要一起等。
+    _intent_started = time.perf_counter()
+    if intent_router is not None:
+        routed = intent_router.route(query)
+    else:
+        routed = {"intents": ["comprehensive"], "primary": "comprehensive",
+                  "labels": ["綜合分析"], "tools": [], "fast_path": False,
+                  "sources": {name: True for name in
+                              ("local", "ocr", "management", "platform",
+                               "handbook", "web")}}
+    #  使用者明確要求查雲端文件時，即使意圖沒判到報告類也要開 OCR
+    if include_cloud_ocr and re.search(r"OCR|雲端|Drive|原文|頁碼|出處", query, re.I):
+        routed["sources"]["ocr"] = True
+    #  前端已把瀏覽器快照隨請求送上時不再重抓平台頁面（include_platform_url=False）
+    routed["sources"]["platform"] = bool(include_platform_url)
+    timings["intent_ms"] = round((time.perf_counter() - _intent_started) * 1000)
+    logging.getLogger(__name__).info(
+        "[INTENT] %s → %s｜fast=%s｜來源 %s｜%d ms", query[:40],
+        ",".join(routed["intents"]), routed["fast_path"],
+        [k for k, v in routed["sources"].items() if v], timings["intent_ms"])
+    yield ("status", {"stage": "intent",
+                      "message": "問題類型：" + "、".join(routed["labels"][:3]),
+                      "intents": routed["intents"],
+                      "fast_path": bool(routed["fast_path"])})
 
     # ── 1~4. 本案資料來源並行擷取（網路補充在本機檢索後才啟動） ──
     # 這四步彼此獨立；先取得本案資料，才能判斷是否真的需要外部內容。
@@ -2545,9 +2987,10 @@ def smart_ask() -> Any:
     def _task_local() -> List[Dict[str, Any]]:
         if rag_backend is None:
             return []
-        # 多磁碟備份可能含有同一份報告；多取一些候選後再去重，
-        # 避免相同片段占滿 Top K 而排擠真正不同的證據。
-        return _local_keyword_retrieve(retrieval_query, top_k=min(15, top_k * 3))
+        # 第一階段只取 6～10 筆候選：多磁碟備份常含同一份報告，多取一點
+        # 才能在去重後仍有足夠不同的證據，但不必把大量無關內容拉進來。
+        return _local_keyword_retrieve(
+            retrieval_query, top_k=max(6, min(10, top_k * 2)))
 
     def _task_ocr() -> Dict[str, Any]:
         ocr_svc = _get_ocr_svc()
@@ -2583,12 +3026,31 @@ def smart_ask() -> Any:
             return {}
         return management_context.build_management_context(query, limit=top_k) or {}
 
-    results = _run_parallel({
-        "platform":   _task_platform,
-        "local":      _task_local,
-        "ocr":        _task_ocr,
-        "management": _task_management,
-    })
+    #  只送出意圖真正需要的來源；其餘那幾路完全不執行（不是查完再丟掉）。
+    _sources = routed.get("sources") or {}
+    _planned = {name: task for name, task in (
+        ("platform",   _task_platform),
+        ("local",      _task_local),
+        ("ocr",        _task_ocr),
+        ("management", _task_management),
+    ) if _sources.get(name)}
+    _retrieval_started = time.perf_counter()
+    if _planned:
+        _SOURCE_LABEL = {"platform": "平台即時資料", "local": "本機 RAG 知識庫",
+                         "ocr": "雲端文件全文", "management": "巡查與維護資料"}
+        yield ("status", {"stage": "rag" if _sources.get("local") or _sources.get("ocr")
+                                  else "database",
+                          "message": "正在搜尋" + "、".join(
+                              _SOURCE_LABEL[name] for name in _planned)})
+        results = _run_parallel(_planned)
+    else:
+        #  設施／DER&U 這類問題的權威資料就在 Agent 工具裡，不需要任何前置檢索
+        results = {}
+    _retrieval_ms = round((time.perf_counter() - _retrieval_started) * 1000)
+    if _sources.get("local") or _sources.get("ocr"):
+        timings["rag_ms"] = _retrieval_ms
+    else:
+        timings["database_ms"] = _retrieval_ms
 
     # 1. 線上平台 URL 即時資料
     platform_payload: Dict[str, Any] = results.get("platform") or {}
@@ -2614,9 +3076,13 @@ def smart_ask() -> Any:
 
     # 2. 本機 RAG 補充
     local_candidates: List[Dict[str, Any]] = results.get("local") or []
-    if answer_engine is not None:
+    #  Rerank 只在候選確實比要用的多時才做；候選本來就少於 Top-K 時
+    #  重排一次不會改變結果，卻要多花一次相關性計算。
+    if answer_engine is not None and len(local_candidates) > max(top_k, 1):
+        _rerank_started = time.perf_counter()
         local_candidates = answer_engine.filter_retrieved_docs(
             query, local_candidates, limit=max(top_k, 1))
+        timings["rerank_ms"] = round((time.perf_counter() - _rerank_started) * 1000)
     local_docs: List[Dict[str, Any]] = []
     local_seen = set()
     for item in local_candidates:
@@ -2703,7 +3169,11 @@ def smart_ask() -> Any:
 
     # ── 6. 資料不足時補充環境脈絡，而非拿別的統計數字填空 ───────
     environment_ctx = ""
-    if answer_engine is not None:
+    #  快速通道的題目（設施、巡查、DER&U…）由 Agent 直接查平台工具，
+    #  不需要一般環境通則。意圖路由會略過前置檢索，若照舊判斷，
+    #  needs_environment_context() 會因「沒有任何證據」而誤判為需要，
+    #  結果把 1800 字無關的環境介紹塞進 Agent 的背景定位。
+    if answer_engine is not None and not routed.get("fast_path"):
         evidence_text = "\n".join(
             value for value in (scoped_client_ctx, platform_ctx, local_ctx, ocr_ctx,
                                 management_ctx, handbook_ctx, web_ctx) if value)
@@ -2769,6 +3239,7 @@ def smart_ask() -> Any:
     # Agent 由模型自行決定要查哪些資料，因此不可在工具執行前依 evidence_count
     # 判斷「資料不足」——那個判斷屬於舊的「先檢索再作答」流程。
     ai_result: Dict[str, Any] = {}
+    agent_records: Dict[str, Any] = {}
     # 不再要求前端必須送 client_snapshot。工具層會以 webapp/data/agent_baseline.json
     # 補齊缺漏的鍵，因此直接呼叫 API 或前端 DB 尚未初始化時，Agent 仍取得到
     # 權威數值；沒有這道保障時，模型會改去文件裡找數字而答錯。
@@ -2803,8 +3274,22 @@ def smart_ask() -> Any:
             )
             if report_evidence:
                 grounding += "\n本輪檢索到的指定報告候選段落（僅供定位，仍須以工具核對）：\n" + report_evidence
-        ai_result = _run_agent(query, effective_snapshot, grounding, mode_config,
-                               history=chat_history)
+        #  快速通道：意圖已經確定要查什麼，就不必再花一輪 LLM 讓模型想。
+        #  數字仍由工具回傳、答案仍由模型撰寫，只是省掉一次往返。
+        fast_tools = list(routed.get("tools") or []) if routed.get("fast_path") else []
+        for _kind, _payload in _run_agent_events(
+                query, effective_snapshot, grounding, mode_config,
+                history=chat_history, fast_tools=fast_tools, stream=stream,
+                records_seed={"found": evidence_count,
+                              "used": len(local_evidence) + len(management_evidence)}):
+            if _kind == "result":
+                ai_result = _payload
+            else:
+                yield (_kind, _payload)
+        for _key, _value in (ai_result.get("timings") or {}).items():
+            if _value:
+                timings[_key] = _value
+        agent_records = dict(ai_result.get("records") or {})
 
     if not _as_text(ai_result.get("answer")):
         # Agent 不可用或未能作答時，退回既有的單次推論流程
@@ -2825,6 +3310,8 @@ def smart_ask() -> Any:
                 "error_type": "insufficient_evidence",
             }
         else:
+            yield ("status", {"stage": "generation",
+                              "message": "正在整理回答（改用單次推論）"})
             ai_result = _ai_synthesis_mode(query, combined_ctx, mode_config)
     answer = _as_text(ai_result.get("answer"))
     # 延伸問題：模型在答案末端以「⟦延伸⟧甲｜乙｜丙」輸出，此處剝離成獨立欄位，
@@ -2864,7 +3351,12 @@ def smart_ask() -> Any:
         # 保底來源依本題的意圖權重排序，確保委員題先用手冊、生態題先用文件，
         # 而不是一律拿巡查統計充數。
         candidates = []
-        if environment_ctx:
+        #  工具確實查到了本案資料時，不可用「周邊環境通則」當保底答案。
+        #  意圖路由會略過不需要的前置檢索，環境脈絡的觸發條件（沒有其他證據）
+        #  因此更容易成立；若不擋，問「哪些魚道需要緊急處理」會得到一段
+        #  與問題無關的溪流環境介紹，而平台其實查得到那三座設施。
+        agent_found = int((agent_records or {}).get("found") or 0)
+        if environment_ctx and not agent_found:
             candidates.append((
                 "environment_context", environment_ctx, "橫流溪周邊環境脈絡",
                 lambda text: text,
@@ -2893,7 +3385,7 @@ def smart_ask() -> Any:
                      "management_context": "management", "environment_context": "environment",
                      "web": "web", "retrieval_method": "docs"}
         # 有「進場／下溪」問題時，環境脈絡比泛用管理統計更直接。
-        environment_first = bool(environment_ctx and answer_engine and
+        environment_first = bool(environment_ctx and not agent_found and answer_engine and
                                   answer_engine.needs_environment_context(
                                       query, local_ctx + management_ctx + web_ctx))
         candidates.sort(
@@ -2993,6 +3485,11 @@ def smart_ask() -> Any:
     structured_citations = structured_citations[:top_k]
 
     total_response_time = round(time.perf_counter() - request_started, 3)
+    timings["total_ms"] = round(total_response_time * 1000)
+    logging.getLogger(__name__).info(
+        "[LATENCY] intent=%(intent_ms)sms db=%(database_ms)sms rag=%(rag_ms)sms "
+        "rerank=%(rerank_ms)sms tools=%(tool_ms)sms first_token=%(first_token_ms)sms "
+        "llm=%(llm_total_ms)sms total=%(total_ms)sms", timings)
     usage = {
         "selected_mode": mode_config.get("requested_mode"),
         "selected_mode_label": mode_config.get("requested_label"),
@@ -3007,10 +3504,15 @@ def smart_ask() -> Any:
         "response_time": total_response_time,
         "rag_chunk_count": len(structured_citations),
         "fallback_used": bool(ai_result.get("fallback_used")),
+        "timings": dict(timings),
+        "intents": routed.get("intents") or [],
+        "fast_path": bool(routed.get("fast_path")),
+        "tools_used": ai_result.get("tools_used") or [],
     }
     _log_ai_usage({
         "user_question": query,
-        **usage,
+        **{k: v for k, v in usage.items()
+           if k not in ("timings", "intents", "tools_used", "fast_path")},
         "answer_success": bool(answer),
         "error_type": ai_result.get("error_type"),
     })
@@ -3026,7 +3528,7 @@ def smart_ask() -> Any:
         answer_confidence_score = 90 if structured_citations and answer else (45 if answer else 0)
         answer_policy_label = "RAG 專業回答" if structured_citations else "資料不足提醒"
 
-    return jsonify({
+    yield ("result", {
         "status":           "success",
         "answer":           answer,
         "follow_ups":       follow_up_questions,
@@ -3054,8 +3556,219 @@ def smart_ask() -> Any:
         "confidence_score": answer_confidence_score,
         "policy_label":     answer_policy_label,
         "message":          msg,
+        "intents":          routed.get("intents") or [],
+        "intent_labels":    routed.get("labels") or [],
+        "fast_path":        bool(routed.get("fast_path")),
+        "tools_used":       ai_result.get("tools_used") or [],
+        "timings":          dict(timings),
+        #  真實筆數：工具與檢索實際回傳幾筆、實際帶進模型幾筆
+        #  agent_records 已把前置檢索的筆數當作起始值，不可再加一次
+        "records":          (agent_records if agent_records else
+                             {"found": evidence_count,
+                              "used": len(structured_citations)}),
         "timestamp":        _now(),
     })
+    return
+
+
+# ════════════════════════════════════════════════════════════════════════
+#  查詢快取
+# ════════════════════════════════════════════════════════════════════════
+#  相同問題重問時直接回上一次的答案，省掉整段檢索與兩輪 LLM。
+#  但快取不能拿正確性換速度，因此鍵值同時綁定「平台資料指紋」：
+#  只要有任何設施的狀態、DER&U 等級、風險分或最後巡查日期變了，指紋就變，
+#  舊答案自動失效。追問（帶對話歷史）一律不快取，因為同一句話在不同脈絡
+#  下的正確答案不同。
+_QUERY_CACHE: "Dict[str, tuple]" = {}
+_QUERY_CACHE_TTL = float(os.environ.get("AI_QUERY_CACHE_TTL", "300"))
+_QUERY_CACHE_MAX = 64
+
+
+def _normalize_cache_query(query: str) -> str:
+    """只做空白與標點正規化。刻意不做模糊比對 —— 語意相近但實體不同的兩句
+    （「溪構4現況」與「溪構5現況」）若被判為同一題，回答就是錯的。"""
+    return re.sub(r"[\s　,，。？?！!、：:；;（）()\[\]【】]+", "", (query or "")).lower()
+
+
+def _snapshot_fingerprint(snapshot: Any) -> str:
+    """平台資料指紋：設施狀態一改，快取就失效。"""
+    import hashlib
+    if not isinstance(snapshot, dict):
+        return "none"
+    parts: List[str] = []
+    for row in (snapshot.get("facilities") or [])[:60]:
+        if not isinstance(row, dict):
+            continue
+        parts.append("|".join(_as_text(row.get(key)) for key in
+                              ("id", "name", "status", "derLevel", "riskScore",
+                               "healthScore", "assessmentDate", "lastInspect")))
+    parts.append("insp=%d" % len(snapshot.get("inspections") or []))
+    parts.append("fish=%d" % len(snapshot.get("fishSurveys") or []))
+    return hashlib.sha1("\n".join(parts).encode("utf-8")).hexdigest()[:16]
+
+
+def _cache_key(data: Dict[str, Any]) -> str:
+    query = _normalize_cache_query(_as_text(data.get("query") or data.get("question")))
+    if not query or data.get("history"):
+        return ""                     # 追問不快取
+    return "|".join((query,
+                     _as_text(data.get("ai_mode")) or "pro",
+                     _snapshot_fingerprint(data.get("client_snapshot"))))
+
+
+def _cache_get(key: str) -> Optional[Dict[str, Any]]:
+    if not key:
+        return None
+    entry = _QUERY_CACHE.get(key)
+    if not entry:
+        return None
+    stored_at, payload = entry
+    if time.time() - stored_at > _QUERY_CACHE_TTL:
+        _QUERY_CACHE.pop(key, None)
+        return None
+    return payload
+
+
+def _cache_put(key: str, payload: Dict[str, Any]) -> None:
+    #  只快取真正成功的答案；保底與錯誤回覆重問時應該重新嘗試
+    if (not key or not payload.get("answer")
+            or payload.get("llm_provider") in ("none", "rag_guard")):
+        return
+    if len(_QUERY_CACHE) >= _QUERY_CACHE_MAX:
+        oldest = min(_QUERY_CACHE, key=lambda k: _QUERY_CACHE[k][0])
+        _QUERY_CACHE.pop(oldest, None)
+    _QUERY_CACHE[key] = (time.time(), payload)
+
+
+@nlp_rag.route("/ai/query-cache", methods=["DELETE", "POST"])
+def ai_query_cache_clear() -> Any:
+    """手動清空查詢快取（資料匯入後可呼叫，避免讀到舊答案）。"""
+    cleared = len(_QUERY_CACHE)
+    _QUERY_CACHE.clear()
+    return jsonify({"status": "success", "cleared": cleared, "timestamp": _now()})
+
+
+# ════════════════════════════════════════════════════════════════════════
+#  兩個端點：非串流（相容既有前端）與 SSE 串流
+# ════════════════════════════════════════════════════════════════════════
+@nlp_rag.route("/smart-ask", methods=["POST"])
+def smart_ask() -> Any:
+    """智慧問答（非串流）：把 _ask_events 跑完，只取最後的完整結果。"""
+    data = request.get_json() or {}
+    key = _cache_key(data)
+    cached = _cache_get(key)
+    if cached is not None:
+        payload = dict(cached)
+        payload["cached"] = True
+        payload["message"] = (payload.get("message") or "") + "（快取）"
+        return jsonify(payload)
+
+    payload: Dict[str, Any] = {}
+    status_code = 200
+    for kind, item in _ask_events(data, stream=False):
+        if kind == "result":
+            payload = item
+        elif kind == "error":
+            payload, status_code = item, 400
+    if not payload:
+        payload = {"status": "error", "message": "問答流程未產生結果"}
+        status_code = 500
+    if status_code == 200:
+        _cache_put(key, payload)
+    return jsonify(payload), status_code
+
+
+def _sse(event: str, data: Any) -> str:
+    """組出一筆 SSE。資料一律單行 JSON，避免多行 data 被截成兩筆事件。"""
+    return "event: %s\ndata: %s\n\n" % (
+        event, json.dumps(data, ensure_ascii=False, default=str))
+
+
+@nlp_rag.route("/smart-ask/stream", methods=["POST"])
+def smart_ask_stream() -> Any:
+    """智慧問答（SSE 串流）。
+
+    事件：
+        status  {"stage": ..., "message": ...}   真實執行階段，非計時器
+        token   {"text": ...}                    模型輸出片段，第一個字就送
+        done    {"found":…, "used":…, "elapsed":…, "result": {...}}
+        error   {"message": ...}
+
+    stage 依序可能出現：received → intent → database／rag → rerank →
+    retrieval_done → reasoning → generation → completed。
+    未執行到的階段不會出現（例如快速通道沒有 rag），這是刻意的：
+    狀態必須反映後端真正做了什麼，不補假訊息湊齊流程。
+    """
+    data = request.get_json() or {}
+    key = _cache_key(data)
+    cached = _cache_get(key)
+
+    def generate():
+        started = time.perf_counter()
+        if cached is not None:
+            payload = dict(cached)
+            payload["cached"] = True
+            yield _sse("status", {"stage": "completed", "message": "命中快取，直接回覆"})
+            #  快取命中時仍逐段送出，前端的顯示邏輯不必分兩套
+            text = _as_text(payload.get("answer"))
+            for index in range(0, len(text), 24):
+                yield _sse("token", {"text": text[index:index + 24]})
+            records = payload.get("records") or {}
+            yield _sse("done", {
+                "found": int(records.get("found") or 0),
+                "used": int(records.get("used") or 0),
+                "elapsed": round(time.perf_counter() - started, 2),
+                "cached": True, "result": payload})
+            return
+
+        payload: Dict[str, Any] = {}
+        try:
+            for kind, item in _ask_events(data, stream=True):
+                if kind == "status":
+                    yield _sse("status", item)
+                elif kind == "token":
+                    yield _sse("token", item)
+                elif kind == "error":
+                    yield _sse("error", {"message": item.get("message") or "參數錯誤"})
+                    return
+                elif kind == "result":
+                    payload = item
+        except Exception as exc:                 # noqa: BLE001
+            logging.getLogger(__name__).exception("[SSE] 問答流程失敗")
+            yield _sse("error", {"message": f"{type(exc).__name__}: {exc}"})
+            return
+
+        if not payload:
+            yield _sse("error", {"message": "問答流程未產生結果"})
+            return
+
+        _cache_put(key, payload)
+        records = payload.get("records") or {}
+        citations = payload.get("structured_citations") or []
+        yield _sse("status", {"stage": "completed", "message": "分析完成"})
+        yield _sse("done", {
+            #  這兩個數字來自工具與檢索的真實回傳筆數，不是估計
+            "found": int(records.get("found") or 0) or (
+                len(payload.get("local_evidence") or [])
+                + len(payload.get("ocr_citations") or [])
+                + len(payload.get("management_evidence") or [])
+                + len(payload.get("web_sources") or [])),
+            "used": int(records.get("used") or 0) or len(citations),
+            "elapsed": round(time.perf_counter() - started, 2),
+            "timings": payload.get("timings") or {},
+            "cached": False,
+            "result": payload,
+        })
+
+    return Response(
+        stream_with_context(generate()),
+        mimetype="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache, no-transform",
+            "Connection": "keep-alive",
+            # nginx／Render 的反向代理預設會緩衝回應，緩衝住就等於沒有串流
+            "X-Accel-Buffering": "no",
+        })
 
 
 # Legacy OpenRouter implementation is intentionally not registered.

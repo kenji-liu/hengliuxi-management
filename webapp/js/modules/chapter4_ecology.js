@@ -31,7 +31,7 @@ const MONITORING_REPORT = {
   fishwayAIDetection: [
     { id: 'FD1', name: '粗石斜曲面 (1-1)', structure: '溪構1-1 粗石斜曲面式魚道', km: '1K+400', max112Oct: 18, max113Apr: 22, max113Sep: 15, note: '濱溪植物遮蓋良好' },
     { id: 'FD2', name: '改良舟通式 (1-2)', structure: '溪構1-2 改良型舟通式魚道', km: '1K+400', max112Oct: 12, max113Apr: 16, max113Sep: 11, note: '魚骨型水路魚道' },
-    { id: 'FD3', name: '粗石斜曲面式',     structure: '溪構3 斜坡式魚道',         km: '1K+225', max112Oct: 41, max113Apr: 66, max113Sep: 48, note: '數量第2多，根團微棲地佳' },
+    { id: 'FD3', name: '斜坡式魚道',       structure: '溪構3 斜坡式魚道',         km: '1K+225', max112Oct: 41, max113Apr: 66, max113Sep: 48, note: '數量第2多，根團微棲地佳' },
     { id: 'FD4', name: '階段式魚道',       structure: '溪構4 階段式魚道',         km: '1K+170', max112Oct: 52, max113Apr: 68, max113Sep: 57, note: '★最多，水棲昆蟲352隻' },
     { id: 'FD5', name: '潛越式(階段)',     structure: '溪構5-2 潛越式魚道',       km: '1K+000', max112Oct: 9,  max113Apr: 14, max113Sep: 8,  note: '偵測數量偏低' },
     { id: 'FD6', name: '階段式(半斷面)',   structure: '溪構6 階段式魚道',         km: '0K+740', max112Oct: 23, max113Apr: 31, max113Sep: 27, note: '' },
@@ -87,7 +87,7 @@ const MONITORING_REPORT = {
   aquaticInsects: [
     { area: 'A', fw: '粗石斜曲面(1-1)+改良舟通式', quality: '好', fbi: 4.21, dominant: 'Sc.刮食者(47%)' },
     { area: 'B', fw: '階段式(半斷面)',    quality: '好',  fbi: 4.85, dominant: 'Pr.捕食者(40%)' },
-    { area: 'C', fw: '粗石斜曲面式',     quality: '好',  fbi: 4.62, dominant: 'Sc.刮食者(32%)' },
+    { area: 'C', fw: '斜坡式（溪構3，原報告記為粗石斜曲面式）', quality: '好',  fbi: 4.62, dominant: 'Sc.刮食者(32%)' },
     { area: 'D', fw: '階段式魚道',       quality: '極好', fbi: 3.63, dominant: 'Pr.捕食者(40%)，25科352隻' },
     { area: 'E', fw: '潛越式(階段)',     quality: '極好', fbi: 3.41, dominant: 'Sc.刮食者(48%)' },
     { area: 'F', fw: '階段式(半斷面)',   quality: '極好', fbi: 3.88, dominant: 'Pr.捕食者(40%)' },
@@ -100,12 +100,13 @@ const MONITORING_REPORT = {
   //  里程更正（2026-08）：原 FW1～FW8 被指派為遞增里程，但實際設施編號
   //  由下游往上游遞減，整串里程方向相反（例：FW7 降壩原標 1K+170，
   //  實為 0K+560）。已依 db.js 與 fishwayAIDetection 更正，三者現已一致。
-  //  註：FW3 於本表名為「粗石斜曲面式魚道」，db.js 溪構3 則名為
-  //  「斜坡式魚道」，名稱差異尚待與原始報告核對。
+  //  FW3 名稱更正（2026-08-29）：成果報告本表原記為「粗石斜曲面式魚道」，
+  //  經比對 1K+225 座標（TWD97 240873/2675532）現地確認為「斜坡式魚道」，
+  //  與 db.js 溪構3 一致。原報告用語保留於 reportName 供回查。
   fishwayTypes: [
     { id: 'FW1', name: '粗石斜曲面式魚道 (1-1)', km: '1K+400', type: '粗石斜曲面', aiMax: 22, electricCatch: 5,  mainSpecies: ['纓口臺鰍', '明潭吻鰕虎'] },
     { id: 'FW2', name: '改良型舟通式魚道 (1-2)', km: '1K+400', type: '改良舟通式', aiMax: 16, electricCatch: 8,  mainSpecies: ['臺灣白甲魚', '纓口臺鰍'] },
-    { id: 'FW3', name: '粗石斜曲面式魚道',       km: '1K+225', type: '粗石斜曲面', aiMax: 66, electricCatch: 6,  mainSpecies: ['臺灣鬚鱲', '臺灣石魚賓'] },
+    { id: 'FW3', name: '斜坡式魚道 (溪構3)',     km: '1K+225', type: '斜坡式',    aiMax: 66, electricCatch: 6,  mainSpecies: ['臺灣鬚鱲', '臺灣石魚賓'], reportName: '粗石斜曲面式魚道（原報告用語）' },
     { id: 'FW4', name: '階段式魚道',             km: '1K+170', type: '階段式',    aiMax: 68, electricCatch: 11, mainSpecies: ['纓口臺鰍', '明潭吻鰕虎'] },
     { id: 'FW5', name: '潛越式魚道 (階段)',       km: '1K+000', type: '潛越式',    aiMax: 14, electricCatch: 17, mainSpecies: ['臺灣白甲魚', '臺灣石魚賓', '臺灣間爬岩鰍'] },
     { id: 'FW6', name: '階段式魚道 (半斷面)',     km: '0K+740', type: '階段式',    aiMax: 31, electricCatch: 4,  mainSpecies: ['鰕虎科', '纓口臺鰍'] },
@@ -778,7 +779,7 @@ function renderAISystemTab() {
             { label: '1. 粗石斜曲面式 (1-1)', file: '1.粗石斜曲面(1-1).mp4' },
             { label: '2. 改良型舟通式 (1-2)', file: '2.改良型舟通式魚道(1-2).mp4' },
             { label: '3. 階段式 (半斷面) A',  file: '3.階段式魚道(半斷面).mp4' },
-            { label: '4. 粗石斜曲面式',        file: '4.粗石斜曲面式魚道.mp4' },
+            { label: '4. 斜坡式 (溪構3)',      file: '4.粗石斜曲面式魚道.mp4' },
             { label: '5. 階段式魚道',           file: '5.階段式魚道.mp4' },
             { label: '6. 潛越式 (階段)',         file: '6.潛越式魚道(階段).mp4' },
             { label: '7. 階段式 (半斷面) B',   file: '7.階段式魚道(半斷面).mp4' },
@@ -920,7 +921,7 @@ function ch4AskAI(topic) {
 4) HECRAS-2D棲地適合度（臺灣間爬岩鰍，上游WUA ${ha.upstreamWUA}%、下游${ha.downstreamWUA}%）
 5) 管理優先建議`,
 
-    '魚道通過率': `橫流溪8座魚道AI辨識最大魚類數量（113年4月峰值）：FD4階段式 68尾、FD3粗石斜曲面 66尾、FD6半斷面 31尾、FD1粗石(1-1) 22尾、FD8梯狀 19尾、FD2改良舟通式 16尾、FD5潛越式 14尾、FD7降壩 11尾。
+    '魚道通過率': `橫流溪8座魚道AI辨識最大魚類數量（113年4月峰值）：FD4階段式 68尾、FD3斜坡式(溪構3) 66尾、FD6半斷面 31尾、FD1粗石(1-1) 22尾、FD8梯狀 19尾、FD2改良舟通式 16尾、FD5潛越式 14尾、FD7降壩 11尾。
 請分析各魚道數量差異的原因（水理條件、型式、棲地品質），說明FD4/FD3為何表現最佳，以及低數量魚道的改善建議。`,
 
     '保育魚類': `橫流溪112~113年調查記錄6種魚類：臺灣白甲魚（改良舟通式電捕最多12尾）、纓口臺鰍（VU，陷阱法1尾，體長6.8cm）、明潭吻鰕虎（陷阱法6尾，4.3~8.2cm）、短吻紅斑吻鰕虎（1尾）、臺灣石魚賓、臺灣鬚鱲。臺灣間爬岩鰍為HECRAS-2D模擬目標種，FD7有電捕紀錄。
@@ -941,7 +942,7 @@ function ch4AskAI(topic) {
 
     '魚道維護建議': `依據橫流溪水域友善監測追蹤報告（112~113年）各魚道表現：
 - FD4（階段式）：AI最多68尾/分、電捕11尾、水棲昆蟲352隻（最多）→ 標竿魚道
-- FD3（粗石斜曲面）：AI次多66尾/分、電捕6尾、根團微棲地佳
+- FD3（斜坡式，溪構3；原報告記為粗石斜曲面式）：AI次多66尾/分、電捕6尾、根團微棲地佳
 - FD5（潛越式）：AI偵測14尾（偏低）但電捕17尾（最多）、有臺灣間爬岩鰍記錄
 - FD7（降壩上游）：AI偵測11尾（最低）、但有臺灣間爬岩鰍記錄
 - 高流量>10cms時魚道風險率4%，建議監測

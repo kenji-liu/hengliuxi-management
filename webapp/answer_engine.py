@@ -189,8 +189,17 @@ _UNREQUESTED_STAT_RE = re.compile(
 
 
 def _allows_statistics(query: str) -> bool:
-    return bool(re.search(r'統計|多少|幾筆|數量|幾座|照片|總覽|全部|金額|經費|日報',
-                          str(query or '')))
+    """這個問題是否本來就會用數量作答。
+
+    _UNREQUESTED_STAT_RE 擋的是「問棲地卻回巡查 77 筆」那種拿統計充數的答案。
+    但「目前哪些魚道需要緊急處理」這類列舉題，答案寫「需維護的魚道共 3 座」
+    是切題的，不能一併擋掉 —— 實測 Agent 依工具回傳的正確答案曾因此被丟棄，
+    使用者看到的反而是「查無相關資料」。
+    """
+    return bool(re.search(
+        r'統計|多少|幾筆|數量|幾座|照片|總覽|全部|金額|經費|日報|'
+        r'哪些|哪幾|哪一|列出|清單|有沒有|是否有|需要處理|需維護|待處理',
+        str(query or '')))
 
 
 def query_concepts(query: str) -> Dict[str, List[str]]:

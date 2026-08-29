@@ -182,9 +182,13 @@ if NLP_RAG_AVAILABLE:
 # 直接在主 app 掛載 /api/smart-ask，確保路由一定存在
 if NLP_RAG_AVAILABLE:
     try:
-        from webapp.nlp_rag_api import smart_ask as _smart_ask_fn
+        from webapp.nlp_rag_api import (smart_ask as _smart_ask_fn,
+                                        smart_ask_stream as _smart_ask_stream_fn)
         app.add_url_rule('/api/smart-ask', 'smart_ask_direct', _smart_ask_fn, methods=['POST'])
-        print("[INFO] /api/smart-ask route registered directly")
+        # SSE 串流端點：前端優先走這條，失敗才退回上面的非串流版
+        app.add_url_rule('/api/smart-ask/stream', 'smart_ask_stream_direct',
+                         _smart_ask_stream_fn, methods=['POST'])
+        print("[INFO] /api/smart-ask 與 /api/smart-ask/stream 路由已直接註冊")
     except Exception as _e:
         print(f"[WARNING] Could not register /api/smart-ask directly: {_e}")
 
