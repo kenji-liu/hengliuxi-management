@@ -174,6 +174,12 @@ for _R in ROOTS:
 
     if not folders: continue
 
+    # 案件名稱通常只有年份（例如「115年…」），同一年多個案件會並列成同一個 sort 值，
+    # 排序就退化成比名稱。改以「案件內最早的資料夾日期」為準，才真正依時間排序。
+    dated = [f['sort'] for f in folders if f['sort'] != 99999999]
+    if dated:
+        case_sort = min(dated)
+
     # 彙總整個 case 統計
     all_imgs = [p for f in folders for stage_list in [f['before'],f['during'],f['after'],f['unknown']] for p in stage_list]
     cases.append({
