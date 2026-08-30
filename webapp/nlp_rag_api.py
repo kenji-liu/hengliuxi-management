@@ -1198,13 +1198,21 @@ _DEEP_PROMPT_ADDON = """
    ・命中不足 → 換關鍵字或換 scope 再查一次
    ・出現新線索（年度、工程名稱、崩塌地編號）→ 針對它再查
    ・發現與先前資料矛盾 → 兩邊都再查一次，確認何者為原始出處
-3. 工程設計書架可用 scope 限定範圍，善用它逐本深入：
+3. search_documents 目前以關鍵字比對為主，查詢字串會直接影響命中率：
+   ・用該領域報告會出現的**專業詞彙**，不要只丟兩三個字。
+     例：查崩塌用「崩塌地 監測 調查 判釋」而非「橫流溪 崩塌」。
+   ・崩塌與整治報告多為**東勢處／臺中分署轄內**的全區報告，
+     內文未必逐段提到「橫流溪」；加上「橫流溪」反而會大幅減少命中
+     （實測「橫流溪 崩塌」只剩 2 段，「崩塌地 監測 調查」有 20 段）。
+     限定 scope 已足以框住範圍，不必再用溪名縮限。
+   ・第一次命中不足時，換同義詞或改用其他 scope 再查，不要就此斷定查無。
+4. 工程設計書架可用 scope 限定範圍，善用它逐本深入：
    ・整治規劃：規劃設計理念、監測方法、設計依據
    ・歷年整治工程：各期工程項目、數量、結算內容
    ・崩塌調查：歷年崩塌地監測、影像判釋、緊急評估
    ・現地調查：動物通道效能、魚道成效追蹤、生態調查
-4. 需要跨年度或跨主題比較時，分別查證後再比對，不可用單次檢索的片段推論全貌。
-5. 證據仍然不足時，明講「目前資料查不到」並指出還缺哪一份文件，
+5. 需要跨年度或跨主題比較時，分別查證後再比對，不可用單次檢索的片段推論全貌。
+6. 證據仍然不足時，明講「目前資料查不到」並指出還缺哪一份文件，
    不要用推測補齊。
 
 【深度分析的輸出格式】
@@ -4174,10 +4182,22 @@ def _cache_get(key: str) -> Optional[Dict[str, Any]]:
     return payload
 
 
+#  低於此字數的回覆多半是被截斷的殘句，不具參考價值
+_CACHE_MIN_ANSWER_CHARS = 80
+
+
 def _cache_put(key: str, payload: Dict[str, Any]) -> None:
     #  只快取真正成功的答案；保底與錯誤回覆重問時應該重新嘗試
     if (not key or not payload.get("answer")
             or payload.get("llm_provider") in ("none", "rag_guard")):
+        return
+    #  截斷的殘句不可入快取。實測有一次深度分析只吐出 17 個字就中斷，
+    #  若寫進快取，之後同一題都會直接回這段殘句而不再重試
+    #  （實測連續 3 次回覆完全相同、耗時 0-1 秒）。
+    answer = _as_text(payload.get("answer"))
+    if len(answer.strip()) < _CACHE_MIN_ANSWER_CHARS:
+        logging.getLogger(__name__).warning(
+            "[CACHE] 答案僅 %d 字，判定為截斷殘句，不寫入快取", len(answer.strip()))
         return
     if len(_QUERY_CACHE) >= _QUERY_CACHE_MAX:
         oldest = min(_QUERY_CACHE, key=lambda k: _QUERY_CACHE[k][0])
