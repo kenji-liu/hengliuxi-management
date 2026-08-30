@@ -29,6 +29,14 @@ _DEFAULTS: Dict[str, Dict[str, Any]] = {
         "max_tokens": 500,
         "top_k": 3,
         "timeout": 18,
+        # Agent 迴圈輪數：1 輪查完就必須作答，適合單一事實題
+        "max_rounds": 2,
+        # search_documents 每次回傳的段落數
+        "doc_top_k": 5,
+        # 每個段落保留的字數
+        "doc_chars": 600,
+        # 是否先請模型輸出查證步驟再執行
+        "plan_first": False,
     },
     "pro": {
         "model": _GO_MODEL,
@@ -38,15 +46,27 @@ _DEFAULTS: Dict[str, Dict[str, Any]] = {
         "max_tokens": 800,
         "top_k": 4,
         "timeout": 28,
+        "max_rounds": 3,
+        "doc_top_k": 8,
+        "doc_chars": 600,
+        "plan_first": False,
     },
     "deep": {
         "model": _GO_MODEL,
         "fallback_model": "",
         "go_model": _GO_MODEL,
         "temperature": 0.15,
-        "max_tokens": 1500,
-        "top_k": 5,
-        "timeout": 45,
+        # 深層分析要寫得完五段式（現況／依據／歷年／判讀／建議）
+        "max_tokens": 2500,
+        "top_k": 8,
+        "timeout": 90,
+        # 6 輪：可「查 → 看結果 → 換角度再查 → 修正」，這是拆解與動態修正的前提
+        "max_rounds": 6,
+        # 書架單本報告最多 2,994 段，top_k=5 等於 0.17%，深度模式放大到 20
+        "doc_top_k": 20,
+        "doc_chars": 900,
+        # 收到模糊目標時先輸出查證步驟，再依步驟執行
+        "plan_first": True,
     },
 }
 
@@ -81,8 +101,16 @@ def get_model_config(mode: str) -> Dict[str, Any]:
         "max_tokens": _env_number(
             f"AI_MAX_TOKENS_{prefix}", config["max_tokens"], int
         ),
-        "top_k": max(3, min(5, _env_number(f"AI_TOP_K_{prefix}", config["top_k"], int))),
+        "top_k": max(3, min(12, _env_number(f"AI_TOP_K_{prefix}", config["top_k"], int))),
         "timeout": max(8, _env_number(f"AI_TIMEOUT_{prefix}", config["timeout"], int)),
+        # 以下三項可由環境變數覆寫，方便線上調整而不必改版
+        "max_rounds": max(2, min(8, _env_number(
+            f"AI_MAX_ROUNDS_{prefix}", config["max_rounds"], int))),
+        "doc_top_k": max(3, min(25, _env_number(
+            f"AI_DOC_TOP_K_{prefix}", config["doc_top_k"], int))),
+        "doc_chars": max(300, min(1500, _env_number(
+            f"AI_DOC_CHARS_{prefix}", config["doc_chars"], int))),
+        "plan_first": bool(config.get("plan_first")),
     })
     return config
 

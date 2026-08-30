@@ -174,6 +174,16 @@ QUERY_CONCEPT_TERMS: Dict[str, Tuple[str, ...]] = {
     'regulation': ('法規', '法律', '規範', '標準', '許可', '水利法', '環評', '規定',
                    '條文', '罰則', '申請', '核准', '違規', '公告', '辦法', '要點'),
     'review': ('評審', '委員', '金質獎', '評分', '構面', '簡報', '問答'),
+    #  以下三群對應工程設計書架中「歷年崩塌」「歷年整治工程」「整治規劃」
+    #  三類報告（合計逾 4,900 個段落）。原本詞彙表只涵蓋魚類與設施，
+    #  導致 query_concepts('崩塌地 監測') 回傳空集合、relevance_score 一律 0，
+    #  BM25 找到的崩塌報告段落會被概念閘門整批刪除（實測 36 段 → 0 段）。
+    'landslide': ('崩塌', '崩塌地', '坍方', '土石流', '裸露地', '判釋',
+                  '潛勢', '邊坡', '滑動', '土砂', '沖蝕'),
+    'construction': ('整治', '治理', '工程', '施設', '設施', '結算', '決算',
+                     '明細表', '工項', '數量', '期程', '標案', '林班'),
+    'planning': ('規劃', '設計', '監造', '可行性', '配置', '斷面', '圖說',
+                 '技術服務', '成果報告', '期中報告', '期末報告', '監測調查'),
 }
 
 _GENERIC_STAT_RE = re.compile(
@@ -318,7 +328,25 @@ def filter_retrieved_docs(query: str, docs: List[Dict[str, Any]], limit: int = 8
         copied['query_relevance'] = round(score, 3)
         ranked.append((score, float(doc.get('score') or 0), -position, copied))
     ranked.sort(key=lambda item: (item[0], item[1], item[2]), reverse=True)
-    return [item[3] for item in ranked[:max(1, int(limit or 8))]]
+    keep = max(1, int(limit or 8))
+    if ranked:
+        return [item[3] for item in ranked[:keep]]
+
+    #  安全網：閘門把候選全數刪光時，代表這一題的用詞不在概念詞彙表內，
+    #  而不是檢索結果真的無關。此時沒有判斷依據就整批丟棄，等於讓模型
+    #  在「查無資料」下作答——實測問崩塌相關題目即為此情形。
+    #  改為退回檢索器自身排序的前幾筆，並標記未通過概念比對，
+    #  由模型自行判斷是否採用，而不是直接看不到證據。
+    fallback = []
+    for doc in (docs or [])[:keep]:
+        source = str(doc.get('source_file') or doc.get('source') or '')
+        if re.search(r'\.(?:json|jsonl|sqlite3?|py|js)$', source, re.IGNORECASE):
+            continue
+        copied = dict(doc)
+        copied['query_relevance'] = 0.0
+        copied['gate'] = 'fallback_unscored'
+        fallback.append(copied)
+    return fallback
 
 
 def scope_context_to_query(query: str, text: str, max_chars: int = 6500) -> str:

@@ -1184,6 +1184,43 @@ query_facilities／query_inspections／query_fish_surveys 回傳的是平台現�
 設施、年度或物種；使用者追問時不要重述前面已講過的內容，直接回答新問到的部分。"""
 
 
+
+#  深度分析模式追加的作業規範。只在 plan_first 的模式（deep）附加，
+#  一般問答維持精簡提示，避免拉高每次問答的 token 成本。
+_DEEP_PROMPT_ADDON = """
+
+【深度分析模式：先拆解，再逐步查證】
+這一題要做的是分析，不是查一個數字。請照以下方式進行：
+
+1. 先在心中把問題拆成 2–5 個可查證的子問題，並想好各要用哪個工具、
+   哪個文件群（scope）。不要把計畫寫給使用者看，直接開始執行。
+2. 每一輪只查你當下最需要的，看到結果後再決定下一步：
+   ・命中不足 → 換關鍵字或換 scope 再查一次
+   ・出現新線索（年度、工程名稱、崩塌地編號）→ 針對它再查
+   ・發現與先前資料矛盾 → 兩邊都再查一次，確認何者為原始出處
+3. 工程設計書架可用 scope 限定範圍，善用它逐本深入：
+   ・整治規劃：規劃設計理念、監測方法、設計依據
+   ・歷年整治工程：各期工程項目、數量、結算內容
+   ・崩塌調查：歷年崩塌地監測、影像判釋、緊急評估
+   ・現地調查：動物通道效能、魚道成效追蹤、生態調查
+4. 需要跨年度或跨主題比較時，分別查證後再比對，不可用單次檢索的片段推論全貌。
+5. 證據仍然不足時，明講「目前資料查不到」並指出還缺哪一份文件，
+   不要用推測補齊。
+
+【深度分析的輸出格式】
+除非使用者另有指定，請用下列分段作答，每段都要有實際內容；
+沒有資料的段落寫「查無相關紀錄」，不要省略段落也不要編造：
+
+【目前狀況】
+【數據依據】（列出來源檔案與頁碼）
+【歷年變化】
+【專業判讀】
+【建議】
+
+數字一律引用工具回傳值，並標明來源；跨年度比較須說明樣點、季節、
+調查方法或努力量是否一致。
+"""
+
 _SYSTEM_PROMPT = """你是「橫流溪工程設施維護與生態資料管理 AI 專家」，具備水利工程、水土保持、
 砂防設施維護、溪流生態保育、魚道連通性與長期監測資料分析能力。請使用繁體中文直接回答。
 
@@ -2443,7 +2480,7 @@ def _rerank_for_currency(query: str, docs: "List[Dict[str, Any]]",
 
 
 def _run_agent_events(query: str, snapshot: Dict[str, Any], grounding: str,
-                      config: Dict[str, Any], max_rounds: int = 2,
+                      config: Dict[str, Any], max_rounds: int = 0,
                       history: Optional[List[Dict[str, str]]] = None,
                       fast_tools: Optional[List[str]] = None,
                       stream: bool = False,
@@ -2482,8 +2519,13 @@ def _run_agent_events(query: str, snapshot: Dict[str, Any], grounding: str,
         user_content = (f"【背景定位（僅供判斷要查什麼，數據仍須以工具回傳為準）】\n"
                         f"{grounding.strip()[:grounding_limit]}\n\n{user_content}")
 
+    #  深度模式附加「先拆解再逐步查證」的作業規範；其餘模式維持精簡提示。
+    system_prompt = _AGENT_SYSTEM_PROMPT
+    if config.get("plan_first"):
+        system_prompt += _DEEP_PROMPT_ADDON
+
     messages: List[Dict[str, Any]] = [
-        {"role": "system", "content": _AGENT_SYSTEM_PROMPT},
+        {"role": "system", "content": system_prompt},
     ]
     # 對話記憶：把先前輪次放在本次問題之前，讓模型能解析代名詞與追問脈絡。
     # 歷史只作為語意背景，數字仍一律以本輪工具回傳值為準。
@@ -2524,6 +2566,7 @@ def _run_agent_events(query: str, snapshot: Dict[str, Any], grounding: str,
     #  留出餘裕：模型即使被要求直接作答，仍可能先寫一小段思考，
     #  額度太緊會在思考結束前就被截斷，整輪答案作廢。
     answer_config["max_tokens"] = max(int(config.get("max_tokens") or 800), 1600)
+    #  深度分析要寫得完五段式，額度不可被上面的下限壓回 1600
     answer_config["timeout"] = max(float(config.get("timeout") or 28), 60.0)
     answer_config["go_model"] = (os.environ.get("OPENCODE_GO_MODEL", "").strip()
                                  or "minimax-m3")
@@ -2561,8 +2604,11 @@ def _run_agent_events(query: str, snapshot: Dict[str, Any], grounding: str,
             tools_used.append(name)
             tasks[f"{index}:{call_id}:{name}"] = (
                 lambda n=name, a=args: agent_tools.execute_tool(
-                    n, a, snapshot, _local_keyword_retrieve, _web_search_ddg))
-        outputs = _run_parallel(tasks, timeout=25.0)
+                    n, a, snapshot, _local_keyword_retrieve, _web_search_ddg,
+                    depth=config))
+        #  深度模式的 top_k 較大，檢索本身較慢，逾時需一併放寬
+        outputs = _run_parallel(
+            tasks, timeout=45.0 if int(config.get("max_rounds") or 2) > 3 else 25.0)
         for task_key, output in outputs.items():
             _, call_id, name = task_key.split(":", 2)
             content = _as_text(output) or _json.dumps(
@@ -2580,7 +2626,10 @@ def _run_agent_events(query: str, snapshot: Dict[str, Any], grounding: str,
     # ── 快速通道：略過工具選擇輪，直接執行意圖路由指定的工具 ──────────
     # 這不是樣板回答：數字仍由工具回傳、答案仍由模型撰寫，只是省掉
     # 「讓模型想一輪要查什麼」的往返 —— 這類問題要查什麼本來就是確定的。
-    rounds_left = max_rounds
+    #  輪數優先取模式設定（deep=6／pro=3／fast=2）；呼叫端明確指定時才覆寫。
+    #  2 輪代表「查一次就必須作答」，無法「看到結果再換角度查」——
+    #  深層分析所需的拆解與動態修正就是靠多出來的輪數。
+    rounds_left = int(max_rounds or config.get("max_rounds") or 2)
     if fast_tools:
         planned = []
         for index, name in enumerate(fast_tools[:3]):
@@ -2805,7 +2854,7 @@ _TOOL_LABELS = {
 
 
 def _run_agent(query: str, snapshot: Dict[str, Any], grounding: str,
-               config: Dict[str, Any], max_rounds: int = 2,
+               config: Dict[str, Any], max_rounds: int = 0,
                history: Optional[List[Dict[str, str]]] = None) -> Dict[str, Any]:
     """非串流呼叫端的相容包裝：把產生器跑完，只取最後的結果。"""
     result: Dict[str, Any] = {}

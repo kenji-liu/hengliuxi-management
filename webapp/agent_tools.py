@@ -240,15 +240,24 @@ TOOL_SCHEMAS: List[Dict[str, Any]] = [
         "function": {
             "name": "search_documents",
             "description": (
-                "在歷年報告與技術文件全文中檢索（38,741 個段落，涵蓋整治規劃、"
-                "成果報告、期中期末報告、生態調查報告）。問到報告內容、"
-                "調查方法、設計依據、生態習性等文件記載事項時使用。"
+                "在歷年報告與技術文件全文中檢索（38,741 個段落，其中工程設計書架"
+                "佔 11,268 段）。問到報告內容、調查方法、設計依據、歷年工程與"
+                "崩塌紀錄等文件記載事項時使用。"
+                "可用 scope 限定書架文件群以提高命中率：整治規劃／歷年整治工程／"
+                "崩塌調查／現地調查／流域生態背景。同一主題可用不同關鍵字與文件群多查幾次，"
+                "逐步把證據補齊。"
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "query": {"type": "string", "description": "檢索關鍵字"},
-                    "top_k": {"type": "integer", "description": "回傳段落數，預設 5"},
+                    "top_k": {"type": "integer", "description": "回傳段落數；深度分析時可用 15–20"},
+                    "scope": {
+                        "type": "string",
+                        "enum": ["整治規劃", "歷年整治工程", "崩塌調查",
+                                 "現地調查", "流域生態背景"],
+                        "description": "限定書架文件群；不確定時留空代表全庫檢索",
+                    },
                 },
                 "required": ["query"],
             },
@@ -799,17 +808,74 @@ def query_maintenance(query: str = "", limit: int = 5) -> Dict[str, Any]:
         return {"error": f"維護資料查詢失敗：{type(exc).__name__}: {exc}"}
 
 
+#  書架文件群：讓 Agent 能把檢索限定在某一類報告，而不是每次都全庫撈。
+#  單本整治規劃報告就有 2,994 段，不限縮時關鍵字容易被其他報告稀釋。
+DOC_SCOPES: Dict[str, Dict[str, Any]] = {
+    "整治規劃": {
+        "說明": "整治規劃設計監造與監測調查、整體治理規劃",
+        "keywords": ("整治規劃", "整體治理規劃", "規劃設計監造"),
+    },
+    "歷年整治工程": {
+        "說明": "歷次野溪整治／改善工程及其結算決算明細",
+        "keywords": ("野溪整治", "整治第二期", "下游整治", "下游段改善",
+                     "周邊維護工程", "林班治理", "結算明細", "決算明細"),
+    },
+    "崩塌調查": {
+        "說明": "歷年崩塌地監測、調查評估與影像判釋",
+        "keywords": ("崩塌地", "崩塌", "影像判釋", "緊急評估"),
+    },
+    "現地調查": {
+        "說明": "動物通道效能評估、魚道成效追蹤、魚道設置規範",
+        "keywords": ("動物通道", "效能智慧評估", "成效追蹤", "生態廊道",
+                     "魚道設置原則"),
+    },
+    "流域生態背景": {
+        "說明": "石虎族群監測、野生動物資源保育、流域社區友善環境計畫",
+        "keywords": ("石虎", "野生動物資源", "保育自主管理",
+                     "友善環境產業", "保育軸帶"),
+    },
+}
+
+
+def _scope_matches(source: str, scope: str) -> bool:
+    """來源檔名是否落在指定書架文件群。"""
+    conf = DOC_SCOPES.get(scope)
+    if not conf:
+        return True
+    text = str(source or "")
+    return any(k in text for k in conf["keywords"])
+
+
 def search_documents(retriever: Callable[[str, int], List[Dict[str, Any]]],
-                     query: str, top_k: int = 5) -> Dict[str, Any]:
+                     query: str, top_k: int = 5, scope: str = "",
+                     doc_chars: int = 600) -> Dict[str, Any]:
+    """全文檢索。scope 可限定書架文件群，深度模式會放大 top_k 與段落字數。"""
+    want = max(1, min(int(top_k or 5), 25))
+    #  有限定文件群時多撈一些再過濾，避免過濾後不足額
+    fetch = min(want * 4, 60) if scope else want
     try:
-        docs = retriever(query, max(1, min(int(top_k or 5), 8))) or []
+        docs = retriever(query, fetch) or []
     except Exception as exc:
         return {"error": f"文件檢索失敗：{type(exc).__name__}: {exc}"}
-    return {"命中段落": len(docs), "段落": [{
+
+    if scope:
+        if scope not in DOC_SCOPES:
+            return {"error": f"未知的文件群「{scope}」，可用：{'、'.join(DOC_SCOPES)}"}
+        docs = [d for d in docs
+                if _scope_matches(d.get("source_file") or d.get("source"), scope)]
+    docs = docs[:want]
+
+    chars = max(300, min(int(doc_chars or 600), 1500))
+    out: Dict[str, Any] = {"命中段落": len(docs), "段落": [{
         "來源檔案": d.get("source_file") or d.get("source"),
         "頁碼": d.get("page") or d.get("page_number") or "未標示",
-        "內容": str(d.get("full_text") or d.get("preview") or d.get("text") or "")[:600],
+        "內容": str(d.get("full_text") or d.get("preview") or d.get("text") or "")[:chars],
     } for d in docs]}
+    if scope:
+        out["限定文件群"] = scope
+    if not docs:
+        out["提示"] = "此關鍵字在指定範圍內查無段落，可換詞或改用其他文件群再查一次。"
+    return out
 
 
 def search_handbook(query: str, limit: int = 3) -> Dict[str, Any]:
@@ -965,7 +1031,8 @@ def _fit_json(result: Dict[str, Any],
 
 
 def execute_tool(name: str, arguments: Dict[str, Any], snapshot: Dict[str, Any],
-                 retriever: Callable, searcher: Callable) -> str:
+                 retriever: Callable, searcher: Callable,
+                 depth: Optional[Dict[str, Any]] = None) -> str:
     """執行單一工具並回傳 JSON 字串。
 
     工具失敗時回傳含 error 的 JSON 而非拋出例外，讓模型能據實說明查無，
@@ -996,8 +1063,13 @@ def execute_tool(name: str, arguments: Dict[str, Any], snapshot: Dict[str, Any],
         elif name == "query_maintenance":
             result = query_maintenance(str(args.get("query") or ""), args.get("limit") or 5)
         elif name == "search_documents":
-            result = search_documents(retriever, str(args.get("query") or ""),
-                                      args.get("top_k") or 5)
+            #  模型沒指定 top_k 時，用模式設定的深度（深度分析為 20）
+            d = depth or {}
+            result = search_documents(
+                retriever, str(args.get("query") or ""),
+                args.get("top_k") or d.get("doc_top_k") or 5,
+                str(args.get("scope") or ""),
+                d.get("doc_chars") or 600)
         elif name == "search_handbook":
             result = search_handbook(str(args.get("query") or ""), args.get("limit") or 3)
         elif name == "search_briefing":
