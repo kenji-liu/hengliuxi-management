@@ -11,22 +11,22 @@ const FISH_PHOTO_LIBRARY = {
   '臺灣白甲魚': {
     image: '/webapp/assets/fish-photos/onychostoma-barbatulum-field-20260629.png',
     source: '更換魚類照片／白甲魚／臺灣白甲魚.png',
-    caption: '臺灣白甲魚（Onychostoma barbatulum）田野實拍，依指定白甲魚照片更新'
+    caption: '臺灣白甲魚（Onychostoma barbatulum）田野實拍照片介紹'
   },
   '粗首馬口鱲': {
     image: '/webapp/assets/fish-photos/zacco-pachycephalus.png',
     source: '02_魚類與棲地資料庫／施工前魚類調查嵌入影像',
-    caption: '溪流魚類量測實拍，粗首馬口鱲（Opsariichthys pachycephalus）代表影像'
+    caption: '溪流魚類量測實拍，粗首馬口鱲（Opsariichthys pachycephalus）物種介紹'
   },
   '臺灣鬚鱲': {
     image: '/webapp/assets/fish-photos/candidia-barbata.png',
     source: '02_魚類與棲地資料庫／施工前魚類調查嵌入影像',
-    caption: '魚體量測實拍，臺灣鬚鱲（Candidia barbata）代表影像'
+    caption: '魚體量測實拍，臺灣鬚鱲（Candidia barbata）物種介紹'
   },
   '臺灣石魚賓': {
     image: '/webapp/assets/fish-photos/acrossocheilus-paradoxus.png',
-    source: '02_魚類與棲地資料庫／施工前魚類調查代表影像',
-    caption: '橫流溪溪流型魚類田野調查實拍（代表圖），臺灣石魚賓（Acrossocheilus paradoxus）鯉科特有種，偏好礫石底質緩流段',
+    source: '02_魚類與棲地資料庫／施工前魚類調查影像',
+    caption: '橫流溪溪流型魚類田野調查實拍，臺灣石魚賓（Acrossocheilus paradoxus）物種介紹；鯉科特有種，偏好礫石底質緩流段',
     position: 'center 40%'
   },
   '纓口臺鰍': {
@@ -2308,7 +2308,7 @@ function fish_photoFor(f) {
   return FISH_PHOTO_LIBRARY[f.species] || FISH_PHOTO_LIBRARY[(f.species || '').replace(/（.*$/, '')] || {
     image: '/webapp/assets/fish-photos/field-measurement.jpg',
     source: '02_魚類與棲地資料庫／魚類調查影像',
-    caption: '橫流溪魚類調查代表影像'
+    caption: '橫流溪魚類調查物種介紹'
   };
 }
 
@@ -3040,14 +3040,15 @@ const LAND_LIFE_DATA = [
   },
   {
     category: '哺乳類', icon: 'fa-paw', color: '#92400e', bg: '#fffbeb', border: '#fde68a',
-    count: 5, source: '期中報告書 p.230–232；紅外線相機',
-    summary: '紅外線自動相機記錄大型哺乳類5種，穿山甲為最重要保育物種，臺灣黑熊為瀕危物種。',
+    count: 6, source: '期中報告書 p.230–232；紅外線相機（石虎另引石虎族群監測計畫）',
+    summary: '紅外線自動相機記錄大型哺乳類5種，穿山甲為最重要保育物種，臺灣黑熊為瀕危物種；另列石虎為鄰近保育廊道物種。',
     items: [
       { name: '臺灣穿山甲', sci: 'Manis pentadactyla',       tag: '一級保育', note: '極度瀕危，橫流溪工作站周邊影像紀錄' },
       { name: '臺灣黑熊',   sci: 'Ursus thibetanus formosanus', tag: '瀕危', note: '大雪山地區繫放追蹤，104年起共10隻，112年新增4隻完整軌跡' },
       { name: '食蟹獴',     sci: 'Herpestes urva',           tag: '二級保育', note: '溪岸活動，捕食魚蟹及兩棲類' },
       { name: '臺灣山羌',   sci: 'Muntiacus reevesi micrurus', tag: '特有亞種', note: '夜間紅外線相機記錄' },
-      { name: '臺灣野豬',   sci: 'Sus scrofa taivanus',      tag: '常見',   note: '溪岸泥地拱土痕跡及紅外線影像' }
+      { name: '臺灣野豬',   sci: 'Sus scrofa taivanus',      tag: '常見',   note: '溪岸泥地拱土痕跡及紅外線影像' },
+      { name: '石虎',       sci: 'Prionailurus bengalensis', tag: '瀕危',   note: '國家瀕臨絕種保育類；資料來源為臺中西部淺山保育軸帶烏溪流域石虎族群監測計畫，橫流溪棲地連通工程有助維持廊道連續性，非本溪紅外線相機p.230–232同批直接記錄' }
     ]
   },
   {
@@ -3121,6 +3122,7 @@ const LAND_WIKI_TITLES = {
   '臺灣山羌':   "Reeve's_muntjac",
   '臺灣野豬':   'Wild_boar',
   '臺灣黑熊':   'Formosan_black_bear',
+  '石虎':       'Leopard_cat',
   /* 昆蟲 */
   '黃裳鳳蝶':   'Troides_aeacus',
   '臺灣寬尾鳳蝶': 'Papilio_maraho',
@@ -3294,7 +3296,7 @@ function renderLandLife() {
       ${[
         ['fa-dove',   '#1d4ed8','#eff6ff', '16 種', '鳥類'],
         ['fa-frog',   '#0f766e','#f0fdfa',  '9 種', '兩棲爬蟲'],
-        ['fa-paw',    '#92400e','#fffbeb',  '5 種', '哺乳類'],
+        ['fa-paw',    '#92400e','#fffbeb',  '6 種', '哺乳類'],
         ['fa-bug',    '#854d0e','#fef9c3', '17 種', '陸域昆蟲'],
         ['fa-layer-group','#7c3aed','#f5f3ff', `${totalSpecies} 種`, '合計物種']
       ].map(([ic,col,bg,val,lbl]) => `
