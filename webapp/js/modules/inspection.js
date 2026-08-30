@@ -5889,13 +5889,21 @@ function _renderContractStats(data) {
     const col = _contractYearColor(p.year_ad);
     const detailId = 'contract_detail_' + idx;
     const na = p.notes_analysis || {};
+    //  「沒有日報分析資料」與「確認施工0日」是兩件事：前者代表匯入時未計算
+    //  逐日統計，後者才是事實。用 typeof 判斷是否真的有數字，缺漏時不畫
+    //  日曆長條，避免一份千萬元、數十天的合約顯示「施工0日」這種誤導畫面。
+    const hasDayStats = typeof na.work_days === 'number' && typeof na.stop_days === 'number';
     const wDays = na.work_days || 0;
     const sDays = na.stop_days || 0;
     const totalDays = wDays + sDays || 1;
     const workPct = Math.round(wDays / totalDays * 100);
 
-    // 摘要標籤（折疊時可見）
-    const themes = (na.work_themes || []).filter(t => t.name !== '雨天停工').slice(0, 4);
+    // 摘要標籤（折疊時可見）。na.work_themes 缺漏時退回同一筆資料裡本來就有
+    // 的 work_categories，避免因為沒做逐日分析、連工項分類都不顯示。
+    const themes = (na.work_themes && na.work_themes.length
+      ? na.work_themes
+      : (p.work_categories || []).map(c => ({ name: c.name, color: c.color }))
+    ).filter(t => t.name !== '雨天停工').slice(0, 4);
     const summaryPills = themes.map(t =>
       `<span style="display:inline-flex;align-items:center;gap:5px;background:${t.color}18;color:${t.color};border:1px solid ${t.color}33;border-radius:6px;padding:4px 10px;font-size:15px;font-weight:700">
         <i class="fas ${t.icon}"></i>${inspectionEscape(t.name)}</span>`
@@ -5913,8 +5921,9 @@ function _renderContractStats(data) {
         </div>
       </div>`).join('');
 
-    // 施工日統計橫條
-    const dayBar = `
+    // 施工日統計橫條：僅在確實有逐日分析數字時顯示，否則改顯示既有的
+    // 專案說明（p.note），那才是這筆資料真正記載的執行狀態依據。
+    const dayBar = hasDayStats ? `
       <div style="margin:14px 0">
         <div style="display:flex;justify-content:space-between;font-size:16px;color:#64748b;margin-bottom:5px">
           <span><i class="fas fa-calendar-check" style="color:#16a34a;margin-right:5px"></i>施工 <b style="color:#16a34a">${wDays}</b> 日</span>
@@ -5923,7 +5932,13 @@ function _renderContractStats(data) {
         <div style="height:8px;background:#e2e8f0;border-radius:4px;overflow:hidden">
           <div style="height:100%;width:${workPct}%;background:#16a34a;border-radius:4px"></div>
         </div>
-      </div>`;
+      </div>` : (p.note ? `
+      <div style="margin:14px 0;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 12px">
+        <div style="font-size:14px;font-weight:700;color:#92400e;margin-bottom:4px">
+          <i class="fas fa-circle-info" style="margin-right:5px"></i>工程執行說明
+        </div>
+        <div style="font-size:15px;color:#78350f;line-height:1.6">${inspectionEscape(p.note)}</div>
+      </div>` : '');
 
     // 重點施工紀錄
     const keyNoteRows = (na.key_notes || []).slice(0, 3).map(n => `
@@ -5961,8 +5976,9 @@ function _renderContractStats(data) {
         <div id="${detailId}" style="display:none;border-top:1px solid ${col.border};padding:16px 20px">
           ${catRows}
           ${dayBar}
+          ${(na.key_notes && na.key_notes.length) ? `
           <div style="font-size:16px;font-weight:700;color:#475569;margin:12px 0 6px"><i class="fas fa-clipboard-list" style="margin-right:6px"></i>重點施工紀錄</div>
-          ${keyNoteRows}
+          ${keyNoteRows}` : ''}
           <div style="font-size:16px;font-weight:700;color:#475569;margin:14px 0 6px"><i class="fas fa-cog" style="margin-right:6px"></i>機具項目明細</div>
           ${itemRows}
         </div>
