@@ -88,6 +88,30 @@ const CloudSync = (() => {
       .join('、');
   }
 
+  /** 把 Firestore 的原始錯誤轉成可直接照做的說明 */
+  function _pushErrorHint(e) {
+    const msg  = e?.message || String(e);
+    const code = e?.code || '';
+    if (code === 'permission-denied' || /Missing or insufficient permissions/i.test(msg)) {
+      return '雲端規則不允許寫入。請到 Firebase Console → Firestore → 規則，' +
+             '把 match /hengliuxi/main 改成 match /hengliuxi/{docId} 後發布' +
+             '（照片與分片是獨立文件，只開放 main 會被擋）。若當初選「測試模式」，' +
+             '規則可能已到期，需一併改掉日期條件。';
+    }
+    if (/exceeds the maximum allowed size/i.test(msg)) {
+      let sizes = '';
+      try {
+        const data = JSON.parse(localStorage.getItem(DB.KEY) || '{}');
+        sizes = `（本機 ${Math.round(_jsonBytes(data) / 1024)}KB：${_formatSizeReport(_sizeReport(data))}）`;
+      } catch(_) {}
+      return msg + sizes;
+    }
+    if (code === 'unavailable' || /client is offline/i.test(msg)) {
+      return '連不上雲端，請確認網路後重試。';
+    }
+    return msg;
+  }
+
   /**
    * 把資料表序列化後「依字元數」切段，而非依筆數切。
    * 依筆數切時，只要有單筆超過 1 MiB 就無解（實際遇過單筆 1.8MB 的巡查紀錄）；
@@ -984,14 +1008,8 @@ const CloudSync = (() => {
         _lastPushAt = now;
         showToast?.('✅ 本機資料已發布為雲端正式版本，其他裝置請拉取更新', 'success');
       } catch(e) {
-        // 附上前幾大的資料表，讓超量或權限錯誤能直接看出從哪裡下手
-        let hint = '';
-        try {
-          const data = JSON.parse(localStorage.getItem(DB.KEY) || '{}');
-          hint = `（本機 ${Math.round(_jsonBytes(data) / 1024)}KB：${_formatSizeReport(_sizeReport(data))}）`;
-        } catch(_) {}
         console.error('[CloudSync] 推送失敗', e);
-        showToast?.(`推送失敗：${e.message}${hint}`, 'error');
+        showToast?.(`推送失敗：${_pushErrorHint(e)}`, 'error');
       }
     },
 
