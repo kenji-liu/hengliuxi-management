@@ -88,10 +88,16 @@ const CloudSync = (() => {
       .join('、');
   }
 
-  /** 把 Firestore 的原始錯誤轉成可直接照做的說明 */
+  /** 把原始錯誤轉成可直接照做的說明 */
   function _pushErrorHint(e) {
     const msg  = e?.message || String(e);
     const code = e?.code || '';
+    if (e?.name === 'QuotaExceededError' || /quota has been exceeded|exceeded the quota/i.test(msg)) {
+      const diag = window.HLXBlobStore?.diagnostics?.(DB.KEY) || '';
+      return `此裝置的瀏覽器儲存空間不足（${diag}）。請確認未使用無痕模式，` +
+             `並在「設定 > Safari > 進階 > 網站資料」確認本站未被限制；` +
+             `若仍失敗請回報此訊息。`;
+    }
     if (code === 'permission-denied' || /Missing or insufficient permissions/i.test(msg)) {
       return '雲端規則不允許寫入。請到 Firebase Console → Firestore → 規則，' +
              '把 match /hengliuxi/main 改成 match /hengliuxi/{docId} 後發布' +
@@ -925,7 +931,7 @@ const CloudSync = (() => {
     /** 強制從 Firestore 拉取最新資料並覆蓋本機（強制伺服器讀取，忽略快取） */
     async pull() {
       if (_mode === 'server' || !_docRef) {
-        await _serverPull(true).catch(e => showToast?.(`拉取失敗：${e.message}`, 'error'));
+        await _serverPull(true).catch(e => showToast?.(`拉取失敗：${_pushErrorHint(e)}`, 'error'));
         return;
       }
       showToast?.('正在從雲端拉取…', 'info');
@@ -942,7 +948,7 @@ const CloudSync = (() => {
         showToast?.('✅ 已從雲端拉取最新資料', 'success');
         _refreshCurrentPage();
       } catch(e) {
-        showToast?.(`拉取失敗：${e.message}`, 'error');
+        showToast?.(`拉取失敗：${_pushErrorHint(e)}`, 'error');
       }
     },
 

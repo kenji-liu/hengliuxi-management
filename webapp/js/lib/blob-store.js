@@ -160,6 +160,13 @@ const HLXBlobStore = (() => {
     get size()  { return _mem.size; },
     /** 目前記憶體中的附件清單（id → dataUrl），供雲端同步比對用 */
     entries()   { return new Map(_mem); },
+
+    /** 本機儲存概況，供錯誤訊息與診斷使用 */
+    diagnostics(key) {
+      let lsKB = 0;
+      try { lsKB = Math.round((localStorage.getItem(key) || '').length * 2 / 1024); } catch(_) {}
+      return `附件庫=${_state}／${_mem.size}個，索引約${lsKB}KB`;
+    },
     hash, isBlob, isRef, strip, restore, collectRefs,
 
     /**
@@ -167,12 +174,25 @@ const HLXBlobStore = (() => {
      * IndexedDB 確定不可用時原樣寫入（與改版前行為相同）。
      */
     write(key, data) {
-      if (_state === 'unavailable') {
-        localStorage.setItem(key, JSON.stringify(data));
-        return;
-      }
       const blobs    = new Map();
       const stripped = strip(data, blobs);
+
+      if (_state === 'unavailable') {
+        // IndexedDB 不可用時優先照舊寫入完整資料（重新整理後照片仍在）；
+        // 但若 localStorage 塞不下，改存去掉照片的版本並把照片留在記憶體——
+        // 本次操作至少能完成，總比整個拉取失敗、資料全無要好。
+        try {
+          localStorage.setItem(key, JSON.stringify(data));
+          return;
+        } catch (e) {
+          if (e?.name !== 'QuotaExceededError' && !/quota/i.test(e?.message || '')) throw e;
+          localStorage.setItem(key, JSON.stringify(stripped));
+          blobs.forEach((v, id) => _mem.set(id, v));
+          console.warn('[BlobStore] localStorage 容量不足且 IndexedDB 不可用：' +
+                       '照片僅保留於本次瀏覽階段，重新整理後需再次拉取。');
+          return;
+        }
+      }
 
       // 先確定索引寫得進 localStorage，再處理附件；
       // 順序顛倒會出現「附件已落地但沒有索引」的狀態
@@ -190,7 +210,6 @@ const HLXBlobStore = (() => {
       const raw = localStorage.getItem(key);
       if (!raw) return null;
       const data = JSON.parse(raw);
-      if (_state === 'unavailable') return data;
       const missing = new Set();
       const out = restore(data, missing);
       if (missing.size) {
