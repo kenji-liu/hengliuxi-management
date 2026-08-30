@@ -148,6 +148,34 @@ function fish_renderEcologyHabits(species, panelId) {
     </section>`;
 }
 
+/** 詳細視窗用：與卡片同一份資料，但常駐顯示、不需展開 */
+function fish_renderEcologyHabitsPlain(species) {
+  const habit = FISH_ECOLOGY_HABITS[species];
+  if (!habit) return '';
+  const rows = [
+    ['fa-water', '棲地環境', habit.habitat],
+    ['fa-shrimp', '活動與食性', habit.feeding],
+    ['fa-egg', '繁殖特性', habit.breeding],
+    ['fa-location-dot', '橫流溪判讀', habit.hengliu]
+  ];
+  return `
+    <div style="background:#f0fdfa;border:1px solid #99f6e4;border-radius:12px;padding:14px 16px">
+      <div style="font-size:20px;font-weight:900;color:#115e59;margin-bottom:10px">
+        <i class="fas fa-leaf" style="margin-right:6px"></i>生態習性
+      </div>
+      ${rows.map(([icon, label, text]) => `
+        <div style="display:grid;grid-template-columns:22px 1fr;gap:8px;margin-bottom:9px;align-items:start">
+          <i class="fas ${icon}" style="color:#0f766e;font-size:16px;margin-top:5px;text-align:center"></i>
+          <div style="font-size:18px;line-height:1.65;color:#334155">
+            <strong style="color:#134e4a">${label}：</strong>${fish_escape(text)}
+          </div>
+        </div>`).join('')}
+      <div style="font-size:15px;line-height:1.5;color:#64748b;border-top:1px solid #99f6e4;padding-top:8px">
+        <i class="fas fa-circle-info" style="margin-right:4px"></i>物種一般生態與橫流溪實測紀錄分列呈現；未捕獲不直接解讀為不存在。
+      </div>
+    </div>`;
+}
+
 function fish_toggleEcology(button, panelId) {
   const panel = document.getElementById(panelId);
   if (!panel) return;
@@ -1262,6 +1290,7 @@ function openFishSpeciesDetail(speciesName) {
             ${target.redlistNote ? `<div style="grid-column:1/-1;color:#b45309;background:#fffbeb;border-radius:8px;padding:8px 10px">${fish_escape(target.redlistNote)}</div>` : ''}
           </div>
         </div>
+        ${fish_renderEcologyHabitsPlain(target.species)}
         ${fullSurveyHtml}
         ${dbRecordsHtml}
       </div>
@@ -1448,6 +1477,20 @@ const ECO_NEWS = [
     summary: '橫流溪貫穿大雪山山脈，水質清澈穩定。林務局東勢林區管理處在此設置國內首座「粗石斜曲面魚道」，以仿自然工法營造無阻隔溯游環境，讓魚類得以自由洄游，大幅改善河川生態連通性。',
     url: 'https://news.ltn.com.tw/news/life/breakingnews/1721243',
     icon: 'fa-fish'
+  },
+  {
+    tag: 'ESG企業合作',
+    tagColor: '#4338ca',
+    tagBg: '#e0e7ff',
+    title: '林業臺中分署攜手第一銀行　橫流溪畔植千株原生樹',
+    source: '台灣好新聞',
+    date: '2024-04-13',
+    summary: '林業及自然保育署臺中分署與第一銀行連續第三年合作造林，2024年4月13日由雙方員工、眷屬與主管於臺中市和平區南勢里橫流溪畔種植逾 1,000 株原生楓香（Liquidambar formosana）。'
+           + '雙方自 2022 年起合作，由高美濕地海岸棲地復育延伸至山區林班地，累計造林 4.78 公頃、種植原生樹種逾 5,000 株。'
+           + '植樹地點海拔約 500 公尺，水流穩定、溪畔植生完整，兼顧四季山林景觀與未來段木香菇培育所需之段木供應。'
+           + '計畫呼應聯合國永續發展目標（SDGs），提供固碳、涵養水源、保護土壤與維護野生動物棲地等生態系服務。',
+    url: 'https://www.taiwanhot.net/news/1064875/%E6%9E%97%E6%A5%AD%E8%87%BA%E4%B8%AD%E5%88%86%E7%BD%B2%E6%94%9C%E6%89%8B%E7%AC%AC%E4%B8%80%E9%8A%80%E8%A1%8C+%E6%A8%AA%E6%B5%81%E6%BA%AA%E7%95%94%E6%A4%8D%E5%8D%83%E6%A0%AA%E5%8E%9F%E7%94%9F%E6%A8%B9',
+    icon: 'fa-seedling'
   },
   {
     tag: '植生復育',

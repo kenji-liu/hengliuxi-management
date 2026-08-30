@@ -5901,19 +5901,35 @@ function contractCardToggle(id) {
   if (arrow) arrow.style.transform = open ? '' : 'rotate(180deg)';
 }
 
+/** 契約是否仍在執行中（依 note 原始記載判斷，與卡片顯示同一套規則） */
+function _contractStillOngoing(p) {
+  return /尚在執行中|尚未完工|尚未完成|施工中|執行中/.test(p?.note || '');
+}
+
 function _renderContractStats(data) {
   const { projects, item_summary, total_contract_amount, total_projects, total_reports } = data;
+
+  // 累計金額只計已結案契約：未結案者的契約金額是開口契約總額，
+  // 並非橫流溪單一工項的實際支用，計入總經費會高估。
+  const ongoingList = (projects || []).filter(_contractStillOngoing);
+  const ongoingSum  = ongoingList.reduce((n, p) => n + (Number(p.contract_amount) || 0), 0);
+  const settledSum  = Math.max(0, (Number(total_contract_amount) || 0) - ongoingSum);
+  const ongoingNote = ongoingList.length
+    ? `<div style="font-size:13px;color:#b45309;margin-top:6px;line-height:1.5">
+         不含 ${ongoingList.length} 件未結案契約</div>`
+    : '';
 
   // 摘要統計卡（大字）
   const summaryCards = [
     { icon: 'fa-folder-open', label: '工程件數',   value: total_projects + ' 件', color: '#1565c0' },
     { icon: 'fa-file-alt',    label: '日報份數',   value: total_reports  + ' 份', color: '#16a34a' },
-    { icon: 'fa-coins',       label: '累計契約金額', value: (total_contract_amount / 1e4).toFixed(0) + ' 萬元', color: '#d97706' },
+    { icon: 'fa-coins',       label: '累計契約金額', value: (settledSum / 1e4).toFixed(0) + ' 萬元', color: '#d97706', note: ongoingNote },
   ].map(c => `
     <div style="flex:1;min-width:160px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:24px 20px;text-align:center">
       <i class="fas ${c.icon}" style="font-size:40px;color:${c.color};margin-bottom:12px;display:block"></i>
       <div style="font-size:42px;font-weight:900;color:${c.color};line-height:1.1">${c.value}</div>
       <div style="font-size:20px;color:#64748b;margin-top:8px">${c.label}</div>
+      ${c.note || ''}
     </div>
   `).join('');
 
