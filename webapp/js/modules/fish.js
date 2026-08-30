@@ -3814,7 +3814,7 @@ function renderVegetation() {
     <!-- 主要植被統計表 -->
     <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:18px 20px;margin-bottom:20px">
       <div style="font-size:17px;font-weight:800;color:#0f172a;margin-bottom:14px">
-        <i class="fas fa-chart-bar" style="color:#16a34a;margin-right:7px"></i>主要植被統計表（表6-36 ｜ 前16優勢種）
+        <i class="fas fa-chart-bar" style="color:#16a34a;margin-right:7px"></i>主要植被統計表（表6-36 ｜ 優勢種 ${VEG_DOMINANT.length} 種，相對豐度合計 ${VEG_DOMINANT.reduce((n,v)=>n+v.pct,0).toFixed(2)}%）
       </div>
       <div style="overflow-x:auto">
         <table style="width:100%;border-collapse:collapse;font-size:19px;min-width:500px">
@@ -3854,6 +3854,13 @@ function renderVegetation() {
       </div>
       <div style="margin-top:10px;font-size:20px;color:#94a3b8">
         * 標示外來入侵種（紅色）；# 標示臺灣特有種（橙色）｜資料來源：期中報告書 p.234
+      </div>
+      <div style="margin-top:8px;font-size:18px;line-height:1.6;color:#64748b;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px">
+        <i class="fas fa-circle-info" style="color:#0369a1;margin-right:5px"></i>
+        <b>與上方統計卡的對應：</b>本表為<b>優勢種節錄</b>（表6-36），非全區物種名錄。
+        全區調查共 90 種、其中外來入侵種 <b>9 種</b>；本表僅涵蓋其中
+        <b>${VEG_DOMINANT.filter(v=>v.invasive).length} 種</b>（${VEG_DOMINANT.filter(v=>v.invasive).map(v=>v.name).join('、')}），
+        小花蔓澤蘭等其餘入侵種未達優勢種門檻，故未列於本表。
       </div>
     </div>
 
