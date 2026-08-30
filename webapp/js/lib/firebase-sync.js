@@ -24,6 +24,9 @@ const CloudSync = (() => {
   // 因此各資料表拆成 hengliuxi/main_part_<表名>_<序號>，主文件只留 settings 與分片索引。
   const SHARD_PREFIX    = 'main_part_';
   const SHARD_FORMAT    = 'sharded-v2';   // v2 分片存序列化字串（v1 依筆數切，單筆過大時無解）
+  const BLOB_PREFIX     = 'blob_';
+  const BLOB_MARKER     = 'hlxblob:';
+  const BLOB_MIN_LEN    = 2048;           // 小於此長度的 data URL 留在紀錄內即可
   const SHARD_MAX_BYTES = 700 * 1024;   // 單片上限，預留 Firestore 欄位開銷
   const FS_DOC_LIMIT    = 1048576;      // Firestore 單一文件上限（Google 端寫死）
   const PUSH_DEBOUNCE  = 1500;  // ms：防抖，避免連續儲存觸發過多推送
@@ -112,16 +115,124 @@ const CloudSync = (() => {
     return _db.doc(`${COLLECTION}/${id}`);
   }
 
+  /* ── 大型附件（照片／影片）獨立存放 ──────────────────────
+   * 照片以 base64 內嵌在巡查紀錄裡，佔了資料庫絕大部分容量
+   * （inspection.js 縮到 1200px，mobile_inspection.js 未縮圖直接存原檔）。
+   * 改以內容雜湊存成獨立文件：同一張照片只上傳一次，之後推送只送文字，
+   * 拉取時本機已有的照片直接沿用，只補缺的。
+   * 本機 localStorage 仍存還原後的完整資料，顯示端完全不受影響。
+   */
+  function _hashBlob(str) {
+    let h1 = 0x811c9dc5;
+    let h2 = 0x9e3779b9;
+    for (let i = 0; i < str.length; i++) {
+      const c = str.charCodeAt(i);
+      h1 = Math.imul(h1 ^ c, 0x01000193) >>> 0;
+      h2 = Math.imul(h2 + c, 0x85ebca6b) >>> 0;
+    }
+    // 併入長度，讓不同內容更難撞號
+    return `${str.length.toString(36)}z${h1.toString(36)}${h2.toString(36)}`;
+  }
+
+  function _isBlobString(v) {
+    return typeof v === 'string' && v.length >= BLOB_MIN_LEN && v.startsWith('data:');
+  }
+
+  /** 深走資料，把大型 data URL 換成參照字串，內容收進 out */
+  function _extractBlobs(value, out) {
+    if (_isBlobString(value)) {
+      const id = _hashBlob(value);
+      out.set(id, value);
+      return BLOB_MARKER + id;
+    }
+    if (Array.isArray(value)) return value.map(v => _extractBlobs(v, out));
+    if (value && typeof value === 'object' && value.constructor === Object) {
+      const o = {};
+      Object.keys(value).forEach(k => { o[k] = _extractBlobs(value[k], out); });
+      return o;
+    }
+    return value;
+  }
+
+  /** 把參照字串換回原始 data URL；查不到的 id 收進 missing */
+  function _restoreBlobs(value, lookup, missing) {
+    if (typeof value === 'string' && value.startsWith(BLOB_MARKER)) {
+      const id   = value.slice(BLOB_MARKER.length);
+      const data = lookup.get(id);
+      if (data === undefined) { missing.add(id); return value; }
+      return data;
+    }
+    if (Array.isArray(value)) return value.map(v => _restoreBlobs(v, lookup, missing));
+    if (value && typeof value === 'object' && value.constructor === Object) {
+      const o = {};
+      Object.keys(value).forEach(k => { o[k] = _restoreBlobs(value[k], lookup, missing); });
+      return o;
+    }
+    return value;
+  }
+
+  /** 掃出本機既有附件，拉取時可直接沿用，不必重新下載 */
+  function _localBlobCache() {
+    const cache = new Map();
+    const walk = v => {
+      if (_isBlobString(v)) { cache.set(_hashBlob(v), v); return; }
+      if (Array.isArray(v)) { v.forEach(walk); return; }
+      if (v && typeof v === 'object') Object.values(v).forEach(walk);
+    };
+    try { walk(JSON.parse(localStorage.getItem(DB.KEY) || '{}')); } catch(_) {}
+    return cache;
+  }
+
+  /** 分批提交，避開 Firestore 單批 500 筆／10MiB 的限制 */
+  async function _commitBatched(ops) {
+    const MAX_OPS   = 400;
+    const MAX_BYTES = 6 * 1024 * 1024;
+    let batch = _db.batch();
+    let count = 0;
+    let bytes = 0;
+    for (const op of ops) {
+      const size = op.type === 'set' ? _jsonBytes(op.body) : 0;
+      if (count && (count + 1 > MAX_OPS || bytes + size > MAX_BYTES)) {
+        await batch.commit();
+        batch = _db.batch();
+        count = 0;
+        bytes = 0;
+      }
+      if (op.type === 'set') batch.set(_shardDoc(op.id), op.body);
+      else batch.delete(_shardDoc(op.id));
+      count += 1;
+      bytes += size;
+    }
+    if (count) await batch.commit();
+  }
+
+  /** 有限併發，避免一次送出上百個讀取 */
+  async function _mapLimit(items, limit, fn) {
+    const out = new Array(items.length);
+    let cursor = 0;
+    await Promise.all(Array.from({ length: Math.min(limit, items.length) }, async () => {
+      while (cursor < items.length) {
+        const i = cursor++;
+        out[i] = await fn(items[i], i);
+      }
+    }));
+    return out;
+  }
+
   /**
    * 以分片方式寫入 Firestore：陣列資料表切片存為獨立文件，
    * 主文件只保留 settings、時間戳與分片索引。整批使用 batch 原子提交。
    */
   async function _writeShardedDoc(payload) {
-    const manifest  = { _format: SHARD_FORMAT, _shards: {}, _counts: {} };
+    // ① 先把照片／影片抽出來，主資料只留參照，推送量因此以文字為主
+    const blobs    = new Map();
+    const stripped = _extractBlobs(payload, blobs);
+
+    const manifest  = { _format: SHARD_FORMAT, _shards: {}, _counts: {}, _blobs: {} };
     const shardDocs = [];
 
-    Object.keys(payload).forEach(key => {
-      const value = payload[key];
+    Object.keys(stripped).forEach(key => {
+      const value = stripped[key];
       if (!Array.isArray(value)) { manifest[key] = value; return; }
       const chunks = _chunkJson(JSON.stringify(value));
       manifest._shards[key] = chunks.map((_, i) => `${SHARD_PREFIX}${key}_${i}`);
@@ -132,7 +243,18 @@ const CloudSync = (() => {
       }));
     });
 
-    const oversize = shardDocs.filter(d => _jsonBytes(d.body) > FS_DOC_LIMIT);
+    // 附件同樣依位元組切片，單張超過 1 MiB 的原檔照片也放得進去
+    const blobDocs = [];
+    blobs.forEach((dataUrl, id) => {
+      const chunks = _chunkJson(dataUrl);
+      manifest._blobs[id] = chunks.length;
+      chunks.forEach((json, i) => blobDocs.push({
+        id:   `${BLOB_PREFIX}${id}_${i}`,
+        body: { _blob: id, _part: i, json }
+      }));
+    });
+
+    const oversize = shardDocs.concat(blobDocs).filter(d => _jsonBytes(d.body) > FS_DOC_LIMIT);
     if (oversize.length) {
       throw new Error(`分片 ${oversize[0].id} 仍超過 Firestore 單一文件上限，請回報此訊息`);
     }
@@ -142,34 +264,59 @@ const CloudSync = (() => {
       throw new Error(`主文件 ${Math.round(manifestBytes / 1024)}KB 仍超過 Firestore 單一文件上限，請檢查 settings 是否異常膨脹`);
     }
 
-    // 舊分片若本次未使用需一併刪除，否則殘留文件會在下次拉取時混入舊資料
-    let staleIds = [];
+    // ② 比對雲端現況：附件依內容編號，已存在的不必重傳
+    let prevShardIds = [];
+    let prevBlobs    = {};
     try {
       const prev = await _docRef.get({ source: 'server' });
       if (prev.exists) {
-        const nextIds = new Set(shardDocs.map(d => d.id));
-        staleIds = Object.values(prev.data()?._shards || {})
-          .flat()
-          .filter(id => !nextIds.has(id));
+        prevShardIds = Object.values(prev.data()?._shards || {}).flat();
+        prevBlobs    = prev.data()?._blobs || {};
       }
     } catch (_) {}
 
+    const newBlobDocs = blobDocs.filter(d => prevBlobs[d.body._blob] === undefined);
+    const skipped     = blobs.size - new Set(newBlobDocs.map(d => d.body._blob)).size;
+
+    // ③ 附件內容不可變，先寫進去是安全的；主文件最後才切換指向
+    await _commitBatched(newBlobDocs.map(d => ({ type: 'set', id: d.id, body: d.body })));
+
+    const nextShardIds = new Set(shardDocs.map(d => d.id));
+    const staleShards  = prevShardIds.filter(id => !nextShardIds.has(id));
     const batch = _db.batch();
     shardDocs.forEach(d => batch.set(_shardDoc(d.id), d.body));
-    staleIds.forEach(id => batch.delete(_shardDoc(id)));
+    staleShards.forEach(id => batch.delete(_shardDoc(id)));
     batch.set(_docRef, manifest);
     await batch.commit();
 
-    console.log(`[CloudSync] 已推送 ${shardDocs.length} 個分片（主文件 ${Math.round(manifestBytes / 1024)}KB）`, manifest._counts);
+    // ④ 主文件已不再引用的舊附件最後才清除；此步失敗只留下孤兒文件，不影響資料正確性
+    const staleBlobs = [];
+    Object.keys(prevBlobs).forEach(id => {
+      if (manifest._blobs[id] === undefined) {
+        for (let i = 0; i < prevBlobs[id]; i++) staleBlobs.push(`${BLOB_PREFIX}${id}_${i}`);
+      }
+    });
+    if (staleBlobs.length) {
+      await _commitBatched(staleBlobs.map(id => ({ type: 'delete', id })))
+        .catch(e => console.warn('[CloudSync] 清除舊附件失敗（不影響資料）', e));
+    }
+
+    const textKB = Math.round((manifestBytes + shardDocs.reduce((n, d) => n + _jsonBytes(d.body), 0)) / 1024);
+    const blobKB = Math.round(newBlobDocs.reduce((n, d) => n + _jsonBytes(d.body), 0) / 1024);
+    console.log(`[CloudSync] 已推送：文字 ${textKB}KB／${shardDocs.length} 片，` +
+                `附件新增 ${blobKB}KB（沿用雲端既有 ${skipped} 個、清除 ${staleBlobs.length} 片）`, manifest._counts);
   }
 
-  /** 把主文件與其分片合併回完整資料庫物件；舊版單一文件格式原樣回傳 */
-  async function _assembleRemote(docData, fromServer) {
+  /**
+   * 把主文件與其分片合併回完整資料庫物件；舊版單一文件格式原樣回傳。
+   * options.hydrate = false 時只還原文字（推送前的檢核用，不必下載附件）。
+   */
+  async function _assembleRemote(docData, fromServer, options = {}) {
     if (!docData || !String(docData._format || '').startsWith('sharded-')) return docData;
 
     const out = {};
     Object.keys(docData).forEach(k => {
-      if (k !== '_format' && k !== '_shards' && k !== '_counts') out[k] = docData[k];
+      if (k !== '_format' && k !== '_shards' && k !== '_counts' && k !== '_blobs') out[k] = docData[k];
     });
 
     const opts    = fromServer ? { source: 'server' } : null;
@@ -199,14 +346,36 @@ const CloudSync = (() => {
         throw new Error(`雲端資料分片筆數不符（${table} 應為 ${expected} 筆、實得 ${got} 筆）`);
       }
     });
-    return out;
+
+    const blobIndex = docData._blobs || {};
+    if (options.hydrate === false || !Object.keys(blobIndex).length) return out;
+
+    // 附件還原：本機已有的直接沿用，只下載缺的
+    const cache  = _localBlobCache();
+    const needed = Object.keys(blobIndex).filter(id => !cache.has(id));
+    await _mapLimit(needed, 8, async id => {
+      const ids   = Array.from({ length: blobIndex[id] }, (_, i) => `${BLOB_PREFIX}${id}_${i}`);
+      const snaps = await Promise.all(ids.map(d => opts ? _shardDoc(d).get(opts) : _shardDoc(d).get()));
+      if (snaps.some(s => !s.exists)) throw new Error(`雲端附件缺漏：${id}`);
+      cache.set(id, snaps.map(s => s.data()?.json || '').join(''));
+    });
+
+    const missing  = new Set();
+    const restored = _restoreBlobs(out, cache, missing);
+    if (missing.size) {
+      throw new Error(`附件還原失敗，缺少 ${missing.size} 個：${[...missing].slice(0, 3).join('、')}`);
+    }
+    if (needed.length) {
+      console.log(`[CloudSync] 附件：沿用本機 ${Object.keys(blobIndex).length - needed.length} 個、下載 ${needed.length} 個`);
+    }
+    return restored;
   }
 
   /** 讀取雲端完整資料（自動處理分片與舊格式） */
-  async function _getRemote(fromServer) {
+  async function _getRemote(fromServer, options = {}) {
     const snap = fromServer ? await _docRef.get({ source: 'server' }) : await _docRef.get();
     if (!snap.exists) return { exists: false, data: null };
-    return { exists: true, data: await _assembleRemote(snap.data(), fromServer) };
+    return { exists: true, data: await _assembleRemote(snap.data(), fromServer, options) };
   }
 
   function _validateFacilityDataset(data) {
@@ -769,7 +938,8 @@ const CloudSync = (() => {
           showToast?.(`已阻擋推送：${validation.reason}`, 'warning');
           return;
         }
-        const snap = await _getRemote(true);
+        // 推送前的檢核只看設施與時間戳，不必把雲端附件全部下載回來
+        const snap = await _getRemote(true, { hydrate: false });
         if (snap.exists) {
           const remote = snap.data;
           const remoteTs = remote._ts || 0;

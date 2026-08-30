@@ -33,7 +33,9 @@ service cloud.firestore {
 }
 ```
 
-> 此規則僅開放平台使用的 `hengliuxi` 集合讀寫。
+> 此規則僅開放平台使用的 `hengliuxi` 集合讀寫。集合內含三種文件：
+> `main`（索引與 settings）、`main_part_*`（各資料表的文字分片）、
+> `blob_*`（照片／影片，以內容雜湊命名，同一張只存一份）。
 >
 > ⚠ **舊版設定請務必更新**：早期版本的規則寫的是 `match /hengliuxi/main`，
 > 只允許單一文件。因 Firestore 單一文件硬上限為 **1,048,576 bytes（1 MiB）**，
