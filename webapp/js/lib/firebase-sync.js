@@ -23,7 +23,7 @@ const CloudSync = (() => {
   // Firestore 單一文件硬上限為 1,048,576 bytes；整包資料庫早已超過，
   // 因此各資料表拆成 hengliuxi/main_part_<表名>_<序號>，主文件只留 settings 與分片索引。
   const SHARD_PREFIX    = 'main_part_';
-  const SHARD_FORMAT    = 'sharded-v1';
+  const SHARD_FORMAT    = 'sharded-v2';   // v2 分片存序列化字串（v1 依筆數切，單筆過大時無解）
   const SHARD_MAX_BYTES = 700 * 1024;   // 單片上限，預留 Firestore 欄位開銷
   const FS_DOC_LIMIT    = 1048576;      // Firestore 單一文件上限（Google 端寫死）
   const PUSH_DEBOUNCE  = 1500;  // ms：防抖，避免連續儲存觸發過多推送
@@ -85,26 +85,27 @@ const CloudSync = (() => {
       .join('、');
   }
 
-  /** 把一張資料表切成多個不超過 SHARD_MAX_BYTES 的片段 */
-  function _chunkTable(name, items) {
+  /**
+   * 把資料表序列化後「依字元數」切段，而非依筆數切。
+   * 依筆數切時，只要有單筆超過 1 MiB 就無解（實際遇過單筆 1.8MB 的巡查紀錄）；
+   * 改切字串後，分片大小與單筆大小完全脫鉤。
+   */
+  function _chunkJson(json) {
+    // Firestore 以 UTF-8 計算大小，最壞情況每個 JS 字元 4 bytes，取保守字元上限
+    const size   = Math.floor(SHARD_MAX_BYTES / 4);
     const chunks = [];
-    let cur = [];
-    let curBytes = 2;  // "[]"
-    items.forEach(item => {
-      const bytes = _jsonBytes(item) + 1;
-      if (bytes > SHARD_MAX_BYTES) {
-        console.warn(`[CloudSync] ${name} 有單筆資料達 ${Math.round(bytes / 1024)}KB，已超過分片上限`);
+    let i = 0;
+    while (i < json.length) {
+      let end = Math.min(i + size, json.length);
+      // 不可切在 UTF-16 代理對中間，否則接回來會變成無效字元
+      if (end < json.length) {
+        const code = json.charCodeAt(end - 1);
+        if (code >= 0xD800 && code <= 0xDBFF) end -= 1;
       }
-      if (cur.length && curBytes + bytes > SHARD_MAX_BYTES) {
-        chunks.push(cur);
-        cur = [];
-        curBytes = 2;
-      }
-      cur.push(item);
-      curBytes += bytes;
-    });
-    if (cur.length || !chunks.length) chunks.push(cur);
-    return chunks;
+      chunks.push(json.slice(i, end));
+      i = end;
+    }
+    return chunks.length ? chunks : [json];
   }
 
   function _shardDoc(id) {
@@ -122,14 +123,19 @@ const CloudSync = (() => {
     Object.keys(payload).forEach(key => {
       const value = payload[key];
       if (!Array.isArray(value)) { manifest[key] = value; return; }
-      const chunks = _chunkTable(key, value);
+      const chunks = _chunkJson(JSON.stringify(value));
       manifest._shards[key] = chunks.map((_, i) => `${SHARD_PREFIX}${key}_${i}`);
       manifest._counts[key] = value.length;
-      chunks.forEach((items, i) => shardDocs.push({
+      chunks.forEach((json, i) => shardDocs.push({
         id:   `${SHARD_PREFIX}${key}_${i}`,
-        body: { _table: key, _part: i, _ts: payload._ts || 0, items }
+        body: { _table: key, _part: i, _ts: payload._ts || 0, json }
       }));
     });
+
+    const oversize = shardDocs.filter(d => _jsonBytes(d.body) > FS_DOC_LIMIT);
+    if (oversize.length) {
+      throw new Error(`分片 ${oversize[0].id} 仍超過 Firestore 單一文件上限，請回報此訊息`);
+    }
 
     const manifestBytes = _jsonBytes(manifest);
     if (manifestBytes > FS_DOC_LIMIT) {
@@ -159,7 +165,7 @@ const CloudSync = (() => {
 
   /** 把主文件與其分片合併回完整資料庫物件；舊版單一文件格式原樣回傳 */
   async function _assembleRemote(docData, fromServer) {
-    if (!docData || docData._format !== SHARD_FORMAT) return docData;
+    if (!docData || !String(docData._format || '').startsWith('sharded-')) return docData;
 
     const out = {};
     Object.keys(docData).forEach(k => {
@@ -172,7 +178,17 @@ const CloudSync = (() => {
       const snaps = await Promise.all(ids.map(id => opts ? _shardDoc(id).get(opts) : _shardDoc(id).get()));
       const missing = ids.filter((id, i) => !snaps[i].exists);
       if (missing.length) throw new Error(`雲端資料分片缺漏：${missing.join('、')}`);
-      return [table, snaps.reduce((acc, s) => acc.concat(s.data()?.items || []), [])];
+      const bodies = snaps.map(s => s.data() || {});
+      // sharded-v2 存序列化字串；sharded-v1 存原始陣列，仍需讀得回來
+      if (bodies.some(b => typeof b.json === 'string')) {
+        const json = bodies.map(b => b.json || '').join('');
+        try {
+          return [table, JSON.parse(json)];
+        } catch (e) {
+          throw new Error(`雲端資料分片解析失敗（${table}）：${e.message}`);
+        }
+      }
+      return [table, bodies.reduce((acc, b) => acc.concat(b.items || []), [])];
     }));
     loaded.forEach(([table, items]) => { out[table] = items; });
 
