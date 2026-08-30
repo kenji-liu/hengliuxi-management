@@ -47,6 +47,8 @@ const CloudSync = (() => {
   let _listeners  = [];         // status change callbacks
   let _remoteTs   = 0;
   let _remoteExists = false;
+  let _lastError    = null;   // { step, message, at } — 供裝置端診斷面板顯示
+  let _lastStep     = '尚未操作';
 
   function _getDeviceId() {
     let id = localStorage.getItem(LS_DEVICE_KEY);
@@ -86,6 +88,18 @@ const CloudSync = (() => {
     return rows.slice(0, top)
       .map(r => `${r.key} ${Math.round(r.bytes / 1024)}KB${r.count == null ? '' : `／${r.count}筆`}`)
       .join('、');
+  }
+
+  function _note(step) { _lastStep = step; }
+
+  function _recordError(step, e) {
+    _lastError = {
+      step,
+      name: e?.name || '',
+      code: e?.code || '',
+      message: e?.message || String(e),
+      at: new Date().toLocaleTimeString('zh-TW')
+    };
   }
 
   /** 把原始錯誤轉成可直接照做的說明 */
@@ -382,17 +396,21 @@ const CloudSync = (() => {
       }
     });
 
+    _note(`已取回文字分片，準備處理附件`);
     const blobIndex = docData._blobs || {};
     if (options.hydrate === false || !Object.keys(blobIndex).length) return out;
 
     // 附件還原：本機已有的直接沿用，只下載缺的
     const cache  = _localBlobCache();
     const needed = Object.keys(blobIndex).filter(id => !cache.has(id));
+    _note(`下載附件 0/${needed.length}`);
+    let _done = 0;
     await _mapLimit(needed, 8, async id => {
       const ids   = Array.from({ length: blobIndex[id] }, (_, i) => `${BLOB_PREFIX}${id}_${i}`);
       const snaps = await Promise.all(ids.map(d => opts ? _shardDoc(d).get(opts) : _shardDoc(d).get()));
       if (snaps.some(s => !s.exists)) throw new Error(`雲端附件缺漏：${id}`);
       cache.set(id, snaps.map(s => s.data()?.json || '').join(''));
+      _note(`下載附件 ${++_done}/${needed.length}`);
     });
 
     const missing  = new Set();
@@ -822,6 +840,7 @@ const CloudSync = (() => {
       _lastPushAt = now;
       showToast?.('✅ 本機資料已發布到同網址後端，其他平板請按「↓ 拉取」更新', 'success');
     } catch(e) {
+      _recordError('後端推送', e);
       showToast?.(`推送失敗：${e.message}`, 'error');
     }
   }
@@ -931,12 +950,14 @@ const CloudSync = (() => {
     /** 強制從 Firestore 拉取最新資料並覆蓋本機（強制伺服器讀取，忽略快取） */
     async pull() {
       if (_mode === 'server' || !_docRef) {
-        await _serverPull(true).catch(e => showToast?.(`拉取失敗：${_pushErrorHint(e)}`, 'error'));
+        await _serverPull(true).catch(e => { _recordError('後端拉取', e); showToast?.(`拉取失敗：${_pushErrorHint(e)}`, 'error'); });
         return;
       }
       showToast?.('正在從雲端拉取…', 'info');
       try {
+        _note('讀取雲端主文件');
         const snap = await _getRemote(true);
+        _note('雲端資料已組合完成，準備寫入本機');
         if (!snap.exists) { showToast?.('雲端尚無資料，請先從主裝置點「↑ 推送」', 'warning'); return; }
         const data = snap.data;
         if (_rejectInvalidRemote(data, '手動拉取雲端')) return;
@@ -948,6 +969,7 @@ const CloudSync = (() => {
         showToast?.('✅ 已從雲端拉取最新資料', 'success');
         _refreshCurrentPage();
       } catch(e) {
+        _recordError('雲端拉取', e);
         showToast?.(`拉取失敗：${_pushErrorHint(e)}`, 'error');
       }
     },
@@ -1020,8 +1042,52 @@ const CloudSync = (() => {
         showToast?.('✅ 本機資料已發布為雲端正式版本，其他裝置請拉取更新', 'success');
       } catch(e) {
         console.error('[CloudSync] 推送失敗', e);
+        _recordError('雲端推送', e);
         showToast?.(`推送失敗：${_pushErrorHint(e)}`, 'error');
       }
+    },
+
+    /** 裝置端診斷：iPad 無法開主控台，改由此處回報實際狀態 */
+    async diagnose() {
+      const lines = [];
+      lines.push(`模式：${_mode}　狀態：${_status}`);
+      lines.push(`裝置：${_deviceId ? _deviceId.slice(0, 14) : '未知'}`);
+      lines.push(`目前步驟：${_lastStep}`);
+
+      const bs = window.HLXBlobStore;
+      lines.push(`附件庫：${bs ? bs.state : '未載入'}　附件數：${bs ? bs.size : '-'}`);
+
+      let lsKB = 0;
+      try { lsKB = Math.round(((localStorage.getItem(DB.KEY) || '').length * 2) / 1024); } catch(_) {}
+      lines.push(`本機索引：約 ${lsKB} KB（UTF-16 計）`);
+
+      if (navigator.storage?.estimate) {
+        try {
+          const q = await navigator.storage.estimate();
+          lines.push(`瀏覽器配額：已用 ${Math.round((q.usage || 0) / 1048576)} MB ／ 上限 ${Math.round((q.quota || 0) / 1048576)} MB`);
+        } catch (e) { lines.push(`瀏覽器配額：無法取得（${e.message}）`); }
+      } else {
+        lines.push('瀏覽器配額：此版本不支援查詢');
+      }
+
+      if (_docRef) {
+        try {
+          const snap = await _docRef.get({ source: 'server' });
+          if (!snap.exists) lines.push('雲端主文件：不存在（尚未推送）');
+          else {
+            const d = snap.data();
+            const shards = Object.values(d._shards || {}).flat().length;
+            const blobs  = Object.keys(d._blobs || {}).length;
+            lines.push(`雲端格式：${d._format || '舊版單一文件'}　分片 ${shards} 片　附件 ${blobs} 個`);
+            lines.push(`雲端時間：${d._ts ? new Date(d._ts).toLocaleString('zh-TW') : '無'}`);
+          }
+        } catch (e) { lines.push(`雲端主文件：讀取失敗（${e.code || ''} ${e.message}）`); }
+      }
+
+      lines.push(_lastError
+        ? `最後錯誤：[${_lastError.step}] ${_lastError.name || _lastError.code} ${_lastError.message}（${_lastError.at}）`
+        : '最後錯誤：無');
+      return lines.join(String.fromCharCode(10));
     },
 
     /** 手動斷開監聽 */
@@ -1104,6 +1170,17 @@ const CloudSync = (() => {
         '<div style="font-size:11px;color:#94a3b8;margin-top:6px">',
         '裝置 ID：' + deviceId + '　狀態：' + _status,
         '</div>',
+        '<div style="margin-top:12px;border-top:1px solid #e2e8f0;padding-top:10px">',
+        '<button class="btn btn-outline" style="font-size:13px;width:100%" ',
+        'onclick="_hlxShowDiag()">',
+        '<i class="fas fa-stethoscope"></i> 顯示同步診斷資訊</button>',
+        '<pre id="hlxDiagOut" style="display:none;white-space:pre-wrap;word-break:break-all;',
+        'background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:10px;',
+        'font-size:12px;line-height:1.7;margin-top:8px;max-height:260px;overflow:auto;',
+        'user-select:text;-webkit-user-select:text"></pre>',
+        '<div style="font-size:11px;color:#94a3b8;margin-top:6px">',
+        '同步有問題時，請按上方按鈕，把內容截圖回報。</div>',
+        '</div>',
         isOnline ? [
           '<div style="margin-top:10px;display:flex;gap:8px">',
           '<button class="btn btn-outline" style="font-size:13px" ',
@@ -1148,3 +1225,14 @@ const CloudSync = (() => {
     }
   };
 })();
+
+/** 診斷面板：把 CloudSync.diagnose() 的結果顯示在對話框中（iPad 無主控台可用） */
+window._hlxShowDiag = function () {
+  const el = document.getElementById('hlxDiagOut');
+  if (!el) return;
+  el.style.display = 'block';
+  el.textContent = '讀取中…';
+  CloudSync.diagnose()
+    .then(t => { el.textContent = t; })
+    .catch(e => { el.textContent = '診斷失敗：' + (e && e.message ? e.message : e); });
+};
