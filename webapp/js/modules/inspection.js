@@ -2466,6 +2466,39 @@ const GENERAL_INSP_RECORDS = [
     tags: ['野溪', '周邊環境', '115年', '4月'],
     path: '01_工程設施維護與資料/巡查紀錄/橫流溪野溪周邊環境狀況115年4月份巡查紀錄.pdf'
   },
+  {
+    id: 'gi-09',
+    title: '一般性定期巡查表單 115年6月12日',
+    date: '115年6月', dateSort: '2026-06',
+    type: '一般性定期巡查表單', format: 'PDF',
+    size: '311 KB',
+    condition: '初夏定期巡查，步道、邊坡、平臺／護欄、護岸、魚道／防砂設施、告示牌／解說牌及救生圈等七項設施現況均正常，無異常沖刷或土石堆積。',
+    handling: '繼續定期巡查，無需立即處置。巡查人員：陳英吉、汪竣泰。',
+    tags: ['定期巡查', '115年', '6月'],
+    path: '01_工程設施維護與資料/維護管理資料/115維護管理/一般性定期巡查表單11506.pdf'
+  },
+  {
+    id: 'gi-10',
+    title: '一般性定期巡查表單 115年7月6日',
+    date: '115年7月', dateSort: '2026-07',
+    type: '一般性定期巡查表單', format: 'PDF',
+    size: '381 KB',
+    condition: '步道、邊坡、平臺／護欄、護岸、魚道／防砂設施、告示牌／解說牌及救生圈等七項設施現況均正常，無異常事項。',
+    handling: '繼續定期巡查，無需立即處置。巡查人員：張森源、陳英吉。',
+    tags: ['定期巡查', '115年', '7月'],
+    path: '01_工程設施維護與資料/維護管理資料/115維護管理/一般性定期巡查表單11507.pdf'
+  },
+  {
+    id: 'gi-11',
+    title: '一般性定期巡查表單 115年8月17日',
+    date: '115年8月', dateSort: '2026-08',
+    type: '一般性定期巡查表單', format: 'PDF',
+    size: '779 KB',
+    condition: '夏季定期巡查，步道、邊坡、平臺／護欄、護岸、魚道／防砂設施、告示牌／解說牌及救生圈等七項設施現況均正常。',
+    handling: '繼續定期巡查，無需立即處置。巡查人員：張森源、汪竣泰。',
+    tags: ['定期巡查', '115年', '8月'],
+    path: '01_工程設施維護與資料/維護管理資料/115維護管理/一般性定期巡查表單11508.pdf'
+  },
 ];
 
 /* 目前選中的巡查紀錄 ID */
@@ -5940,6 +5973,15 @@ function _renderContractStats(data) {
         <div style="font-size:15px;color:#78350f;line-height:1.6">${inspectionEscape(p.note)}</div>
       </div>` : '');
 
+    // 執行狀態標示：依 p.note 原始記載文字判斷（例如「工程尚在執行中」），
+    // 不臆測、不覆寫金額——契約金額仍是真實 contract_amount，只是額外加註
+    // 這筆金額目前對應的是「尚未結案」的執行中契約，避免誤讀為已完成金額。
+    const stillOngoing = /尚在執行中|尚未完工|尚未完成|施工中|執行中/.test(p.note || '');
+    const ongoingBadge = stillOngoing ? `
+              <span style="font-size:13px;color:#b45309;background:#fffbeb;border:1px solid #fde68a;border-radius:999px;padding:3px 10px;font-weight:700">
+                <i class="fas fa-hourglass-half" style="margin-right:4px"></i>未結束執行中
+              </span>` : '';
+
     // 重點施工紀錄
     const keyNoteRows = (na.key_notes || []).slice(0, 3).map(n => `
       <div style="display:flex;gap:8px;padding:7px 0;border-bottom:1px solid ${col.border}">
@@ -5965,7 +6007,7 @@ function _renderContractStats(data) {
           <div style="flex:1;min-width:0">
             <div style="font-size:19px;font-weight:700;color:${col.text};line-height:1.4;margin-bottom:8px">${inspectionEscape(p.project_name)}</div>
             <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px">
-              <span style="font-size:17px;color:#334155;font-weight:700"><i class="fas fa-coins" style="margin-right:5px;color:${col.badge}"></i>${_fmtAmount(p.contract_amount)} 元</span>
+              <span style="font-size:17px;color:#334155;font-weight:700"><i class="fas fa-coins" style="margin-right:5px;color:${col.badge}"></i>${_fmtAmount(p.contract_amount)} 元</span>${ongoingBadge}
               <span style="font-size:16px;color:#64748b"><i class="fas fa-calendar-alt" style="margin-right:5px;color:${col.badge}"></i>${p.date_start} ～ ${p.date_end}</span>
             </div>
             <div style="display:flex;flex-wrap:wrap;gap:6px">${summaryPills}</div>

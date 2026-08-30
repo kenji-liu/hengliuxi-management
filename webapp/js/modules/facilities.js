@@ -1246,18 +1246,29 @@ function renderMaintenanceOverview() {
 
     <div style="padding:0 22px 18px;display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px">
       <div>
-        <div style="font-size:15px;font-weight:900;color:#0f172a;margin-bottom:10px">維護型態分布</div>
-        ${Object.keys(O.patternCount).map(k => `
-          <div style="margin-bottom:9px">
-            <div style="display:flex;justify-content:space-between;font-size:13px;color:#334155;margin-bottom:3px">
-              <span style="font-weight:700">${k}</span>
-              <span style="font-variant-numeric:tabular-nums;font-weight:800">${O.patternCount[k]} 座</span>
+        <div style="font-size:15px;font-weight:900;color:#0f172a;margin-bottom:10px">維護型態分布　<span style="font-size:11.5px;font-weight:400;color:#94a3b8">點選可展開設施名單</span></div>
+        ${Object.keys(O.patternCount).map(k => {
+          const namesInPattern = O.cycles.filter(c => c.pattern === k).map(c => c.facility.name);
+          return `
+          <details style="margin-bottom:9px">
+            <summary style="cursor:pointer;list-style:none;display:block">
+              <div style="display:flex;justify-content:space-between;font-size:13px;color:#334155;margin-bottom:3px">
+                <span style="font-weight:700"><i class="fas fa-caret-right" style="width:12px;color:#94a3b8"></i> ${k}</span>
+                <span style="font-variant-numeric:tabular-nums;font-weight:800">${O.patternCount[k]} 座</span>
+              </div>
+              <div style="height:9px;background:#e2e8f0;border-radius:5px;overflow:hidden">
+                <div style="height:100%;width:${O.patternCount[k] / O.facilities * 100}%;
+                            background:${PC[k] || '#64748b'};border-radius:5px"></div>
+              </div>
+            </summary>
+            <div style="display:flex;flex-wrap:wrap;gap:5px;margin:8px 0 2px 16px">
+              ${namesInPattern.map(name => `
+                <span style="font-size:12px;color:${PC[k] || '#64748b'};background:${PC[k] || '#64748b'}14;
+                             border:1px solid ${PC[k] || '#64748b'}33;border-radius:6px;padding:3px 8px">${name}</span>
+              `).join('')}
             </div>
-            <div style="height:9px;background:#e2e8f0;border-radius:5px;overflow:hidden">
-              <div style="height:100%;width:${O.patternCount[k] / O.facilities * 100}%;
-                          background:${PC[k] || '#64748b'};border-radius:5px"></div>
-            </div>
-          </div>`).join('')}
+          </details>`;
+        }).join('')}
         <div style="font-size:12.5px;color:#64748b;line-height:1.75;margin-top:10px;
                     border-top:1px dashed #e2e8f0;padding-top:9px">
           <b>長期穩定型</b>：歷年無結構性異常紀錄。
@@ -2680,7 +2691,12 @@ function loadFacilitiesMap() {
   if (facilityFilter.type)   data = data.filter(f => f.type === facilityFilter.type);
   if (facilityFilter.status) data = data.filter(f => (fac_latestProfessionalAssessment(f).status || f.status) === facilityFilter.status);
   data = sortFacilitiesByTableOrder(data);
-  const activeCategory = fac_primaryCategoryInfo(facilityPrimaryCategory);
+  //  地圖模式的類別是空字串時代表「所有設施類別」，不套用 fac_primaryCategoryInfo
+  //  的通用備援（那會顯示無意義的空白標籤），改用專屬的顯示文字。
+  const _showAllCategories = !facilityPrimaryCategory;
+  const activeCategory = _showAllCategories
+    ? { label: '所有設施', icon: 'fa-layer-group', color: '#334155', bg: '#f1f5f9', border: '#cbd5e1' }
+    : fac_primaryCategoryInfo(facilityPrimaryCategory);
 
   const container = document.getElementById('facilitiesContainer');
   container.innerHTML = `
@@ -2689,9 +2705,34 @@ function loadFacilitiesMap() {
         <b style="color:${activeCategory.color}"><i class="fas ${activeCategory.icon}"></i> 工程設施盤點基本資料 ＞ ${activeCategory.label}地圖定位</b>
         <span style="margin-left:8px">採用衛星影像底圖、工程名稱標註與一致工程類別圖示；點選設施可開啟詳情或定位至GIS整合地圖。</span>
       </div>
-      <button class="btn btn-sm btn-primary" onclick="navigateTo('gis-enhanced')" style="font-size:12px">
-        <i class="fas fa-map"></i> 開啟GIS整合地圖
+      <details style="flex-shrink:0">
+        <summary style="cursor:pointer;list-style:none;display:inline-flex;align-items:center;gap:5px;
+                         font-size:12px;color:#64748b;background:#fff;border:1px solid #cbd5e1;
+                         border-radius:999px;padding:6px 12px;font-weight:700">
+          <i class="fas fa-map"></i> GIS整合地圖入口
+        </summary>
+        <div style="margin-top:6px;text-align:right">
+          <button class="btn btn-sm btn-primary" onclick="navigateTo('gis-enhanced')" style="font-size:12px">
+            <i class="fas fa-map"></i> 開啟GIS整合地圖
+          </button>
+        </div>
+      </details>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
+      <button type="button" onclick="selectFacilityPrimaryCategory('')"
+              style="font-size:12px;font-weight:700;padding:6px 12px;border-radius:999px;cursor:pointer;
+                     border:${_showAllCategories?'2px':'1px'} solid ${_showAllCategories?'#334155':'#cbd5e1'};
+                     background:${_showAllCategories?'#f1f5f9':'#fff'};color:#334155">
+        <i class="fas fa-layer-group"></i> 所有設施類別
       </button>
+      ${FACILITY_PRIMARY_CATEGORIES.map(cat => `
+        <button type="button" onclick="selectFacilityPrimaryCategory('${cat.key}')"
+                style="font-size:12px;font-weight:700;padding:6px 12px;border-radius:999px;cursor:pointer;
+                       border:${facilityPrimaryCategory===cat.key?'2px':'1px'} solid ${facilityPrimaryCategory===cat.key?cat.color:cat.border};
+                       background:${facilityPrimaryCategory===cat.key?cat.bg:'#fff'};color:${cat.color}">
+          <i class="fas ${cat.icon}"></i> ${cat.label}
+        </button>
+      `).join('')}
     </div>
     <div id="facilityMapContainer" style="width:100%;height:600px;border-radius:8px;border:1px solid #e8ecf0;background:#f9fafb">
       <div id="facilityLeafletMap" style="width:100%;height:100%;border-radius:8px"></div>
