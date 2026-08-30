@@ -5973,14 +5973,16 @@ function _renderContractStats(data) {
         <div style="font-size:15px;color:#78350f;line-height:1.6">${inspectionEscape(p.note)}</div>
       </div>` : '');
 
-    // 執行狀態標示：依 p.note 原始記載文字判斷（例如「工程尚在執行中」），
-    // 不臆測、不覆寫金額——契約金額仍是真實 contract_amount，只是額外加註
-    // 這筆金額目前對應的是「尚未結案」的執行中契約，避免誤讀為已完成金額。
+    // 執行狀態標示：依 p.note 原始記載文字判斷（例如「工程尚在執行中」）。
+    // 尚未結案者不顯示契約金額——該金額是開口契約的總額，並非橫流溪單一工項的
+    // 實際支用，工程未結案前把它當成本案費用會誤導。原始 contract_amount 未被
+    // 更動，只是不呈現；結案後即恢復顯示。
     const stillOngoing = /尚在執行中|尚未完工|尚未完成|施工中|執行中/.test(p.note || '');
-    const ongoingBadge = stillOngoing ? `
-              <span style="font-size:13px;color:#b45309;background:#fffbeb;border:1px solid #fde68a;border-radius:999px;padding:3px 10px;font-weight:700">
-                <i class="fas fa-hourglass-half" style="margin-right:4px"></i>未結束執行中
-              </span>` : '';
+    const amountBlock = stillOngoing ? `
+              <span style="font-size:17px;color:#b45309;background:#fffbeb;border:1px solid #fde68a;border-radius:999px;padding:4px 14px;font-weight:700">
+                <i class="fas fa-hourglass-half" style="margin-right:6px"></i>未結束執行中
+              </span>` : `
+              <span style="font-size:17px;color:#334155;font-weight:700"><i class="fas fa-coins" style="margin-right:5px;color:${col.badge}"></i>${_fmtAmount(p.contract_amount)} 元</span>`;
 
     // 重點施工紀錄
     const keyNoteRows = (na.key_notes || []).slice(0, 3).map(n => `
@@ -6007,7 +6009,7 @@ function _renderContractStats(data) {
           <div style="flex:1;min-width:0">
             <div style="font-size:19px;font-weight:700;color:${col.text};line-height:1.4;margin-bottom:8px">${inspectionEscape(p.project_name)}</div>
             <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px">
-              <span style="font-size:17px;color:#334155;font-weight:700"><i class="fas fa-coins" style="margin-right:5px;color:${col.badge}"></i>${_fmtAmount(p.contract_amount)} 元</span>${ongoingBadge}
+              ${amountBlock}
               <span style="font-size:16px;color:#64748b"><i class="fas fa-calendar-alt" style="margin-right:5px;color:${col.badge}"></i>${p.date_start} ～ ${p.date_end}</span>
             </div>
             <div style="display:flex;flex-wrap:wrap;gap:6px">${summaryPills}</div>
