@@ -1,0 +1,13 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 平台使用整個 hengliuxi 集合，不能只開放 main：
+    //   main            索引、settings 與分片清單
+    //   main_part_*     各資料表的文字分片（依位元組切割）
+    //   blob_*          照片／影片附件（以內容雜湊命名）
+    // 只開放 main 會讓分片與附件寫入被擋成 permission-denied。
+    match /hengliuxi/{docId} {
+      allow read, write: if true;
+    }
+  }
+}
