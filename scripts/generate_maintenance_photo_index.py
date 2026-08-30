@@ -73,11 +73,27 @@ def media_url(abs_path, root_dir, media_base):
     encoded = "/".join(p.replace(" ", "%20") for p in parts)
     return f"{media_base}/{encoded}"
 
-def build_photo(img_path, stage, folder_label, root_dir, media_base):
+# ── 從資料夾自身或其上層目錄名稱萃取日期 ──
+# 常見兩種排列：「日期／工項」（日期在上層，如 115.07.08/未分類）與
+# 「工項／日期」（日期就在自己名稱，如 挖土機載運/111.07.25）。
+# 若只看資料夾自己的名稱，前者的工項子目錄（未分類、機具載運…）抓不到
+# 日期，會全部落到 extract_sort_key() 的預設值 99999999，導致同一批
+# 資料完全失去時間順序（跨日期的「未分類」互相混在一起）。
+# 因此由該目錄往上walk到 case_dir 為止，取第一個「自己名稱就能判讀出
+# 日期」的層級；找不到才維持 99999999（例如根本沒有日期線索的資料夾）。
+def find_date_key(dir_path, case_dir):
+    cur = dir_path
+    while True:
+        key = extract_sort_key(cur.name)
+        if key != 99999999:
+            m = re.search(r'\d{3,4}[.\-/年]\d{1,2}[.\-/月]\d{1,2}', cur.name)
+            return key, (m.group(0) if m else '')
+        if cur == case_dir:
+            return 99999999, ''
+        cur = cur.parent
+
+def build_photo(img_path, stage, folder_label, root_dir, media_base, sort_key, date_str):
     stat = img_path.stat()
-    sort_key = extract_sort_key(img_path.parent.name) or extract_sort_key(img_path.name)
-    m = re.search(r'\d{3,4}[.\-/年]\d{1,2}[.\-/月]\d{1,2}', img_path.parent.name)
-    date_str = m.group(0) if m else ''
     return {
         "name":     img_path.name,
         "sort":     sort_key,
@@ -135,11 +151,10 @@ for _R in ROOTS:
             rel = sub.relative_to(case_dir)
             folder_label = " / ".join(rel.parts)
 
-        m = re.search(r'\d{3,4}[.\-年]\d{1,2}[.\-月]\d{1,2}', sub.name)
-        date_str = m.group(0) if m else ''
-        folder_sort = extract_sort_key(sub.name)
+        folder_sort, date_str = find_date_key(sub, case_dir)
 
-        photo_objs = [build_photo(img, stage, folder_label, ROOT_DIR, MEDIA_BASE) for img in sorted(imgs)]
+        photo_objs = [build_photo(img, stage, folder_label, ROOT_DIR, MEDIA_BASE, folder_sort, date_str)
+                      for img in sorted(imgs)]
 
         bf = [p for p in photo_objs if p['stage'] == 'before']
         du = [p for p in photo_objs if p['stage'] == 'during']
