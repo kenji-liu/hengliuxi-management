@@ -26,14 +26,20 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /hengliuxi/main {
+    match /hengliuxi/{docId} {
       allow read, write: if true;
     }
   }
 }
 ```
 
-> 此規則僅開放平台使用的單一文件 `hengliuxi/main` 讀寫。
+> 此規則僅開放平台使用的 `hengliuxi` 集合讀寫。
+>
+> ⚠ **舊版設定請務必更新**：早期版本的規則寫的是 `match /hengliuxi/main`，
+> 只允許單一文件。因 Firestore 單一文件硬上限為 **1,048,576 bytes（1 MiB）**，
+> 整包資料庫已超過此上限，平台改為將各資料表拆成
+> `hengliuxi/main_part_<表名>_<序號>` 多份文件寫入（主文件 `main` 只保留
+> settings 與分片索引）。若規則仍鎖定 `main`，推送會變成 `permission-denied`。
 
 ### ⚠ 安全提醒
 `allow read, write: if true` 是**開放規則**，且 `apiKey` 在網頁前端是公開的，

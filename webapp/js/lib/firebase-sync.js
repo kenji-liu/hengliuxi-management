@@ -15,8 +15,17 @@
 const CloudSync = (() => {
   const LS_CONFIG_KEY  = 'FIREBASE_CONFIG';
   const LS_DEVICE_KEY  = 'DEVICE_ID';
-  const DOC_PATH       = 'hengliuxi/main';
+  const COLLECTION     = 'hengliuxi';
+  const DOC_PATH       = COLLECTION + '/main';
   const SERVER_DB_ENDPOINT = '/api/sync/database';
+
+  // ── 分片寫入 ──────────────────────────────────────────────
+  // Firestore 單一文件硬上限為 1,048,576 bytes；整包資料庫早已超過，
+  // 因此各資料表拆成 hengliuxi/main_part_<表名>_<序號>，主文件只留 settings 與分片索引。
+  const SHARD_PREFIX    = 'main_part_';
+  const SHARD_FORMAT    = 'sharded-v1';
+  const SHARD_MAX_BYTES = 700 * 1024;   // 單片上限，預留 Firestore 欄位開銷
+  const FS_DOC_LIMIT    = 1048576;      // Firestore 單一文件上限（Google 端寫死）
   const PUSH_DEBOUNCE  = 1500;  // ms：防抖，避免連續儲存觸發過多推送
   const STALE_GUARD    = 3000;  // ms：遠端資料至少比本機新 3 秒才接受
   const STABLE_SCHEMA_VERSION = 'HLX_MAINTENANCE_STABLE_20260626';
@@ -49,6 +58,139 @@ const CloudSync = (() => {
     _status = s;
     _listeners.forEach(fn => { try { fn(s); } catch(_) {} });
     _updateStatusUI(s);
+  }
+
+  /* ─────────────── 資料量統計與分片讀寫 ─────────────── */
+
+  const _enc = new TextEncoder();
+
+  function _jsonBytes(value) {
+    return _enc.encode(JSON.stringify(value === undefined ? null : value)).length;
+  }
+
+  /** 依位元組大小由大到小列出各資料表，供診斷用 */
+  function _sizeReport(data) {
+    return Object.keys(data || {})
+      .map(key => ({
+        key,
+        bytes: _jsonBytes(data[key]),
+        count: Array.isArray(data[key]) ? data[key].length : null
+      }))
+      .sort((a, b) => b.bytes - a.bytes);
+  }
+
+  function _formatSizeReport(rows, top = 4) {
+    return rows.slice(0, top)
+      .map(r => `${r.key} ${Math.round(r.bytes / 1024)}KB${r.count == null ? '' : `／${r.count}筆`}`)
+      .join('、');
+  }
+
+  /** 把一張資料表切成多個不超過 SHARD_MAX_BYTES 的片段 */
+  function _chunkTable(name, items) {
+    const chunks = [];
+    let cur = [];
+    let curBytes = 2;  // "[]"
+    items.forEach(item => {
+      const bytes = _jsonBytes(item) + 1;
+      if (bytes > SHARD_MAX_BYTES) {
+        console.warn(`[CloudSync] ${name} 有單筆資料達 ${Math.round(bytes / 1024)}KB，已超過分片上限`);
+      }
+      if (cur.length && curBytes + bytes > SHARD_MAX_BYTES) {
+        chunks.push(cur);
+        cur = [];
+        curBytes = 2;
+      }
+      cur.push(item);
+      curBytes += bytes;
+    });
+    if (cur.length || !chunks.length) chunks.push(cur);
+    return chunks;
+  }
+
+  function _shardDoc(id) {
+    return _db.doc(`${COLLECTION}/${id}`);
+  }
+
+  /**
+   * 以分片方式寫入 Firestore：陣列資料表切片存為獨立文件，
+   * 主文件只保留 settings、時間戳與分片索引。整批使用 batch 原子提交。
+   */
+  async function _writeShardedDoc(payload) {
+    const manifest  = { _format: SHARD_FORMAT, _shards: {}, _counts: {} };
+    const shardDocs = [];
+
+    Object.keys(payload).forEach(key => {
+      const value = payload[key];
+      if (!Array.isArray(value)) { manifest[key] = value; return; }
+      const chunks = _chunkTable(key, value);
+      manifest._shards[key] = chunks.map((_, i) => `${SHARD_PREFIX}${key}_${i}`);
+      manifest._counts[key] = value.length;
+      chunks.forEach((items, i) => shardDocs.push({
+        id:   `${SHARD_PREFIX}${key}_${i}`,
+        body: { _table: key, _part: i, _ts: payload._ts || 0, items }
+      }));
+    });
+
+    const manifestBytes = _jsonBytes(manifest);
+    if (manifestBytes > FS_DOC_LIMIT) {
+      throw new Error(`主文件 ${Math.round(manifestBytes / 1024)}KB 仍超過 Firestore 單一文件上限，請檢查 settings 是否異常膨脹`);
+    }
+
+    // 舊分片若本次未使用需一併刪除，否則殘留文件會在下次拉取時混入舊資料
+    let staleIds = [];
+    try {
+      const prev = await _docRef.get({ source: 'server' });
+      if (prev.exists) {
+        const nextIds = new Set(shardDocs.map(d => d.id));
+        staleIds = Object.values(prev.data()?._shards || {})
+          .flat()
+          .filter(id => !nextIds.has(id));
+      }
+    } catch (_) {}
+
+    const batch = _db.batch();
+    shardDocs.forEach(d => batch.set(_shardDoc(d.id), d.body));
+    staleIds.forEach(id => batch.delete(_shardDoc(id)));
+    batch.set(_docRef, manifest);
+    await batch.commit();
+
+    console.log(`[CloudSync] 已推送 ${shardDocs.length} 個分片（主文件 ${Math.round(manifestBytes / 1024)}KB）`, manifest._counts);
+  }
+
+  /** 把主文件與其分片合併回完整資料庫物件；舊版單一文件格式原樣回傳 */
+  async function _assembleRemote(docData, fromServer) {
+    if (!docData || docData._format !== SHARD_FORMAT) return docData;
+
+    const out = {};
+    Object.keys(docData).forEach(k => {
+      if (k !== '_format' && k !== '_shards' && k !== '_counts') out[k] = docData[k];
+    });
+
+    const opts    = fromServer ? { source: 'server' } : null;
+    const entries = Object.entries(docData._shards || {});
+    const loaded  = await Promise.all(entries.map(async ([table, ids]) => {
+      const snaps = await Promise.all(ids.map(id => opts ? _shardDoc(id).get(opts) : _shardDoc(id).get()));
+      const missing = ids.filter((id, i) => !snaps[i].exists);
+      if (missing.length) throw new Error(`雲端資料分片缺漏：${missing.join('、')}`);
+      return [table, snaps.reduce((acc, s) => acc.concat(s.data()?.items || []), [])];
+    }));
+    loaded.forEach(([table, items]) => { out[table] = items; });
+
+    // 筆數核對：分片不完整時寧可整批失敗，也不可載入殘缺資料覆蓋本機
+    Object.entries(docData._counts || {}).forEach(([table, expected]) => {
+      const got = (out[table] || []).length;
+      if (got !== expected) {
+        throw new Error(`雲端資料分片筆數不符（${table} 應為 ${expected} 筆、實得 ${got} 筆）`);
+      }
+    });
+    return out;
+  }
+
+  /** 讀取雲端完整資料（自動處理分片與舊格式） */
+  async function _getRemote(fromServer) {
+    const snap = fromServer ? await _docRef.get({ source: 'server' }) : await _docRef.get();
+    if (!snap.exists) return { exists: false, data: null };
+    return { exists: true, data: await _assembleRemote(snap.data(), fromServer) };
   }
 
   function _validateFacilityDataset(data) {
@@ -127,7 +269,7 @@ const CloudSync = (() => {
    */
   async function _initSync() {
     try {
-      const snap = await _docRef.get();
+      const snap = await _getRemote(false);
       _remoteExists = snap.exists;
 
       if (!snap.exists) {
@@ -138,7 +280,7 @@ const CloudSync = (() => {
       }
 
       // Firestore 有資料 → 比較時間戳
-      const remote = snap.data();
+      const remote = snap.data;
       if (_rejectInvalidRemote(remote, '初始化雲端')) return;
       const remoteTs = remote._ts || 0;
       _remoteTs = remoteTs;
@@ -179,12 +321,12 @@ const CloudSync = (() => {
   function _startListener() {
     if (_unsubscribe) { _unsubscribe(); _unsubscribe = null; }
 
-    _unsubscribe = _docRef.onSnapshot(snap => {
+    _unsubscribe = _docRef.onSnapshot(async snap => {
       if (!snap.exists) return;
-      const remote = snap.data();
-      if (_rejectInvalidRemote(remote, '雲端更新')) return;
-      const remoteTs   = remote._ts        || 0;
-      const remoteDev  = remote._deviceId  || '';
+      // 主文件只帶時間戳與分片索引，先用它擋掉不需要的更新，再去讀分片
+      const head       = snap.data();
+      const remoteTs   = head._ts        || 0;
+      const remoteDev  = head._deviceId  || '';
 
       // 忽略自己推的（避免迴圈）
       if (remoteDev === _deviceId) return;
@@ -198,6 +340,15 @@ const CloudSync = (() => {
 
       // 遠端比本機新才接受
       if (remoteTs > localTs + STALE_GUARD) {
+        let remote;
+        try {
+          remote = await _assembleRemote(head, false);
+        } catch(e) {
+          console.warn('[CloudSync] 雲端分片合併失敗，已略過此次更新', e);
+          return;
+        }
+        if (_rejectInvalidRemote(remote, '雲端更新')) return;
+
         const data = _normalizeCloudData(remote, remoteTs, 'pull');
         _remoteTs = remoteTs;
         _remoteExists = true;
@@ -541,7 +692,7 @@ const CloudSync = (() => {
 
         try {
           localStorage.setItem(DB.KEY, JSON.stringify(payloadData));
-          await _docRef.set(payload);
+          await _writeShardedDoc(payload);
           _serverPushData(payloadData, now).catch(err => {
             console.warn('[CloudSync] 同網址後端備援推送失敗', err);
           });
@@ -565,9 +716,9 @@ const CloudSync = (() => {
       }
       showToast?.('正在從雲端拉取…', 'info');
       try {
-        const snap = await _docRef.get({ source: 'server' });
+        const snap = await _getRemote(true);
         if (!snap.exists) { showToast?.('雲端尚無資料，請先從主裝置點「↑ 推送」', 'warning'); return; }
-        const data = snap.data();
+        const data = snap.data;
         if (_rejectInvalidRemote(data, '手動拉取雲端')) return;
         const remoteTs = data._ts || Date.now();
         const normalized = _normalizeCloudData(data, remoteTs, 'pull');
@@ -602,9 +753,9 @@ const CloudSync = (() => {
           showToast?.(`已阻擋推送：${validation.reason}`, 'warning');
           return;
         }
-        const snap = await _docRef.get({ source: 'server' });
+        const snap = await _getRemote(true);
         if (snap.exists) {
-          const remote = snap.data();
+          const remote = snap.data;
           const remoteTs = remote._ts || 0;
           _remoteTs = remoteTs;
           _remoteExists = true;
@@ -634,7 +785,11 @@ const CloudSync = (() => {
         data.settings.cloudSchemaVersion = STABLE_SCHEMA_VERSION;
         data.settings.cloudPushedAt = new Date(now).toISOString();
         localStorage.setItem(DB.KEY, JSON.stringify(data));
-        await _docRef.set({ ...data, _ts: now, _deviceId: _deviceId });
+
+        const report = _sizeReport(data);
+        console.log(`[CloudSync] 推送資料量 ${Math.round(_jsonBytes(data) / 1024)}KB：`, _formatSizeReport(report, 99));
+
+        await _writeShardedDoc({ ...data, _ts: now, _deviceId: _deviceId });
         _serverPushData(data, now).catch(err => {
           console.warn('[CloudSync] 同網址後端備援推送失敗', err);
         });
@@ -643,7 +798,14 @@ const CloudSync = (() => {
         _lastPushAt = now;
         showToast?.('✅ 本機資料已發布為雲端正式版本，其他裝置請拉取更新', 'success');
       } catch(e) {
-        showToast?.(`推送失敗：${e.message}`, 'error');
+        // 附上前幾大的資料表，讓超量或權限錯誤能直接看出從哪裡下手
+        let hint = '';
+        try {
+          const data = JSON.parse(localStorage.getItem(DB.KEY) || '{}');
+          hint = `（本機 ${Math.round(_jsonBytes(data) / 1024)}KB：${_formatSizeReport(_sizeReport(data))}）`;
+        } catch(_) {}
+        console.error('[CloudSync] 推送失敗', e);
+        showToast?.(`推送失敗：${e.message}${hint}`, 'error');
       }
     },
 
