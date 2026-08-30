@@ -169,17 +169,50 @@
     );
   }
 
-  function handlePhotos(event) {
-    const files = [...event.target.files].slice(0, 6 - state.photos.length);
-    files.forEach(file => {
+  // 手機原檔動輒 3–8MB，直接存會把同步資料庫撐爆；比照桌面版縮到 1200px／JPEG 0.82
+  function shrinkPhoto(file) {
+    return new Promise(resolve => {
       const reader = new FileReader();
+      reader.onerror = () => resolve(null);
       reader.onload = e => {
-        state.photos.push({ name: file.name, type: file.type, dataUrl: e.target.result, capturedAt: new Date().toISOString() });
-        renderPhotos();
+        const original = String(e.target.result || '');
+        const img = new Image();
+        // 格式無法解碼（例如部分 HEIC）時保留原檔，寧可佔空間也不能弄丟現場照片
+        img.onerror = () => resolve({ dataUrl: original, type: file.type });
+        img.onload = () => {
+          try {
+            const maxW = 1200;
+            const scale = Math.min(1, maxW / Math.max(img.width, img.height));
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.max(1, Math.round(img.width * scale));
+            canvas.height = Math.max(1, Math.round(img.height * scale));
+            canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+            resolve({ dataUrl: canvas.toDataURL('image/jpeg', 0.82), type: 'image/jpeg' });
+          } catch (_) {
+            resolve({ dataUrl: original, type: file.type });
+          }
+        };
+        img.src = original;
       };
       reader.readAsDataURL(file);
     });
+  }
+
+  async function handlePhotos(event) {
+    const files = [...event.target.files].slice(0, 6 - state.photos.length);
     event.target.value = '';
+    // 逐張處理，維持使用者選取的順序（原本並行載入會亂序）
+    for (const file of files) {
+      const shrunk = await shrinkPhoto(file);
+      if (!shrunk) continue;
+      state.photos.push({
+        name: file.name,
+        type: shrunk.type,
+        dataUrl: shrunk.dataUrl,
+        capturedAt: new Date().toISOString()
+      });
+      renderPhotos();
+    }
   }
 
   function renderPhotos() {
