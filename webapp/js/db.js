@@ -181,12 +181,12 @@ const DB = {
   // 讀取所有資料
   load() {
     try {
-      const raw = localStorage.getItem(this.KEY);
-      if (!raw) {
+      // 照片存放在 IndexedDB，讀回時還原成完整資料（顯示端無須改動）
+      const data = HLXBlobStore.read(this.KEY);
+      if (!data) {
         console.log('[DB] No data found, initializing...');
         return this.init();
       }
-      const data = JSON.parse(raw);
 
       // ── 安全版本遷移（不再清除用戶資料）──────────────────────────
       // 以前的「清除重新初始化」會把用戶填寫的巡查記錄全部刪除。
@@ -286,7 +286,7 @@ const DB = {
         // 去重（遷移後一併清掉重複表單）
         const ddm = this._dedupeInspections(merged.inspections);
         merged.inspections = this._normalizeInspections(ddm.list);
-        localStorage.setItem(this.KEY, JSON.stringify(merged));
+        HLXBlobStore.write(this.KEY, merged);
         console.log(`[DB] ✅ 版本遷移完成，保留 ${merged.inspections.length} 筆巡查記錄${ddm.removed ? `（去重移除 ${ddm.removed} 筆）` : ''}`);
         return merged;
       }
@@ -295,11 +295,11 @@ const DB = {
       const dd = this._dedupeInspections(data.inspections);
       if (dd.removed > 0) {
         data.inspections = this._normalizeInspections(dd.list);
-        localStorage.setItem(this.KEY, JSON.stringify(data));
+        HLXBlobStore.write(this.KEY, data);
         console.warn(`[DB] 巡查去重：移除 ${dd.removed} 筆重複表單`);
       } else if (Array.isArray(data.inspections) && data.inspections.some(i => !i.inspectionCategory || !i.recordDateLabel || !i.dateSort)) {
         data.inspections = this._normalizeInspections(data.inspections);
-        localStorage.setItem(this.KEY, JSON.stringify(data));
+        HLXBlobStore.write(this.KEY, data);
       }
       console.log('[DB] ✓ Loaded existing data (VERSION:', data.settings.version + ')');
       return data;
@@ -694,7 +694,7 @@ const DB = {
     });
     data.facilities.sort((a, b) => (a.tableOrder || a.id) - (b.tableOrder || b.id));
     data.inspections = this._normalizeInspections(this._dedupeInspections(data.inspections).list);
-    localStorage.setItem(this.KEY, JSON.stringify(data));
+    HLXBlobStore.write(this.KEY, data);
     return data;
   },
 
@@ -708,7 +708,7 @@ const DB = {
     if (Array.isArray(data.inspections)) {
       data.inspections = this._normalizeInspections(this._dedupeInspections(data.inspections).list);
     }
-    localStorage.setItem(this.KEY, JSON.stringify(data));
+    HLXBlobStore.write(this.KEY, data);
     // 穩定模式：一般儲存只更新本機快取，不再自動推送雲端。
     // 跨設備同步必須由管理者明確按「↑ 推送」，避免新設備或舊快取覆蓋正式資料。
     if (options.allowCloudPush === true && !this._suppressCloudPush && !options.suppressCloudPush && window.CloudSync?.isOnline) {

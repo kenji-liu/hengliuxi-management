@@ -129,5 +129,10 @@ function handleImport(event) {
 
 updateDate();
 setInterval(updateDate, 60000);
-navigateTo('facilities');
-initAIChat();
+
+// 首次繪製前先等本機附件（照片）由 IndexedDB 載入記憶體，
+// 否則 DB.load() 會拿到尚未還原的參照，照片會顯示不出來。
+HLXBlobStore.ready.finally(() => {
+  navigateTo('facilities');
+  initAIChat();
+});

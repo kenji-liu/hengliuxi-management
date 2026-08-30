@@ -101,7 +101,7 @@ const CloudSync = (() => {
     if (/exceeds the maximum allowed size/i.test(msg)) {
       let sizes = '';
       try {
-        const data = JSON.parse(localStorage.getItem(DB.KEY) || '{}');
+        const data = (HLXBlobStore.read(DB.KEY) || {});
         sizes = `（本機 ${Math.round(_jsonBytes(data) / 1024)}KB：${_formatSizeReport(_sizeReport(data))}）`;
       } catch(_) {}
       return msg + sizes;
@@ -195,15 +195,20 @@ const CloudSync = (() => {
     return value;
   }
 
-  /** 掃出本機既有附件，拉取時可直接沿用，不必重新下載 */
+  /**
+   * 掃出本機既有附件，拉取時可直接沿用，不必重新下載。
+   * 本機附件存放層（HLXBlobStore）採用同一套內容雜湊，可直接取用其清單，
+   * 免去為了建索引而把整包資料還原一次。
+   */
   function _localBlobCache() {
+    if (window.HLXBlobStore?.state === 'ready') return HLXBlobStore.entries();
     const cache = new Map();
     const walk = v => {
       if (_isBlobString(v)) { cache.set(_hashBlob(v), v); return; }
       if (Array.isArray(v)) { v.forEach(walk); return; }
       if (v && typeof v === 'object') Object.values(v).forEach(walk);
     };
-    try { walk(JSON.parse(localStorage.getItem(DB.KEY) || '{}')); } catch(_) {}
+    try { walk((HLXBlobStore.read(DB.KEY) || {})); } catch(_) {}
     return cache;
   }
 
@@ -497,7 +502,7 @@ const CloudSync = (() => {
       let localIsSeed = false;
       let localCloudKnown = false;
       try {
-        const local = JSON.parse(localStorage.getItem(DB.KEY) || '{}');
+        const local = (HLXBlobStore.read(DB.KEY) || {});
         localTs = local?.settings?.syncTimestamp || 0;
         localIsSeed = !!local?.settings?.initializedFromSeed;
         localCloudKnown = !!local?.settings?.cloudSyncKnown;
@@ -506,7 +511,7 @@ const CloudSync = (() => {
       if (localIsSeed || !localCloudKnown || remoteTs >= localTs) {
         // 新設備或尚未建立雲端基準者，一律以雲端資料為真相來源。
         const data = _normalizeCloudData(remote, remoteTs, 'pull');
-        localStorage.setItem(DB.KEY, JSON.stringify(data));
+        HLXBlobStore.write(DB.KEY, data);
         console.log('[CloudSync] 初始化：雲端資料較新，已拉取 ts:', new Date(remoteTs).toLocaleTimeString());
         // 拉取後只做本機靜默校正，不由新設備自動回寫雲端。
         if (typeof window.syncFacilityStatusToInspections === 'function') {
@@ -543,7 +548,7 @@ const CloudSync = (() => {
       // 取得本機時間戳
       let localTs = 0;
       try {
-        const local = JSON.parse(localStorage.getItem(DB.KEY) || '{}');
+        const local = (HLXBlobStore.read(DB.KEY) || {});
         localTs = local?.settings?.syncTimestamp || 0;
       } catch(_) {}
 
@@ -562,7 +567,7 @@ const CloudSync = (() => {
         _remoteTs = remoteTs;
         _remoteExists = true;
 
-        localStorage.setItem(DB.KEY, JSON.stringify(data));
+        HLXBlobStore.write(DB.KEY, data);
         console.log('[CloudSync] 收到遠端更新 ts:', new Date(remoteTs).toLocaleTimeString());
 
         // 收到遠端資料後只做本機靜默校正，避免監聽回呼造成雲端覆寫。
@@ -685,7 +690,7 @@ const CloudSync = (() => {
     const normalized = _normalizeCloudData(remote, remoteTs, 'pull');
     _remoteTs = remoteTs;
     _remoteExists = true;
-    localStorage.setItem(DB.KEY, JSON.stringify(normalized));
+    HLXBlobStore.write(DB.KEY, normalized);
     if (typeof window.syncFacilityStatusToInspections === 'function') {
       window.syncFacilityStatusToInspections(true);
     }
@@ -737,7 +742,7 @@ const CloudSync = (() => {
         let localIsSeed = false;
         let localCloudKnown = false;
         try {
-          const local = JSON.parse(localStorage.getItem(DB.KEY) || '{}');
+          const local = (HLXBlobStore.read(DB.KEY) || {});
           localTs = local?.settings?.syncTimestamp || 0;
           localIsSeed = !!local?.settings?.initializedFromSeed;
           localCloudKnown = !!local?.settings?.cloudSyncKnown;
@@ -771,7 +776,7 @@ const CloudSync = (() => {
     if (!_verifyPushPassword()) return;
 
     try {
-      const data = JSON.parse(localStorage.getItem(DB.KEY) || '{}');
+      const data = (HLXBlobStore.read(DB.KEY) || {});
       if (!data.settings) { showToast?.('本機無資料', 'warning'); return; }
       const validation = _validateFacilityDataset(data);
       if (!validation.ok) {
@@ -804,7 +809,7 @@ const CloudSync = (() => {
       data.settings.cloudSchemaVersion = STABLE_SCHEMA_VERSION;
       data.settings.cloudPushedAt = new Date(now).toISOString();
       data.settings.serverPushedAt = new Date(now).toISOString();
-      localStorage.setItem(DB.KEY, JSON.stringify(data));
+      HLXBlobStore.write(DB.KEY, data);
       await _serverPushData(data, now);
       _remoteTs = now;
       _remoteExists = true;
@@ -900,7 +905,7 @@ const CloudSync = (() => {
         };
 
         try {
-          localStorage.setItem(DB.KEY, JSON.stringify(payloadData));
+          HLXBlobStore.write(DB.KEY, payloadData);
           await _writeShardedDoc(payload);
           _serverPushData(payloadData, now).catch(err => {
             console.warn('[CloudSync] 同網址後端備援推送失敗', err);
@@ -933,7 +938,7 @@ const CloudSync = (() => {
         const normalized = _normalizeCloudData(data, remoteTs, 'pull');
         _remoteTs = remoteTs;
         _remoteExists = true;
-        localStorage.setItem(DB.KEY, JSON.stringify(normalized));
+        HLXBlobStore.write(DB.KEY, normalized);
         showToast?.('✅ 已從雲端拉取最新資料', 'success');
         _refreshCurrentPage();
       } catch(e) {
@@ -955,7 +960,7 @@ const CloudSync = (() => {
       if (!_verifyPushPassword()) return;
       // ── 執行推送 ──────────────────────────────────────────
       try {
-        const data = JSON.parse(localStorage.getItem(DB.KEY) || '{}');
+        const data = (HLXBlobStore.read(DB.KEY) || {});
         if (!data.settings) { showToast?.('本機無資料', 'warning'); return; }
         const validation = _validateFacilityDataset(data);
         if (!validation.ok) {
@@ -994,7 +999,7 @@ const CloudSync = (() => {
         data.settings.cloudSyncKnown = true;
         data.settings.cloudSchemaVersion = STABLE_SCHEMA_VERSION;
         data.settings.cloudPushedAt = new Date(now).toISOString();
-        localStorage.setItem(DB.KEY, JSON.stringify(data));
+        HLXBlobStore.write(DB.KEY, data);
 
         const report = _sizeReport(data);
         console.log(`[CloudSync] 推送資料量 ${Math.round(_jsonBytes(data) / 1024)}KB：`, _formatSizeReport(report, 99));
