@@ -764,20 +764,40 @@ function fac_renderHistoryHealthChart(f) {
   if (rows.length < 1) return '';
 
   const FT = { professional_structure:'構造物', professional_fishway:'魚道', maintenance_completion:'完工', general_periodic:'一般', general:'一般' };
+  //  分數改用與「狀態評估」卡片相同的權威推論函式 fac_inferDeruFromInspection，
+  //  不再各自讀原始 deru_d/e/r 丟進另一套簡化公式（fac_healthFromDeru）。
+  //  原本的作法對同一筆紀錄可能算出不同分數 —— 例如卡片會偵測「D0/E1/R1
+  //  佔位值與巡查文字矛盾」並改用文字判讀，趨勢圖卻直接信任佔位值，
+  //  同一筆紀錄因此出現兩個健康分數。
   const pts = rows.map(item => {
-    const d = item.deru_d != null ? item.deru_d
-      : (item.fw_deruItems?.length ? item.fw_deruItems.reduce((s,x)=>s+(x.d||0),0)/item.fw_deruItems.length : null);
-    if (d === null) return null;
-    const e = item.deru_e ?? 1;
-    const r = item.deru_r ?? 1;
+    const deru = fac_inferDeruFromInspection(item);
+    if (!deru || deru.health == null) return null;
     return {
+      id: item.id,
       date: item.date || '-',
-      hp: fac_healthFromDeru(d, e, r, String(item.findings||item.fw_findings||item.notes||'')),
+      hp: deru.health,
       label: FT[item.formType] || '專業'
     };
   }).filter(Boolean).reverse();
 
   if (pts.length < 1) return '';
+
+  //  趨勢圖「最新一點」必須與「狀態評估」卡片同一筆紀錄、同一分數。
+  //  卡片（fac_latestProfessionalAssessment）在有未結案項目時，故意優先
+  //  取「未結案中最嚴重」的那筆，不一定是日期最新的那筆 —— 這是為了避免
+  //  同一天（或更晚）其他子位置的已完成紀錄，蓋掉真正未處理的問題
+  //  （例如護岸同一 facilityId 底下有 0K+510／1K+000 等多個樁號，
+  //  同一天各自都有專業巡查紀錄）。趨勢圖若只按日期／表單類型排序，
+  //  同一天多筆時選到的「最後一筆」就可能跟卡片不同。
+  //  這裡直接對齊卡片選出的紀錄 id，把它移到陣列最後，確保兩處必定一致。
+  const _assessment = fac_latestProfessionalAssessment(f);
+  if (_assessment.hasProfessional && _assessment.latestProfessional) {
+    const _authIdx = pts.findIndex(p => p.id === _assessment.latestProfessional.id);
+    if (_authIdx !== -1 && _authIdx !== pts.length - 1) {
+      const [_authPt] = pts.splice(_authIdx, 1);
+      pts.push(_authPt);
+    }
+  }
 
   const trend = pts.length >= 2 ? pts[pts.length-1].hp - pts[0].hp : null;
   const trendTxt = trend === null ? `目前 ${pts[0].hp} 分` : trend > 0 ? `↑ +${trend} 分` : trend < 0 ? `↓ ${trend} 分` : '持平';
