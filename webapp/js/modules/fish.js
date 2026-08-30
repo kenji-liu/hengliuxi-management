@@ -149,6 +149,79 @@ function fish_renderEcologyHabits(species, panelId) {
 }
 
 /** 詳細視窗用：與卡片同一份資料，但常駐顯示、不需展開 */
+/* 文獻補充：一般生態知識，與橫流溪現地實測分開呈現（CLAUDE.md Skill H）。
+   內容取自公開權威來源，逐項標註出處，不與平台調查結果混用。 */
+const FISH_LITERATURE = {
+  '臺灣白甲魚': {
+    alias: '臺灣鏟頷魚；俗稱苦花、鯝魚、苦偎、齊頭偎',
+    endemic: '非臺灣特有種',
+    distribution: '中國大陸長江以南東側與臺灣淡水域；臺灣各河川中、上游及其支流皆有分布。',
+    ecology: '初級淡水魚。棲息於水質冷而清澈的河川上游，以落差稍大的河段較多，藏身深潭或石縫間；'
+           + '喜水流湍急處，多在水體中下層活動，受驚嚇時躲入石縫。對環境適應力較冷水性虹鱒為佳。',
+    feeding: '以附著於石頭表面的藻類為主食，兼食小型無脊椎動物。',
+    breeding: '卵粒分離，產於岸邊緩流河床的沙土表層。',
+    redlist: '臺灣紅皮書：接近受脅（NT, Near Threatened）',
+    sources: [
+      ['臺灣魚類資料庫（中央研究院）', 'https://fishdb.sinica.edu.tw/taxon/381030-fishdb'],
+      ['臺灣生命大百科 TaiEOL', 'https://taieol.tw/pages/53878'],
+      ['臺灣國家公園物種資料', 'https://npgis.cpami.gov.tw/public/detail/SpeciesDetail.aspx?SP_ID=F0024']
+    ]
+  },
+  '臺灣鬚鱲': {
+    alias: '亦稱臺灣馬口魚',
+    endemic: '臺灣特有種',
+    distribution: '普遍分布於臺灣西部各河川，以及恆春半島西側的小溪流。',
+    ecology: '初級淡水魚，喜低溫而清澈、溶氧量高的水域（水溫約 9–22°C），游泳能力強，'
+           + '多棲息於河川中、上游及支流，常於冷水域表層活動。'
+           + '族群多分布於潭尾、潭邊淺灘及潭頭較緩流處；稚魚成群聚集於溪流兩岸緩流處覓食。'
+           + '幼魚棲息於水流較緩、底質含沙及細小卵石處，常與臺灣石魚賓、褐吻鰕虎、粗首鱲及鯝魚混居。',
+    feeding: '雜食性且極為貪食，攝食藻類、水棲昆蟲、環形動物與有機碎屑。',
+    breeding: '屬多次產卵魚種，生殖季較長（約 3–12 月，夏季為高峰）；'
+            + '生殖季雌魚卵巢內同時具不同成熟程度的卵，每次僅產下成熟卵。',
+    redlist: '',
+    sources: [
+      ['臺灣魚類資料庫（中央研究院）', 'https://fishdb.sinica.edu.tw/taxon/381000-fishdb'],
+      ['臺灣生命大百科 TaiEOL', 'https://taieol.tw/pages/53584'],
+      ['臺灣國家公園物種資料', 'https://npgis.cpami.gov.tw/public/detail/SpeciesDetail.aspx?SP_ID=F0043']
+    ]
+  }
+};
+
+/** 詳細視窗用：文獻補充區塊（與橫流溪實測分列，並標註出處） */
+function fish_renderLiterature(species) {
+  const L = FISH_LITERATURE[species];
+  if (!L) return '';
+  const rows = [
+    ['fa-tag', '別名', L.alias],
+    ['fa-flag', '特有性', L.endemic],
+    ['fa-map', '地理分布', L.distribution],
+    ['fa-water', '生態與棲地', L.ecology],
+    ['fa-utensils', '食性', L.feeding],
+    ['fa-egg', '繁殖', L.breeding],
+    ['fa-shield-halved', '保育評估', L.redlist]
+  ].filter(r => r[2]);
+  return `
+    <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:14px 16px">
+      <div style="font-size:20px;font-weight:900;color:#92400e;margin-bottom:4px">
+        <i class="fas fa-book" style="margin-right:6px"></i>文獻補充（一般生態知識）
+      </div>
+      <div style="font-size:15px;color:#a16207;margin-bottom:10px;line-height:1.5">
+        以下為公開文獻之物種一般習性，<b>非橫流溪現地調查結果</b>；橫流溪實測請見上方「生態習性」之橫流溪判讀與下方調查明細。
+      </div>
+      ${rows.map(([icon, label, text]) => `
+        <div style="display:grid;grid-template-columns:22px 1fr;gap:8px;margin-bottom:9px;align-items:start">
+          <i class="fas ${icon}" style="color:#b45309;font-size:16px;margin-top:5px;text-align:center"></i>
+          <div style="font-size:18px;line-height:1.65;color:#334155">
+            <strong style="color:#78350f">${label}：</strong>${fish_escape(text)}
+          </div>
+        </div>`).join('')}
+      <div style="font-size:15px;line-height:1.7;color:#78350f;border-top:1px solid #fde68a;padding-top:8px">
+        <b>資料來源：</b>${L.sources.map(([n, u]) =>
+          `<a href="${u}" target="_blank" rel="noopener" style="color:#b45309;text-decoration:underline">${n}</a>`).join('　')}
+      </div>
+    </div>`;
+}
+
 function fish_renderEcologyHabitsPlain(species) {
   const habit = FISH_ECOLOGY_HABITS[species];
   if (!habit) return '';
@@ -1291,6 +1364,7 @@ function openFishSpeciesDetail(speciesName) {
           </div>
         </div>
         ${fish_renderEcologyHabitsPlain(target.species)}
+        ${fish_renderLiterature(target.species)}
         ${fullSurveyHtml}
         ${dbRecordsHtml}
       </div>
