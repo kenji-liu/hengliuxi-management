@@ -75,6 +75,34 @@ PROMPT = (
 )
 
 
+#  視覺模型會把罕用字讀錯，而魚名錯字會直接污染魚類答詢。
+#  實測 P.26 圖例：「臺灣石鱝」→「臺灣石鮒」、「短臀瘋鱨」→「短臂蟹」
+#  （把魚讀成螃蟹）。這裡只做「已知錯法 → 平台正式名」的定點更正，
+#  不做模糊比對，避免自動改字反而製造新錯誤。
+#  正式名稱以 webapp/data/agent_baseline.json 的 fishKeyNames 為準。
+SPECIES_FIX = {
+    "臺灣石鮒": "臺灣石魚賓",
+    "台灣石鮒": "臺灣石魚賓",
+    "臺灣石鱝": "臺灣石魚賓",
+    "短臂蟹": "短臀瘋鱨",
+    "短臀瘋鱧": "短臀瘋鱨",
+    "粗首馬口鱲魚": "粗首馬口鱲",
+}
+
+
+def normalize_species(text: str) -> tuple:
+    """回傳（更正後文字, 更正紀錄）。有更正時在文末加註，保持可稽核。"""
+    fixed, changes = text, []
+    for wrong, right in SPECIES_FIX.items():
+        if wrong in fixed:
+            fixed = fixed.replace(wrong, right)
+            changes.append("%s→%s" % (wrong, right))
+    if changes:
+        fixed += ("\n（物種名稱已依平台正式魚名更正：%s）"
+                  % "、".join(changes))
+    return fixed, changes
+
+
 def _key() -> str:
     return (os.environ.get("OPENCODE_GO_API_KEY")
             or os.environ.get("OPENCODE_ZEN_API_KEY") or "").strip()
@@ -242,7 +270,16 @@ def main() -> int:
         return 1
 
     # ── 寫回 briefing_slides.json ────────────────────────────────
+    #  既有頁面也一併套用魚名更正（先前批次判讀時還沒有這道檢查）
+    for slide in brief.get("slides", []):
+        if slide.get("visual"):
+            fixed, changed = normalize_species(slide["visual"])
+            if changed:
+                slide["visual"] = fixed
+                log.info("  P.%-3s 魚名更正：%s", slide.get("page"),
+                         "、".join(changed))
     for page, text in results.items():
+        text, _ = normalize_species(text)
         s = by_page.get(page)
         if s is None:
             s = {"page": page, "title": "", "section": "", "text": "", "notes": ""}
