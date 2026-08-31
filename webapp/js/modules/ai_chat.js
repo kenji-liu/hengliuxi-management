@@ -1061,7 +1061,30 @@ function initAIChat() {
   style.id = "aiChatStyle";
   style.textContent = `
     #aiChatWidget{position:fixed;bottom:24px;right:24px;z-index:1000;font-family:'Microsoft JhengHei',sans-serif}
-    #aiChatBtn{width:52px;height:52px;border-radius:50%;background:var(--primary);color:#fff;border:none;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.2);font-size:18px;font-weight:700}
+    /*  懸浮鈕：原為純文字「AI」的素色圓鈕，辨識度低且無互動回饋。
+        改為漸層底＋機器人圖示＋文字，並加上滑入放大與呼吸光暈。
+        呼吸動畫僅在使用者未關閉動態效果時播放（prefers-reduced-motion）。 */
+    #aiChatBtn{width:58px;height:58px;border-radius:50%;border:none;cursor:pointer;
+      background:linear-gradient(140deg,#0f766e 0%,#1565c0 100%);color:#fff;
+      display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+      box-shadow:0 6px 20px rgba(13,110,100,.38),0 0 0 0 rgba(21,101,192,.5);
+      transition:transform .18s ease,box-shadow .18s ease;
+      animation:aiBtnPulse 2.8s ease-out infinite}
+    #aiChatBtn i{font-size:19px;line-height:1}
+    #aiChatBtn span{font-size:9.5px;font-weight:800;letter-spacing:.6px;line-height:1}
+    #aiChatBtn:hover{transform:scale(1.08);
+      box-shadow:0 10px 26px rgba(13,110,100,.5),0 0 0 6px rgba(21,101,192,.14)}
+    #aiChatBtn:active{transform:scale(.96)}
+    #aiChatBtn:focus-visible{outline:3px solid #fbbf24;outline-offset:3px}
+    @keyframes aiBtnPulse{
+      0%  {box-shadow:0 6px 20px rgba(13,110,100,.38),0 0 0 0 rgba(21,101,192,.45)}
+      70% {box-shadow:0 6px 20px rgba(13,110,100,.38),0 0 0 14px rgba(21,101,192,0)}
+      100%{box-shadow:0 6px 20px rgba(13,110,100,.38),0 0 0 0 rgba(21,101,192,0)}
+    }
+    @media (prefers-reduced-motion:reduce){
+      #aiChatBtn{animation:none;transition:none}
+      #aiChatBtn:hover{transform:none}
+    }
     /* resize 讓使用者可自由拉大視窗（右下角）；尺寸會記憶於 localStorage。
        resize 需要 overflow 非 visible，故沿用 hidden。 */
     #aiChatPanel{display:none;width:440px;height:640px;min-width:320px;min-height:360px;
@@ -1228,7 +1251,10 @@ function initAIChat() {
         <button class="ai-send" onclick="aiSend()">送出</button>
       </div>
     </div>
-    <button id="aiChatBtn" onclick="toggleAIChat()" title="橫流溪 AI 問答">AI</button>
+    <button id="aiChatBtn" onclick="toggleAIChat()" title="橫流溪 AI 問答"
+            aria-label="開啟橫流溪 AI 問答">
+      <i class="fas fa-robot" aria-hidden="true"></i><span>AI</span>
+    </button>
   `;
   document.body.appendChild(widget);
 }
