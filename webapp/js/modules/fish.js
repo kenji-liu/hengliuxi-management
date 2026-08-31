@@ -119,6 +119,57 @@ const FISH_ECOLOGY_HABITS = {
   }
 };
 
+/* ── 物種分布描述 ──
+   原本只把資料庫紀錄的 location 欄位串起來，有兩個問題：
+
+   1. 未去除被包含的字串。臺灣白甲魚有 id1「橫流溪全流域（以上游1K+170~
+      1K+400優勢）」與 id10「橫流溪全流域」兩筆，串出來成為
+      「橫流溪全流域（…優勢）、橫流溪全流域、…」，後者是前者的子字串。
+
+   2. 資料庫紀錄筆數不均，臺灣鬚鱲只有 1 筆（location 僅「橫流溪中游」），
+      其餘物種有 2～4 筆，因此該物種的分布看起來像沒有資料——但牠累計
+      961 尾、51 次調查中 37 次捕獲，並非真的缺乏紀錄。
+
+   改為：先去除被其他項包含的重複項，再由「唯一真實來源」HLX_FISH_SURVEYS
+   即時推導河段分布補上。補上的內容全部可回溯到原始調查列，不寫死、不臆測。 */
+function fish_dedupeLocations(locs) {
+  const list = [...new Set((locs || []).map(x => String(x || '').trim()).filter(Boolean))];
+  //  去掉「被其他項包含」者，例如「橫流溪全流域」被「橫流溪全流域（…）」包含
+  return list.filter(a => !list.some(b => b !== a && b.includes(a)));
+}
+
+function fish_segmentDistribution(species) {
+  if (typeof HLX_FISH_SURVEYS === 'undefined' || typeof HLX_FISH_KEY_NAME === 'undefined') return '';
+  const key = Object.keys(HLX_FISH_KEY_NAME).find(k => HLX_FISH_KEY_NAME[k] === species);
+  if (!key) return '';
+  const years = seg => [...new Set(HLX_FISH_SURVEYS
+      .filter(s => hlxEco_segment(s) === seg && (Number(s[key]) || 0) > 0)
+      .map(s => s.year - 1911))].sort((a, b) => a - b);
+  const up = years('上游'), dn = years('下游');
+  const parts = [];
+  //  只列出原始資料明確標示上／下游的年度；標為「橫流溪N站」者未分列河段，
+  //  不納入亦不推估。
+  if (up.length) parts.push(`上游樣站於 ${up.join('、')} 年有紀錄`);
+  if (dn.length) parts.push(`下游樣站於 ${dn.join('、')} 年有紀錄`);
+  if (!parts.length) return '';
+  return parts.join('；');
+}
+
+function fish_fishwayCatchNote(species) {
+  if (typeof HLX_IN_FISHWAY_CATCH === 'undefined') return '';
+  const hit = (HLX_IN_FISHWAY_CATCH.bySpecies || []).find(x => x.name === species);
+  if (!hit) return '';
+  return `魚道內部實測累計 ${hit.n} 尾（109～110 年 4 輪，電捕＋蝦籠）`;
+}
+
+/*  組出卡片與詳細頁共用的分布文字。dbLocs 為資料庫紀錄的 location 欄位。 */
+function fish_distributionText(species, dbLocs) {
+  const base = fish_dedupeLocations(dbLocs);
+  const extra = [fish_segmentDistribution(species), fish_fishwayCatchNote(species)].filter(Boolean);
+  const all = base.concat(extra);
+  return all.length ? all.join('、') : '';
+}
+
 function fish_renderEcologyHabits(species, panelId) {
   const habit = FISH_ECOLOGY_HABITS[species];
   if (!habit) return '';
@@ -1056,7 +1107,7 @@ function loadFishTable() {
         const [ccl] = cMap[s.conservation] || ['#475569','#f1f5f9'];
         const cardId = `fishcard_sp_${speciesIndex}_${s.species.replace(/[^\w]/g, '_')}`;
         const inTrend = TREND_SET.has(s.species);
-        const allLocs = [...new Set(s.records.map(r => r.location).filter(Boolean))];
+        const allLocs = [fish_distributionText(s.species, s.records.map(r => r.location))].filter(Boolean);
         const surveyRecords = Array.isArray(s.surveyRecords) ? s.surveyRecords : [];
         const surveyTimeline = Array.isArray(s.surveyTimeline) ? s.surveyTimeline : [];
         const displayRecords = fish_canonicalDetailRecords(s.species, s.records.slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))), surveyRecords);
@@ -1236,7 +1287,7 @@ function openFishSpeciesDetail(speciesName) {
   const adoptedTotal = surveySum || Number(target.totalCount) || dbSum || 0;
   const effectiveSurveyCount = surveyTimeline.length || dbDisplayRecords.length || target.surveys || 0;
   const latestDateLabel = fish_latestRecordLabel(surveyTimeline.length ? surveyTimeline : dbDisplayRecords);
-  const allLocs = [...new Set(records.map(r => r.location).filter(Boolean))];
+  const allLocs = [fish_distributionText(target.species, records.map(r => r.location))].filter(Boolean);
   const trendSet = new Set(['臺灣白甲魚','臺灣石魚賓','臺灣鬚鱲','纓口臺鰍','臺灣間爬岩鰍','明潭吻鰕虎','短臀瘋鱨','短吻紅斑吻鰕虎']);
 
   const modal = document.getElementById('modal');
