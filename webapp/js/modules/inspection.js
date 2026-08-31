@@ -1617,6 +1617,34 @@ function mgToggle(id) {
   if (chevron) chevron.style.transform = open ? 'rotate(-90deg)' : 'rotate(0deg)';
 }
 
+
+/*  維護管理文件（PDF 線上閱覽）。檔案放在 webapp/assets/manuals/，
+    隨程式碼部署，不經 Google Drive —— Drive 索引需另行上傳與授權，
+    而這兩份是常用文件，直接隨站台供檔較可靠。 */
+const MG_DOCS = [
+  { id:'mgdoc_manual', title:'維護管理手冊', meta:'Ver2.0 ・ 43 頁 ・ 農業部林業及自然保育署臺中分署',
+    src:'/webapp/assets/manuals/' + encodeURIComponent('維護管理手冊') + '.pdf',
+    color:'#0d9488', bg:'#f0fdfa', border:'#99f6e4' },
+  { id:'mgdoc_plan',   title:'維護管理計畫', meta:'Ver2.0 ・ 37 頁 ・ 農業部林業及自然保育署臺中分署',
+    src:'/webapp/assets/manuals/' + encodeURIComponent('維護管理計畫') + '.pdf',
+    color:'#1d4ed8', bg:'#eff6ff', border:'#bfdbfe' },
+];
+
+/*  展開／收合單份文件。iframe 的 src 延後到首次展開才設定，
+    避免一進頁面就下載兩份合計 6.7 MB 的 PDF。 */
+function mgToggleDoc(id) {
+  const body = document.getElementById(id);
+  const chev = document.getElementById(id + '_chev');
+  if (!body) return;
+  const open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : '';
+  if (chev) chev.style.transform = open ? 'rotate(-90deg)' : 'rotate(0deg)';
+  if (!open) {
+    const frame = document.getElementById(id + '_frame');
+    if (frame && !frame.src) frame.src = frame.dataset.src;
+  }
+}
+
 function renderManualInspectionGuide() {
   /* ── 構造物基本資料 ── */
   const FACILITIES_DATA = [
@@ -1776,6 +1804,63 @@ function renderManualInspectionGuide() {
             <div style="font-size:44px;font-weight:900;color:#fbbf24;line-height:1">${n}</div>
             <div style="font-size:16px;color:rgba(255,255,255,.85);margin-top:6px">${lbl}</div>
           </div>`).join('')}
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ ⓪ 維護管理文件（PDF 線上閱覽）══ -->
+    <div style="border:2px solid #bfdbfe;border-radius:16px;margin-bottom:20px;
+                box-shadow:0 4px 16px rgba(15,23,42,.07);overflow:hidden">
+      ${sectionHeader('mg_docs','linear-gradient(90deg,#0f766e,#0d9488)',
+        'fa-file-pdf','#fbbf24','維護管理文件',
+        '維護管理手冊 Ver2.0（43 頁）／ 維護管理計畫 Ver2.0（37 頁）・點選標題開啟閱覽', false)}
+      <div id="mg_docs" style="padding:24px;background:#fff;display:none">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:18px">
+          ${MG_DOCS.map(d => `
+          <div style="border:2px solid ${d.border};border-radius:14px;overflow:hidden;background:${d.bg}">
+            <div onclick="mgToggleDoc('${d.id}')" role="button" tabindex="0"
+                 onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();mgToggleDoc('${d.id}')}"
+                 style="display:flex;align-items:center;gap:14px;padding:18px 20px;cursor:pointer;user-select:none">
+              <div style="width:54px;height:54px;border-radius:14px;background:${d.color};color:#fff;
+                          display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">
+                <i class="fas fa-file-pdf"></i>
+              </div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:22px;font-weight:900;color:#0f172a">${d.title}</div>
+                <div style="font-size:16px;color:#475569;margin-top:3px">${d.meta}</div>
+              </div>
+              <i id="${d.id}_chev" class="fas fa-chevron-down"
+                 style="color:${d.color};font-size:20px;transition:transform .25s;transform:rotate(-90deg)"></i>
+            </div>
+            <div id="${d.id}" style="display:none;border-top:2px solid ${d.border};background:#fff">
+              <div style="display:flex;gap:10px;flex-wrap:wrap;padding:12px 16px;background:#f8fafc">
+                <a href="${d.src}" target="_blank" rel="noopener"
+                   style="padding:8px 14px;border:1.5px solid ${d.color};border-radius:8px;
+                          background:#fff;color:${d.color};font-size:16px;font-weight:800;text-decoration:none">
+                  <i class="fas fa-up-right-from-square"></i> 另開視窗
+                </a>
+                <a href="${d.src}" download
+                   style="padding:8px 14px;border:1.5px solid #94a3b8;border-radius:8px;
+                          background:#fff;color:#475569;font-size:16px;font-weight:800;text-decoration:none">
+                  <i class="fas fa-download"></i> 下載
+                </a>
+                <button type="button" onclick="mgToggleDoc('${d.id}')"
+                   style="margin-left:auto;padding:8px 14px;border:1.5px solid #cbd5e1;border-radius:8px;
+                          background:#fff;color:#475569;font-size:16px;font-weight:800;cursor:pointer">
+                  <i class="fas fa-xmark"></i> 關閉
+                </button>
+              </div>
+              <!--  iframe 於首次展開時才設定 src（見 mgToggleDoc），
+                    避免頁面載入就同時抓兩份共 6.7 MB 的 PDF。 -->
+              <iframe id="${d.id}_frame" data-src="${d.src}" title="${d.title}"
+                      style="width:100%;height:min(78vh,860px);border:0;display:block"></iframe>
+            </div>
+          </div>`).join('')}
+        </div>
+        <div style="margin-top:14px;font-size:15px;color:#64748b;line-height:1.7">
+          <i class="fas fa-circle-info" style="margin-right:6px;color:#0d9488"></i>
+          兩份文件為 <b>Ver2.0</b>，較上方標頭所載 Ver1.0 為新；標頭版次尚未更新，以本區文件為準。
+          若瀏覽器未內建 PDF 檢視器而無法內嵌顯示，請點「另開視窗」或「下載」。
         </div>
       </div>
     </div>
