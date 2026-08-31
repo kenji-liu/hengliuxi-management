@@ -3977,8 +3977,8 @@ function renderVegetation() {
           五節芒優勢植群（相對豐度31.82%），伴生大花咸豐草（歸化）、山黃麻、九芎、水柳等濱溪植物
         </div>
         <div style="background:#eff6ff;border-radius:8px;padding:12px 14px">
-          <div style="font-weight:700;color:#1d4ed8;margin-bottom:4px"><i class="fas fa-exclamation-circle" style="margin-right:5px"></i>外來種（名錄 29 種，以下列主要威脅者）</div>
-          銀合歡、大花咸豐草、小花蔓澤蘭為主要入侵威脅，需持續監測清除
+          <div style="font-weight:700;color:#1d4ed8;margin-bottom:4px"><i class="fas fa-exclamation-circle" style="margin-right:5px"></i>外來種（表6-36 優勢種中 ${invasiveCount} 種）</div>
+          ${VEG_DOMINANT.filter(v=>v.invasive).map(v=>v.name+'（'+v.pct.toFixed(2)+'%）').join('、')}為表列優勢種中的外來種；另名錄尚記錄小花蔓澤蘭等外來種，雖未達優勢種門檻，仍具入侵威脅，需持續監測清除
         </div>
         <div style="background:#f5f3ff;border-radius:8px;padding:12px 14px">
           <div style="font-weight:700;color:#7c3aed;margin-bottom:4px"><i class="fas fa-satellite" style="margin-right:5px"></i>NDVI 衛星分析</div>
