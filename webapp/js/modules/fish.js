@@ -4405,6 +4405,81 @@ function hlxEco_speciesSmallMultiples(M) {
     </div>`;
 }
 
+/* ── 生態品質評級：103～114 年完整時間軸 ──
+   為什麼不把 IBI 補滿十二年：IBI 是綜合魚類組成、外來種比例、食性結構等
+   指標的評分制，原報告只提供 109、110 兩年同口徑結果。其他年度的調查
+   未收集可計算同口徑 IBI 的欄位，用物種數或捕獲尾數回推都不是 IBI，
+   標成 IBI 即為造假，經不起查證。
+
+   因此改為：橫軸拉成完整 103～114 年（與本頁其他圖表同軸，無斷點），
+   有官方 IBI 的年度標出數值，其餘年度改列該年確實量測到的指標
+   （記錄物種數、尾／次、外來種比例）。時間軸連續而不虛構任何數值。 */
+function hlxEco_ibiTimeline(M) {
+  M = M || hlxEcoMonitor();
+  const ibiByRoc = {};
+  HLX_ECO_BENCHMARK.hlx.annualMeans.forEach(a => {
+    ibiByRoc[parseInt(String(a.year), 10)] = a;
+  });
+  const byRoc = {};
+  M.years.forEach(y => { byRoc[y.roc] = y; });
+
+  const first = M.years[0].roc, last = M.years[M.years.length - 1].roc;
+  const PRE_LAST = HLX_ECO_PRE_LAST_YEAR - 1911;
+  const cells = [];
+  for (let roc = first; roc <= last; roc++) {
+    const y = byRoc[roc], ibi = ibiByRoc[roc];
+    const post = roc > PRE_LAST;
+    if (!y) {
+      //  105 年：105 年度報告係 104 年資料重刊，無獨立調查場次
+      cells.push(`
+        <div style="background:#f8fafc;border:1px dashed #cbd5e1;border-radius:9px;
+                    padding:9px 6px;text-align:center;opacity:.75">
+          <div style="font-size:12px;font-weight:800;color:#94a3b8">${roc}年</div>
+          <div style="font-size:11px;color:#94a3b8;margin-top:14px;line-height:1.5">未進行<br>調查</div>
+        </div>`);
+      continue;
+    }
+    if (ibi) {
+      cells.push(`
+        <div style="background:#ecfdf5;border:1.5px solid #0d6b5b;border-radius:9px;
+                    padding:9px 6px;text-align:center">
+          <div style="font-size:12px;font-weight:900;color:#0d6b5b">${roc}年</div>
+          <div style="font-size:21px;font-weight:900;color:#0d6b5b;line-height:1.1;margin-top:3px"
+               >${ibi.value.toFixed(1)}</div>
+          <div style="font-size:10px;font-weight:800;color:#0d6b5b">IBI</div>
+          <div style="font-size:10px;color:#475569;margin-top:4px;line-height:1.45">
+            ${y.species} 種<br>${y.perTime.toFixed(1)} 尾／次</div>
+        </div>`);
+    } else {
+      cells.push(`
+        <div style="background:${post ? '#f8fafc' : '#fff'};border:1px solid #e2e8f0;
+                    border-radius:9px;padding:9px 6px;text-align:center">
+          <div style="font-size:12px;font-weight:800;color:#334155">${roc}年</div>
+          <div style="font-size:10.5px;color:#94a3b8;margin-top:3px;line-height:1.2">無同口徑<br>IBI</div>
+          <div style="font-size:14px;font-weight:900;color:#334155;margin-top:5px;line-height:1.15">
+            ${y.species} 種</div>
+          <div style="font-size:10px;color:#475569;line-height:1.45">${y.perTime.toFixed(1)} 尾／次</div>
+        </div>`);
+    }
+  }
+
+  const ibiYears = Object.keys(ibiByRoc).map(Number).sort((a, b) => a - b);
+  return `
+    <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+      <span style="font-size:14px;font-weight:900;color:#0f172a">103～114年完整時間軸</span>
+      <span style="font-size:11.5px;color:#64748b">
+        綠框年度有原報告同口徑 IBI（${ibiYears.map(r => r + '年').join('、')}）；
+        其餘年度改列該年實際量測到的指標，<b>不以物種數或捕獲尾數回推 IBI</b>。</span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(74px,1fr));gap:6px">
+      ${cells.join('')}
+    </div>
+    <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:#64748b;margin-top:8px">
+      <span>103～${PRE_LAST} 年為魚道啟用前・${PRE_LAST + 1} 年起 9 座魚道陸續啟用</span>
+      <span>全期外來種比例 0%，8 種全為臺灣特有種</span>
+    </div>`;
+}
+
 /* ── 生態趨勢摘要（歷史趨勢分析頁最上方）──
    全部句子由 hlxEcoMonitor() 的即時統計組成，資料一變，敘述隨之改變。 */
 function renderEcoTrendSummary() {
@@ -5530,7 +5605,8 @@ function renderFishTrend() {
           </div>
 
           <div style="border-top:1px dashed #e2e8f0;padding-top:14px;margin-bottom:14px">
-            <div style="font-size:14px;font-weight:900;color:#0f172a;margin-bottom:9px">109～110年逐年 IBI 結果</div>
+            ${hlxEco_ibiTimeline(hlxEcoMonitor())}
+            <div style="font-size:14px;font-weight:900;color:#0f172a;margin:16px 0 9px">109～110年逐年 IBI 結果（原報告數值）</div>
             <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:12px">
               ${HLX_ECO_BENCHMARK.hlx.annualMeans.map((item, idx) => `
                 <div style="background:${idx % 2 ? '#f0fdfa' : '#f8fafc'};border:1px solid #cbd5e1;border-radius:10px;padding:12px 14px">
@@ -5554,6 +5630,7 @@ function renderFishTrend() {
             <div style="font-size:11.5px;color:#64748b;line-height:1.65;margin-top:7px">
               四期平均約 30.3 → 33.0 → 31.7 → 29.7，呈期別波動，不能解讀為逐年單調上升；應配合季節、水文與調查條件判讀。<br>
               <b>資料界線：</b>原報告僅提供109、110年同口徑IBI結果；其他年份未提供可直接比較的IBI值，平台不以物種數或捕獲尾數代算補值。
+              上方 103～114 年時間軸即依此原則呈現——時間軸完整不斷，但只有 109、110 兩年標示 IBI，其餘年度改列該年確實量測到的物種數與尾／次。
             </div>
           </div>
 
