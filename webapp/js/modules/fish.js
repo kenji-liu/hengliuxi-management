@@ -4373,6 +4373,7 @@ function hlxEco_speciesSmallMultiples(M) {
   const yMin = years[0].roc, yMax = years[years.length - 1].roc;
   const span = Math.max(1, yMax - yMin);
   const PRE_LAST = HLX_ECO_PRE_LAST_YEAR - 1911;         // 民國 106
+  const SITE_CHANGE_ROC = 111;   // 樣點自 3～6 處縮回上游／下游兩處之年度
 
   const W = 268, H = 104, PL = 34, PR = 10, PT = 12, PB = 20;
   const px = roc => PL + (roc - yMin) / span * (W - PL - PR);
@@ -4417,6 +4418,12 @@ function hlxEco_speciesSmallMultiples(M) {
 
     //  早期／近期分界線落在 106 與 107 之間
     const divX = px(PRE_LAST + 0.5).toFixed(1);
+    //  111 年起樣點由 3～6 處縮回上游／下游兩處，並改用 Survey123 逐尾記錄。
+    //  「尾／次」校正的是站次，校正不掉樣點位置改變；纓口臺鰍、臺灣鬚鱲、
+    //  明潭吻鰕虎的高峰都落在樣點最多的 107～108 年，之後的下降與此變更同時
+    //  發生。同期臺灣白甲魚反而上升，故不宜逕自解讀為族群減少。此線用於提示
+    //  該處存在調查設計變更，不對成因作結論。
+    const siteChangeX = px(SITE_CHANGE_ROC - 0.5).toFixed(1);
     const gid = 'hlxsm_' + sp.key;
     const delta = sp.diff > 0 ? '+' + sp.diff.toFixed(1)
                 : sp.diff < 0 ? sp.diff.toFixed(1) : '0.0';
@@ -4435,7 +4442,7 @@ function hlxEco_speciesSmallMultiples(M) {
                     font-variant-numeric:tabular-nums">
           早期 ${sp.pre.toFixed(1)} → 近期 <b style="color:${HLX_ECO_INK.t1}">${sp.post.toFixed(1)}</b>
           <span style="color:${deltaColor}">（${delta}）</span>
-          <span style="color:${HLX_ECO_INK.t3}">・出現 ${sp.yearsPre}/${M.pre.length}→${sp.yearsPost}/${M.post.length} 年</span>
+          <span style="color:${HLX_ECO_INK.t3}">・有紀錄年度 早期 ${sp.yearsPre}/${M.pre.length} 年 → 近期 ${sp.yearsPost}/${M.post.length} 年</span>
         </div>
         <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block" role="img"
              aria-label="${sp.name}逐年平均尾數，本格尺度上限 ${top} 尾／次">
@@ -4451,6 +4458,8 @@ function hlxEco_speciesSmallMultiples(M) {
                 stroke="${HLX_ECO_INK.line}" stroke-width="1"/>
           <line x1="${divX}" y1="${PT - 4}" x2="${divX}" y2="${py(0)}"
                 stroke="#cbd5e1" stroke-width="1" stroke-dasharray="3 3"/>
+          <line x1="${siteChangeX}" y1="${PT - 4}" x2="${siteChangeX}" y2="${py(0)}"
+                stroke="#f59e0b" stroke-width="1" stroke-dasharray="2 3" opacity="0.9"/>
           <path d="${area}" fill="url(#${gid})"/>
           <path d="${gapLine}" fill="none" stroke="${color}" stroke-width="1.6"
                 stroke-dasharray="3 3" opacity="0.55" stroke-linecap="round"/>
@@ -4476,7 +4485,10 @@ function hlxEco_speciesSmallMultiples(M) {
                 font-size:11.5px;color:${HLX_ECO_INK.t2};margin-bottom:11px">
       <span><b style="color:${HLX_ECO_INK.t1}">每格縱軸各自縮放</b>，格左上角數字為該格上限，
             下限一律為 0——格與格之間<b>不可直接比高低</b>，要比請看下方第四張圖。</span>
-      <span style="color:${HLX_ECO_INK.t3}">虛線為早期／近期分界（106｜107 年）・105 年未進行調查，跨越該年的區段以虛線表示</span>
+      <span style="color:${HLX_ECO_INK.t3}">灰虛線為早期／近期分界（106｜107 年）・105 年未進行調查，跨越該年的區段以虛線表示</span>
+      <span style="color:#b45309"><b>橘線＝111 年起調查樣點改變</b>：樣點由 3～6 處縮回上游／下游兩處，
+            並改用 Survey123 逐尾記錄。「尾／次」校正的是站次，校正不掉樣點位置改變，
+            因此橘線右側的高低不宜與左側直接相比。</span>
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(252px,1fr));gap:10px">
       ${panels}
