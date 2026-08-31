@@ -622,6 +622,21 @@ def query_facilities(snapshot: Dict[str, Any], name: str = "", facility_type: st
     }
 
 
+def _is_maintenance_completion(item: Dict[str, Any]) -> bool:
+    """判斷該筆是否為「維護完工回報」而非「發現問題的巡查」。
+
+    分類依據與前端 inspection.js 一致：dataClass／managementClass 為
+    maintenance，或 formType 為 maintenance_completion。三者任一成立即是。
+
+    為什麼重要：巡查是發現問題、維護是處理問題。若不區分，已完工的異常
+    會被當成仍待處理——實測護岸 1K+263 已於 115.08.27 完工回報 A1／健康
+    90 分，AI 仍依 2025/04/18 的 OPEN 異常答「仍待處理」，與設施頁不一致。
+    """
+    return (str(item.get("dataClass") or "") == "maintenance"
+            or str(item.get("managementClass") or "") == "maintenance"
+            or str(item.get("formType") or "") == "maintenance_completion")
+
+
 def query_inspections(snapshot: Dict[str, Any], facility: str = "", form_type: str = "",
                       year: Optional[int] = None, status: str = "",
                       limit: int = 8) -> Dict[str, Any]:
@@ -643,6 +658,10 @@ def query_inspections(snapshot: Dict[str, Any], facility: str = "", form_type: s
             continue
         if status and str(item.get("status") or "") != status.strip():
             continue
+        #  維護完工回報單獨標記，避免模型把「已處理」讀成「待處理」
+        item = dict(item)
+        item["recordKind"] = ("維護完工回報" if _is_maintenance_completion(item)
+                              else "巡查紀錄")
         picked.append(item)
 
     picked.sort(key=lambda r: str(r.get("date") or ""), reverse=True)

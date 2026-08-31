@@ -2547,6 +2547,12 @@ function buildStructuredSnapshot(query = '') {
       inspectNo: r.inspectNo || '', level: r.level || '',
       completedAt: r.completedAt || '', position: r.position || '',
       defectType: r.defectType || '',
+      //  判定「這筆是維護完工回報而非發現問題的巡查」全靠這三個欄位
+      //  （見 inspection.js 的分類邏輯）。先前快照未帶，後端因此無法辨識
+      //  完工紀錄：實測護岸 1K+263 已於 115.08.27 完工並回報 A1／健康90，
+      //  AI 仍依 2025/04/18 的 OPEN 異常答「仍待處理」，與設施頁不一致。
+      dataClass: r.dataClass || '', managementClass: r.managementClass || '',
+      maintenanceCategory: r.maintenanceCategory || '',
       deru_d: r.deru_d, deru_e: r.deru_e, deru_r: r.deru_r, deru_u: r.deru_u,
       findings: String(r.findings || '').slice(0, 300),
       appearanceOther: String(r.appearanceOther || '').slice(0, 160),
