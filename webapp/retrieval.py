@@ -170,6 +170,11 @@ _JUNK_SOURCE = re.compile(
     #  平台資料回覆給使用者（內容為系統啟用測試腳本），必須排除。
     r"|QUICK_START|ACTIVATION|PROGRESS|SUMMARY|NEXT_STEPS|DEPLOYMENT"
     r"|_NOTES?\.md|\.txt$|\.ps1$|\.sh$|\.bat$"
+    #  開發用的設計稿與流程說明一律以 .md 撰寫，實測「通行效率」擴充後
+    #  仍命中 03_棲地評估工作流_系統設計.md 與 connectivity_assessment.md，
+    #  兩者皆為本平台自身的開發文件，不是橫流溪的調查資料。
+    #  正式報告一律為 pdf／docx／xlsx／pptx，故整體排除 .md。
+    r"|\.md$|系統設計|工作流|assessment\.md|_design|_spec"
     r"|\.sqlite3?$|\.py$|\.js$)", re.I)
 
 
@@ -437,10 +442,66 @@ def _dedupe(hits: List[Dict[str, Any]], limit: int) -> List[Dict[str, Any]]:
     return out
 
 
+#  領域同義詞：使用者的用詞常與報告書不同，直接以原詞檢索會查不到。
+#  實例（皆為實測）：
+#    問「通行效率」  →  2 段；文件寫「上溯」1,428 段、「魚道效能」305 段
+#    問「攔砂量」    →  0 段；文件寫「防砂效益」（表2-14）
+#    問「防多少砂」  →  0 段；文件無此口語
+#  每組詞彙在檢索時互相擴充，命中任一即可。僅擴充查詢，不改動索引內容。
+_SYNONYM_GROUPS = [
+    # 魚道通行
+    ["通行效率", "通行", "上溯", "洄游", "魚道效能", "通過率", "縱向連通"],
+    ["標放", "標記", "標識", "回捕", "再捕獲"],
+    # 土砂
+    ["攔砂量", "貯砂量", "計畫攔砂量", "防砂量", "防砂效益", "土砂防治量", "攔阻土砂"],
+    ["淤積量", "淤砂量", "堆積土砂", "土砂淤積"],
+    ["土砂生產", "土砂來源", "崩塌", "輸砂"],
+    # 設施與維護
+    ["壩高", "有效壩高", "壩體高度"],
+    ["劣化", "損壞", "破損", "老化"],
+    ["修繕", "維修", "改善工程", "搶修"],
+    ["巡查頻率", "巡查週期", "檢查頻率"],
+    # 工程行政
+    ["經費", "預算", "工程費", "決算", "結算"],
+    ["承商", "承包商", "廠商", "施工廠商"],
+    # 生態
+    ["保育類", "受脅", "紅皮書", "瀕危", "近危"],
+    ["棲地", "生育地", "微棲地", "棲息環境"],
+    ["民眾參與", "說明會", "公民科學", "志工", "導覽", "社區參與"],
+    # 智慧監測
+    ["智慧監測", "感測器", "物聯網", "自動化監測"],
+    ["影像辨識", "AI辨識", "YOLO", "自動判讀"],
+]
+
+
+def expand_query_terms(query: str) -> str:
+    """把查詢中命中的同義詞組展開，回傳附加了同義詞的查詢字串。
+
+    只在原查詢後方追加詞彙，不移除原詞，因此原本就能命中的結果不受影響。
+    """
+    text = _norm(query) if "_norm" in globals() else unicodedata.normalize("NFKC", str(query or ""))
+    extra = []
+    for group in _SYNONYM_GROUPS:
+        if any(w in text for w in group):
+            extra.extend(w for w in group if w not in text)
+    if not extra:
+        return query
+    #  去重並限制長度，避免查詢被同義詞灌爆而稀釋原意
+    seen, picked = set(), []
+    for w in extra:
+        if w not in seen:
+            seen.add(w); picked.append(w)
+        if len(picked) >= 12:
+            break
+    return f"{query} " + " ".join(picked)
+
+
 def search(query: str, top_k: int = 6) -> List[Dict[str, Any]]:
     """對外檢索入口，回傳格式與既有 _local_keyword_retrieve 相容。"""
+    # 先做同義詞擴充：使用者用詞與報告書用詞常不一致
+    expanded = expand_query_terms(query)
     # 多取一些再去重，避免去重後不足 top_k
-    hits = _dedupe(hybrid_search(query, top_k=top_k * 3), top_k)
+    hits = _dedupe(hybrid_search(expanded, top_k=top_k * 3), top_k)
     return [{
         "source_file": h.get("source_file"),
         "source_path": h.get("source_file"),
