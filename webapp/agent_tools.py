@@ -930,14 +930,28 @@ def search_briefing(query: str = "", page: Optional[int] = None,
     if not slides:
         return {"error": "簡報索引尚未建立（請執行 scripts/build_briefing_index.py）。"}
 
+    #  簡報約半數頁面的文字只剩標題，實際資訊在圖上（地圖標註、圖例、
+    #  數字、照片）。那些內容由 scripts/analyze_briefing_slide_images.py
+    #  以視覺模型判讀後存在 visual 欄位。這裡必須一併回傳，否則
+    #  問「這頁圖上畫什麼」只會拿到標題。
+    #  務必保留「圖面AI判讀」這個標籤：它是 AI 讀圖的結果，不是簡報原文，
+    #  也不是報告原始數據，模型引用時要能區分。
+    def _visual(slide: Dict[str, Any]) -> str:
+        return str(slide.get("visual") or "")
+
     # 指定頁碼時直接回傳該頁與前後文，這是委員追問「P.61 寫什麼」的主要用法
     if page:
         hit = [s for s in slides if int(s.get("page") or 0) == int(page)]
         if not hit:
             return {"error": f"簡報無第 {page} 頁（共 {data.get('totalSlides')} 頁）。"}
-        return {"頁碼": page, "章節": hit[0].get("section"),
-                "標題": hit[0].get("title"), "內容": hit[0].get("text"),
-                "備註": hit[0].get("notes") or ""}
+        out = {"頁碼": page, "章節": hit[0].get("section"),
+               "標題": hit[0].get("title"), "內容": hit[0].get("text"),
+               "備註": hit[0].get("notes") or ""}
+        if _visual(hit[0]):
+            out["圖面AI判讀"] = _visual(hit[0])
+            out["圖面判讀說明"] = ("以下內容由視覺模型判讀簡報圖面產生，"
+                                   "非簡報原始文字，引用時須註明為圖面判讀。")
+        return out
 
     pool = [s for s in slides
             if not section or section.strip() in str(s.get("section") or "")]
@@ -949,21 +963,31 @@ def search_briefing(query: str = "", page: Optional[int] = None,
     terms = [t for t in query_terms(query) if t != "橫流溪"]
     scored = []
     for slide in pool:
-        haystack = f"{slide.get('title','')}\n{slide.get('text','')}\n{slide.get('notes','')}"
+        #  圖面判讀也要納入比對，否則問「圖例有哪些級別」「地圖上有哪些地名」
+        #  這種只出現在圖上的詞，連頁都找不到。
+        haystack = (f"{slide.get('title','')}\n{slide.get('text','')}\n"
+                    f"{slide.get('notes','')}\n{_visual(slide)}")
         score = sum(1.0 for t in terms if t in haystack)
         if score:
             scored.append((score, slide))
     scored.sort(key=lambda x: x[0], reverse=True)
 
-    return {
-        "命中頁數": len(scored),
-        "頁面": [{
+    pages = []
+    for _, s in scored[:max(1, min(int(limit or 4), 6))]:
+        row = {
             "頁碼": s["page"],
             "章節": s.get("section"),
             "標題": s.get("title"),
             "內容": str(s.get("text") or "")[:700],
-        } for _, s in scored[:max(1, min(int(limit or 4), 6))]],
-    }
+        }
+        if _visual(s):
+            row["圖面AI判讀"] = _visual(s)[:1200]
+        pages.append(row)
+    out = {"命中頁數": len(scored), "頁面": pages}
+    if any("圖面AI判讀" in p for p in pages):
+        out["圖面判讀說明"] = ("標為「圖面AI判讀」者由視覺模型判讀簡報圖面產生，"
+                               "非簡報原始文字，引用時須註明為圖面判讀。")
+    return out
 
 
 def web_search(searcher: Callable[[str, int], List[Dict[str, Any]]],
