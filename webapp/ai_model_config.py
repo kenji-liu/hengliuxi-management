@@ -33,8 +33,10 @@ _DEFAULTS: Dict[str, Dict[str, Any]] = {
         "max_rounds": 2,
         # search_documents 每次回傳的段落數
         "doc_top_k": 5,
-        # 每個段落保留的字數
-        "doc_chars": 600,
+        #  每個段落保留的字數。實測全庫 2,245 段：600 字會切掉 52% 的段落，
+        #  900 字降到 22%、1200 字 9%。切掉的後半若正是答案，模型只會看到
+        #  前半並回「報告未提及」（實測石虎在橫流溪 NAA20 的紀錄即被切掉）。
+        "doc_chars": 900,
         # 是否先請模型輸出查證步驟再執行
         "plan_first": False,
     },
@@ -48,7 +50,7 @@ _DEFAULTS: Dict[str, Dict[str, Any]] = {
         "timeout": 28,
         "max_rounds": 3,
         "doc_top_k": 8,
-        "doc_chars": 600,
+        "doc_chars": 1200,
         "plan_first": False,
     },
     "deep": {
@@ -64,7 +66,8 @@ _DEFAULTS: Dict[str, Dict[str, Any]] = {
         "max_rounds": 6,
         # 書架單本報告最多 2,994 段，top_k=5 等於 0.17%，深度模式放大到 20
         "doc_top_k": 20,
-        "doc_chars": 900,
+        #  深度模式吃得下更長的證據：1600 字只有 5% 的段落會被截斷
+        "doc_chars": 1600,
         # 收到模糊目標時先輸出查證步驟，再依步驟執行
         "plan_first": True,
     },
@@ -108,7 +111,7 @@ def get_model_config(mode: str) -> Dict[str, Any]:
             f"AI_MAX_ROUNDS_{prefix}", config["max_rounds"], int))),
         "doc_top_k": max(3, min(25, _env_number(
             f"AI_DOC_TOP_K_{prefix}", config["doc_top_k"], int))),
-        "doc_chars": max(300, min(1500, _env_number(
+        "doc_chars": max(300, min(3000, _env_number(
             f"AI_DOC_CHARS_{prefix}", config["doc_chars"], int))),
         "plan_first": bool(config.get("plan_first")),
     })

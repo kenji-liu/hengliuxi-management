@@ -867,12 +867,42 @@ def search_documents(retriever: Callable[[str, int], List[Dict[str, Any]]],
                 if _scope_matches(d.get("source_file") or d.get("source"), scope)]
     docs = docs[:want]
 
-    chars = max(300, min(int(doc_chars or 600), 1500))
-    out: Dict[str, Any] = {"命中段落": len(docs), "段落": [{
-        "來源檔案": d.get("source_file") or d.get("source"),
-        "頁碼": d.get("page") or d.get("page_number") or "未標示",
-        "內容": str(d.get("full_text") or d.get("preview") or d.get("text") or "")[:chars],
-    } for d in docs]}
+    chars = max(300, min(int(doc_chars or 600), 3000))
+    #  靜默截斷會製造假陰性：段落被切掉的後半若正是答案，模型只會看到
+    #  前半並據此回「報告中未提及」。實測「石虎在橫流溪的出現次數」即為此
+    #  情形 —— 東勢處報告 P.51 的「石虎在 NAA17、橫流溪 NAA20 …有拍攝紀錄」
+    #  位在該段第 656 字，專業模式 doc_chars=600 剛好把它切掉。
+    #  因此截斷時必須明講，讓模型知道證據不完整，不可據以否定。
+    passages = []
+    truncated = 0
+    for d in docs:
+        #  取最完整的那個欄位，不能照固定順序 fallback。
+        #  rag_backend.sanitize_doc_for_output 回傳的是 text（全文）與
+        #  preview（前 200 字），**沒有 full_text**；舊寫法
+        #  `full_text or preview or text` 因此永遠落到 195 字的 preview，
+        #  doc_chars 設多少都沒有意義，模型看到的每段證據都只有 195 字。
+        #  實測「石虎在橫流溪的出現次數」：命中段落第 1 名就是東勢處 P.51
+        #  的「石虎在 NAA17、橫流溪 NAA20 …有拍攝紀錄」，但那句在第 656 字，
+        #  被 preview 切掉，模型只好回「報告中未提及」。
+        body = max(
+            (str(d.get(k) or "") for k in ("full_text", "text", "preview")),
+            key=len,
+        )
+        row = {
+            "來源檔案": d.get("source_file") or d.get("source"),
+            "頁碼": d.get("page") or d.get("page_number") or "未標示",
+            "內容": body[:chars],
+        }
+        if len(body) > chars:
+            truncated += 1
+            row["內容截斷"] = f"本段共 {len(body)} 字，僅顯示前 {chars} 字"
+        passages.append(row)
+
+    out: Dict[str, Any] = {"命中段落": len(docs), "段落": passages}
+    if truncated:
+        out["截斷提醒"] = (f"有 {truncated} 段內容過長被截斷。未顯示的部分可能仍含"
+                           "相關內容，不得僅因截斷段落沒寫到就判定「報告未提及」；"
+                           "必要時請改用更精確的關鍵字重查該份文件。")
     if scope:
         out["限定文件群"] = scope
     if not docs:
