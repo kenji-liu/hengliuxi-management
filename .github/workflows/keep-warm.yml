@@ -54,6 +54,11 @@ jobs:
             exit 1
           fi
 
+          # 檢索健康度：語意檢索若掛掉，答詢會靜默變成「查無資料」，必須看得見
+          if grep -q '"semantic_search_ok":[[:space:]]*false' body.json; then
+            echo "::warning::服務已喚醒，但語意檢索不可用（embedding 失敗）——AI 答詢此時只剩關鍵字檢索"
+          fi
+
           # 順帶把靜態頁面也叫起來
           curl -sS -o /dev/null -w '靜態頁 /webapp/ → HTTP %{http_code}（%{time_total}s）\n' \
                --max-time 120 "$BASE/webapp/" || true

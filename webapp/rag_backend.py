@@ -61,8 +61,12 @@ GITHUB_DOWNLOAD_URL = (
 VECTOR_STORE_CACHE  = Path('/tmp/hlx_vector_store.jsonl')
 
 # Configuration
-MODEL_NAME = 'paraphrase-multilingual-MiniLM-L12-v2'   # 多語言含繁中；比 all-MiniLM-L6-v2 更準
-SIMILARITY_THRESHOLD = 0.22  # multilingual 模型的向量空間較 MiniLM 略密，適度提高閾值
+MODEL_NAME = 'all-MiniLM-L6-v2'   # 必須與 vector_store.jsonl 建庫時所用模型一致（384 維）。
+# 換模型 = 換向量空間：改成別的模型而不重建整個向量庫，檢索排序會全錯。
+# 實測（查詢「石虎在橫流溪的出沒情況」，同一份 2,411 段向量庫）：
+#   paraphrase-multilingual-MiniLM-L12-v2 → 0.489/0.418/0.413/0.405/0.372，五筆全是 QA 手冊，無一石虎報告
+#   all-MiniLM-L6-v2                      → 0.808/0.801/0.690/0.683/0.677，五筆全是石虎報告
+SIMILARITY_THRESHOLD = 0.22  # 對 all-MiniLM-L6-v2：命中主題文件實測 0.68~0.81，此閾值有充裕餘裕
 TOP_K_RESULTS = 6          # 32GB RAM 可取更多片段，提升召回率
 MAX_CONTEXT_CHARS = 2800   # 14B 模型 context window 充裕，可給更多參考片段
 OLLAMA_BASE_URL = os.environ.get('OLLAMA_BASE_URL', 'http://localhost:11434').rstrip('/')
@@ -2364,11 +2368,22 @@ def warmup():
         chunk_count = len(vector_store) if vector_store else 0
         if vector_store and _vector_store_mode == 'manifest_keyword':
             chunk_count = sum(int(doc.get('manifest_chunks') or 1) for doc in vector_store)
+        # 線上（Render 免費版）沒裝 sentence-transformers，語意檢索唯一的路是 Jina API。
+        # 金鑰失效時 search_similar() 會靜默回 0 筆、看起來像「查無資料」，所以在這裡
+        # 主動探測一次，讓定時喚醒同時是檢索健康檢查。
+        if JINA_API_KEY:
+            probe = jina_embed(['健康檢查'], task='retrieval.query')
+            embedding_ok = probe is not None and len(probe) > 0
+        else:
+            embedding_ok = _model is not None or load_model() is not None
+
         return jsonify({
             'status': 'warm' if (vector_store and chunk_count > 0) else 'not_ready',
             'vector_store_loaded': vector_store is not None,
             'chunk_count': chunk_count,
             'model_loaded': _model is not None,
+            'embedding_ok': embedding_ok,
+            'semantic_search_ok': bool(embedding_ok and vector_store and chunk_count > 0),
             'embedding_mode': 'jina_api' if JINA_API_KEY else 'local_model',
             'elapsed_ms': int((_time.time() - t0) * 1000),
             'timestamp': datetime.now().isoformat()
