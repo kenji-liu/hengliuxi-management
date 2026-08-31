@@ -1276,8 +1276,17 @@ def _strip_reasoning_preamble(text: str) -> str:
     # 偽造的工具呼叫標記（模型在 tool_choice=none 時仍想查資料）
     value = re.sub(r"(?is)<tool_call>.*?</tool_call>", " ", value)
     value = re.sub(r"(?is)<function=[^>]*>.*?</function>", " ", value)
-    # 常見的思考區塊標記
+    # 常見的思考區塊標記（成對的先移除）
     value = re.sub(r"(?is)<think(?:ing)?>.*?</think(?:ing)?>", " ", value)
+    #  標籤不成對的情況要另外處理，否則答案會被吃掉或思考會外洩：
+    #    ・只剩落單的 </think>：前面整段都是思考，砍到該標籤為止
+    #    ・只剩落單的 <think>：後面整段都是思考（多半是被長度上限切斷），砍掉
+    #  實測 glm-5.3 會輸出巢狀／未閉合的 think 標籤，舊版只做成對移除時
+    #  會從答案中間開始擷取，使用者看到的答案就是「出沒畫面：17台」這種殘句。
+    if re.search(r"(?i)</think(?:ing)?>", value):
+        value = re.split(r"(?i)</think(?:ing)?>", value)[-1]
+    if re.search(r"(?i)<think(?:ing)?>", value):
+        value = re.split(r"(?i)<think(?:ing)?>", value)[0]
 
     lines = value.split("\n")
     for index, line in enumerate(lines):
@@ -1918,6 +1927,10 @@ def _zen_chat(messages: "List[Dict[str, Any]]", config: Dict[str, Any],
     usage = dict(result.get("usage") or {})
     return {
         "message": choice.get("message") or {},
+        #  finish_reason == "length" 代表輸出額度用完、答案被硬切。
+        #  沒有把它帶出來，Agent 迴圈就無從分辨「模型寫完了」與
+        #  「模型被砍斷」，殘句會被當成正式答案回給使用者。
+        "finish_reason": _as_text(choice.get("finish_reason")),
         "actual_model": _as_text(result.get("model")) or model,
         "provider": provider_name,
         "input_tokens": int(usage.get("prompt_tokens") or 0),
@@ -2546,6 +2559,8 @@ def _run_agent_events(query: str, snapshot: Dict[str, Any], grounding: str,
     tools_used: List[str] = []
     #  完整性重寫只做一次，避免模型反覆寫不出來時無限迴圈
     retried_completeness = False
+    #  被長度上限硬切時只重寫一次，避免模型每次都寫太長而無限重試
+    truncation_retried = False
     #  真實筆數，供前端顯示「搜尋 X 筆｜採用 Y 筆」。
     #  以前置檢索已找到的筆數起算，讓 retrieval_done 與 done 兩處數字一致。
     counters = {"found": int((records_seed or {}).get("found") or 0),
@@ -2557,13 +2572,30 @@ def _run_agent_events(query: str, snapshot: Dict[str, Any], grounding: str,
     router_config = dict(config)
     router_model = os.environ.get("AI_AGENT_ROUTER_MODEL", "").strip() \
         or _as_text(config.get("fallback_model")) or _as_text(config.get("model"))
+    #  中間輪不是「只吐一個 tool_call」那麼便宜：Go 上的模型多半會先寫一段
+    #  <think> 推理。實測 glm-5.3 中間輪 completion_tokens=400 之中
+    #  reasoning_tokens 就佔 399，等於整個額度被思考吃光、finish_reason=length，
+    #  答案一個字都還沒寫就被砍斷；kimi-k3 更是把寫到一半的答案直接當成最終答案。
+    #  400 是給非推理模型的舊值，這裡放寬到足以容納思考再加一段答案。
+    try:
+        router_max_tokens = int(os.environ.get("AI_AGENT_ROUTER_MAX_TOKENS", "").strip()
+                                or config.get("router_max_tokens") or 1500)
+    except (TypeError, ValueError):
+        router_max_tokens = 1500
     router_config.update(model=router_model, fallback_model="",
-                         max_tokens=400, timeout=max(20.0, float(config.get("timeout") or 28)))
+                         max_tokens=router_max_tokens,
+                         timeout=max(20.0, float(config.get("timeout") or 28)))
     # Zen 上的模型各有所長（實測）：lightning 選工具最快但統整會夾雜英文推理，
     # ultra 統整乾淨卻較慢。因此路由用快的、統整用穩的。
     router_config["zen_model"] = (os.environ.get("ZEN_ROUTER_MODEL", "").strip()
                                   or "nemotron-3.5-lightning-free")
-    router_config["go_model"] = (os.environ.get("OPENCODE_GO_ROUTER_MODEL", "").strip()
+    #  中間輪（拆解、決定查什麼、看到結果後換角度再查）才是「深度分析」的
+    #  實質工作，最後一輪只是把結論寫成文章。舊版把中間輪全部固定給便宜的
+    #  路由模型，等於使用者選了強模型也只用在最後潤稿。
+    #  模式設定可用 router_go_model 指定中間輪要用哪個模型（深度模式設為
+    #  與作答同一個強模型），未設定時才沿用原本的便宜路由模型。
+    router_config["go_model"] = (_as_text(config.get("router_go_model"))
+                                   or os.environ.get("OPENCODE_GO_ROUTER_MODEL", "").strip()
                                    or os.environ.get("OPENCODE_GO_MODEL", "").strip()
                                    or "minimax-m3")
 
@@ -2576,7 +2608,11 @@ def _run_agent_events(query: str, snapshot: Dict[str, Any], grounding: str,
     answer_config["max_tokens"] = max(int(config.get("max_tokens") or 800), 1600)
     #  深度分析要寫得完五段式，額度不可被上面的下限壓回 1600
     answer_config["timeout"] = max(float(config.get("timeout") or 28), 60.0)
-    answer_config["go_model"] = (os.environ.get("OPENCODE_GO_MODEL", "").strip()
+    #  模式設定（ai_model_config 的 go_model）必須優先於環境變數，否則
+    #  UI 上選「深度分析」也換不掉模型 —— 舊版無條件讀 OPENCODE_GO_MODEL，
+    #  等於把所有模式釘死在同一個模型，模式差異只剩 max_tokens。
+    answer_config["go_model"] = (_as_text(config.get("go_model"))
+                                 or os.environ.get("OPENCODE_GO_MODEL", "").strip()
                                  or "minimax-m3")
 
     def _count_records(text: str) -> "tuple":
@@ -2751,6 +2787,28 @@ def _run_agent_events(query: str, snapshot: Dict[str, Any], grounding: str,
         if not tool_calls:
             # 清掉洩漏的英文推理與偽造的工具呼叫標記，只留真正的中文答案
             text = _strip_reasoning_preamble(message.get("content"))
+
+            #  額度用完被硬切的答案絕對不能當成最終答案。實測 kimi-k3 在
+            #  中間輪 finish_reason=length，寫到「- 期間：111 年 5 月至…」
+            #  就被切斷，舊版直接回傳這 123 字殘句給使用者。
+            #  這裡改為：非最後一輪就補一輪讓它重寫；已是最後一輪則
+            #  把額度加倍後再要求一次完整作答。
+            if _as_text(result.get("finish_reason")) == "length":
+                _log.info("[TRUNCATED] finish_reason=length，第 %s 輪答案被砍斷（%d 字）",
+                          round_index + 1, len(text))
+                if not truncation_retried:
+                    truncation_retried = True
+                    answer_config["max_tokens"] = min(
+                        int(answer_config.get("max_tokens") or 1600) * 2, 8000)
+                    router_config["max_tokens"] = min(
+                        int(router_config.get("max_tokens") or 1500) * 2, 8000)
+                    messages.append({
+                        "role": "user",
+                        "content": ("你上一則回覆在寫到一半時因長度上限被截斷。"
+                                    "請重新輸出一份完整的答案，先寫結論再寫依據，"
+                                    "不要重述思考過程，並確保最後一句寫完整。"),
+                    })
+                    continue
 
             #  統計、現況、歷年這類題目的數字一定要來自工具。路由用的快速
             #  模型有時會跳過工具直接寫一段話，內容看起來像答案卻沒有依據
