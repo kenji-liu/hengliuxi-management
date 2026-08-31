@@ -3899,11 +3899,13 @@ function renderVegetation() {
     <!-- 統計卡片 -->
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px">
       ${[
-        ['fa-leaf',         '#16a34a','#f0fdf4', '90 種',  '植物總種數'],
+        ['fa-leaf',         '#16a34a','#f0fdf4', '90 種',  '植物總種數（全區）'],
         ['fa-layer-group',  '#1d4ed8','#eff6ff', '37 科',  '植物科數'],
         ['fa-seedling',     '#0f766e','#f0fdfa', '14 種',  '蕨類植物'],
-        ['fa-exclamation-triangle','#dc2626','#fee2e2', '9 種', '外來入侵種'],
-        ['fa-star',         '#92400e','#fef9c3',  '4 種',  '臺灣特有種'],
+        //  以下兩張卡的分母是「全區 90 種」，而下方表 6-36 只列 15 種優勢種。
+        //  未標明分母時，讀者會把卡片的 9 種與表中可見的 2 種誤讀為前後不一致。
+        ['fa-exclamation-triangle','#dc2626','#fee2e2', '9 種', '外來入侵種（全區 90 種中）'],
+        ['fa-star',         '#92400e','#fef9c3',  '4 種',  '臺灣特有種（全區 90 種中）'],
         ['fa-chart-pie',    '#7c3aed','#f5f3ff', '87%',   'NDVI 森林覆蓋']
       ].map(([ic,col,bg,val,lbl]) => `
         <div style="background:${bg};border-radius:12px;padding:16px 14px;display:flex;align-items:center;gap:10px;border:1px solid ${col}22">
@@ -3926,7 +3928,7 @@ function renderVegetation() {
           五節芒優勢植群（相對豐度31.82%），伴生大花咸豐草（歸化）、山黃麻、九芎、水柳等濱溪植物
         </div>
         <div style="background:#eff6ff;border-radius:8px;padding:12px 14px">
-          <div style="font-weight:700;color:#1d4ed8;margin-bottom:4px"><i class="fas fa-exclamation-circle" style="margin-right:5px"></i>外來入侵種</div>
+          <div style="font-weight:700;color:#1d4ed8;margin-bottom:4px"><i class="fas fa-exclamation-circle" style="margin-right:5px"></i>外來入侵種（全區 9 種，以下列主要者）</div>
           銀合歡、大花咸豐草、小花蔓澤蘭為主要入侵威脅，需持續監測清除
         </div>
         <div style="background:#f5f3ff;border-radius:8px;padding:12px 14px">
@@ -3940,6 +3942,8 @@ function renderVegetation() {
     <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:18px 20px;margin-bottom:20px">
       <div style="font-size:17px;font-weight:800;color:#0f172a;margin-bottom:14px">
         <i class="fas fa-chart-bar" style="color:#16a34a;margin-right:7px"></i>主要植被統計表（表6-36 ｜ 優勢種 ${VEG_DOMINANT.length} 種，相對豐度合計 ${VEG_DOMINANT.reduce((n,v)=>n+v.pct,0).toFixed(2)}%）
+        <span style="font-size:15px;font-weight:600;color:#b91c1c">・本表含外來入侵 ${invasiveCount} 種</span>
+        <span style="font-size:15px;font-weight:600;color:#64748b">，其餘 ${9 - invasiveCount} 種未達優勢種門檻</span>
       </div>
       <div style="overflow-x:auto">
         <table style="width:100%;border-collapse:collapse;font-size:19px;min-width:500px">
