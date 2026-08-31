@@ -11,17 +11,17 @@ const FISH_PHOTO_LIBRARY = {
   '臺灣白甲魚': {
     image: '/webapp/assets/fish-photos/onychostoma-barbatulum-field-20260629.png',
     source: '更換魚類照片／白甲魚／臺灣白甲魚.png',
-    caption: '臺灣白甲魚（Onychostoma barbatulum）田野實拍照片介紹'
+    caption: '臺灣白甲魚（Onychostoma barbatulum）田野實拍照片介紹；鯉科特有種，紅皮書近危（NNT），以刮食石面附著藻類為主，偏好清澈高溶氧的中上游礫石淺瀨與潭瀨交界'
   },
   '粗首馬口鱲': {
     image: '/webapp/assets/fish-photos/zacco-pachycephalus.png',
     source: '02_魚類與棲地資料庫／施工前魚類調查嵌入影像',
-    caption: '溪流魚類量測實拍，粗首馬口鱲（Opsariichthys pachycephalus）物種介紹'
+    caption: '溪流魚類量測實拍，粗首馬口鱲（Opsariichthys pachycephalus）物種介紹；鯉科，體側具青藍色橫斑，雄魚成熟期吻部具追星；本種已自本平台發布層下架，不計入年度統計'
   },
   '臺灣鬚鱲': {
     image: '/webapp/assets/fish-photos/candidia-barbata.png',
     source: '02_魚類與棲地資料庫／施工前魚類調查嵌入影像',
-    caption: '魚體量測實拍，臺灣鬚鱲（Candidia barbata）物種介紹'
+    caption: '魚體量測實拍，臺灣鬚鱲（Candidia barbata）物種介紹；鯉科特有種，雜食性，可於中層巡游亦近底床覓食，偏好礫石底質、流況多樣的中上游開闊水域與潭瀨交界'
   },
   '臺灣石魚賓': {
     image: '/webapp/assets/fish-photos/acrossocheilus-paradoxus.png',
