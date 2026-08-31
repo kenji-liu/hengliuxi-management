@@ -2377,8 +2377,24 @@ def warmup():
         else:
             embedding_ok = _model is not None or load_model() is not None
 
+        # BM25 索引（webapp/retrieval.py，四萬段）不隨程式碼部署，第一次使用時
+        # 才從 GitHub Releases 下載 111 MB。放在這裡做，讓定時喚醒把這筆成本
+        # 吸收掉，使用者查詢時索引已經就緒。
+        retrieval_status = {}
+        try:
+            from webapp import retrieval as _retr
+            ready = _retr.is_ready()
+            if ready:
+                _retr.load_index()
+            retrieval_status = dict(_retr.bootstrap_status())
+            retrieval_status['ready'] = bool(ready)
+            retrieval_status['indexed'] = int((_retr.load_index() or {}).get('count', 0)) if ready else 0
+        except Exception as exc:
+            retrieval_status = {'ready': False, 'error': f'{type(exc).__name__}: {exc}'}
+
         return jsonify({
             'status': 'warm' if (vector_store and chunk_count > 0) else 'not_ready',
+            'bm25_retrieval': retrieval_status,
             'vector_store_loaded': vector_store is not None,
             'chunk_count': chunk_count,
             'model_loaded': _model is not None,

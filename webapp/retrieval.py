@@ -24,7 +24,9 @@ import logging
 import math
 import os
 import re
+import tempfile
 import unicodedata
+import urllib.request
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
@@ -33,6 +35,95 @@ _DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 META_PATH = os.path.join(_DATA_DIR, "chunks_meta.jsonl")
 VECTORS_PATH = os.path.join(_DATA_DIR, "vectors.npy")
 INDEX_PATH = os.path.join(_DATA_DIR, "bm25_index.pkl")
+
+# ---------------------------------------------------------------------------
+# 索引檔自動取得
+#
+# chunks_meta.jsonl（52 MB）與 bm25_index.pkl（57 MB）列在 .gitignore，
+# 不隨程式碼部署，因此 Render 上這兩個檔原本並不存在 —— is_ready() 回 False，
+# 線上就退回 rag_backend 裡最原始的關鍵字計次法，只查得到 vector_store.jsonl
+# 的 2,411 段，而不是這裡的四萬段 BM25。
+#
+# 改為第一次使用時從 GitHub Releases 下載到暫存目錄（沿用 rag_backend
+# 既有的 vector-store release）。BM25 不需要 vectors.npy，因此不下載那 114 MB。
+# ---------------------------------------------------------------------------
+GITHUB_REPO = os.environ.get("GITHUB_REPO", "kenji-liu/hengliuxi-management")
+RELEASE_TAG = os.environ.get("RETRIEVAL_RELEASE_TAG", "vector-store")
+CACHE_DIR = os.environ.get("RETRIEVAL_CACHE_DIR") or os.path.join(
+    tempfile.gettempdir(), "hlx_index")
+
+_bootstrap_done = False
+_bootstrap_error = ""
+
+
+def _release_url(asset: str) -> str:
+    return (f"https://github.com/{GITHUB_REPO}/releases/download/"
+            f"{RELEASE_TAG}/{asset}")
+
+
+def _fetch(asset: str, dest: str) -> None:
+    url = _release_url(asset)
+    logger.info("[RETRIEVAL] 下載 %s ...", url)
+    req = urllib.request.Request(
+        url, headers={"User-Agent": "Hengliuxi-RAG/1.0"})
+    tmp = dest + ".part"
+    with urllib.request.urlopen(req, timeout=300) as resp,             io.open(tmp, "wb") as out:
+        while True:
+            chunk = resp.read(1 << 20)
+            if not chunk:
+                break
+            out.write(chunk)
+    os.replace(tmp, dest)
+    logger.info("[RETRIEVAL] %s 完成（%.1f MB）",
+                asset, os.path.getsize(dest) / 1e6)
+
+
+def ensure_index_files() -> bool:
+    """確保 chunks_meta.jsonl 可用；缺少時從 GitHub Releases 下載。
+
+    回傳是否可用。只嘗試一次：失敗時記錄原因，不在每次查詢都重試下載。
+    """
+    global META_PATH, INDEX_PATH, _bootstrap_done, _bootstrap_error
+
+    if os.path.exists(META_PATH):
+        return True
+    if _bootstrap_done:
+        return os.path.exists(META_PATH)
+    _bootstrap_done = True
+
+    try:
+        os.makedirs(CACHE_DIR, exist_ok=True)
+        cached_meta = os.path.join(CACHE_DIR, "chunks_meta.jsonl")
+        cached_bm25 = os.path.join(CACHE_DIR, "bm25_index.pkl")
+
+        if not os.path.exists(cached_meta):
+            _fetch("chunks_meta.jsonl", cached_meta)
+        META_PATH = cached_meta
+
+        # BM25 索引缺了還能從 meta 現場重建，只是慢；下載失敗不視為致命
+        if not os.path.exists(cached_bm25):
+            try:
+                _fetch("bm25_index.pkl", cached_bm25)
+            except Exception as exc:
+                logger.warning("[RETRIEVAL] bm25_index.pkl 下載失敗，"
+                               "將於啟動時重建：%s", exc)
+        if os.path.exists(cached_bm25):
+            INDEX_PATH = cached_bm25
+        return True
+    except Exception as exc:
+        _bootstrap_error = f"{type(exc).__name__}: {exc}"
+        logger.error("[RETRIEVAL] 索引檔取得失敗：%s", _bootstrap_error)
+        return False
+
+
+def bootstrap_status() -> Dict[str, Any]:
+    """給 /api/rag/warmup 回報用。"""
+    return {
+        "meta_path": META_PATH,
+        "meta_exists": os.path.exists(META_PATH),
+        "index_exists": os.path.exists(INDEX_PATH),
+        "error": _bootstrap_error or None,
+    }
 
 # BM25 參數（採常用預設值）
 _K1 = 1.5
@@ -65,7 +156,7 @@ def _tokenize(text: str) -> List[str]:
 
 
 def is_ready() -> bool:
-    return os.path.exists(META_PATH)
+    return ensure_index_files()
 
 
 # 開發過程產生的文件（規劃書、進度報告、設定檔）不是專案資料，

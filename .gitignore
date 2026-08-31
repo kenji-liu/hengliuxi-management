@@ -79,3 +79,6 @@ webapp/data/gdrive_config.json
 webapp/data/vectors.npy
 webapp/data/chunks_meta.jsonl
 webapp/data/bm25_index.pkl
+
+# 索引重建前的備份（各約 50 MB，僅供本機回退）
+webapp/data/_backup/
