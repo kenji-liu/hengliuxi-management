@@ -3945,12 +3945,15 @@ function renderVegetation() {
         ['fa-leaf',         '#16a34a','#f0fdf4', '90 種',  '植物總種數（全區）'],
         ['fa-layer-group',  '#1d4ed8','#eff6ff', '37 科',  '植物科數'],
         ['fa-seedling',     '#0f766e','#f0fdfa', '14 種',  '蕨類植物'],
-        //  原為「9 種外來入侵種」。比對期中報告書全書 261 頁後確認：「入侵」
-        //  僅出現於 p.194 且係魚類段落，植物段 p.233-238 未載入侵種數；再掃
-        //  專案內 172 份 PDF 亦無出處，故該數字無可回溯依據，予以移除。
-        //  改列報告書名錄實際標記者：p.234-238 名錄中標「*」之外來種共 29 種
-        //  （「外來種」涵蓋歸化種，範圍大於「外來入侵種」，不可互換）。
-        ['fa-exclamation-triangle','#dc2626','#fee2e2', '29 種', '外來種（名錄標 *）'],
+        //  本卡改採與下方表 6-36 同口徑（優勢種 16 種中的外來種數），使卡片與
+        //  表格一致，數值由 VEG_DOMINANT 即時計算，不寫死。
+        //  全區名錄標「*」之外來種共 29 種（報告書 p.234-238）為不同分母，
+        //  保留於下方「外來種」說明框與表格註腳，未因本卡改口徑而遺失。
+        //  沿革：本卡原寫「9 種外來入侵種」，經比對期中報告書全書 261 頁
+        //  及專案內 172 份 PDF 均無出處（「入侵」僅見於 p.194 魚類段落），
+        //  已於先前移除，不再使用該數字。
+        ['fa-exclamation-triangle','#dc2626','#fee2e2', invasiveCount + ' 種',
+         '外來種（表6-36 優勢種中）'],
         ['fa-star',         '#92400e','#fef9c3',  '4 種',  '臺灣特有種（全區 90 種中）'],
         ['fa-chart-pie',    '#7c3aed','#f5f3ff', '87%',   'NDVI 森林覆蓋']
       ].map(([ic,col,bg,val,lbl]) => `
@@ -3988,8 +3991,8 @@ function renderVegetation() {
     <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:18px 20px;margin-bottom:20px">
       <div style="font-size:17px;font-weight:800;color:#0f172a;margin-bottom:14px">
         <i class="fas fa-chart-bar" style="color:#16a34a;margin-right:7px"></i>主要植被統計表（表6-36 ｜ 優勢種 ${VEG_DOMINANT.length} 種，相對豐度合計 ${VEG_DOMINANT.reduce((n,v)=>n+v.pct,0).toFixed(2)}%）
-        <span style="font-size:15px;font-weight:600;color:#b91c1c">・本表含外來入侵 ${invasiveCount} 種</span>
-        <span style="font-size:15px;font-weight:600;color:#64748b">，其餘外來種未達優勢種門檻</span>
+        <span style="font-size:15px;font-weight:600;color:#b91c1c">・本表含外來種 ${invasiveCount} 種</span>
+        <span style="font-size:15px;font-weight:600;color:#64748b">；全區名錄 29 種，其餘未達優勢種門檻</span>
       </div>
       <div style="overflow-x:auto">
         <table style="width:100%;border-collapse:collapse;font-size:19px;min-width:500px">
