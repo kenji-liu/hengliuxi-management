@@ -4353,7 +4353,14 @@ function hlxEco_upstreamConnectivity() {
   return `
     <div style="font-size:13px;color:#64748b;line-height:1.75;margin-bottom:12px">
       魚道的作用是讓魚能通過構造物往上游移動，因此<b style="color:#0d6b5b">上游記錄到哪些物種</b>
-      是連通性最直接的長期指標。下表以「該年上游是否記錄到該物種」呈現，
+      是連通性最直接的長期指標。<br>
+      <span style="display:inline-block;background:#f1f5f9;border-left:3px solid #94a3b8;
+                   border-radius:0 6px 6px 0;padding:6px 10px;margin:6px 0">
+        <b>這裡的「上游／下游」指哪裡</b>：沿用原始調查報告的樣站名稱——
+        <b>上游＝鞍馬山站</b>、<b>下游＝麗陽站</b>（105年度成果報告表 9、表 12）。
+        魚類原始紀錄未載樁號，因此無法對應到工程設施採用的樁號河段
+        （上游段 1K+000 以上、下游段 0K+460 以下）；兩套劃分方式不同，不可互相套用。
+      </span>下表以「該年上游是否記錄到該物種」呈現，
       不用尾數——改善後上游每年僅 2 站次，數量在小樣本下波動極大，
       物種的有無則穩定得多。
     </div>
@@ -4554,7 +4561,8 @@ function hlxEco_speciesSmallMultiples(M) {
                     font-variant-numeric:tabular-nums">
           早期 ${sp.pre.toFixed(1)} → 近期 <b style="color:${HLX_ECO_INK.t1}">${sp.post.toFixed(1)}</b>
           <span style="color:${deltaColor}">（${delta}）</span>
-          <span style="color:${HLX_ECO_INK.t3}">・有紀錄年度 早期 ${sp.yearsPre}/${M.pre.length} 年 → 近期 ${sp.yearsPost}/${M.post.length} 年</span>
+          <span style="color:${HLX_ECO_INK.t3}">・${M.pre.length} 個早期年度中 ${sp.yearsPre} 年抓到 →
+            ${M.post.length} 個近期年度中 ${sp.yearsPost} 年抓到</span>
         </div>
         <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block" role="img"
              aria-label="${sp.name}逐年平均尾數，本格尺度上限 ${top} 尾／次">
@@ -4598,6 +4606,15 @@ function hlxEco_speciesSmallMultiples(M) {
       <span><b style="color:${HLX_ECO_INK.t1}">每格縱軸各自縮放</b>，格左上角數字為該格上限，
             下限一律為 0——格與格之間<b>不可直接比高低</b>，要比請看下方第四張圖。</span>
       <span style="color:${HLX_ECO_INK.t3}">灰虛線為早期／近期分界（106｜107 年）・105 年未進行調查，跨越該年的區段以虛線表示</span>
+      <span style="width:100%;color:${HLX_ECO_INK.t2};background:#f1f5f9;
+                   border-left:3px solid #94a3b8;border-radius:0 6px 6px 0;padding:7px 10px">
+        <b>每格標題下那行數字怎麼看</b>：<br>
+        「早期 7.3 → 近期 15.4（+8.1）」＝該物種平均每次調查抓到的尾數，由改善前的 7.3 尾變為改善後的 15.4 尾。<br>
+        「3 個早期年度中 3 年抓到 → 8 個近期年度中 8 年抓到」＝<b>出現的穩定度</b>。
+        早期共 3 個調查年度（103、104、106 年），近期共 8 個（107～114 年）；
+        分子是其中「有抓到這種魚」的年度數。3/3 代表每年都有、1/3 代表只有一年有。
+        尾數看的是<b>多寡</b>，年度數看的是<b>穩不穩定出現</b>，兩者要一起看。
+      </span>
       <span style="color:#b45309"><b>橘線＝111 年起調查樣點改變</b>：樣點由 3～6 處縮回上游／下游兩處，
             並改用 Survey123 逐尾記錄。「尾／次」校正的是站次，校正不掉樣點位置改變，
             因此橘線右側的高低不宜與左側直接相比。</span>
@@ -5791,128 +5808,7 @@ function renderFishTrend() {
           </div>
           ${hlxEco_upstreamConnectivity()}
 
-          <div style="border-top:2px solid #e2e8f0;margin-top:18px;padding-top:16px">
-          <div style="font-size:14px;font-weight:900;color:#0f172a;margin-bottom:4px">
-            佐證：九座魚道「內部」實測捕獲
-            <span style="font-size:11.5px;font-weight:700;color:#0d6b5b">（電捕法＋蝦籠法，可直接歸因到單一設施）</span>
-          </div>
-          <div style="font-size:11.5px;color:#b45309;line-height:1.7;margin-bottom:8px">
-            僅 109年7月、109年10月、110年7月、110年10月共 4 輪，非全年度序列，
-            故作為佐證而非主要證據；其不可取代之處在於這是唯一能直接歸因到
-            <b>單一設施</b>的量測——魚在魚道內部被捕獲。
-          </div>
-          <div style="font-size:13px;color:#64748b;line-height:1.7;margin-bottom:12px">
-            9 座魚道<b style="color:#0d6b5b">全數捕獲到魚</b>；109年7月、109年10月及110年7月、110年10月共4輪，
-            平均 <b style="color:#0d6b5b">${(HLX_IN_FISHWAY_CATCH.total / HLX_IN_FISHWAY_CATCH.surveyRounds).toFixed(1)} 尾／輪次</b>，
-            累計 ${HLX_IN_FISHWAY_CATCH.total} 尾、${HLX_IN_FISHWAY_CATCH.species} 種。
-            <b>平台完整歷年名錄為8種；魚道內部4輪實測為其中7種，並非資料漏列。</b>
-            ${HLX_IN_FISHWAY_CATCH.topNote}
-          </div>
-          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:12px">
-            <div style="background:#ecfeff;border:1px solid #a5f3fc;border-radius:10px;padding:12px 14px">
-              <div style="font-size:20px;font-weight:900;color:#0e7490">8 種</div>
-              <div style="font-size:13px;font-weight:800;color:#164e63">平台完整歷年魚類名錄</div>
-              <div style="font-size:12px;color:#475569;line-height:1.65;margin-top:4px">整合全溪、不同年份與不同棲地型態的長期調查。</div>
-            </div>
-            <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px 14px">
-              <div style="font-size:20px;font-weight:900;color:#166534">7 種</div>
-              <div style="font-size:13px;font-weight:800;color:#14532d">9座魚道內部四輪實測</div>
-              <div style="font-size:12px;color:#475569;line-height:1.65;margin-top:4px">未在魚道內捕獲者為${HLX_IN_FISHWAY_CATCH.absentSpecies}；其偏好深潭岩縫、日間較不易記錄到，全溪歷年調查仍有紀錄。</div>
-            </div>
-          </div>
-          <div style="position:relative;height:260px"><canvas id="fishInFishwayChart"></canvas></div>
-          <div style="display:flex;flex-wrap:wrap;gap:7px;margin-top:12px">
-            ${HLX_IN_FISHWAY_CATCH.bySpecies.map(sp => `
-              <span style="font-size:12px;background:#f0f7f5;border:1px solid #cfe3de;border-radius:99px;padding:3px 11px;color:#0f172a">
-                ${sp.name} <b>${(sp.n / HLX_IN_FISHWAY_CATCH.surveyRounds).toFixed(2)}</b> 尾／次
-                <span style="color:#64748b">（累計${sp.n}尾）</span></span>`).join('')}
-          </div>
-
-          <div style="margin-top:14px;border-left:3px solid #0d6b5b;background:#f0f7f5;border-radius:0 8px 8px 0;padding:12px 15px;font-size:12.5px;color:#334155;line-height:1.8">
-            <b>為何是 7 種而非 8 種？</b>未在魚道內捕獲的是<b>${HLX_IN_FISHWAY_CATCH.absentSpecies}</b>。${HLX_IN_FISHWAY_CATCH.absentReason}
-          </div>
-
-
-          <!-- 潛越式魚道跨資料集對照（資料一致性說明）-->
-          <div style="border:2px solid #a5b4fc;border-radius:12px;overflow:hidden;margin:16px 0 4px">
-            <div style="background:#eef2ff;padding:12px 15px;border-bottom:1px solid #c7d2fe">
-              <div style="font-size:16px;font-weight:900;color:#312e81">
-                為什麼溪構5-2（潛越式）在本圖偏低，別處卻偏高？
-              </div>
-              <div style="font-size:13.5px;color:#3730a3;line-height:1.75;margin-top:5px">
-                本平台對同一座魚道有<b>三套來源不同、量測對象也不同</b>的紀錄。
-                三個數字都是原始資料，沒有互相取代的關係，差異來自<b>量測方法與年度不同</b>，
-                並非其中一筆有誤。以下並列供對照。
-              </div>
-            </div>
-            <div style="overflow-x:auto">
-              <table style="width:100%;border-collapse:collapse;font-size:14px;min-width:700px">
-                <thead><tr style="background:#f8fafc">
-                  <th style="padding:10px 12px;text-align:left;border-bottom:2px solid #e2e8f0;color:#475569">資料集</th>
-                  <th style="padding:10px 12px;text-align:left;border-bottom:2px solid #e2e8f0;color:#475569">年度與方法</th>
-                  <th style="padding:10px 12px;text-align:right;border-bottom:2px solid #e2e8f0;color:#475569">溪構5-2</th>
-                  <th style="padding:10px 12px;text-align:left;border-bottom:2px solid #e2e8f0;color:#475569">在該資料集中的位置</th>
-                </tr></thead>
-                <tbody>
-                  <tr>
-                    <td style="padding:10px 12px;border-bottom:1px solid #edf2f7;font-weight:800;color:#0f172a">
-                      魚道內「捕捉」<br><span style="font-weight:400;font-size:12.5px;color:#94a3b8">表5-19（本圖採用）</span></td>
-                    <td style="padding:10px 12px;border-bottom:1px solid #edf2f7;color:#475569;font-size:13.5px">
-                      109年7月・109年10月・110年7月・110年10月<br>共 4 輪，電捕＋蝦籠</td>
-                    <td style="padding:10px 12px;border-bottom:1px solid #edf2f7;text-align:right;
-                        font-variant-numeric:tabular-nums;font-weight:900;font-size:17px;color:#0f172a">4 尾</td>
-                    <td style="padding:10px 12px;border-bottom:1px solid #edf2f7;color:#475569;font-size:13.5px">
-                      9 座中最少（全體 306 尾）</td>
-                  </tr>
-                  <tr>
-                    <td style="padding:10px 12px;border-bottom:1px solid #edf2f7;font-weight:800;color:#0f172a">
-                      9 種魚道設計參數整理<br><span style="font-weight:400;font-size:12.5px;color:#94a3b8">逢甲大學營建及防災研究中心</span></td>
-                    <td style="padding:10px 12px;border-bottom:1px solid #edf2f7;color:#475569;font-size:13.5px">
-                      電捕法全面調查，合計 74 尾<br>源自橫流溪動物通道智慧評估完整成果報告</td>
-                    <td style="padding:10px 12px;border-bottom:1px solid #edf2f7;text-align:right;
-                        font-variant-numeric:tabular-nums;font-weight:900;font-size:17px;color:#0f172a">17 尾</td>
-                    <td style="padding:10px 12px;border-bottom:1px solid #edf2f7;color:#475569;font-size:13.5px">
-                      9 座中最多（原始表標記 ⭐；明潭吻鰕虎 13 尾為主）</td>
-                  </tr>
-                  <tr>
-                    <td style="padding:10px 12px;border-bottom:1px solid #edf2f7;font-weight:800;color:#0f172a">
-                      113年魚道電捕<br><span style="font-weight:400;font-size:12.5px;color:#94a3b8">動物通道智慧評估</span></td>
-                    <td style="padding:10px 12px;border-bottom:1px solid #edf2f7;color:#475569;font-size:13.5px">
-                      113年4月，8 座魚道電捕</td>
-                    <td style="padding:10px 12px;border-bottom:1px solid #edf2f7;text-align:right;
-                        font-variant-numeric:tabular-nums;font-weight:900;font-size:17px;color:#0f172a">17 尾<br>
-                      <span style="font-size:12.5px;font-weight:700;color:#475569">5 種</span></td>
-                    <td style="padding:10px 12px;border-bottom:1px solid #edf2f7;color:#475569;font-size:13.5px">
-                      8 座中尾數與物種數皆最多</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            <div style="padding:13px 15px;background:#f8fafc;border-top:1px solid #e2e8f0;
-                        font-size:13.5px;color:#334155;line-height:1.85">
-              <b style="color:#312e81">為什麼表5-19 的捕捉數會低：</b>
-              這是<b>可搜索水體體積</b>造成的，不是通行功能問題。溪構5-2 進水量僅
-              ${HLX_IN_FISHWAY_CATCH.lowestNote ? '0.15' : '0.15'} cms（滿流魚道 0.60 cms 的四分之一），
-              內寬僅 1.05 公尺（其他階段式為 6～8 公尺），單池體積約 0.9 m³，
-              僅為溪構7 最大水池 17.7 m³ 的<b>十九分之一</b>——電捕與蝦籠能搜索的水體極小，
-              捕獲數自然偏低。同一座魚道的水理檢核<b>三項全部合格</b>：
-              水位差 0.2 m（容許 0.5 m）、單位體積消能率 246 W/m³（容許 300）、
-              越流流速 1.12 m/s（低於魚類游泳能力容許值）。
-              113 年清淤工程後入口暢通，同年 4 月電捕即為 8 座最多。
-              <br><b style="color:#312e81">判讀方式：</b>本圖的 4 尾應理解為「該次調查在極小水體中搜索到的尾數」，
-              不宜單獨作為潛越式魚道通行效能的結論；評估通行效能請併看上表三個資料集與水理檢核結果。
-            </div>
-          </div>
-
-          <div style="margin-top:11px;font-size:12px;color:#64748b;line-height:1.75">
-            <b>判讀提醒：</b>各座魚道的可搜索水體差異極大（溪構7 最大水池 17.7 m³ vs 溪構5-2 單池約 0.9 m³，相差十九倍），
-            進水量亦不同（0.13～0.60 cms，柱下標示 ◆ 者為報告載明的「部分入流」）。
-            <b>本圖以尾／次統一呈現；原始累計尾數保留於提示資訊，仍不宜忽略水體體積與入流差異逕行排名。</b>
-          </div>
-          <div style="font-size:11.5px;color:#94a3b8;margin-top:9px">來源：${HLX_IN_FISHWAY_CATCH.source}</div>
         </div>
-
-          </div>
         <!-- 受脅魚種 CPUE + 稀釋物種數 -->
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px">
           <div style="border:1.5px solid #cbd5e1;border-radius:14px;padding:18px 20px;background:#fff">
