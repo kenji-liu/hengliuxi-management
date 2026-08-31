@@ -161,6 +161,9 @@ def main() -> int:
     ap.add_argument("--limit", type=int, default=0, help="最多判讀幾頁（試跑用）")
     ap.add_argument("--page-offset", type=int, default=PAGE_OFFSET,
                     help="檔名數字與簡報頁碼的差值（預設 1）")
+    ap.add_argument("--rebuild-index-only", action="store_true",
+                    help="不呼叫視覺模型，直接用 briefing_slides.json 既有的 "
+                         "visual 欄位重建向量庫段落")
     args = ap.parse_args()
 
     load_env()
@@ -210,6 +213,9 @@ def main() -> int:
 
     results = {}
     failed = []
+    if args.rebuild_index_only:
+        log.info("--rebuild-index-only：略過視覺判讀，僅重建向量庫段落")
+        want = []
     for i, page in enumerate(want, 1):
         t0 = time.time()
         r = describe(images[page], args.model)
@@ -232,7 +238,7 @@ def main() -> int:
                 json.dumps(results, ensure_ascii=False, indent=1))
 
     log.info("判讀完成 %d 頁，失敗 %d 頁", len(results), len(failed))
-    if not results:
+    if not results and not args.rebuild_index_only:
         return 1
 
     # ── 寫回 briefing_slides.json ────────────────────────────────
@@ -272,14 +278,23 @@ def main() -> int:
         ".jsonl.bak-" + datetime.now().strftime("%Y%m%d%H%M%S"))
     shutil.copy2(VECTOR_STORE, backup)
 
+    #  必須用 briefing_slides.json 裡「所有」有 visual 的頁重建，不能只寫本次
+    #  results。因為上面已把同來源舊段落整批移除，若只寫本次結果，補跑 2 頁
+    #  就會把先前完成的 54 頁從向量庫刪掉（實測發生過：2,300 段掉回 2,247 段）。
+    all_visual_pages = sorted(int(s["page"]) for s in brief["slides"]
+                              if s.get("visual") and s.get("page"))
+    log.info("向量庫重建範圍：briefing_slides.json 中共 %d 頁有圖面判讀",
+             len(all_visual_pages))
+
     texts, pages = [], []
-    for page in sorted(results):
+    for page in all_visual_pages:
         s = by_page.get(page) or {}
         title = str(s.get("title") or "").strip()
         head = "【圖面AI判讀】%s P.%d" % (Path(deck).stem, page)
         if title:
             head += "　" + title
-        texts.append(head + "\n" + results[page])
+        #  取 slide 的 visual（含先前批次的結果），不能取本次 results，理由同上。
+        texts.append(head + "\n" + str(s.get("visual") or ""))
         pages.append(page)
 
     vectors = model.encode(texts, batch_size=16, show_progress_bar=False)
