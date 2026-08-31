@@ -4276,6 +4276,56 @@ function hlxEco_readNote(o) {
     </div>`;
 }
 
+/* ── 圖表結論列 ──
+   使用者反映「三、受脅魚種平均尾／次」「四、稀釋物種數 E[S100] ± SD」
+   「五、93～114 年物種出現矩陣」看得到數字卻說不出結論。原本的標題描述
+   的是「這張圖畫了什麼」，不是「這張圖告訴你什麼」。此列補上後者，
+   數值一律由現有序列即時計算，不寫死。 */
+function hlxEco_takeaway(html) {
+  return `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:9px;
+                      padding:10px 12px;margin-bottom:12px;font-size:12.5px;
+                      color:#14532d;line-height:1.75">
+            <b style="color:#166534">這張圖告訴你：</b>${html}</div>`;
+}
+
+/* 受脅魚種的結論：改善前後「四種同時被記錄到」的年度數 */
+function hlxEco_threatenedTakeaway() {
+  const M = hlxEcoMonitor(), TH = HLX_THREATENED_KEYS;
+  const hit = y => TH.filter(k => y.perTimeBy[k] > 0).length;
+  const preMax = Math.max.apply(null, M.pre.map(hit));
+  const fullPost = M.post.filter(y => hit(y) === TH.length);
+  const preMean = M.pre.reduce((a, y) => a + TH.reduce((b, k) => b + y.perTimeBy[k], 0), 0) / M.pre.length;
+  const postMean = M.post.reduce((a, y) => a + TH.reduce((b, k) => b + y.perTimeBy[k], 0), 0) / M.post.length;
+  return hlxEco_takeaway(
+    `這 ${TH.length} 種是紅皮書列為受脅的魚，看的是<b>保育物種有沒有留在這條溪</b>。` +
+    `改善前 ${M.pre.length} 個年度中，同時記錄到最多只有 <b>${preMax} 種</b>；` +
+    `改善後有 <b>${fullPost.length} 個年度（${fullPost.map(y => y.roc).join('、')} 年）${TH.length} 種全部記錄到</b>。` +
+    `平均數量由 ${preMean.toFixed(1)} 尾／次變為 ${postMean.toFixed(1)} 尾／次。`);
+}
+
+/* 調查效率的結論：達成全部物種數所需的站次 */
+function hlxEco_richnessTakeaway() {
+  const M = hlxEcoMonitor(), total = M.keys.length;
+  const full = M.years.filter(y => y.species === total).sort((a, b) => a.times - b.times);
+  if (!full.length) return '';
+  const least = full[0], most = full[full.length - 1];
+  return hlxEco_takeaway(
+    `每年記錄到幾種，會隨調查次數變多而上升，直接比較並不公平；本圖把各年換算到<b>同樣的調查量</b>再比。` +
+    `最直白的看法是比較「記錄到全部 ${total} 種各花了多少調查」：` +
+    `<b>${most.roc} 年用了 ${most.times} 站次</b>，而 <b>${least.roc} 年只用 ${least.times} 站次</b>就達成。` +
+    `同樣要湊齊 ${total} 種，近年花的調查量少得多——代表<b>魚變得比較容易遇到</b>。`);
+}
+
+/* 出現矩陣的結論：22 年跨度與不受站數影響的性質 */
+function hlxEco_matrixTakeaway() {
+  const M = hlxEcoMonitor();
+  return hlxEco_takeaway(
+    `這是本頁<b>跨度最長</b>的一張（93～114 年，共 22 年），也是唯一<b>不受各年調查站數多寡影響</b>的——` +
+    `它只看「那一年有沒有記錄到這種魚」，不看抓了幾尾。` +
+    `因此其他圖表受樣點與站次變動干擾之處，可用本圖交叉檢核：` +
+    `色塊持續存在代表該物種長期穩定利用本溪段，最淺格是「有調查但那年沒抓到」，不代表物種消失。`);
+}
+
 /* ── 上游物種名錄長期變化（魚道連通性的長期證據）──
    為什麼用「有無記錄」而不是尾／次：標為上游的年度只有 104、110、112、
    113、114 共 5 年，且改善後每年僅 2 站次——110 年上游 195.5 尾／次即
@@ -5817,16 +5867,21 @@ function renderFishTrend() {
               近危以上 4 種：臺灣白甲魚、纓口臺鰍、臺灣間爬岩鰍（近危 NNT）與短臀瘋鱨（易危 NVU・第三級保育類）。
               柱下數字為當年檢出的受脅種數。
             </div>
+            ${hlxEco_threatenedTakeaway()}
             <div style="position:relative;height:250px"><canvas id="fishThreatenedChart"></canvas></div>
           </div>
           <div style="border:1.5px solid #cbd5e1;border-radius:14px;padding:18px 20px;background:#fff">
             <div style="font-size:16px;font-weight:900;color:#0f172a;margin-bottom:4px">
-              四、稀釋物種數 E[S<sub>${RAREFY_N}</sub>] ± SD
+              四、調查量校正後的物種多樣性
             </div>
             <div style="font-size:13px;color:#64748b;line-height:1.7;margin-bottom:12px">
-              把各年統一抽樣至 ${RAREFY_N} 尾後的期望物種數（Hurlbert 個體基礎稀釋）。<b>這是取代「年度出現種數」的正確版本</b> ——
-              原始物種數會隨調查次數單調上升，本指標則完全排除站次差異。捕獲量不足 ${RAREFY_N} 尾的年度不列。
+              各年調查次數不同，直接比「記錄到幾種」對調查少的年度不公平。
+              本圖把各年統一換算到<b>同樣抓 100 尾時預期會有幾種</b>，藉此排除調查量差異。
+              捕獲量不足 ${RAREFY_N} 尾的年度不列。
+              <span style="color:#94a3b8">（統計方法：Hurlbert 個體基礎稀釋，指標即 E[S<sub>${RAREFY_N}</sub>] ± SD，
+              誤差線為標準差）</span>
             </div>
+            ${hlxEco_richnessTakeaway()}
             <div style="position:relative;height:250px"><canvas id="fishRarefiedChart"></canvas></div>
             ${bestRarefied ? `<div style="font-size:12.5px;color:#0d6b5b;font-weight:800;margin-top:10px">
               全期最高：${bestRarefied.label} E[S<sub>${RAREFY_N}</sub>] = ${bestRarefied.E}，
@@ -5845,6 +5900,7 @@ function renderFishTrend() {
             色深代表該年檢出的季別／場次比例，<b>最淺格代表「已調查但未檢出」，不等同物種消失</b>。
             此圖是稀有魚種唯一誠實的長期呈現方式。
           </div>
+          ${hlxEco_matrixTakeaway()}
           ${renderOccurrenceMatrix(annualData, annualYears)}
           <div style="font-size:11.5px;color:#94a3b8;margin-top:10px">
             來源：${HLX_FISH_OCCURRENCE_9306.source}；107～114 年為本平台量化序列。
