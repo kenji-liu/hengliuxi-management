@@ -4276,6 +4276,135 @@ function hlxEco_readNote(o) {
     </div>`;
 }
 
+/* ── 歷年魚類族群變化：小倍數圖（small multiples）──
+   為什麼不用單張多線圖：八種魚的密度差了兩個數量級——臺灣白甲魚
+   逐年介於 8.8～50.0 尾／次，短吻紅斑吻鰕虎只有 0.0～0.9。共用一條
+   0～50 的縱軸時，間爬岩鰍、短臀瘋鱨、短吻紅斑吻鰕虎三種會被壓成
+   貼著底線的平線，走勢完全看不出來；而這三種正是序列中變化最值得
+   注意的（短臀瘋鱨與短吻紅斑吻鰕虎早期 0 個年度、近期分別出現於
+   6/8 與 7/8 個年度）。八條線互相交叉也難以追蹤單一物種。
+
+   改為每種一格、各自縮放，每格明確標示自己的尺度上限，並在格內直接
+   標注早期→近期數值與出現年度，不需要對照圖例。原始數值全部保留，
+   未作任何平滑或隱藏。 */
+function hlxEco_speciesSmallMultiples(M) {
+  const NAME = HLX_FISH_KEY_NAME;
+  const years = M.years;
+  //  以實際民國年定位橫軸，未調查的年度（105 年）留白而不連線，
+  //  避免把不存在的年度用直線接起來，看起來像有調查資料。
+  const yMin = years[0].roc, yMax = years[years.length - 1].roc;
+  const span = Math.max(1, yMax - yMin);
+  const PRE_LAST = HLX_ECO_PRE_LAST_YEAR - 1911;         // 民國 106
+
+  const W = 268, H = 104, PL = 34, PR = 10, PT = 12, PB = 20;
+  const px = roc => PL + (roc - yMin) / span * (W - PL - PR);
+
+  const panels = M.bySpecies.map(sp => {
+    const color = HLX_ECO_SPECIES_COLOR[sp.key];
+    const pts = years.map(y => ({ roc: y.roc, v: y.perTimeBy[sp.key], times: y.times }));
+    const vmax = Math.max.apply(null, pts.map(p => p.v));
+    //  每格自己的尺度上限（取整到好讀的刻度），下限一律為 0，
+    //  因此格內高度仍可直接比較「相對於自己最高年」的幅度。
+    const nice = vmax <= 1 ? Math.ceil(vmax * 10) / 10
+               : vmax <= 5 ? Math.ceil(vmax)
+               : Math.ceil(vmax / 5) * 5;
+    const top = nice > 0 ? nice : 1;
+    const py = v => PT + (1 - v / top) * (H - PT - PB);
+
+    //  相鄰年度才用實線相連；中間有未調查年度（104→106，105 年無調查）
+    //  的區段改畫虛線，避免用一條實線把不存在的調查年度接過去。
+    const solid = [], gaps = [];
+    let run = [pts[0]];
+    for (let i = 1; i < pts.length; i++) {
+      if (pts[i].roc - pts[i - 1].roc === 1) { run.push(pts[i]); }
+      else { solid.push(run); gaps.push([pts[i - 1], pts[i]]); run = [pts[i]]; }
+    }
+    solid.push(run);
+    const toPath = arr => arr.map((p, i) => (i ? 'L' : 'M') +
+      px(p.roc).toFixed(1) + ' ' + py(p.v).toFixed(1)).join(' ');
+    const line = solid.filter(r => r.length > 1).map(toPath).join(' ');
+    const gapLine = gaps.map(toPath).join(' ');
+    //  面積填色沿用完整序列，僅作背景襯托，判讀以線與點為準
+    const areaSpine = pts.map((p, i) => (i ? 'L' : 'M') +
+      px(p.roc).toFixed(1) + ' ' + py(p.v).toFixed(1)).join(' ');
+    const area = areaSpine + ' L' + px(pts[pts.length - 1].roc).toFixed(1) + ' ' + py(0).toFixed(1) +
+                 ' L' + px(pts[0].roc).toFixed(1) + ' ' + py(0).toFixed(1) + ' Z';
+    const dots = pts.map(p => {
+      const last = p.roc === yMax;
+      return `<circle cx="${px(p.roc).toFixed(1)}" cy="${py(p.v).toFixed(1)}" r="${last ? 3.4 : 2.1}"
+                fill="${last ? color : '#fff'}" stroke="${color}" stroke-width="${last ? 1.6 : 1.5}">
+                <title>${sp.name}　${p.roc} 年：${p.v.toFixed(1)} 尾／次（該年 ${p.times} 次調查）</title>
+              </circle>`;
+    }).join('');
+
+    //  早期／近期分界線落在 106 與 107 之間
+    const divX = px(PRE_LAST + 0.5).toFixed(1);
+    const gid = 'hlxsm_' + sp.key;
+    const delta = sp.diff > 0 ? '+' + sp.diff.toFixed(1)
+                : sp.diff < 0 ? sp.diff.toFixed(1) : '0.0';
+    const deltaColor = sp.diff < 0 ? '#b45309' : HLX_ECO_INK.t2;
+    const isNew = sp.yearsPre === 0 && sp.yearsPost > 0;
+
+    return `
+      <div style="background:#fff;border:1px solid ${HLX_ECO_INK.line};border-radius:11px;padding:11px 12px 8px">
+        <div style="display:flex;align-items:baseline;gap:7px;margin-bottom:1px">
+          <span style="width:9px;height:9px;border-radius:2px;background:${color};flex-shrink:0"></span>
+          <span style="font-size:13.5px;font-weight:800;color:${HLX_ECO_INK.t1}">${sp.name}</span>
+          ${isNew ? `<span style="font-size:10.5px;font-weight:700;color:#0e7490;background:#ecfeff;
+                       border:1px solid #a5f3fc;border-radius:4px;padding:0 5px">早期未記錄</span>` : ''}
+        </div>
+        <div style="font-size:11.5px;color:${HLX_ECO_INK.t2};margin-bottom:2px;
+                    font-variant-numeric:tabular-nums">
+          早期 ${sp.pre.toFixed(1)} → 近期 <b style="color:${HLX_ECO_INK.t1}">${sp.post.toFixed(1)}</b>
+          <span style="color:${deltaColor}">（${delta}）</span>
+          <span style="color:${HLX_ECO_INK.t3}">・出現 ${sp.yearsPre}/${M.pre.length}→${sp.yearsPost}/${M.post.length} 年</span>
+        </div>
+        <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block" role="img"
+             aria-label="${sp.name}逐年平均尾數，本格尺度上限 ${top} 尾／次">
+          <defs>
+            <linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="${color}" stop-opacity="0.26"/>
+              <stop offset="100%" stop-color="${color}" stop-opacity="0.02"/>
+            </linearGradient>
+          </defs>
+          <line x1="${PL}" y1="${py(top)}" x2="${W - PR}" y2="${py(top)}"
+                stroke="${HLX_ECO_INK.line}" stroke-width="1" stroke-dasharray="2 3"/>
+          <line x1="${PL}" y1="${py(0)}" x2="${W - PR}" y2="${py(0)}"
+                stroke="${HLX_ECO_INK.line}" stroke-width="1"/>
+          <line x1="${divX}" y1="${PT - 4}" x2="${divX}" y2="${py(0)}"
+                stroke="#cbd5e1" stroke-width="1" stroke-dasharray="3 3"/>
+          <path d="${area}" fill="url(#${gid})"/>
+          <path d="${gapLine}" fill="none" stroke="${color}" stroke-width="1.6"
+                stroke-dasharray="3 3" opacity="0.55" stroke-linecap="round"/>
+          <path d="${line}" fill="none" stroke="${color}" stroke-width="1.9"
+                stroke-linejoin="round" stroke-linecap="round"/>
+          ${dots}
+          <text x="${PL - 5}" y="${py(top) + 3.5}" text-anchor="end"
+                font-size="9.5" fill="${HLX_ECO_INK.t3}">${top}</text>
+          <text x="${PL - 5}" y="${py(0) + 3.5}" text-anchor="end"
+                font-size="9.5" fill="${HLX_ECO_INK.t3}">0</text>
+          <text x="${px(yMin)}" y="${H - 6}" text-anchor="middle"
+                font-size="9.5" fill="${HLX_ECO_INK.t3}">${yMin}</text>
+          <text x="${divX}" y="${H - 6}" text-anchor="middle"
+                font-size="9.5" fill="${HLX_ECO_INK.t3}">改善</text>
+          <text x="${px(yMax)}" y="${H - 6}" text-anchor="middle"
+                font-size="9.5" fill="${HLX_ECO_INK.t3}">${yMax}</text>
+        </svg>
+      </div>`;
+  }).join('');
+
+  return `
+    <div style="display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;
+                font-size:11.5px;color:${HLX_ECO_INK.t2};margin-bottom:11px">
+      <span><b style="color:${HLX_ECO_INK.t1}">每格縱軸各自縮放</b>，格左上角數字為該格上限，
+            下限一律為 0——格與格之間<b>不可直接比高低</b>，要比請看下方第四張圖。</span>
+      <span style="color:${HLX_ECO_INK.t3}">虛線為早期／近期分界（106｜107 年）・105 年未進行調查，跨越該年的區段以虛線表示</span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(252px,1fr));gap:10px">
+      ${panels}
+    </div>`;
+}
+
 /* ── 生態趨勢摘要（歷史趨勢分析頁最上方）──
    全部句子由 hlxEcoMonitor() 的即時統計組成，資料一變，敘述隨之改變。 */
 function renderEcoTrendSummary() {
@@ -4434,14 +4563,16 @@ function renderEcoMonitorDashboard() {
       <!-- 二、歷年魚類族群變化 -->
       <div style="margin-bottom:30px">
         ${hlxEco_sectionHead(2, '歷年魚類族群變化（各物種尾／次）',
-          `八種魚類各自的平均每次調查尾數逐年變化。每種給一個固定顏色，僅作身分區分。
-           線條起伏代表各物種在不同年份對河道環境的<b>利用情形改變</b>，可搭配下方組成圖一起看。`)}
+          `八種魚類<b>各自一格</b>，每格縱軸依該物種自己的數量範圍縮放。
+           這樣安排是因為八種魚的密度差了兩個數量級（臺灣白甲魚最高 50.0 尾／次、
+           短吻紅斑吻鰕虎最高 0.9），共用一條縱軸時數量少的物種會被壓成貼地平線，
+           走勢完全看不出來。分開後每一種的<b>利用情形改變</b>都能各自判讀。`)}
         <div style="background:#f8fafc;border:1px solid ${HLX_ECO_INK.line};border-radius:14px;padding:16px 18px">
-          <div style="position:relative;height:370px"><canvas id="hlxSpeciesLine"></canvas></div>
+          ${hlxEco_speciesSmallMultiples(M)}
           ${hlxEco_readNote({
             what: '八種魚類「各自」的平均每次調查尾數逐年變化，看的是不同物種對河段的利用情形。',
-            axes: '橫軸為民國年度；縱軸為尾／次。每一條線是一種魚，顏色只用來分辨物種，沒有好壞意涵。',
-            how: '看每條線自己的走勢，不要跨物種比高低——不同魚的族群密度天生差很多。線條上升代表該物種在調查中被記錄到的數量增加，下降則代表牠當年較少利用該河段。',
+            axes: '橫軸為民國年度，105 年未進行調查，跨越該年的線段以虛線表示；縱軸為尾／次，且每一格各自縮放——格左上角的數字就是該格的上限，下限一律為 0。虛線為早期／近期分界（106｜107 年）。',
+            how: '看每一格自己的起伏形狀。因為各格尺度不同，格與格之間不可直接比高低；要比較物種間的絕對數量，請看第四張「改善前後各物種平均尾／次」。滑鼠移到圓點可看該年數值與調查次數。',
             found: `${M.bySpecies[0].name}與${M.bySpecies[1].name}長期維持較高水準；${M.bySpecies.filter(x=>x.yearsPre===0&&x.yearsPost>0).map(x=>x.name).join('、') || '部分物種'}在早期未記錄到、近期開始出現。`,
             signal: '多條線同時維持一定高度，代表河段能同時支持多種生態習性不同的魚類；不同物種的走勢差異，反映牠們對水深、流速與底質等條件的偏好各不相同。'
           })}
@@ -4694,37 +4825,9 @@ function hlxEco_drawMonitorCharts() {
     });
   }
 
-  // ② 歷年魚類族群變化（各物種尾／次；物種身分色 + 圖例）
-  const el2 = document.getElementById('hlxSpeciesLine');
-  if (el2) {
-    kill('_hlxSpeciesLineInst');
-    window._hlxSpeciesLineInst = new Chart(el2, {
-      type: 'line',
-      data: {
-        labels: M.years.map(y => y.roc + '年'),
-        datasets: M.keys.map(k => ({
-          label: NAME[k],
-          data: M.years.map(y => +y.perTimeBy[k].toFixed(2)),
-          borderColor: HLX_ECO_SPECIES_COLOR[k], backgroundColor: HLX_ECO_SPECIES_COLOR[k],
-          borderWidth: 2, pointRadius: 3.5, pointHoverRadius: 7, tension: 0.28, fill: false
-        }))
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        interaction: { mode: 'nearest', intersect: false },
-        plugins: {
-          legend: { position: 'bottom', labels: { color: HLX_ECO_INK.t1, boxWidth: 11, boxHeight: 11,
-                    usePointStyle: true, pointStyle: 'rectRounded', padding: 11, font: { size: 12 } } },
-          tooltip: { callbacks: { label: c => c.dataset.label + '：' + c.raw + ' 尾／次' } }
-        },
-        scales: {
-          y: { beginAtZero: true, title: { display: true, text: '尾／次', color: HLX_ECO_INK.t2 },
-               grid: baseGrid, ticks: baseTick },
-          x: { grid: { display: false }, ticks: baseTick }
-        }
-      }
-    });
-  }
+  // ② 歷年魚類族群變化改用 hlxEco_speciesSmallMultiples() 產生的小倍數圖，
+  //    直接輸出 SVG，不再建立 Chart.js 實例（原本八條線共用縱軸，數量少的
+  //    物種被壓在底線上看不出走勢）。
 
   // ③ 物種組成時序變化（百分比堆疊；段與段之間留 2px 底色縫隙）
   const el3 = document.getElementById('hlxCompStack');
