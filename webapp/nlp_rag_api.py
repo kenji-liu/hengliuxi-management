@@ -4030,6 +4030,20 @@ def _ask_events(data: Dict[str, Any], stream: bool = False):
         if movement_query and management_evidence:
             weights = dict(weights)
             weights["management"] = max(weights.get("management", 0.0), 0.8)
+        #  題目已指名某一份文件時（書名號，或明講「只依據…這一份文件」），
+        #  保底一定要用文件段落，不能拿巡查紀錄與維護金額充數。
+        #  實測書架「問 AI」的問句因含「維護管理」四字被判為巡查意圖
+        #  （management 權重 1.0 壓過 docs），推論失敗時就回出一整串
+        #  巡查日期與工程金額，與所問的魚道成效報告完全無關。
+        #  書名號之間可能是很長的報告全名，第二式的間隔要放寬才攔得到
+        named_doc_query = bool(re.search(r"[《〈][^》〉]{4,}[》〉]", query)
+                               or re.search(r"只依據.{0,60}?(?:這一份|這份|該份)?文件", query)
+                               or re.search(r"只(?:依|根)據.{0,60}?這一?份", query))
+        if named_doc_query:
+            weights = dict(weights)
+            weights["docs"] = 1.0
+            weights["management"] = min(weights.get("management", 0.0), 0.2)
+            weights["platform"] = min(weights.get("platform", 0.0), 0.2)
         #  只給仍是原文摘錄的保底來源使用（手冊）。本機文件那條已改為
         #  自行組出整理稿並附說明，不再套這段前言。
         prefix = ("（以下為平台文件的直接摘錄，AI 綜合研判暫時無法提供。）\n\n")
