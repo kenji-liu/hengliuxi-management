@@ -4276,6 +4276,118 @@ function hlxEco_readNote(o) {
     </div>`;
 }
 
+/* ── 上游物種名錄長期變化（魚道連通性的長期證據）──
+   為什麼用「有無記錄」而不是尾／次：標為上游的年度只有 104、110、112、
+   113、114 共 5 年，且改善後每年僅 2 站次——110 年上游 195.5 尾／次即
+   由 2 站次算出，小樣本下的數量極不穩定。物種的「有無被記錄到」對取樣
+   強度的敏感度遠低於數量，用於判斷「魚上不上得去」較可靠。
+
+   107～109、111 年的上游樣點併在「橫流溪N站」內，原始資料未分列上下游，
+   因此無法納入，不作推估。
+
+   這是魚道連通性能提出的最長期證據（104→114），但改善前只有 104 年
+   一個基線年，強度有限，須據實載明。 */
+function hlxEco_upstreamConnectivity() {
+  const KEYS = HLX_FISH_KEYS, NAME = HLX_FISH_KEY_NAME;
+  const PRE_LAST = HLX_ECO_PRE_LAST_YEAR - 1911;
+
+  const byYear = new Map();
+  HLX_FISH_SURVEYS.forEach(s => {
+    if (hlxEco_segment(s) !== '上游') return;
+    const roc = s.year - 1911;
+    if (!byYear.has(roc)) byYear.set(roc, { roc: roc, times: 0, counts: {} });
+    const d = byYear.get(roc);
+    d.times += hlxEco_times(s);
+    KEYS.forEach(k => { d.counts[k] = (d.counts[k] || 0) + (Number(s[k]) || 0); });
+  });
+  const years = [...byYear.values()].sort((a, b) => a.roc - b.roc);
+  if (!years.length) return '';
+  const pre = years.filter(y => y.roc <= PRE_LAST);
+  const post = years.filter(y => y.roc > PRE_LAST);
+
+  //  三類：改善前後皆有／改善後才在上游記錄到／上游歷次均未記錄
+  const cls = KEYS.map(k => {
+    const inPre = pre.some(y => y.counts[k] > 0);
+    const inPost = post.some(y => y.counts[k] > 0);
+    return { key: k, name: NAME[k], inPre: inPre, inPost: inPost,
+             group: inPre ? 'both' : (inPost ? 'new' : 'none') };
+  });
+  const order = { both: 0, new: 1, none: 2 };
+  cls.sort((a, b) => order[a.group] - order[b.group]);
+  const newly = cls.filter(c => c.group === 'new');
+
+  const head = `
+    <tr>
+      <th style="text-align:left;padding:7px 9px;font-size:12px;color:#475569;
+                 border-bottom:2px solid #cbd5e1;white-space:nowrap">物種</th>
+      ${years.map(y => `
+        <th style="padding:7px 4px;font-size:12px;border-bottom:2px solid #cbd5e1;
+                   color:${y.roc <= PRE_LAST ? '#b45309' : '#0d6b5b'};white-space:nowrap">
+          ${y.roc}年<div style="font-size:9.5px;font-weight:500;color:#94a3b8">${y.times} 站次</div>
+        </th>`).join('')}
+      <th style="padding:7px 9px;font-size:12px;color:#475569;
+                 border-bottom:2px solid #cbd5e1;white-space:nowrap">判讀</th>
+    </tr>`;
+
+  const tag = { both: { t: '改善前後皆有', c: '#475569', bg: '#f1f5f9' },
+                new:  { t: '改善後才記錄到', c: '#0e7490', bg: '#ecfeff' },
+                none: { t: '上游歷次均未記錄', c: '#94a3b8', bg: '#f8fafc' } };
+  const rows = cls.map(c => {
+    const g = tag[c.group];
+    return `
+      <tr style="background:${g.bg}">
+        <td style="padding:7px 9px;font-size:13px;font-weight:700;color:#0f172a;
+                   border-bottom:1px solid #e2e8f0;white-space:nowrap">
+          <span style="display:inline-block;width:8px;height:8px;border-radius:2px;
+                       background:${HLX_ECO_SPECIES_COLOR[c.key]};margin-right:6px"></span>${c.name}</td>
+        ${years.map(y => `
+          <td style="padding:7px 4px;text-align:center;border-bottom:1px solid #e2e8f0;
+                     font-size:14px;color:${y.counts[c.key] > 0 ? '#0d6b5b' : '#cbd5e1'}"
+              title="${c.name}　${y.roc} 年上游：${y.counts[c.key] || 0} 尾">
+            ${y.counts[c.key] > 0 ? '●' : '○'}</td>`).join('')}
+        <td style="padding:7px 9px;font-size:11.5px;font-weight:700;color:${g.c};
+                   border-bottom:1px solid #e2e8f0;white-space:nowrap">${g.t}</td>
+      </tr>`;
+  }).join('');
+
+  return `
+    <div style="font-size:13px;color:#64748b;line-height:1.75;margin-bottom:12px">
+      魚道的作用是讓魚能通過構造物往上游移動，因此<b style="color:#0d6b5b">上游記錄到哪些物種</b>
+      是連通性最直接的長期指標。下表以「該年上游是否記錄到該物種」呈現，
+      不用尾數——改善後上游每年僅 2 站次，數量在小樣本下波動極大，
+      物種的有無則穩定得多。
+    </div>
+
+    <div style="overflow-x:auto;margin-bottom:12px">
+      <table style="width:100%;border-collapse:collapse;min-width:520px">
+        <thead>${head}</thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+
+    ${newly.length ? `
+    <div style="background:#ecfeff;border:1px solid #a5f3fc;border-radius:10px;
+                padding:12px 14px;margin-bottom:10px">
+      <div style="font-size:14px;font-weight:900;color:#0e7490;margin-bottom:4px">
+        改善後上游新增 ${newly.length} 種：${newly.map(c => c.name).join('、')}</div>
+      <div style="font-size:12.5px;color:#164e63;line-height:1.7">
+        這 ${newly.length} 種在改善前的上游調查中從未被記錄到，改善後則反覆出現。
+        魚道啟用後上游物種組成由 ${pre.length ? pre[0].counts && KEYS.filter(k => pre.some(y => y.counts[k] > 0)).length : 0} 種
+        增為最多 ${Math.max.apply(null, post.map(y => KEYS.filter(k => y.counts[k] > 0).length))} 種。
+      </div>
+    </div>` : ''}
+
+    <div style="font-size:11.5px;color:#64748b;line-height:1.7;
+                border-top:1px dashed #e2e8f0;padding-top:9px">
+      <b>資料界線：</b>原始資料中明確標示上游的年度為
+      ${years.map(y => y.roc + '年').join('、')}，共 ${years.length} 年；
+      改善前僅 ${pre.map(y => y.roc + '年').join('、')} ${pre.length} 個基線年度，
+      據此判讀連通性改變的強度有限。
+      107～109、111 年的上游樣點併於「橫流溪N站」內，原始資料未分列上下游，
+      無法納入本表，平台不作推估補列。
+    </div>`;
+}
+
 /* ── 四次 IBI 評估在等級帶上的落點 ──
    IBI 是評級指標，不是逐年趨勢：原報告只在 109、110 年做了四次同口徑
    評估（109夏／109秋／110夏／110秋），其他年度的調查未收集可計算同口徑
@@ -5671,11 +5783,23 @@ function renderFishTrend() {
           </div>
         </div>
 
-        <!-- 魚道內實測 -->
+        <!-- 魚道連通性：主證據為上游物種名錄長期變化，魚道內實測 4 輪降為直接佐證 -->
         <div style="border:1.5px solid #cbd5e1;border-radius:14px;padding:18px 20px;background:#fff;margin-bottom:16px">
           <div style="font-size:16px;font-weight:900;color:#0f172a;margin-bottom:4px">
-            二、九座魚道「內部」實測捕獲
-            <span style="font-size:12px;font-weight:700;color:#0d6b5b">（電捕法＋蝦籠法，可直接歸因到單一設施）</span>
+            二、魚道連通性：上游物種名錄長期變化
+            <span style="font-size:12px;font-weight:700;color:#0d6b5b">（104～114 年，魚是否上得去）</span>
+          </div>
+          ${hlxEco_upstreamConnectivity()}
+
+          <div style="border-top:2px solid #e2e8f0;margin-top:18px;padding-top:16px">
+          <div style="font-size:14px;font-weight:900;color:#0f172a;margin-bottom:4px">
+            佐證：九座魚道「內部」實測捕獲
+            <span style="font-size:11.5px;font-weight:700;color:#0d6b5b">（電捕法＋蝦籠法，可直接歸因到單一設施）</span>
+          </div>
+          <div style="font-size:11.5px;color:#b45309;line-height:1.7;margin-bottom:8px">
+            僅 109年7月、109年10月、110年7月、110年10月共 4 輪，非全年度序列，
+            故作為佐證而非主要證據；其不可取代之處在於這是唯一能直接歸因到
+            <b>單一設施</b>的量測——魚在魚道內部被捕獲。
           </div>
           <div style="font-size:13px;color:#64748b;line-height:1.7;margin-bottom:12px">
             9 座魚道<b style="color:#0d6b5b">全數捕獲到魚</b>；109年7月、109年10月及110年7月、110年10月共4輪，
@@ -5788,6 +5912,7 @@ function renderFishTrend() {
           <div style="font-size:11.5px;color:#94a3b8;margin-top:9px">來源：${HLX_IN_FISHWAY_CATCH.source}</div>
         </div>
 
+          </div>
         <!-- 受脅魚種 CPUE + 稀釋物種數 -->
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px">
           <div style="border:1.5px solid #cbd5e1;border-radius:14px;padding:18px 20px;background:#fff">
