@@ -899,10 +899,24 @@ def _ddgs_client():
     return None, ""
 
 
+#  生活服務類問題：使用者要的是周邊食宿商家，不是溪流本身。
+#  這類查詢若照舊加上「橫流溪 大甲溪」，搜尋引擎會回傳溪流與行政區的
+#  百科條目而非店家（實測「和平區谷關 便利商店」即回傳和平區、谷關、
+#  大甲溪三則維基百科）。故改為只補地點，不補水系名稱。
+_LIFESTYLE_QUERY = re.compile(
+    r"住宿|飯店|旅館|民宿|露營|便利商店|超商|超市|餐廳|吃飯|美食|小吃|加油站"
+    r"|停車|廁所|醫院|診所|藥局|郵局|銀行|提款|公車|客運|接駁|車站|門票|營業時間")
+
+
 def _scoped_web_query(query: str) -> str:
     """Constrain external search to the Hengliuxi context when appropriate."""
     text = _as_text(query)
-    if not text or answer_engine is None:
+    if not text:
+        return text
+    #  生活服務只補行政區，讓搜尋引擎找得到實際店家
+    if _LIFESTYLE_QUERY.search(text):
+        return text if "和平區" in text or "谷關" in text else f"臺中市和平區 {text}"
+    if answer_engine is None:
         return text
     try:
         if answer_engine.is_hengliuxi_query(text) and "橫流溪" not in text:

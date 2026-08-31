@@ -166,6 +166,10 @@ _JUNK_SOURCE = re.compile(
     r"|ACTION_ITEMS|_STATUS|TEST_|OPTIMIZATION|SETUP|manifest|metadata_index"
     r"|package|requirements|maintenance_contracts|synced_inspections"
     r"|maintenance_photo_index|quality_benchmark|gdrive_index|\.json$|\.jsonl$"
+    #  下列為開發過程文件，實測曾以「QUICK_START_ACTIVATION」之姿被當成
+    #  平台資料回覆給使用者（內容為系統啟用測試腳本），必須排除。
+    r"|QUICK_START|ACTIVATION|PROGRESS|SUMMARY|NEXT_STEPS|DEPLOYMENT"
+    r"|_NOTES?\.md|\.txt$|\.ps1$|\.sh$|\.bat$"
     r"|\.sqlite3?$|\.py$|\.js$)", re.I)
 
 
