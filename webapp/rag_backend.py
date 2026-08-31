@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 璈急?皞?RAG 蝟餌絞 - Flask 敺垢璅∠?
@@ -2347,6 +2347,38 @@ def status():
         return jsonify({
             'status': 'error',
             'message': str(e)
+        }), 500
+
+
+@rag.route('/warmup', methods=['GET'])
+def warmup():
+    """Keep-warm probe：讓 Render 免費方案不休眠，並預先載入向量庫與嵌入模型。
+
+    冷啟動時第一次呼叫會付出載入成本；之後每次呼叫都只是確認已載入，很便宜。
+    給 GitHub Actions 定時喚醒使用（.github/workflows/keep-warm.yml）。
+    """
+    t0 = _time.time()
+    try:
+        vector_store = load_vector_store()
+        model = load_model()
+        chunk_count = len(vector_store) if vector_store else 0
+        if vector_store and _vector_store_mode == 'manifest_keyword':
+            chunk_count = sum(int(doc.get('manifest_chunks') or 1) for doc in vector_store)
+        return jsonify({
+            'status': 'warm' if (vector_store and chunk_count > 0) else 'not_ready',
+            'vector_store_loaded': vector_store is not None,
+            'chunk_count': chunk_count,
+            'model_loaded': _model is not None,
+            'embedding_mode': 'jina_api' if JINA_API_KEY else 'local_model',
+            'elapsed_ms': int((_time.time() - t0) * 1000),
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        logger.error(f"Warmup error: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e),
+            'elapsed_ms': int((_time.time() - t0) * 1000)
         }), 500
 
 

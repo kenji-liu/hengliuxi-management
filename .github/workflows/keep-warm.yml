@@ -1,0 +1,59 @@
+# 定時喚醒 Render 服務，避免免費方案閒置 15 分鐘後休眠。
+#
+# 為什麼需要：Render 免費方案在閒置約 15 分鐘後會關閉容器，下一位使用者
+# 進站時要等 60～160 秒重新啟動（容器被銷毀，/tmp 的向量庫快取也會消失，
+# 需重新下載），畫面上就是「網頁打不開」。
+#
+# 做法：在台灣時間 07:00–23:00 之間，每 5 分鐘打一次 /api/rag/warmup。
+# 該端點會確保向量庫與嵌入模型已載入；已載入時只是回報狀態，很便宜。
+#
+# 額度：本 repo 為 public，GitHub Actions 分鐘數不計費。
+#       Render 免費方案每月 750 instance-hours，本排程約使用 496 小時。
+#
+# 深夜（台灣 23:00–07:00）刻意不喚醒，保留 Render 額度；若那時段有人進站，
+# 仍會如常冷啟動，只是要等一下。
+
+name: Keep Render warm
+
+on:
+  schedule:
+    # cron 為 UTC。台灣時間 = UTC + 8。
+    - cron: '*/5 23 * * *'     # UTC 23:00–23:59 → 台灣 07:00–07:59
+    - cron: '*/5 0-14 * * *'   # UTC 00:00–14:59 → 台灣 08:00–22:59
+  workflow_dispatch:            # 也可以在 Actions 頁面手動觸發
+
+concurrency:
+  group: keep-warm
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: 喚醒並預熱 RAG
+        env:
+          BASE: https://hengliuxi-management.onrender.com
+        run: |
+          set -u
+          ok=0
+          for attempt in 1 2 3; do
+            echo "── 第 ${attempt} 次嘗試 ──"
+            code=$(curl -sS -o body.json -w '%{http_code}' \
+                        --max-time 240 --connect-timeout 30 \
+                        "$BASE/api/rag/warmup" || echo 000)
+            echo "HTTP $code"
+            cat body.json 2>/dev/null || true
+            echo
+            if [ "$code" = "200" ]; then ok=1; break; fi
+            sleep 20
+          done
+
+          if [ "$ok" != "1" ]; then
+            echo "::error::喚醒失敗，Render 服務可能異常"
+            exit 1
+          fi
+
+          # 順帶把靜態頁面也叫起來
+          curl -sS -o /dev/null -w '靜態頁 /webapp/ → HTTP %{http_code}（%{time_total}s）\n' \
+               --max-time 120 "$BASE/webapp/" || true
