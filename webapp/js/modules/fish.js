@@ -5736,96 +5736,18 @@ function renderFishTrend() {
           <div style="font-size:20px;font-weight:900;color:#0f172a">魚道生態成效實證</div>
         </div>
         <div style="font-size:14px;color:#475569;line-height:1.75;margin-bottom:18px">
-          以下四項指標<b>不受各年站次差異影響</b>，可直接跨年度與跨溪流比較。
-          鄰溪對照與魚道內捕獲為《110年魚道及生態廊道成效追蹤》之報告實測值；
-          受脅魚種平均尾／次與稀釋物種數由本平台歷年序列即時計算。
+          以下四項指標皆為<b>長期序列</b>，並已處理各年站次差異，可直接跨年度比較。
+          全部由本平台歷年調查序列即時計算，資料更新後同步變動。
+          <span style="color:#94a3b8">原「生態品質評級（IBI）」與「九座魚道內部實測捕獲」僅涵蓋 109～110 年，
+          不屬長期序列，已移除。</span>
         </div>
 
-        <!-- 生態品質評級 -->
+        <!-- 臺灣溪流保育框架中的定位
+             原「一、生態品質評級（IBI）」僅有 109、110 兩年同口徑評估，
+             不屬長期序列，依使用者指示移除；本卡片保留不受該限制的框架說明。 -->
         <div style="border:1.5px solid #cbd5e1;border-radius:14px;padding:18px 20px;background:#fff;margin-bottom:16px">
-          <div style="font-size:16px;font-weight:900;color:#0f172a;margin-bottom:4px">
-            一、生態品質評級
-            <span style="font-size:12px;font-weight:700;color:#0d6b5b">（生物整合指標 IBI・經修正適用於臺灣的通用標準）</span>
-          </div>
-          <div style="font-size:13px;color:#64748b;line-height:1.7;margin-bottom:16px">
-            IBI 綜合魚類組成、外來種比例、食性結構等指標評估水域生態系健康度。平台以中性的 A～D 級呈現，
-            並另列 109～110 年各期調查值，避免分級名稱被誤解為工程造成的負面影響。
-          </div>
-
-          <div style="margin-bottom:18px">
-            <div style="display:flex;height:36px;border-radius:8px;overflow:hidden;border:1px solid #e2e8f0">
-              ${HLX_ECO_BENCHMARK.scale.slice().reverse().map(band => {
-                const w = ((band.max - band.min + 1) / 46 * 100).toFixed(1);
-                const bg = { good:'#0d6b5b', mid:'#5598e7', low:'#fbbf24', bad:'#e2e8f0' }[band.tone];
-                const fg = band.tone === 'bad' ? '#64748b' : '#ffffff';
-                return `<div style="width:${w}%;background:${bg};color:${fg};font-size:10.5px;font-weight:700;
-                  display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;line-height:1.35">
-                  <span>${band.label}</span><span>${band.min}–${band.max}</span></div>`;
-              }).join('')}
-            </div>
-            ${(() => {
-              const b = HLX_ECO_BENCHMARK.hlx;
-              const pos = v => (v / 46 * 100);
-              return `<div style="position:relative;height:52px;margin-top:3px">
-                <div style="position:absolute;left:${pos(b.ibiMin).toFixed(1)}%;width:${(pos(b.ibiMax) - pos(b.ibiMin)).toFixed(1)}%;
-                     height:9px;background:rgba(13,107,91,.22);border:1px solid #0d6b5b;border-radius:5px;top:0"></div>
-                <div style="position:absolute;left:${pos(b.ibiMean).toFixed(1)}%;transform:translateX(-50%);top:-5px;text-align:center">
-                  <div style="width:3px;height:18px;background:#0d6b5b;margin:0 auto;border-radius:2px"></div>
-                  <div style="font-size:15px;font-weight:900;color:#0d6b5b;white-space:nowrap;margin-top:3px">橫流溪平均 ${b.ibiMean}</div>
-                </div>
-                <div style="position:absolute;left:${pos(b.ibiMin).toFixed(1)}%;transform:translateX(-50%);top:12px;font-size:11px;color:#94a3b8">${b.ibiMin}</div>
-                <div style="position:absolute;left:${pos(b.ibiMax).toFixed(1)}%;transform:translateX(-50%);top:12px;font-size:11px;color:#94a3b8">${b.ibiMax}</div>
-              </div>`;
-            })()}
-          </div>
-
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px">
-            ${[
-              { v: `${HLX_ECO_BENCHMARK.hlx.sitesGradeA} / ${HLX_ECO_BENCHMARK.hlx.sitesTotal}`,
-                l: '樣站曾達最高等級<br><b>A級（35～45分）</b>' },
-              { v: `${HLX_ECO_BENCHMARK.hlx.ibiMin}～${HLX_ECO_BENCHMARK.hlx.ibiMax}`,
-                l: 'IBI 全樣站範圍<br>報告整體平均 32' },
-              { v: HLX_ECO_BENCHMARK.hlx.hMean.toFixed(1),
-                l: `夏儂多樣性指數 H′<br>各樣站 ${HLX_ECO_BENCHMARK.hlx.hMin}～${HLX_ECO_BENCHMARK.hlx.hMax}` },
-              { v: `${HLX_ECO_BENCHMARK.hlx.maxBodyLength} cm`,
-                l: `魚道內捕獲最大個體<br>${HLX_ECO_BENCHMARK.hlx.maxBodySpecies}` },
-            ].map(c => `
-              <div style="border:1px solid #e2e8f0;border-radius:10px;padding:13px 14px;text-align:center">
-                <div style="font-size:24px;font-weight:900;color:#0d6b5b;line-height:1.2">${c.v}</div>
-                <div style="font-size:12px;color:#64748b;line-height:1.6;margin-top:4px">${c.l}</div>
-              </div>`).join('')}
-          </div>
-
-          <div style="border-top:1px dashed #e2e8f0;padding-top:14px;margin-bottom:14px">
-            ${hlxEco_ibiBand()}
-            <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:12px">
-              ${HLX_ECO_BENCHMARK.hlx.annualMeans.map((item, idx) => `
-                <div style="background:${idx % 2 ? '#f0fdfa' : '#f8fafc'};border:1px solid #cbd5e1;border-radius:10px;padding:12px 14px">
-                  <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:10px">
-                    <div style="font-size:15px;font-weight:900;color:#0f172a">${item.year}</div>
-                    <div style="font-size:24px;font-weight:900;color:#0d6b5b;line-height:1">${item.value.toFixed(1)}</div>
-                  </div>
-                  <div style="font-size:11.5px;color:#64748b;line-height:1.65;margin-top:7px">
-                    年平均｜樣站範圍 ${item.min}～${item.max}<br>${item.rounds}
-                  </div>
-                </div>`).join('')}
-            </div>
-            <div style="font-size:12px;font-weight:800;color:#334155;margin-bottom:7px">各期樣站平均</div>
-            <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px">
-              ${HLX_ECO_BENCHMARK.hlx.surveyMeans.map((item, idx) => `
-                <div style="background:${idx % 2 ? '#f0fdfa' : '#f8fafc'};border:1px solid #cbd5e1;border-radius:9px;padding:10px;text-align:center">
-                  <div style="font-size:11px;color:#64748b">${item.label}</div>
-                  <div style="font-size:20px;font-weight:900;color:#0d6b5b;margin-top:2px">${item.value.toFixed(1)}</div>
-                </div>`).join('')}
-            </div>
-            <div style="font-size:11.5px;color:#64748b;line-height:1.65;margin-top:7px">
-              四期平均約 30.3 → 33.0 → 31.7 → 29.7，呈期別波動，不能解讀為逐年單調上升；應配合季節、水文與調查條件判讀。<br>
-              <b>資料界線：</b>原報告僅提供109、110年同口徑IBI結果；其他年份未提供可直接比較的IBI值，平台不以物種數或捕獲尾數代算補值。
-            </div>
-          </div>
-
-          <div style="border-top:1px dashed #e2e8f0;padding-top:14px">
-            <div style="font-size:14px;font-weight:900;color:#0f172a;margin-bottom:10px">臺灣整體溪流保育框架中的橫流溪</div>
+          <div>
+            <div style="font-size:16px;font-weight:900;color:#0f172a;margin-bottom:10px">臺灣整體溪流保育框架中的橫流溪</div>
             <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px">
               <div style="background:#ecfeff;border:1px solid #a5f3fc;border-radius:10px;padding:12px">
                 <b style="color:#0e7490">標準化監測</b><br><span style="font-size:12px;color:#475569;line-height:1.65">依河川、樣站、日期、方法與數量建檔，以尾／次追蹤同口徑長期變化。</span>
@@ -5834,7 +5756,7 @@ function renderFishTrend() {
                 <b style="color:#166534">原生與受脅物種</b><br><span style="font-size:12px;color:#475569;line-height:1.65">完整名錄8種，含4種紅皮書近危以上物種，是保育價值與棲地品質的重要訊號。</span>
               </div>
               <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:12px">
-                <b style="color:#1d4ed8">縱向連通證據</b><br><span style="font-size:12px;color:#475569;line-height:1.65">9座魚道四輪內部調查皆捕獲魚類，搭配上下游調查與影像資料交叉判讀。</span>
+                <b style="color:#1d4ed8">縱向連通證據</b><br><span style="font-size:12px;color:#475569;line-height:1.65">改善後上游新增記錄纓口臺鰍、短臀瘋鱨與短吻紅斑吻鰕虎 3 種，為魚類能通過構造物往上游移動的長期證據。</span>
               </div>
             </div>
             <div style="font-size:12px;color:#64748b;line-height:1.75;margin-top:10px">目前全臺公開資料的調查方法、季節與樣站範圍並不完全一致，因此不宣稱橫流溪位居全臺第幾名；平台改以全臺通用監測欄位與保育指標呈現其可驗證價值。</div>
@@ -5843,7 +5765,7 @@ function renderFishTrend() {
           <div style="font-size:12px;color:#64748b;line-height:1.8;margin-top:13px;padding-top:11px;border-top:1px solid #f1f5f9">
             <b style="color:#0d6b5b">全臺定位方式：</b>行政院水利署河川魚類調查資料採河川、測站、日期、物種、方法與數量等欄位，並依季節辦理調查；
             臺灣魚類 IBI 則須依本土魚相調整，不能把不同流域、不同調查規模的單一數值直接排名。
-            因此本平台以「同河段、同方法、尾／次」的長期變化，加上紅皮書保育等級及魚道內實測，呈現橫流溪在臺灣溪流保育中的價值。<br>
+            因此本平台以「同河段、同方法、尾／次」的長期變化，加上紅皮書保育等級及上游物種名錄的長期改變，呈現橫流溪在臺灣溪流保育中的價值。<br>
             本地資料：${HLX_ECO_BENCHMARK.source}；
             <a href="https://data.gov.tw/dataset/25799" target="_blank" rel="noopener" style="color:#0e7490">水利署河川魚類調查資料</a>・
             <a href="https://www.tbri.gov.tw/view.php?id=777&theme=web_structure" target="_blank" rel="noopener" style="color:#0e7490">2024臺灣淡水魚類紅皮書名錄</a>
@@ -5853,7 +5775,7 @@ function renderFishTrend() {
         <!-- 魚道連通性：主證據為上游物種名錄長期變化，魚道內實測 4 輪降為直接佐證 -->
         <div style="border:1.5px solid #cbd5e1;border-radius:14px;padding:18px 20px;background:#fff;margin-bottom:16px">
           <div style="font-size:16px;font-weight:900;color:#0f172a;margin-bottom:4px">
-            二、魚道連通性：上游物種名錄長期變化
+            一、魚道連通性：上游物種名錄長期變化
             <span style="font-size:12px;font-weight:700;color:#0d6b5b">（104～114 年，魚是否上得去）</span>
           </div>
           ${hlxEco_upstreamConnectivity()}
@@ -5862,7 +5784,7 @@ function renderFishTrend() {
         <!-- 受脅魚種 CPUE + 稀釋物種數 -->
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px">
           <div style="border:1.5px solid #cbd5e1;border-radius:14px;padding:18px 20px;background:#fff">
-            <div style="font-size:16px;font-weight:900;color:#0f172a;margin-bottom:4px">三、受脅魚種平均尾／次</div>
+            <div style="font-size:16px;font-weight:900;color:#0f172a;margin-bottom:4px">二、受脅魚種平均尾／次</div>
             <div style="font-size:13px;color:#64748b;line-height:1.7;margin-bottom:12px">
               近危以上 4 種：臺灣白甲魚、纓口臺鰍、臺灣間爬岩鰍（近危 NNT）與短臀瘋鱨（易危 NVU・第三級保育類）。
               柱下數字為當年檢出的受脅種數。
@@ -5872,7 +5794,7 @@ function renderFishTrend() {
           </div>
           <div style="border:1.5px solid #cbd5e1;border-radius:14px;padding:18px 20px;background:#fff">
             <div style="font-size:16px;font-weight:900;color:#0f172a;margin-bottom:4px">
-              四、調查量校正後的物種多樣性
+              三、調查量校正後的物種多樣性
             </div>
             <div style="font-size:13px;color:#64748b;line-height:1.7;margin-bottom:12px">
               各年調查次數不同，直接比「記錄到幾種」對調查少的年度不公平。
@@ -5892,7 +5814,7 @@ function renderFishTrend() {
         <!-- 出現矩陣 -->
         <div style="border:1.5px solid #cbd5e1;border-radius:14px;padding:18px 20px;background:#fff;margin-top:16px">
           <div style="font-size:16px;font-weight:900;color:#0f172a;margin-bottom:4px">
-            五、93～114 年物種出現矩陣
+            四、93～114 年物種出現矩陣
             <span style="font-size:12px;font-weight:700;color:#0d6b5b">（22 年・不受站數影響）</span>
           </div>
           <div style="font-size:13px;color:#64748b;line-height:1.7;margin-bottom:14px">
