@@ -17,6 +17,7 @@ import os
 import re
 import sqlite3
 import time
+import unicodedata
 import urllib.parse
 import urllib.request
 from typing import Any, Dict, List, Optional
@@ -628,13 +629,14 @@ def _local_keyword_retrieve(query: str, top_k: int = 8) -> List[Dict[str, Any]]:
                 continue
         except Exception:
             pass
-        haystack = " ".join([
+        #  內文側同樣要 NFKC，否則相容字段落永遠比對不到（見 _nfkc 說明）
+        haystack = _nfkc(" ".join([
             _as_text(doc.get("source_file")),
             _as_text(doc.get("source_path")),
             _as_text(doc.get("section")),
             _as_text(doc.get("text")),
             _as_text(doc.get("full_text")),
-        ]).lower()
+        ])).lower()
         if not haystack:
             continue
         exact = sum(1 for term in query_terms if term.lower() in haystack)
@@ -665,7 +667,19 @@ def _local_keyword_retrieve(query: str, top_k: int = 8) -> List[Dict[str, Any]]:
     return candidate_docs[:max(1, int(top_k or 8))]
 
 
+def _nfkc(text: str) -> str:
+    """比對前的正規化。
+
+    Big5 轉檔遺留的 CJK 相容表意文字（U+F900–U+FAFF）與一般字外觀相同、
+    碼位不同，字串比對永遠不相等。實測全庫 468 段（19%）內文含相容字，
+    另有一整份 320 段的報告連檔名都是相容字，用標題完全搜不到。
+    查詢與內文兩邊都要正規化，缺一邊無效。
+    """
+    return unicodedata.normalize("NFKC", _as_text(text))
+
+
 def _query_terms(query: str) -> List[str]:
+    query = _nfkc(query)
     terms = []
     terms.extend(re.findall(r"\d+K\+\d+|溪構\d+(?:-\d+)?|平台\d+|樣站\d+|FD\d+|\d{3,4}年", query, flags=re.IGNORECASE))
     for group in (STRUCTURE_TYPE_TERMS, DAMAGE_TERMS, SPECIES_TERMS):
@@ -1281,6 +1295,70 @@ _SYSTEM_PROMPT = """你是「橫流溪工程設施維護與生態資料管理 AI
     不得以最新巡查筆數、照片張數、契約金額或其他不相關統計填補答案。
 7. 回答開頭先直接回答問題，再視需要補充工程或生態判讀。若資料互相矛盾，列出日期、來源與差異，不得自行挑選有利數值。
 8. 不使用客套開場，不輸出思考過程，不宣稱模型正在訓練，不把 RAG 即時推論描述為模型學習或微調。回答務求精簡、清楚，讓一般管理人員也能理解。"""
+
+
+def _format_local_kb_answer(query: str, docs: "List[Dict[str, Any]]") -> str:
+    """推論服務不可用時，用檢索結果組出可讀的整理，而不是貼原始片段。
+
+    舊做法直接把餵給模型的 local_ctx（【本機文件 1：xxx.pdf；頁碼 70】…）
+    當成答案輸出，使用者看到的是未經整理的碎片，非常不專業。
+    這裡改為依來源文件分組、清掉排版雜訊、每份只留最相關的段落，
+    並在句子邊界收尾。純字串處理，不做任何研判或推估。
+    """
+    if not docs:
+        return ""
+
+    grouped: "Dict[str, List[Dict[str, Any]]]" = {}
+    order: "List[str]" = []
+    for d in docs:
+        name = _as_text(d.get("source_file") or d.get("source") or "橫流溪資料庫")
+        #  去掉副檔名與版本前綴，標題才像文件名而不是檔名
+        title = re.sub(r"\.(pdf|docx?|pptx?|txt)$", "", name, flags=re.IGNORECASE)
+        if title not in grouped:
+            grouped[title] = []
+            order.append(title)
+        grouped[title].append(d)
+
+    def clean(text: str, limit: int = 420) -> str:
+        #  PDF 抽出的文字常有斷行與多餘空白，直接貼出來很難讀
+        value = re.sub(r"[ \t　]+", " ", _as_text(text))
+        value = re.sub(r"\s*\n\s*", " ", value).strip()
+        value = re.sub(r"\s+([，。；、）」])", r"\1", value)
+        if len(value) <= limit:
+            return value
+        cut = value[:limit]
+        #  盡量在句號收尾，避免半句話
+        for mark in ("。", "；", "）", "，"):
+            pos = cut.rfind(mark)
+            if pos >= limit * 0.6:
+                return cut[:pos + 1]
+        return cut + "…"
+
+    lines = [
+        "以下依平台文件檢索結果整理，共 %d 份文件、%d 個段落。"
+        % (len(order), len(docs)),
+        "",
+    ]
+    for title in order:
+        items = grouped[title]
+        pages = []
+        for d in items:
+            page = _as_text(d.get("page") or d.get("page_number") or "")
+            if page and page not in pages:
+                pages.append(page)
+        head = "**%s**" % title
+        if pages:
+            head += "（頁碼 %s）" % "、".join(pages[:4])
+        lines.append(head)
+        for d in items[:2]:
+            body = clean(d.get("full_text") or d.get("text") or d.get("preview"))
+            if body:
+                lines.append("・" + body)
+        lines.append("")
+
+    lines.append("以上為文件原文摘錄，未經 AI 研判；若需綜合分析與建議，"
+                 "請稍候再試一次，AI 推論服務恢復後可提供完整判讀。")
+    return "\n".join(lines).strip()
 
 
 def _strip_reasoning_preamble(text: str) -> str:
@@ -3952,8 +4030,9 @@ def _ask_events(data: Dict[str, Any], stream: bool = False):
         if movement_query and management_evidence:
             weights = dict(weights)
             weights["management"] = max(weights.get("management", 0.0), 0.8)
-        prefix = ("（AI 推論服務目前無法使用，以下為與本題相關的直接檢索結果，"
-                  "尚未經過整理與研判，請對照原始文件確認。）\n\n")
+        #  只給仍是原文摘錄的保底來源使用（手冊）。本機文件那條已改為
+        #  自行組出整理稿並附說明，不再套這段前言。
+        prefix = ("（以下為平台文件的直接摘錄，AI 綜合研判暫時無法提供。）\n\n")
         # 保底來源依本題的意圖權重排序，確保委員題先用手冊、生態題先用文件，
         # 而不是一律拿巡查統計充數。
         candidates = []
@@ -3990,8 +4069,12 @@ def _ask_events(data: Dict[str, Any], stream: bool = False):
         candidates.extend([
             ("handbook", handbook_ctx, "評審問答準備手冊",
              lambda text: prefix + text),
-            ("local_kb", local_ctx, "本機知識庫（未經 AI 整理）",
-             lambda text: prefix + text),
+            #  不可直接送 local_ctx —— 那是要餵給模型的輸入格式
+            #  （【本機文件 1：xxx.pdf；頁碼 70】…），貼給使用者看是碎片。
+            #  改送依來源分組、清過排版的整理稿。
+            ("local_kb", _format_local_kb_answer(query, local_docs),
+             "依平台文件整理",
+             lambda text: text),
         ])
         #  現況題的保底一樣不能拿外部網頁充數：外部網站不會知道本案
         #  設施今天的狀態，查無就要明說查無。

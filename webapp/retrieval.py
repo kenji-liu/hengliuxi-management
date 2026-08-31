@@ -24,6 +24,7 @@ import logging
 import math
 import os
 import re
+import unicodedata
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
@@ -47,6 +48,13 @@ def _tokenize(text: str) -> List[str]:
     專有名詞（如「粗首馬口鱲」）會被拆成數個雙字詞，仍能透過
     多個罕見詞同時命中而取得高分。
     """
+    #  Big5 轉檔遺留的 CJK 相容表意文字（U+F900–U+FAFF）看起來與一般字
+    #  完全相同，碼位卻不同，字串比對永遠不相等。實測
+    #  「110年_東勢林區管理處國有林魚道及生態廊道成效追蹤.pdf」的
+    #  林(U+F9F4)、理(U+F9E4)、廊(U+F928) 皆為相容字，整份 320 段
+    #  用標題就是搜不到；全庫另有 468 段（19%）內文含相容字。
+    #  NFKC 會把相容字映射回一般字，查詢與內文兩邊都要正規化才有效。
+    text = unicodedata.normalize("NFKC", str(text or ""))
     tokens = re.findall(r"[A-Za-z0-9][A-Za-z0-9._+-]*", text.lower())
     for block in re.findall(r"[㐀-鿿]+", text):
         if len(block) == 1:

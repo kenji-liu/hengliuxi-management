@@ -25,6 +25,7 @@ import json
 import logging
 import os
 import re
+import unicodedata
 from typing import Any, Dict, List, Tuple
 
 logger = logging.getLogger(__name__)
@@ -228,9 +229,20 @@ def _allows_statistics(query: str) -> bool:
         str(query or '')))
 
 
+def _nfkc(text: str) -> str:
+    """比對前的正規化。
+
+    Big5 轉檔遺留的 CJK 相容表意文字（U+F900–U+FAFF）與一般字外觀相同、
+    碼位不同，字串比對永遠不相等（實測全庫 19% 段落含相容字，另有一整份
+    320 段報告連檔名都是相容字，用標題完全搜不到）。
+    查詢與內文兩邊都要正規化，缺一邊無效。
+    """
+    return unicodedata.normalize("NFKC", str(text or ""))
+
+
 def query_concepts(query: str) -> Dict[str, List[str]]:
     """Return concept groups and the terms actually present in a query."""
-    text = str(query or '').strip().lower()
+    text = _nfkc(query).strip().lower()
     return {
         group: [term for term in terms if term.lower() in text]
         for group, terms in QUERY_CONCEPT_TERMS.items()
@@ -281,8 +293,8 @@ def relevance_score(query: str, text: str, source_name: str = '', require_all: b
     not as a replacement for semantic retrieval: exact named entities and
     co-occurring concepts matter more than the presence of the site name.
     """
-    query_text = str(query or '').strip().lower()
-    haystack = f'{source_name}\n{text or ""}'.lower()
+    query_text = _nfkc(query).strip().lower()
+    haystack = _nfkc(f'{source_name}\n{text or ""}').lower()
     if not query_text or not haystack or not is_hengliuxi_query(query_text):
         return 0.0
 
