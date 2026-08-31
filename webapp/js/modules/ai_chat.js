@@ -1668,14 +1668,17 @@ function composeAnswer(query, data) {
          <i class="fas fa-robot" style="margin-right:3px"></i>${escapeHtml(llmLabel)}
        </div>`;
 
-  return `
-    <div class="ai-answer">${answer ? formatAIAnswer(answer) : fallbackText}</div>
-    ${citationsHtml}
-    ${webSourcesHtml}
-    ${providerNote}
-    ${adminMetaHtml}
-    ${renderFeedbackBlock()}
-  `;
+  //  .ai-msg 設有 white-space:pre-wrap，樣板字串中各區塊之間的換行與縮排
+  //  會被原樣渲染；當引用來源、網路來源、管理員資訊皆為空字串時，就會留下
+  //  數行空白，答案與底部摘要之間出現大片空隙。改為過濾空區塊後直接相接。
+  return [
+    `<div class="ai-answer">${answer ? formatAIAnswer(answer) : fallbackText}</div>`,
+    citationsHtml,
+    webSourcesHtml,
+    providerNote,
+    adminMetaHtml,
+    renderFeedbackBlock(),
+  ].filter(part => String(part || "").trim()).join("");
 }
 
 // ── 5大選單完整資料快照（依選單結構注入 Groq 上下文）──────────────

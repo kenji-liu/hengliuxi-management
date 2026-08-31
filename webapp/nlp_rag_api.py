@@ -2617,6 +2617,11 @@ def _rerank_for_currency(query: str, docs: "List[Dict[str, Any]]",
     return [item for _, item in ranked]
 
 
+#  模型宣稱平台沒有資料的常見說法；用於在未查文件時攔下並強制補查。
+_NO_DATA_CLAIM = re.compile(
+    r"查無|未收錄|沒有(?:相關)?(?:資料|紀錄)|無(?:法|相關)(?:提供|資料|紀錄)"
+    r"|未(?:載|記載|提供)|不存在於|平台(?:並)?未")
+
 def _run_agent_events(query: str, snapshot: Dict[str, Any], grounding: str,
                       config: Dict[str, Any], max_rounds: int = 0,
                       history: Optional[List[Dict[str, str]]] = None,
@@ -2941,6 +2946,25 @@ def _run_agent_events(query: str, snapshot: Dict[str, Any], grounding: str,
                     "content": ("這一題的數量、年度與現況必須以平台資料為準，"
                                 "請先呼叫對應工具取得資料後再作答，不要憑既有"
                                 "印象回覆，也不要說自己沒有資料。"),
+                })
+                continue
+
+            #  未查文件就宣稱查無 —— 強制補查一次。
+            #  needs_tool 只涵蓋統計、物種、現況三類路由；問「報告書裡的公式、
+            #  參數、方法」不屬其中任何一類，因此不會被攔下。實測「防砂設施
+            #  土砂防治量的估算公式為何」時，模型僅呼叫 query_facilities
+            #  （rag_ms 0），查不到欄位便回「查無相關資料」，但該公式確實存在
+            #  於索引中。系統提示已載明此規則，惟模型未必遵循，故於程式層強制。
+            if (not is_last
+                    and "search_documents" not in tools_used
+                    and _NO_DATA_CLAIM.search(text or "")):
+                messages.append({
+                    "role": "user",
+                    "content": ("你尚未呼叫 search_documents，不得宣稱平台沒有這項"
+                                "資料。報告書算出的公式、參數、方法與量化成果只存在"
+                                "於文件中，結構化工具查不到是正常的。請立即以文件會"
+                                "使用的詞彙呼叫 search_documents（必要時換同義詞多查"
+                                "幾組），確認確實沒有之後再說查無。"),
                 })
                 continue
 
