@@ -3906,9 +3906,12 @@ function renderVegetation() {
         ['fa-leaf',         '#16a34a','#f0fdf4', '90 種',  '植物總種數（全區）'],
         ['fa-layer-group',  '#1d4ed8','#eff6ff', '37 科',  '植物科數'],
         ['fa-seedling',     '#0f766e','#f0fdfa', '14 種',  '蕨類植物'],
-        //  以下兩張卡的分母是「全區 90 種」，而下方表 6-36 只列 15 種優勢種。
-        //  未標明分母時，讀者會把卡片的 9 種與表中可見的 2 種誤讀為前後不一致。
-        ['fa-exclamation-triangle','#dc2626','#fee2e2', '9 種', '外來入侵種（全區 90 種中）'],
+        //  原為「9 種外來入侵種」。比對期中報告書全書 261 頁後確認：「入侵」
+        //  僅出現於 p.194 且係魚類段落，植物段 p.233-238 未載入侵種數；再掃
+        //  專案內 172 份 PDF 亦無出處，故該數字無可回溯依據，予以移除。
+        //  改列報告書名錄實際標記者：p.234-238 名錄中標「*」之外來種共 29 種
+        //  （「外來種」涵蓋歸化種，範圍大於「外來入侵種」，不可互換）。
+        ['fa-exclamation-triangle','#dc2626','#fee2e2', '29 種', '外來種（名錄標 *）'],
         ['fa-star',         '#92400e','#fef9c3',  '4 種',  '臺灣特有種（全區 90 種中）'],
         ['fa-chart-pie',    '#7c3aed','#f5f3ff', '87%',   'NDVI 森林覆蓋']
       ].map(([ic,col,bg,val,lbl]) => `
@@ -3932,7 +3935,7 @@ function renderVegetation() {
           五節芒優勢植群（相對豐度31.82%），伴生大花咸豐草（歸化）、山黃麻、九芎、水柳等濱溪植物
         </div>
         <div style="background:#eff6ff;border-radius:8px;padding:12px 14px">
-          <div style="font-weight:700;color:#1d4ed8;margin-bottom:4px"><i class="fas fa-exclamation-circle" style="margin-right:5px"></i>外來入侵種（全區 9 種，以下列主要者）</div>
+          <div style="font-weight:700;color:#1d4ed8;margin-bottom:4px"><i class="fas fa-exclamation-circle" style="margin-right:5px"></i>外來種（名錄 29 種，以下列主要威脅者）</div>
           銀合歡、大花咸豐草、小花蔓澤蘭為主要入侵威脅，需持續監測清除
         </div>
         <div style="background:#f5f3ff;border-radius:8px;padding:12px 14px">
@@ -3947,7 +3950,7 @@ function renderVegetation() {
       <div style="font-size:17px;font-weight:800;color:#0f172a;margin-bottom:14px">
         <i class="fas fa-chart-bar" style="color:#16a34a;margin-right:7px"></i>主要植被統計表（表6-36 ｜ 優勢種 ${VEG_DOMINANT.length} 種，相對豐度合計 ${VEG_DOMINANT.reduce((n,v)=>n+v.pct,0).toFixed(2)}%）
         <span style="font-size:15px;font-weight:600;color:#b91c1c">・本表含外來入侵 ${invasiveCount} 種</span>
-        <span style="font-size:15px;font-weight:600;color:#64748b">，其餘 ${9 - invasiveCount} 種未達優勢種門檻</span>
+        <span style="font-size:15px;font-weight:600;color:#64748b">，其餘外來種未達優勢種門檻</span>
       </div>
       <div style="overflow-x:auto">
         <table style="width:100%;border-collapse:collapse;font-size:19px;min-width:500px">
@@ -3986,14 +3989,14 @@ function renderVegetation() {
         </table>
       </div>
       <div style="margin-top:10px;font-size:20px;color:#94a3b8">
-        * 標示外來入侵種（紅色）；# 標示臺灣特有種（橙色）｜資料來源：期中報告書 p.234
+        * 標示外來種（紅色）；# 標示臺灣特有種（橙色）｜資料來源：期中報告書 p.234 表6-36、名錄 p.234–238
       </div>
       <div style="margin-top:8px;font-size:18px;line-height:1.6;color:#64748b;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px">
         <i class="fas fa-circle-info" style="color:#0369a1;margin-right:5px"></i>
         <b>與上方統計卡的對應：</b>本表為<b>優勢種節錄</b>（表6-36），非全區物種名錄。
-        全區調查共 90 種、其中外來入侵種 <b>9 種</b>；本表僅涵蓋其中
+        全區調查共 90 種、其中名錄標「*」之外來種 <b>29 種</b>；本表僅涵蓋其中
         <b>${VEG_DOMINANT.filter(v=>v.invasive).length} 種</b>（${VEG_DOMINANT.filter(v=>v.invasive).map(v=>v.name).join('、')}），
-        小花蔓澤蘭等其餘入侵種未達優勢種門檻，故未列於本表。
+        小花蔓澤蘭等其餘外來種未達優勢種門檻，故未列於本表。
       </div>
     </div>
 

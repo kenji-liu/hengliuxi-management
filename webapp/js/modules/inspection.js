@@ -1782,7 +1782,7 @@ function renderManualInspectionGuide() {
         <div>
           <div style="font-size:17px;color:rgba(255,255,255,.75);margin-bottom:8px;letter-spacing:.5px">
             <i class="fas fa-book-open" style="margin-right:8px"></i>
-            農業部林業及自然保育署臺中分署 ／ Ver1.0 ／ 114年8月
+            農業部林業及自然保育署臺中分署 ／ Ver2.0 ／ 115年8月
           </div>
           <h2 style="margin:0 0 10px;font-size:34px;font-weight:900;color:#fff;letter-spacing:-.3px">
             <i class="fas fa-hard-hat" style="color:#fbbf24;margin-right:12px"></i>橫流溪重要設施維護管理
