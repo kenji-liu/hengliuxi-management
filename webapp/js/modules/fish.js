@@ -3716,6 +3716,10 @@ let vegMap = null;
 /* 植被統計表（期中報告書 表6-36，p.234） */
 const VEG_DOMINANT = [
   { name: '五節芒',     pct: 31.82, family: '禾本科', type: '原生', invasive: false, endemic: false },
+  //  2026-08 補列：期中報告書 p.234 表 6-36 原表共 16 種，本清單原缺臺灣五葉松
+  //  （9 株、10.23%，全表相對多度第二高，且為名錄中標 # 的臺灣特有種之一）。
+  //  原 15 種合計 89.79%，補列後為 100.02%，與原表湊 100% 的口徑一致。
+  { name: '臺灣五葉松', pct: 10.23, family: '松科',   type: '原生', invasive: false, endemic: true  },
   { name: '大花咸豐草', pct: 13.64, family: '菊科',   type: '歸化', invasive: true,  endemic: false },
   { name: '構樹',       pct:  5.68, family: '桑科',   type: '原生', invasive: false, endemic: false },
   { name: '竹葉草',     pct:  4.55, family: '禾本科', type: '原生', invasive: false, endemic: false },
@@ -3957,7 +3961,7 @@ function renderVegetation() {
             </tr>
           </thead>
           <tbody>
-            ${VEG_DOMINANT.map((v, i) => {
+            ${VEG_DOMINANT.slice().sort((a,b)=>b.pct-a.pct).map((v, i) => {
               const barW = Math.round((v.pct / 31.82) * 100);
               const barColor = v.invasive ? '#dc2626' : v.endemic ? '#92400e' : '#16a34a';
               const badgeHtml = v.invasive
