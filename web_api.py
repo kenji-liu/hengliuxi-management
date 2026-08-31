@@ -111,6 +111,10 @@ def make_gdrive_url(media_path):
     if ext == '.pdf':
         # Google Drive 內嵌 PDF 預覽
         return f"https://drive.google.com/file/d/{file_id}/preview"
+    elif ext in ('.pptx', '.ppt', '.docx', '.doc', '.xlsx', '.xls'):
+        # Office 檔案：Drive 也提供 /preview 線上檢視。
+        # 不可落到最後的 lh3 分支 —— 那是圖片 CDN，對簡報會回 404。
+        return f"https://drive.google.com/file/d/{file_id}/preview"
     elif ext in ('.mp4', '.mov', '.avi', '.mkv', '.wmv'):
         # 影片：Google Drive 播放頁
         return f"https://drive.google.com/file/d/{file_id}/preview"
@@ -150,7 +154,10 @@ def make_onedrive_redirect_url(media_path):
 ALLOWED_MEDIA_EXTENSIONS = {
     '.pdf', '.mp4', '.mov', '.avi', '.mkv', '.wmv',
     '.jpg', '.jpeg', '.png', '.gif', '.webp',
-    '.xlsx', '.xls', '.csv', '.json', '.md', '.qgis'
+    '.xlsx', '.xls', '.csv', '.json', '.md', '.qgis',
+    # 簡報與 Word：書架有簡報型來源（如大雪山黑熊監測研討會簡報），
+    # 未列入時 /media/ 一律回 403，Google Drive 備援也走不到。
+    '.pptx', '.ppt', '.docx', '.doc'
 }
 
 # 與 webapp/serve_static.py 的 NO_CACHE_EXTS 保持一致，避免瀏覽器快取舊版前端程式碼
