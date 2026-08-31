@@ -384,6 +384,15 @@ def normalize_source_name(doc: Dict[str, Any]) -> str:
     source_file = doc.get('source_file') or ''
     source_path = doc.get('source_path') or ''
 
+    #  衍生資料集（圖面判讀、座標計算等）的 source_file 是描述性名稱、沒有副檔名，
+    #  source_path 則指向產生它的 JSON。此時不能改用路徑檔名 ——
+    #  會變成 leopardcat_cameras.json / briefing_slides.json，
+    #  接著被 answer_engine.filter_retrieved_docs 的 .json 過濾器整批丟掉
+    #  （該過濾器的用意是排除平台實作用的索引檔，不是排除這類可引用的資料集）。
+    #  實測：座標資料集關鍵字排名第 1（14.25 分）卻完全檢索不到，即為此因。
+    if source_file and not re.search(r'\.[A-Za-z0-9]{1,5}$', str(source_file)):
+        return try_fix_mojibake(source_file)
+
     if source_path:
         fixed_path = try_fix_mojibake(source_path)
         fixed_name = Path(fixed_path.replace('\\', '/')).name
