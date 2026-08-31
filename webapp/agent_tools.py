@@ -310,6 +310,26 @@ TOOL_SCHEMAS: List[Dict[str, Any]] = [
     {
         "type": "function",
         "function": {
+            "name": "search_nearby_poi",
+            "description": (
+                "查詢橫流溪周邊的生活服務地點：便利商店、住宿、餐飲、加油站、"
+                "醫療、藥局、停車、廁所、露營地、交通站點。資料來自 OpenStreetMap，"
+                "免費且免金鑰，回傳店名與直線距離。問「附近有沒有…」「哪裡可以…」"
+                "這類地點問題時，優先使用本工具，不要用 web_search——"
+                "網路搜尋對這類問題會回傳行政區的百科條目而非店家。"
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string",
+                              "description": "使用者的原始問句，例如「附近有便利商店嗎」"},
+                    "radius_km": {"type": "integer",
+                                  "description": "搜尋半徑（公里），預設 20；山區店家稀疏不宜過小"},
+                },
+                "required": ["query"],
+            },
+        }},
+        {"type": "function", "function": {
             "name": "web_search",
             "description": (
                 "外部網路檢索。僅在平台資料查不到、且問題涉及一般專業知識、"
@@ -1131,6 +1151,15 @@ def execute_tool(name: str, arguments: Dict[str, Any], snapshot: Dict[str, Any],
         elif name == "search_briefing":
             result = search_briefing(str(args.get("query") or ""), args.get("page"),
                                      str(args.get("section") or ""), args.get("limit") or 4)
+        elif name == "search_nearby_poi":
+            #  周邊生活服務改走 OpenStreetMap，不走網路搜尋：
+            #  實測 DuckDuckGo 對「附近有哪些便利商店」只回傳和平區、谷關、
+            #  大甲溪的維基百科，且免費搜尋會限流；Overpass 免金鑰且回傳
+            #  店名與座標，可直接算距離。
+            from webapp import poi_search as _poi
+            _r = int(args.get("radius_km") or 20)
+            result = _poi.search_nearby(str(args.get("query") or ""),
+                                        radius_m=max(1, min(_r, 50)) * 1000)
         elif name == "web_search":
             result = web_search(searcher, str(args.get("query") or ""))
         else:
